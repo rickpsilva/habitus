@@ -25,7 +25,9 @@ public class ExceptionHandlingMiddleware
             _logger.LogError(ex, "Unhandled exception");
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
-            var response = JsonSerializer.Serialize(new { error = ex.Message });
+            var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+            var message = isDevelopment ? ex.Message : "An internal error occurred.";
+            var response = JsonSerializer.Serialize(new { error = message });
             await context.Response.WriteAsync(response);
         }
     }
