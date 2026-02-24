@@ -11,7 +11,9 @@ public class AzureCommunicationEmailService : IEmailService
 
     public AzureCommunicationEmailService(IConfiguration configuration)
     {
-        _client = new EmailClient(configuration["AzureCommunication:ConnectionString"]);
+        var connectionString = configuration["AzureCommunication:ConnectionString"]
+            ?? throw new InvalidOperationException("AzureCommunication:ConnectionString is not configured.");
+        _client = new EmailClient(connectionString);
         _senderEmail = configuration["AzureCommunication:SenderEmail"] ?? "noreply@habitus.com";
     }
 

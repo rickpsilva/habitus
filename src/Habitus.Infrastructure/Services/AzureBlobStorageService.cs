@@ -19,7 +19,7 @@ public class AzureBlobStorageService : IBlobStorageService
     public async Task<string> UploadAsync(Stream stream, string fileName, string contentType)
     {
         var container = _client.GetBlobContainerClient(_containerName);
-        await container.CreateIfNotExistsAsync(PublicAccessType.Blob);
+        await container.CreateIfNotExistsAsync(PublicAccessType.None);
         var blob = container.GetBlobClient(fileName);
         await blob.UploadAsync(stream, new BlobHttpHeaders { ContentType = contentType });
         return blob.Uri.ToString();

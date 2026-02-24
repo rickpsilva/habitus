@@ -64,7 +64,11 @@ public class AuthService
 
     private string GenerateToken(Resident resident)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]!));
+        var secretKey = _configuration["JwtSettings:SecretKey"]
+            ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
+        var expiryMinutes = _configuration["JwtSettings:ExpiryMinutes"]
+            ?? throw new InvalidOperationException("JwtSettings:ExpiryMinutes is not configured.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new[]
         {
@@ -77,7 +81,7 @@ public class AuthService
             issuer: _configuration["JwtSettings:Issuer"],
             audience: _configuration["JwtSettings:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(double.Parse(_configuration["JwtSettings:ExpiryMinutes"]!)),
+            expires: DateTime.UtcNow.AddMinutes(double.Parse(expiryMinutes)),
             signingCredentials: credentials);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

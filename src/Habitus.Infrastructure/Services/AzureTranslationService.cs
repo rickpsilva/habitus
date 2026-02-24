@@ -11,8 +11,10 @@ public class AzureTranslationService : ITranslationService
 
     public AzureTranslationService(IConfiguration configuration)
     {
-        var key = configuration["AzureTranslation:Key"] ?? string.Empty;
-        var region = configuration["AzureTranslation:Region"] ?? string.Empty;
+        var key = configuration["AzureTranslation:Key"]
+            ?? throw new InvalidOperationException("AzureTranslation:Key is not configured.");
+        var region = configuration["AzureTranslation:Region"]
+            ?? throw new InvalidOperationException("AzureTranslation:Region is not configured.");
         _client = new TextTranslationClient(new AzureKeyCredential(key), region);
     }
 
