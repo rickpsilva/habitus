@@ -1,0 +1,6 @@
+@Habitus.Api_HostAddress = http://localhost:5027
+
+GET {{Habitus.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

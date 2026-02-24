@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../tests/Habitus.Tests/Habitus.Tests.csproj" />
+  <Project Path="Habitus.Api/Habitus.Api.csproj" />
+  <Project Path="Habitus.Application/Habitus.Application.csproj" />
+  <Project Path="Habitus.Domain/Habitus.Domain.csproj" />
+  <Project Path="Habitus.Infrastructure/Habitus.Infrastructure.csproj" />
+</Solution>
