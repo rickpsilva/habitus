@@ -1,2 +1,121 @@
-# habitus
-Habitus condominium
+# Habitus — Condominium Management Platform
+
+Habitus is a modern condominium management platform built with **.NET 8** and a clean, modular architecture. It covers all administrative, financial, and operational needs of residential buildings.
+
+## Features
+
+- **Resident & Unit Management** — manage buildings, units, and resident profiles
+- **Document Storage** — insurance policies, receipts, meeting minutes (Azure Blob Storage)
+- **Maintenance Requests** — photo attachments, location details, multi‑resident confirmation workflow
+- **Interventions & Suppliers** — scheduled interventions linked to supplier contacts
+- **Financial Tracking** — income/expense records, receipts, and summary reports
+- **Digital Assemblies** — attendance tracking and decision recording
+- **Shared‑Space Reservations** — booking with conflict detection
+- **Notifications & Alerts** — role‑targeted messages (Azure Communication Services)
+- **Useful Contacts** — emergency, service, and administrative contacts
+- **Optional Translation** — Azure AI Translator for multilingual residents
+
+## Architecture
+
+```
+src/
+├── Habitus.Domain/         # Domain entities and enums
+├── Habitus.Application/    # Services, DTOs, and interfaces
+├── Habitus.Infrastructure/ # EF Core (PostgreSQL), Azure services, repositories
+└── Habitus.Api/            # ASP.NET Core Web API, JWT auth, Swagger
+
+tests/
+└── Habitus.Tests/          # xUnit unit tests
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Runtime | .NET 8 |
+| API | ASP.NET Core Web API |
+| ORM | EF Core + Npgsql (PostgreSQL) |
+| Auth | JWT Bearer, BCrypt password hashing |
+| Storage | Azure Blob Storage |
+| Email | Azure Communication Services |
+| Translation | Azure AI Translator |
+| Secrets | Azure Key Vault |
+| Containers | Docker + Docker Compose |
+
+## Getting Started
+
+### Prerequisites
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Docker](https://www.docker.com/) + Docker Compose
+
+### Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+The API will be available at `http://localhost:8080`.  
+Swagger UI is at `http://localhost:8080/swagger`.
+
+### Run locally
+
+```bash
+# Start PostgreSQL
+docker compose up postgres -d
+
+# Run database migrations
+cd src/Habitus.Api
+dotnet ef database update
+
+# Start the API
+dotnet run
+```
+
+### Configuration
+
+Copy `src/Habitus.Api/appsettings.json` and set the following via environment variables or Azure Key Vault in production:
+
+| Key | Description |
+|-----|-------------|
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string |
+| `JwtSettings__SecretKey` | JWT signing secret (use a strong random key in production) |
+| `AzureStorage__ConnectionString` | Azure Blob Storage connection string |
+| `AzureCommunication__ConnectionString` | Azure Communication Services connection string |
+| `AzureTranslation__Key` | Azure Translator API key |
+
+## API Endpoints
+
+| Controller | Base Path |
+|-----------|-----------|
+| Auth | `/api/auth` |
+| Residents | `/api/residents` |
+| Units | `/api/units` |
+| Documents | `/api/documents` |
+| Maintenance | `/api/maintenance` |
+| Suppliers | `/api/suppliers` |
+| Financial | `/api/financial` |
+| Assemblies | `/api/assemblies` |
+| Reservations | `/api/reservations` |
+| Shared Spaces | `/api/shared-spaces` |
+| Notifications | `/api/notifications` |
+| Useful Contacts | `/api/useful-contacts` |
+
+Full interactive documentation is available via Swagger at `/swagger`.
+
+## Roles
+
+| Role | Access |
+|------|--------|
+| `Admin` | Full access to all endpoints |
+| `Resident` | Read/create access to most endpoints; no admin-only operations |
+
+## Running Tests
+
+```bash
+dotnet test src/Habitus.slnx
+```
+
+## Deployment
+
+The application is ready to deploy to **Azure App Service** or **Azure Container Apps**.  
+Use Azure Key Vault and managed identities to secure secrets in production.
