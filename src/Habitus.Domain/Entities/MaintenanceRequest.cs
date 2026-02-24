@@ -1,0 +1,22 @@
+namespace Habitus.Domain.Entities;
+
+public enum MaintenanceStatus { Open, InProgress, Resolved, Closed }
+public enum MaintenancePriority { Low, Medium, High, Critical }
+
+public class MaintenanceRequest
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public MaintenanceStatus Status { get; set; } = MaintenanceStatus.Open;
+    public MaintenancePriority Priority { get; set; } = MaintenancePriority.Medium;
+    public Guid UnitId { get; set; }
+    public Guid CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ResolvedAt { get; set; }
+    public List<string> Photos { get; set; } = new();
+    public string Location { get; set; } = string.Empty;
+    public Unit Unit { get; set; } = null!;
+    public ICollection<MaintenanceConfirmation> Confirmations { get; set; } = new List<MaintenanceConfirmation>();
+    public ICollection<Intervention> Interventions { get; set; } = new List<Intervention>();
+}
