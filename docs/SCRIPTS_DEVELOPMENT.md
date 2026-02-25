@@ -32,7 +32,7 @@ Para iniciar tudo em um comando (BD + API + Web App):
 Isto:
 1. ✓ Inicia PostgreSQL
 2. ✓ Restaura dependências .NET
-3. ✓ Aplica migrações
+3. ✓ Cria e aplica migrações (incluindo dados iniciais)
 4. ✓ Restaura dependências Node.js
 5. ✓ Inicia API e Web App em paralelo
 
@@ -62,7 +62,8 @@ Para um menu interativo com mais opções:
 6) Executar testes
 7) Compilar projeto (.NET)
 8) Compilar Web App
-9) Reset base de dados (apagar dados)
+9) Criar Admin User
+10) Reset base de dados (apagar dados)
 0) Sair
 ```
 
@@ -95,6 +96,9 @@ Para um menu interativo com mais opções:
 
 # Compilar Web App
 ./run-local.sh build-web
+
+# Criar Admin User (API deve estar a rodar)
+./run-local.sh create-admin
 
 # Reset BD (apagar dados)
 ./run-local.sh reset-db
@@ -177,6 +181,75 @@ curl -X GET http://localhost:5027/api/residents \
 ### 3. Documentação Interativa
 
 Visita http://localhost:5027/swagger para explorar todos os endpoints.
+
+---
+
+## 👤 Criar Admin User
+
+Depois da aplicação estar em execução, podes criar um utilizador admin facilmente:
+
+### Via Script (Recomendado)
+
+```bash
+# Menu interativo
+./run-local.sh
+# Escolhe a opção 9: "Criar Admin User"
+
+# Ou diretamente
+./run-local.sh create-admin
+```
+
+O script vai pedir:
+- **Nome** (default: Admin User)
+- **Email** (default: admin@habitus.com)
+- **Telefone** (default: +351912345678)
+- **Password** (não é mostrada enquanto escreves)
+- **Unit ID** (default: 00000000-0000-0000-0000-000000000001 — já existe de forma automática)
+
+Depois mostra as credenciais para fazer login.
+
+**Nota:** O Unit ID padrão é criado automaticamente durante as migrações da base de dados (seeding). Podes usar os valores padrão sem problemas!
+
+### Via Swagger (Manual)
+
+1. Acede a http://localhost:5027/swagger
+2. Procura `POST /api/auth/register`
+3. Clica em "Try it out"
+4. Preenche com:
+
+```json
+{
+  "name": "Admin User",
+  "email": "admin@habitus.com",
+  "phone": "+351912345678",
+  "password": "AdminPassword123!",
+  "unitId": "00000000-0000-0000-0000-000000000001",
+  "role": "Admin"
+}
+```
+
+5. Clica "Execute"
+
+### Fazer Login
+
+```bash
+curl -X POST http://localhost:5027/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@habitus.com",
+    "password": "AdminPassword123!"
+  }'
+```
+
+Resposta com token:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR...",
+  "email": "admin@habitus.com",
+  "name": "Admin User",
+  "role": "Admin"
+}
+```
 
 ---
 

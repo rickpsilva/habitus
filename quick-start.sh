@@ -35,8 +35,21 @@ echo -e "${GREEN}✓ Dependências .NET restauradas${NC}"
 echo ""
 
 # Migrações BD
-echo -e "${BLUE}3. Aplicando migrações...${NC}"
-dotnet ef database update >/dev/null 2>&1 || sleep 2 && dotnet ef database update >/dev/null 2>&1
+echo -e "${BLUE}3. Criando e aplicando migrações...${NC}"
+
+# Verifica se há migrations folder, se não cria a inicial
+INFRA_DIR="$PROJECT_ROOT/src/Habitus.Infrastructure"
+if [ ! -d "$INFRA_DIR/Migrations" ]; then
+    echo -e "${BLUE}ℹ Criando migração inicial...${NC}"
+    dotnet ef migrations add InitialCreate --project "$INFRA_DIR" >/dev/null 2>&1
+fi
+
+# Aplica as migrations
+if ! dotnet ef database update; then
+    echo -e "${RED}Tentando novamente em 2 segundos...${NC}"
+    sleep 2
+    dotnet ef database update
+fi
 echo -e "${GREEN}✓ Migrações aplicadas${NC}"
 echo ""
 

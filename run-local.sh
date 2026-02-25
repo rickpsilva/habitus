@@ -300,6 +300,66 @@ build_web() {
     echo ""
 }
 
+create_admin() {
+    separator
+    log_info "Criando utilizador Admin..."
+    separator
+
+    # Verifica se a API está a rodar
+    if ! curl -s http://localhost:5027/swagger >/dev/null 2>&1; then
+        log_error "API não está a rodar em http://localhost:5027"
+        log_info "Inicia a API primeiro com: ./run-local.sh api"
+        echo ""
+        return 1
+    fi
+
+    log_info "Registar novo Admin"
+    echo ""
+    read -p "Nome (default: Admin User): " admin_name
+    admin_name=${admin_name:-"Admin User"}
+
+    read -p "Email (default: admin@habitus.com): " admin_email
+    admin_email=${admin_email:-"admin@habitus.com"}
+
+    read -p "Telefone (default: +351912345678): " admin_phone
+    admin_phone=${admin_phone:-"+351912345678"}
+
+    read -sp "Password: " admin_password
+    echo ""
+
+    read -p "Unit ID (default: 00000000-0000-0000-0000-000000000001): " unit_id
+    unit_id=${unit_id:-"00000000-0000-0000-0000-000000000001"}
+
+    echo ""
+    log_info "Enviando pedido de registro..."
+
+    response=$(curl -s -X POST http://localhost:5027/api/auth/register \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"$admin_name\",
+            \"email\": \"$admin_email\",
+            \"phone\": \"$admin_phone\",
+            \"password\": \"$admin_password\",
+            \"unitId\": \"$unit_id\",
+            \"role\": \"Admin\"
+        }")
+
+    # Verifica resposta
+    if echo "$response" | grep -q "token"; then
+        log_success "Admin criado com sucesso! ✓"
+        echo ""
+        log_info "Credenciais:"
+        echo -e "  ${GREEN}Email:    $admin_email${NC}"
+        echo -e "  ${GREEN}Password: $admin_password${NC}"
+        echo -e "  ${GREEN}Role:     Admin${NC}"
+        echo ""
+    else
+        log_error "Erro ao criar admin"
+        echo "$response" | grep -o "\".*\"" | head -1 || echo "$response"
+        echo ""
+    fi
+}
+
 show_menu() {
     separator
     echo -e "${BLUE}Habitus - Local Development Runner${NC}"
@@ -313,7 +373,8 @@ show_menu() {
     echo -e "  ${GREEN}6${NC}) Executar testes"
     echo -e "  ${GREEN}7${NC}) Compilar projeto (.NET)"
     echo -e "  ${GREEN}8${NC}) Compilar Web App"
-    echo -e "  ${GREEN}9${NC}) Reset base de dados (apagar dados)"
+    echo -e "  ${GREEN}9${NC}) Criar Admin User"
+    echo -e "  ${GREEN}10${NC}) Reset base de dados (apagar dados)"
     echo -e "  ${GREEN}0${NC}) Sair"
     separator
 }
@@ -377,11 +438,14 @@ main() {
                 install_web_dependencies
                 build_web
                 ;;
+            create-admin)
+                create_admin
+                ;;
             reset-db)
                 reset_database
                 ;;
             *)
-                echo "Uso: $0 [run|run-all|start-db|stop-db|api|web|test|build|build-web|reset-db]"
+                echo "Uso: $0 [run|run-all|start-db|stop-db|api|web|test|build|build-web|create-admin|reset-db]"
                 exit 1
                 ;;
         esac
@@ -443,6 +507,10 @@ main() {
                     build_web
                     ;;
                 9)
+                    echo ""
+                    create_admin
+                    ;;
+                10)
                     echo ""
                     reset_database
                     ;;
