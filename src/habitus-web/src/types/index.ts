@@ -32,7 +32,17 @@ export interface UnitDto {
   id: string;
   number: string;
   floor: number;
+  type: number;
+  permillage: number;
   buildingId: string;
+}
+
+export interface CreateUnitRequest {
+  buildingId: string;
+  number: string;
+  floor: number;
+  type: number;
+  permillage: number;
 }
 
 export interface MaintenanceRequestDto {

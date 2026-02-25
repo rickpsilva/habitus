@@ -11,6 +11,7 @@ import ReservationsPage from './pages/ReservationsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import AssembliesPage from './pages/AssembliesPage';
 import ResidentsPage from './pages/ResidentsPage';
+import UnitsPage from './pages/UnitsPage';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/assemblies" element={<AssembliesPage />} />
             <Route path="/residents" element={<ResidentsPage />} />
+            <Route path="/units" element={<UnitsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

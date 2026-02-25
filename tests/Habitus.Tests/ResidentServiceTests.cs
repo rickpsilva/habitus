@@ -91,4 +91,22 @@ public class ResidentServiceTests
 
         result.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task GetByUnitAsync_ReturnsResidentsForUnit()
+    {
+        var unitId = Guid.NewGuid();
+        var residents = new List<Resident>
+        {
+            new() { Id = Guid.NewGuid(), Name = "Alice", Email = "alice@test.com", UnitId = unitId, Role = ResidentRole.Resident },
+            new() { Id = Guid.NewGuid(), Name = "Bob", Email = "bob@test.com", UnitId = unitId, Role = ResidentRole.Resident },
+        };
+        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Resident, bool>>>()))
+            .ReturnsAsync(residents);
+
+        var result = await _service.GetByUnitAsync(unitId);
+
+        result.Should().HaveCount(2);
+        result.All(r => r.UnitId == unitId).Should().BeTrue();
+    }
 }

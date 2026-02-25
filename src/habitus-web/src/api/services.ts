@@ -14,6 +14,7 @@ import type {
   AssemblyDto,
   ResidentDto,
   UnitDto,
+  CreateUnitRequest,
 } from '../types';
 
 export const authApi = {
@@ -24,12 +25,16 @@ export const authApi = {
 export const residentsApi = {
   getAll: () => api.get<ResidentDto[]>('/residents'),
   getById: (id: string) => api.get<ResidentDto>(`/residents/${id}`),
+  getByUnit: (unitId: string) => api.get<ResidentDto[]>(`/residents/unit/${unitId}`),
   delete: (id: string) => api.delete(`/residents/${id}`),
 };
 
 export const unitsApi = {
   getAll: () => api.get<UnitDto[]>('/units'),
   getById: (id: string) => api.get<UnitDto>(`/units/${id}`),
+  create: (data: CreateUnitRequest) => api.post<UnitDto>('/units', data),
+  update: (id: string, data: Partial<CreateUnitRequest>) => api.put<UnitDto>(`/units/${id}`, data),
+  delete: (id: string) => api.delete(`/units/${id}`),
 };
 
 export const maintenanceApi = {

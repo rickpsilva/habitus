@@ -24,7 +24,8 @@ const navItems = [
   { to: '/reservations', label: 'Reservas', icon: Calendar },
   { to: '/documents', label: 'Documentos', icon: FileText },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
-  { to: '/residents', label: 'Moradores', icon: Users },
+  { to: '/units', label: 'Frações', icon: Building2, adminOnly: true },
+  { to: '/residents', label: 'Moradores', icon: Users, adminOnly: true },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -39,7 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const visibleNavItems = isAdmin
     ? navItems
-    : navItems.filter((i) => i.to !== '/residents');
+    : navItems.filter((i) => !i.adminOnly);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">

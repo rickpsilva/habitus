@@ -106,8 +106,9 @@ Full interactive documentation is available via Swagger at `/swagger`.
 
 | Role | Access |
 |------|--------|
-| `Admin` | Full access to all endpoints |
+| `Admin` | Full access to all endpoints including unit and resident management |
 | `Resident` | Read/create access to most endpoints; no admin-only operations |
+| `Manager` | Platform-level role for managing multiple condominiums (HOI – Head of Interaction) |
 
 ## Running Tests
 

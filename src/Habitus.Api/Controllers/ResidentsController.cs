@@ -17,6 +17,9 @@ public class ResidentsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
+    [HttpGet("unit/{unitId}")]
+    public async Task<IActionResult> GetByUnit(Guid unitId) => Ok(await _service.GetByUnitAsync(unitId));
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
