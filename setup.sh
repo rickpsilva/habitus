@@ -99,6 +99,28 @@ else
 fi
 echo ""
 
+# Verificar Node.js
+log_info "Verificando Node.js..."
+if ! command -v node &> /dev/null; then
+    log_error "Node.js não encontrado"
+    log_info "Descarrega em: https://nodejs.org/"
+    exit 1
+else
+    log_success "$(node --version) encontrado"
+fi
+echo ""
+
+# Verificar npm
+log_info "Verificando npm..."
+if ! command -v npm &> /dev/null; then
+    log_error "npm não encontrado"
+    log_info "Descarrega em: https://nodejs.org/"
+    exit 1
+else
+    log_success "npm $(npm --version) encontrado"
+fi
+echo ""
+
 # Resumo
 separator
 log_success "Setup completo! Todas as ferramentas estão instaladas."
