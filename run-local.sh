@@ -17,6 +17,7 @@ NC='\033[0m' # No Color
 # Diretório raiz do projeto
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_DIR="$PROJECT_ROOT/src/Habitus.Api"
+WEB_DIR="$PROJECT_ROOT/src/habitus-web"
 
 ###############################################################################
 # Funções Utilitárias
@@ -95,6 +96,20 @@ check_prerequisites() {
         fi
     else
         log_success "dotnet-ef encontrado"
+    fi
+
+    # Verificar Node.js
+    if ! command -v node &> /dev/null; then
+        missing+=("Node.js")
+    else
+        log_success "Node.js encontrado ($(node --version))"
+    fi
+
+    # Verificar npm
+    if ! command -v npm &> /dev/null; then
+        missing+=("npm")
+    else
+        log_success "npm encontrado ($(npm --version))"
     fi
 
     if [ ${#missing[@]} -gt 0 ]; then
@@ -245,21 +260,60 @@ build_project() {
     echo ""
 }
 
-###############################################################################
-# Menu Principal
-###############################################################################
+install_web_dependencies() {
+    separator
+    log_info "Instalando dependências Node.js (Web App)..."
+    separator
+
+    cd "$WEB_DIR"
+    npm install
+    log_success "Dependências da Web App instaladas"
+    echo ""
+}
+
+run_web() {
+    separator
+    log_info "Iniciando Web App (React + Vite)..."
+    separator
+
+    cd "$WEB_DIR"
+
+    log_success "Web App iniciada! 🚀"
+    echo ""
+    log_info "Endereços disponíveis:"
+    echo -e "${GREEN}  • Web App: http://localhost:5173${NC}"
+    echo ""
+    log_info "Pressiona Ctrl+C para parar a aplicação"
+    echo ""
+
+    npm run dev
+}
+
+build_web() {
+    separator
+    log_info "Compilando Web App..."
+    separator
+
+    cd "$WEB_DIR"
+    npm run build
+    log_success "Web App compilada com sucesso"
+    echo ""
+}
 
 show_menu() {
     separator
     echo -e "${BLUE}Habitus - Local Development Runner${NC}"
     separator
     echo "Opções:"
-    echo -e "  ${GREEN}1${NC}) Executar (início completo: DB + API)"
-    echo -e "  ${GREEN}2${NC}) Apenas inicia API (BD já em execução)"
-    echo -e "  ${GREEN}3${NC}) Parar base de dados"
-    echo -e "  ${GREEN}4${NC}) Executar testes"
-    echo -e "  ${GREEN}5${NC}) Compilar projeto"
-    echo -e "  ${GREEN}6${NC}) Reset base de dados (apagar dados)"
+    echo -e "  ${GREEN}1${NC}) Executar tudo (DB + API + Web)"
+    echo -e "  ${GREEN}2${NC}) Apenas API (BD já em execução)"
+    echo -e "  ${GREEN}3${NC}) Apenas Web App"
+    echo -e "  ${GREEN}4${NC}) Apenas BD"
+    echo -e "  ${GREEN}5${NC}) Parar base de dados"
+    echo -e "  ${GREEN}6${NC}) Executar testes"
+    echo -e "  ${GREEN}7${NC}) Compilar projeto (.NET)"
+    echo -e "  ${GREEN}8${NC}) Compilar Web App"
+    echo -e "  ${GREEN}9${NC}) Reset base de dados (apagar dados)"
     echo -e "  ${GREEN}0${NC}) Sair"
     separator
 }
@@ -277,7 +331,23 @@ main() {
                 start_database
                 restore_dependencies
                 apply_migrations
-                run_api
+                install_web_dependencies
+                ;;
+            run-all)
+                check_prerequisites
+                start_database
+                restore_dependencies
+                apply_migrations
+                install_web_dependencies
+                log_info "Iniciando API e Web App em paralelo..."
+                log_info "Pressiona Ctrl+C para parar tudo"
+                # Inicia ambas em background, depois traz para foreground
+                (cd "$API_DIR" && dotnet run) &
+                API_PID=$!
+                sleep 2
+                (cd "$WEB_DIR" && npm run dev) &
+                WEB_PID=$!
+                wait
                 ;;
             start-db)
                 check_prerequisites
@@ -291,6 +361,10 @@ main() {
                 apply_migrations
                 run_api
                 ;;
+            web)
+                install_web_dependencies
+                run_web
+                ;;
             test)
                 check_prerequisites
                 run_tests
@@ -299,11 +373,15 @@ main() {
                 check_prerequisites
                 build_project
                 ;;
+            build-web)
+                install_web_dependencies
+                build_web
+                ;;
             reset-db)
                 reset_database
                 ;;
             *)
-                echo "Uso: $0 [run|start-db|stop-db|api|test|build|reset-db]"
+                echo "Uso: $0 [run|run-all|start-db|stop-db|api|web|test|build|build-web|reset-db]"
                 exit 1
                 ;;
         esac
@@ -321,7 +399,16 @@ main() {
                     start_database
                     restore_dependencies
                     apply_migrations
-                    run_api
+                    install_web_dependencies
+                    log_info "Iniciando API e Web App em paralelo..."
+                    log_info "Pressiona Ctrl+C para parar tudo"
+                    echo ""
+                    (cd "$API_DIR" && dotnet run) &
+                    API_PID=$!
+                    sleep 2
+                    (cd "$WEB_DIR" && npm run dev) &
+                    WEB_PID=$!
+                    wait
                     ;;
                 2)
                     echo ""
@@ -331,17 +418,31 @@ main() {
                     ;;
                 3)
                     echo ""
-                    stop_database
+                    install_web_dependencies
+                    run_web
                     ;;
                 4)
                     echo ""
-                    run_tests
+                    start_database
                     ;;
                 5)
                     echo ""
-                    build_project
+                    stop_database
                     ;;
                 6)
+                    echo ""
+                    run_tests
+                    ;;
+                7)
+                    echo ""
+                    build_project
+                    ;;
+                8)
+                    echo ""
+                    install_web_dependencies
+                    build_web
+                    ;;
+                9)
                     echo ""
                     reset_database
                     ;;
