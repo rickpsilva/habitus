@@ -19,3 +19,7 @@ project.lock.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Node / Frontend
+src/habitus-web/node_modules/
+src/habitus-web/dist/

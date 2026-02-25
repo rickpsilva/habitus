@@ -30,9 +30,19 @@ services:
       - JwtSettings__Issuer=habitus
       - JwtSettings__Audience=habitus-users
       - JwtSettings__ExpiryMinutes=60
+      - AllowedOrigins=http://localhost:3000
     depends_on:
       postgres:
         condition: service_healthy
+
+  web:
+    build:
+      context: ./src/habitus-web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
