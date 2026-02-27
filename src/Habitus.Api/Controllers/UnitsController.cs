@@ -42,6 +42,7 @@ public class UnitsController : ControllerBase
         existing.Number = unit.Number;
         existing.Floor = unit.Floor;
         existing.Type = unit.Type;
+        existing.Permillage = unit.Permillage;
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
         return Ok(existing);

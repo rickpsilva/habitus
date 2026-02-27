@@ -1,6 +1,6 @@
 namespace Habitus.Domain.Entities;
 
-public enum ResidentRole { Admin, Resident }
+public enum ResidentRole { Admin, Resident, Manager }
 
 public class Resident
 {

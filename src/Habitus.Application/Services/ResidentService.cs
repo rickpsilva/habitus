@@ -19,6 +19,12 @@ public class ResidentService
         return residents.Select(MapToDto);
     }
 
+    public async Task<IEnumerable<ResidentDto>> GetByUnitAsync(Guid unitId)
+    {
+        var residents = await _repository.FindAsync(r => r.UnitId == unitId);
+        return residents.Select(MapToDto);
+    }
+
     public async Task<ResidentDto?> GetByIdAsync(Guid id)
     {
         var resident = await _repository.GetByIdAsync(id);

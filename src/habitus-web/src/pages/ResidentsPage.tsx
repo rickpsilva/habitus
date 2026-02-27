@@ -1,28 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Users, Trash2, Mail, Phone, Home } from 'lucide-react';
-import { residentsApi } from '../api/services';
+import { residentsApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { ResidentDto } from '../types';
+import type { ResidentDto, UnitDto } from '../types';
 
 const roleLabels: Record<string, string> = {
   Admin: 'Administrador',
   Resident: 'Morador',
+  Manager: 'Gestor',
 };
 
 const roleColors: Record<string, string> = {
   Admin: 'bg-indigo-100 text-indigo-700',
   Resident: 'bg-gray-100 text-gray-600',
+  Manager: 'bg-emerald-100 text-emerald-700',
 };
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
   const [residents, setResidents] = useState<ResidentDto[]>([]);
+  const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterUnitId, setFilterUnitId] = useState('');
 
   const load = () => {
     setLoading(true);
-    residentsApi.getAll().then((r) => setResidents(r.data)).finally(() => setLoading(false));
+    Promise.all([
+      residentsApi.getAll().then((r) => setResidents(r.data)),
+      unitsApi.getAll().then((r) => setUnits(r.data)),
+    ]).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -33,11 +40,18 @@ export default function ResidentsPage() {
     load();
   };
 
-  const filtered = residents.filter(
-    (r) =>
+  const unitLabel = (unitId: string) => {
+    const u = units.find((u) => u.id === unitId);
+    return u ? `Fração ${u.number} – Piso ${u.floor}` : `${unitId.slice(0, 8)}…`;
+  };
+
+  const filtered = residents.filter((r) => {
+    const matchesSearch =
       r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.email.toLowerCase().includes(search.toLowerCase())
-  );
+      r.email.toLowerCase().includes(search.toLowerCase());
+    const matchesUnit = filterUnitId ? r.unitId === filterUnitId : true;
+    return matchesSearch && matchesUnit;
+  });
 
   if (!isAdmin) {
     return (
@@ -57,14 +71,26 @@ export default function ResidentsPage() {
         </div>
       </div>
 
-      <div>
+      <div className="flex flex-wrap gap-3">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Pesquisar por nome ou email..."
-          className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="flex-1 min-w-[200px] max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
+        <select
+          value={filterUnitId}
+          onChange={(e) => setFilterUnitId(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        >
+          <option value="">Todas as frações</option>
+          {units.map((u) => (
+            <option key={u.id} value={u.id}>
+              Fração {u.number} – Piso {u.floor}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -107,7 +133,7 @@ export default function ResidentsPage() {
                 )}
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Home className="w-3.5 h-3.5" />
-                  Fração: {r.unitId?.slice(0, 8)}…
+                  {unitLabel(r.unitId)}
                 </div>
               </div>
             </div>
