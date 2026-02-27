@@ -9,6 +9,8 @@ public class Resident
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
     public Guid UnitId { get; set; }
     public ResidentRole Role { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

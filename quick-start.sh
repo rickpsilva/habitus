@@ -19,12 +19,12 @@ WEB_DIR="$PROJECT_ROOT/src/habitus-web"
 echo -e "${BLUE}🚀 Habitus Quick Start${NC}"
 echo ""
 
-# Inicia BD
-echo -e "${BLUE}1. Iniciando PostgreSQL...${NC}"
+# Inicia BD e pgAdmin
+echo -e "${BLUE}1. Iniciando PostgreSQL e pgAdmin...${NC}"
 cd "$PROJECT_ROOT"
-docker compose up postgres -d >/dev/null 2>&1 || true
-sleep 2
-echo -e "${GREEN}✓ PostgreSQL está em execução${NC}"
+docker compose up postgres pgadmin -d >/dev/null 2>&1 || true
+sleep 3
+echo -e "${GREEN}✓ PostgreSQL e pgAdmin estão em execução${NC}"
 echo ""
 
 # Restaura dependências .NET
@@ -66,10 +66,16 @@ echo ""
 echo -e "${GREEN}✓ Aplicações iniciadas! 🚀${NC}"
 echo ""
 echo "Endereços disponíveis:"
+echo -e "  ${GREEN}• PostgreSQL:  localhost:5432${NC}"
+echo -e "  ${GREEN}• pgAdmin:     http://localhost:5050${NC}"
 echo -e "  ${GREEN}• API (HTTP):  http://localhost:5027${NC}"
 echo -e "  ${GREEN}• API (HTTPS): https://localhost:7211${NC}"
 echo -e "  ${GREEN}• Swagger:     http://localhost:5027/swagger${NC}"
 echo -e "  ${GREEN}• Web App:     http://localhost:5173${NC}"
+echo ""
+echo "Credenciais pgAdmin:"
+echo -e "  ${GREEN}• Email:    admin@habitus.com${NC}"
+echo -e "  ${GREEN}• Password: admin${NC}"
 echo ""
 echo "Pressiona Ctrl+C para parar tudo"
 echo ""

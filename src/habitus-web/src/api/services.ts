@@ -20,6 +20,9 @@ import type {
 export const authApi = {
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
   register: (data: RegisterRequest) => api.post<AuthResponse>('/auth/register', data),
+  forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
+  resetPassword: (data: { email: string; token: string; newPassword: string }) =>
+    api.post('/auth/reset-password', data),
 };
 
 export const residentsApi = {

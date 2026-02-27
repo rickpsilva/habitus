@@ -166,6 +166,83 @@ stop_database() {
     echo ""
 }
 
+kill_port() {
+    local port=$1
+    local service=$2
+    
+    # Encontra todos os processos na porta
+    local pids=$(lsof -ti :$port 2>/dev/null || true)
+    
+    if [ -z "$pids" ]; then
+        log_warning "$service (porta $port): Nenhum processo encontrado"
+    else
+        log_info "Matando $service (porta $port) - PIDs: $pids"
+        echo "$pids" | xargs kill -9 2>/dev/null || true
+        sleep 1
+        log_success "$service (porta $port) parado"
+    fi
+}
+
+stop_all_services() {
+    separator
+    log_warning "Parando TODOS os serviços Habitus..."
+    separator
+    
+    cd "$PROJECT_ROOT"
+    
+    # Para containers Docker
+    log_info "Parando containers Docker..."
+    docker compose down 2>/dev/null || true
+    log_success "Containers Docker parados"
+    echo ""
+    
+    # Mata processos nas portas específicas
+    log_info "Matando processos nas portas..."
+    kill_port 5432 "PostgreSQL"
+    kill_port 5050 "pgAdmin"
+    kill_port 5027 "API (HTTP)"
+    kill_port 7211 "API (HTTPS)"
+    kill_port 5173 "Web App (Vite)"
+    kill_port 3000 "Web App"
+    
+    separator
+    log_success "Todos os serviços foram parados"
+    echo ""
+}
+
+show_port_status() {
+    separator
+    log_info "Verificando status das portas..."
+    separator
+    
+    local ports=(5432 5050 5027 7211 5173 3000)
+    local services=("PostgreSQL" "pgAdmin" "API (HTTP)" "API (HTTPS)" "Web App (Vite)" "Web App")
+    
+    local found=0
+    
+    for i in "${!ports[@]}"; do
+        local port=${ports[$i]}
+        local service=${services[$i]}
+        
+        if lsof -ti :$port >/dev/null 2>&1; then
+            found=1
+            local process=$(lsof -i :$port 2>/dev/null | tail -1 | awk '{print $1, "PID:", $2}')
+            echo -e "${GREEN}✓${NC} $service (porta $port)"
+            echo -e "   ${YELLOW}$process${NC}"
+        else
+            echo -e "${RED}✗${NC} $service (porta $port) - não está em execução"
+        fi
+    done
+    
+    echo ""
+    
+    if [ $found -eq 0 ]; then
+        log_warning "Nenhum serviço Habitus está a correr"
+    fi
+    
+    echo ""
+}
+
 restore_dependencies() {
     separator
     log_info "Restaurando dependências NuGet..."
@@ -318,8 +395,8 @@ create_admin() {
     read -p "Nome (default: Admin User): " admin_name
     admin_name=${admin_name:-"Admin User"}
 
-    read -p "Email (default: admin@habitus.com): " admin_email
-    admin_email=${admin_email:-"admin@habitus.com"}
+    read -p "Email (default: admin@molares.com): " admin_email
+    admin_email=${admin_email:-"admin@molares.com"}
 
     read -p "Telefone (default: +351912345678): " admin_phone
     admin_phone=${admin_phone:-"+351912345678"}
@@ -355,7 +432,9 @@ create_admin() {
         echo ""
     else
         log_error "Erro ao criar admin"
-        echo "$response" | grep -o "\".*\"" | head -1 || echo "$response"
+        echo -e "${RED}Resposta da API:${NC}"
+        echo "$response" | head -c 500
+        echo ""
         echo ""
     fi
 }
@@ -375,6 +454,8 @@ show_menu() {
     echo -e "  ${GREEN}8${NC}) Compilar Web App"
     echo -e "  ${GREEN}9${NC}) Criar Admin User"
     echo -e "  ${GREEN}10${NC}) Reset base de dados (apagar dados)"
+    echo -e "  ${GREEN}11${NC}) Ver status das portas"
+    echo -e "  ${GREEN}12${NC}) Parar TODOS os serviços"
     echo -e "  ${GREEN}0${NC}) Sair"
     separator
 }
@@ -444,8 +525,14 @@ main() {
             reset-db)
                 reset_database
                 ;;
+            status)
+                show_port_status
+                ;;
+            stop-all)
+                stop_all_services
+                ;;
             *)
-                echo "Uso: $0 [run|run-all|start-db|stop-db|api|web|test|build|build-web|create-admin|reset-db]"
+                echo "Uso: $0 [run|run-all|start-db|stop-db|api|web|test|build|build-web|create-admin|reset-db|status|stop-all]"
                 exit 1
                 ;;
         esac
@@ -513,6 +600,14 @@ main() {
                 10)
                     echo ""
                     reset_database
+                    ;;
+                11)
+                    echo ""
+                    show_port_status
+                    ;;
+                12)
+                    echo ""
+                    stop_all_services
                     ;;
                 0)
                     log_info "Adeus! 👋"

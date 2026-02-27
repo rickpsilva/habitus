@@ -14,9 +14,11 @@ public class UnitsController : ControllerBase
     public UnitsController(IRepository<Unit> repository) => _repository = repository;
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
 
     [HttpGet("{id}")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _repository.GetByIdAsync(id);

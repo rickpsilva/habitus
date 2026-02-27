@@ -27,4 +27,20 @@ public class AuthController : ControllerBase
         if (result == null) return Unauthorized("Invalid credentials.");
         return Ok(result);
     }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var result = await _authService.ForgotPasswordAsync(request);
+        if (!result) return BadRequest("Email not found.");
+        return Ok(new { message = "Password reset email sent. Check your email for instructions." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var result = await _authService.ResetPasswordAsync(request);
+        if (!result) return BadRequest("Invalid or expired reset token.");
+        return Ok(new { message = "Password reset successfully." });
+    }
 }

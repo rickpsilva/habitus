@@ -13,11 +13,13 @@ public class AuthService
 {
     private readonly IRepository<Resident> _repository;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
-    public AuthService(IRepository<Resident> repository, IConfiguration configuration)
+    public AuthService(IRepository<Resident> repository, IConfiguration configuration, IEmailService emailService)
     {
         _repository = repository;
         _configuration = configuration;
+        _emailService = emailService;
     }
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
@@ -60,6 +62,60 @@ public class AuthService
             Name = resident.Name,
             Role = resident.Role.ToString()
         };
+    }
+
+    public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var residents = await _repository.FindAsync(r => r.Email == request.Email);
+        var resident = residents.FirstOrDefault();
+        if (resident == null) return false;
+
+        var resetToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        resident.PasswordResetToken = resetToken;
+        resident.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+
+        _repository.Update(resident);
+        await _repository.SaveChangesAsync();
+
+        var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+        var resetLink = $"{frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(resident.Email)}&token={Uri.EscapeDataString(resetToken)}";
+        var emailBody = $@"
+Hello {resident.Name},
+
+You requested a password reset. Click the link below to set a new password:
+
+{resetLink}
+
+This link will expire in 1 hour.
+
+If you didn't request this, please ignore this email.
+
+Best regards,
+Habitus Team
+";
+        await _emailService.SendAsync(resident.Email, "Password Reset Request", emailBody);
+        return true;
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var residents = await _repository.FindAsync(r => r.Email == request.Email);
+        var resident = residents.FirstOrDefault();
+
+        if (resident == null ||
+            resident.PasswordResetToken != request.Token ||
+            resident.PasswordResetTokenExpiry < DateTime.UtcNow)
+        {
+            return false;
+        }
+
+        resident.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        resident.PasswordResetToken = null;
+        resident.PasswordResetTokenExpiry = null;
+
+        _repository.Update(resident);
+        await _repository.SaveChangesAsync();
+        return true;
     }
 
     private string GenerateToken(Resident resident)
