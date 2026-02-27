@@ -6,18 +6,16 @@ Ferramenta automatizada para executar localmente toda a stack Habitus (BD + API 
 
 - **.NET 8 SDK** - [Descarregar](https://dotnet.microsoft.com/download/dotnet/8.0)
 - **Docker & Docker Compose** - [Descarregar](https://www.docker.com/)
-- **Node.js & npm** - [Descarregar](https://nodejs.org/) (para React + Vite Web App)
+- **Node.js & npm** - [Descarregar](https://nodejs.org/) (para React + Vite)
 - **dotnet-ef** - Entity Framework Core CLI (instalado automaticamente)
 
-## 🚀 Setup Inicial
-
-### Primeira vez? Executa o setup:
+## 🚀 Setup Inicial (Primeira Vez)
 
 ```bash
 ./setup.sh
 ```
 
-Isto verifica e instala todas as ferramentas necessárias (especialmente `dotnet-ef`).
+Verifica e instala todas as ferramentas necessárias.
 
 ---
 
@@ -29,10 +27,10 @@ Para iniciar tudo em um comando (BD + API + Web App):
 ./quick-start.sh
 ```
 
-Isto:
+Isto vai:
 1. ✓ Inicia PostgreSQL
 2. ✓ Restaura dependências .NET
-3. ✓ Cria e aplica migrações (incluindo dados iniciais)
+3. ✓ Aplica migrações
 4. ✓ Restaura dependências Node.js
 5. ✓ Inicia API e Web App em paralelo
 
@@ -62,8 +60,7 @@ Para um menu interativo com mais opções:
 6) Executar testes
 7) Compilar projeto (.NET)
 8) Compilar Web App
-9) Criar Admin User
-10) Reset base de dados (apagar dados)
+9) Reset base de dados (apagar dados)
 0) Sair
 ```
 
@@ -73,8 +70,8 @@ Para um menu interativo com mais opções:
 # Tudo junto (DB + API + Web)
 ./run-local.sh run
 
-# Prepara tudo e inicia ambas em paralelo
-./run-local.sh run-all
+# Inicia API e instala web deps
+./run-local.sh run
 
 # Apenas API (BD já em execução)
 ./run-local.sh api
@@ -97,8 +94,8 @@ Para um menu interativo com mais opções:
 # Compilar Web App
 ./run-local.sh build-web
 
-# Criar Admin User (API deve estar a rodar)
-./run-local.sh create-admin
+# Executar ambas em paralelo
+./run-local.sh run-all
 
 # Reset BD (apagar dados)
 ./run-local.sh reset-db
@@ -108,7 +105,8 @@ Para um menu interativo com mais opções:
 
 ## 🔧 Configuração
 
-### Credenciais PostgreSQL (Padrão)
+### Credenciais PostgreSQL
+
 ```
 Host:     localhost (ou "postgres" no Docker)
 Username: habitus
@@ -117,7 +115,8 @@ Database: habitus
 Port:     5432
 ```
 
-### Tokens JWT (Desenvolvimento)
+### API - Tokens JWT (Desenvolvimento)
+
 ```
 Secret:    habitus-super-secret-key-for-development-only
 Issuer:    habitus
@@ -125,24 +124,13 @@ Audience:  habitus-users
 Expiry:    60 minutos
 ```
 
-### Web App (React + Vite)
+### Web App
 
 - **Framework**: React 19 + Vite 7
 - **Linguagem**: TypeScript
 - **Estilos**: Tailwind CSS 4
 - **HTTP Client**: Axios
 - **Routing**: React Router v7
-- **Porta**: http://localhost:5173
-
-### Variáveis de Ambiente (Opcional)
-
-Para usar serviços Azure, define as variáveis de ambiente:
-
-```bash
-export AzureStorage__ConnectionString="your-connection-string"
-export AzureCommunication__ConnectionString="your-connection-string"
-export AzureTranslation__Key="your-key"
-```
 
 ---
 
@@ -158,7 +146,7 @@ export AzureTranslation__Key="your-key"
 
 ---
 
-## 📚 Usando a API
+## 📚 Usar a API
 
 ### 1. Obter Token JWT
 
@@ -180,76 +168,7 @@ curl -X GET http://localhost:5027/api/residents \
 
 ### 3. Documentação Interativa
 
-Visita http://localhost:5027/swagger para explorar todos os endpoints.
-
----
-
-## 👤 Criar Admin User
-
-Depois da aplicação estar em execução, podes criar um utilizador admin facilmente:
-
-### Via Script (Recomendado)
-
-```bash
-# Menu interativo
-./run-local.sh
-# Escolhe a opção 9: "Criar Admin User"
-
-# Ou diretamente
-./run-local.sh create-admin
-```
-
-O script vai pedir:
-- **Nome** (default: Admin User)
-- **Email** (default: admin@habitus.com)
-- **Telefone** (default: +351912345678)
-- **Password** (não é mostrada enquanto escreves)
-- **Unit ID** (default: 00000000-0000-0000-0000-000000000001 — já existe de forma automática)
-
-Depois mostra as credenciais para fazer login.
-
-**Nota:** O Unit ID padrão é criado automaticamente durante as migrações da base de dados (seeding). Podes usar os valores padrão sem problemas!
-
-### Via Swagger (Manual)
-
-1. Acede a http://localhost:5027/swagger
-2. Procura `POST /api/auth/register`
-3. Clica em "Try it out"
-4. Preenche com:
-
-```json
-{
-  "name": "Admin User",
-  "email": "admin@habitus.com",
-  "phone": "+351912345678",
-  "password": "AdminPassword123!",
-  "unitId": "00000000-0000-0000-0000-000000000001",
-  "role": "Admin"
-}
-```
-
-5. Clica "Execute"
-
-### Fazer Login
-
-```bash
-curl -X POST http://localhost:5027/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@habitus.com",
-    "password": "AdminPassword123!"
-  }'
-```
-
-Resposta com token:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR...",
-  "email": "admin@habitus.com",
-  "name": "Admin User",
-  "role": "Admin"
-}
-```
+Visita http://localhost:5027/swagger para explorar todos os endpoints da API.
 
 ---
 
@@ -269,40 +188,34 @@ dotnet test src/Habitus.slnx
 
 ### Erro: "could not execute because the specified command or file was not found" (dotnet-ef)
 
-Isto significa que `dotnet-ef` não está instalado.
+Significa que `dotnet-ef` não está instalado.
 
 **Solução:**
 
 ```bash
-# Instala a ferramenta Entity Framework Core globalmente
 dotnet tool install --global dotnet-ef
-
-# Ou se já tens, atualiza
 dotnet tool update --global dotnet-ef
-
-# Verifica a instalação
 dotnet ef --version
 ```
 
 Depois tenta novamente:
+
 ```bash
 ./quick-start.sh
 ```
 
-Ou executa o setup automaticamente:
-```bash
-./setup.sh
-```
-
 ### Porta já em uso
 
-Se a porta 5027 já está em uso:
+Se a porta 5027 ou 5173 já está em uso:
 
 ```bash
 # Encontra o processo
 lsof -i :5027
+lsof -i :5173
 
-# Ou modifica em src/Habitus.Api/Properties/launchSettings.json
+# Ou modifica em:
+# API:     src/Habitus.Api/Properties/launchSettings.json
+# Web App: src/habitus-web/vite.config.ts
 ```
 
 ### PostgreSQL não consegue conectar
@@ -314,14 +227,6 @@ docker ps
 # Reinicia tudo
 ./run-local.sh reset-db
 ./run-local.sh run
-```
-
-### Erro de migrações
-
-```bash
-# Aguarda que PostgreSQL fique pronto
-sleep 5
-dotnet ef database update
 ```
 
 ### Erro com npm/Node.js
@@ -365,7 +270,8 @@ habitus/
 ├── docker-compose.yml         # Configuração Docker
 ├── setup.sh                   # Script setup
 ├── quick-start.sh             # Quick start (BD+API+Web)
-└── run-local.sh               # Menu interativo
+├── run-local.sh               # Menu interativo
+└── README.md
 ```
 
 ---
@@ -404,10 +310,22 @@ A Web App comunica com a API via HTTP requests em:
 const API_BASE_URL = 'http://localhost:5027/api';
 ```
 
-**Certifica-te que:**
+**Certific-te que:**
 1. API está a rodar em `localhost:5027`
 2. Web App consegue fazer requests (CORS configurado)
 3. O token JWT é enviado nos headers
+
+---
+
+## 📝 Variáveis de Ambiente (Opcional)
+
+Para usar serviços Azure, define as variáveis de ambiente:
+
+```bash
+export AzureStorage__ConnectionString="your-connection-string"
+export AzureCommunication__ConnectionString="your-connection-string"
+export AzureTranslation__Key="your-key"
+```
 
 ---
 
