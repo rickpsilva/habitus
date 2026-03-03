@@ -24,7 +24,8 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<HabitusDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, 
+                b => b.MigrationsAssembly("Habitus.Infrastructure")));
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
@@ -65,6 +66,10 @@ public static class DependencyInjection
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
+        
+        // New multi-condominium services
+        services.AddScoped<UserService>();
+        services.AddScoped<CondominiumService>();
 
         return services;
     }

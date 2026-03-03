@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { MaintenanceRequestDto, NotificationDto } from '../types';
+import type { MaintenanceRequestDto, NotificationDto, ReservationDto } from '../types';
 
 function StatCard({
   title,
@@ -47,15 +47,19 @@ function StatCard({
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
+    Open: 'bg-yellow-100 text-yellow-700',
     Pending: 'bg-yellow-100 text-yellow-700',
     InProgress: 'bg-blue-100 text-blue-700',
     Resolved: 'bg-green-100 text-green-700',
+    Closed: 'bg-gray-100 text-gray-500',
     Cancelled: 'bg-gray-100 text-gray-500',
   };
   const labels: Record<string, string> = {
+    Open: 'Aberto',
     Pending: 'Pendente',
     InProgress: 'Em curso',
     Resolved: 'Resolvido',
+    Closed: 'Fechado',
     Cancelled: 'Cancelado',
   };
   return (
@@ -70,12 +74,12 @@ export default function DashboardPage() {
   const [maintenance, setMaintenance] = useState<MaintenanceRequestDto[]>([]);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
-  const [reservationCount, setReservationCount] = useState(0);
+  const [reservations, setReservations] = useState<ReservationDto[]>([]);
 
   useEffect(() => {
     maintenanceApi.getAll().then((r) => setMaintenance(r.data)).catch(() => {});
     notificationsApi.getAll().then((r) => setNotifications(r.data)).catch(() => {});
-    reservationsApi.getAll().then((r) => setReservationCount(r.data.length)).catch(() => {});
+    reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
     // Financial summary requires buildingId — skip if not available
     financialApi.getAll().then((r) => {
       const income = r.data.filter((f) => f.type === 'Income').reduce((s, f) => s + f.amount, 0);
@@ -84,7 +88,10 @@ export default function DashboardPage() {
     }).catch(() => {});
   }, []);
 
-  const pendingMaintenance = maintenance.filter((m) => m.status === 'Pending' || m.status === 'InProgress');
+  const pendingMaintenance = maintenance.filter((m) => m.status === 'Open');
+  const inProgressMaintenance = maintenance.filter((m) => m.status === 'InProgress');
+  const pendingReservations = reservations.filter((r) => r.status === 'Pending');
+  const approvedReservations = reservations.filter((r) => r.status === 'Approved');
   const unreadNotifications = notifications.filter((n) => !n.isRead);
 
   return (
@@ -101,7 +108,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Pedidos de Manutenção"
-          value={pendingMaintenance.length}
+          value={pendingMaintenance.length + inProgressMaintenance.length}
           icon={Wrench}
           color="bg-orange-100 text-orange-600"
           to="/maintenance"
@@ -121,8 +128,8 @@ export default function DashboardPage() {
           to="/notifications"
         />
         <StatCard
-          title="Reservas ativas"
-          value={reservationCount}
+          title="Reservas"
+          value={pendingReservations.length + approvedReservations.length}
           icon={Calendar}
           color="bg-purple-100 text-purple-600"
           to="/reservations"

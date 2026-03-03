@@ -54,7 +54,7 @@ public class DocumentsController : ControllerBase
             Url = url,
             UploadedAt = DateTime.UtcNow,
             UploadedBy = uploadedBy,
-            BuildingId = buildingId
+            CondominiumId = buildingId  // Using legacy buildingId param, maps to CondominiumId
         };
         await _repository.AddAsync(document);
         await _repository.SaveChangesAsync();

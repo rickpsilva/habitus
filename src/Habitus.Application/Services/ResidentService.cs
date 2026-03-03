@@ -4,6 +4,11 @@ using Habitus.Domain.Entities;
 
 namespace Habitus.Application.Services;
 
+/// <summary>
+/// DEPRECATED: Use UserService instead for managing users.
+/// This service is kept for backward compatibility during migration.
+/// </summary>
+[Obsolete("Use UserService instead. This will be removed in a future version.")]
 public class ResidentService
 {
     private readonly IRepository<Resident> _repository;
@@ -40,7 +45,7 @@ public class ResidentService
             Email = request.Email,
             Phone = request.Phone,
             UnitId = request.UnitId,
-            Role = Enum.Parse<ResidentRole>(request.Role),
+            Role = request.Role,  // Now a string instead of enum
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             CreatedAt = DateTime.UtcNow
         };

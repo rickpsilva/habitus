@@ -5,6 +5,7 @@ public class CreateMaintenanceRequest
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Priority { get; set; } = "Medium";
+    public Guid CondominiumId { get; set; }
     public Guid UnitId { get; set; }
     public Guid CreatedBy { get; set; }
     public List<string> Photos { get; set; } = new();

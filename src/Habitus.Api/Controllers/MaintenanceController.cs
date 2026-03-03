@@ -37,7 +37,13 @@ public class MaintenanceController : ControllerBase
         var result = await _service.UpdateAsync(id, request);
         return result == null ? NotFound() : Ok(result);
     }
-
+    [HttpPut("{id}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<MaintenanceRequestDto>> UpdateStatus(Guid id, [FromBody] UpdateMaintenanceStatusRequest request)
+    {
+        var result = await _service.UpdateStatusAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)

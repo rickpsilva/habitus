@@ -33,6 +33,7 @@ public class MaintenanceService
             Title = request.Title,
             Description = request.Description,
             Priority = Enum.Parse<MaintenancePriority>(request.Priority),
+            CondominiumId = request.CondominiumId,
             UnitId = request.UnitId,
             CreatedBy = request.CreatedBy,
             Photos = request.Photos,
@@ -58,6 +59,37 @@ public class MaintenanceService
         return MapToDto(entity);
     }
 
+    public async Task<MaintenanceRequestDto?> UpdateStatusAsync(Guid id, UpdateMaintenanceStatusRequest request)
+    {
+        var entity = await _repository.GetByIdAsync(id);
+        if (entity == null) return null;
+
+        entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
+        
+        if (!string.IsNullOrEmpty(request.SupplierId))
+        {
+            entity.SupplierId = Guid.Parse(request.SupplierId);
+        }
+        
+        if (!string.IsNullOrEmpty(request.AdminComments))
+        {
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            var newComment = $"[{timestamp}] {request.AdminComments}";
+            entity.AdminComments = string.IsNullOrEmpty(entity.AdminComments) 
+                ? newComment 
+                : $"{entity.AdminComments}\n{newComment}";
+        }
+        
+        if (entity.Status == MaintenanceStatus.Resolved)
+        {
+            entity.ResolvedAt = DateTime.UtcNow;
+        }
+        
+        _repository.Update(entity);
+        await _repository.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
     public async Task<bool> DeleteAsync(Guid id)
     {
         var entity = await _repository.GetByIdAsync(id);
@@ -74,11 +106,14 @@ public class MaintenanceService
         Description = r.Description,
         Status = r.Status.ToString(),
         Priority = r.Priority.ToString(),
+        CondominiumId = r.CondominiumId,
         UnitId = r.UnitId,
         CreatedBy = r.CreatedBy,
         CreatedAt = r.CreatedAt,
         ResolvedAt = r.ResolvedAt,
         Photos = r.Photos,
-        Location = r.Location
+        Location = r.Location,
+        SupplierId = r.SupplierId,
+        AdminComments = r.AdminComments
     };
 }

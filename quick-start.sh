@@ -19,6 +19,13 @@ WEB_DIR="$PROJECT_ROOT/src/habitus-web"
 echo -e "${BLUE}🚀 Habitus Quick Start${NC}"
 echo ""
 
+# Para todos os serviços primeiro para garantir um arranque limpo
+echo -e "${BLUE}0. Parando serviços existentes...${NC}"
+cd "$PROJECT_ROOT"
+./run-local.sh stop-all >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Serviços parados${NC}"
+echo ""
+
 # Inicia BD e pgAdmin
 echo -e "${BLUE}1. Iniciando PostgreSQL e pgAdmin...${NC}"
 cd "$PROJECT_ROOT"

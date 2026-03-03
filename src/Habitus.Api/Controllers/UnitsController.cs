@@ -1,3 +1,4 @@
+using Habitus.Application.DTOs.Units;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -26,32 +27,46 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] Unit unit)
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> Create([FromBody] CreateUnitRequest request)
     {
-        unit.Id = Guid.NewGuid();
+        var unit = new Unit
+        {
+            Id = Guid.NewGuid(),
+            CondominiumId = request.CondominiumId,
+            Number = request.Number,
+            Floor = request.Floor,
+            Type = request.Type,
+            ApartmentNumber = request.ApartmentNumber,
+            Permillage = request.Permillage
+        };
+        
         await _repository.AddAsync(unit);
         await _repository.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = unit.Id }, unit);
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Unit unit)
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] CreateUnitRequest request)
     {
         var existing = await _repository.GetByIdAsync(id);
         if (existing == null) return NotFound();
-        existing.Number = unit.Number;
-        existing.Floor = unit.Floor;
-        existing.Type = unit.Type;
-        existing.Permillage = unit.Permillage;
+        
+        existing.CondominiumId = request.CondominiumId;
+        existing.Number = request.Number;
+        existing.Floor = request.Floor;
+        existing.Type = request.Type;
+        existing.ApartmentNumber = request.ApartmentNumber;
+        existing.Permillage = request.Permillage;
+        
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
         return Ok(existing);
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Manager,Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var entity = await _repository.GetByIdAsync(id);

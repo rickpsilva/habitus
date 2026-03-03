@@ -27,25 +27,36 @@ public class FinancialService
 
     public async Task<FinancialRecordDto> CreateAsync(CreateFinancialRecordRequest request)
     {
-        var entity = new FinancialRecord
+        try
         {
-            Id = Guid.NewGuid(),
-            Type = Enum.Parse<FinancialType>(request.Type),
-            Amount = request.Amount,
-            Description = request.Description,
-            Date = request.Date,
-            Category = request.Category,
-            BuildingId = request.BuildingId,
-            ReceiptUrl = request.ReceiptUrl
-        };
-        await _repository.AddAsync(entity);
-        await _repository.SaveChangesAsync();
-        return MapToDto(entity);
+            var entity = new FinancialRecord
+            {
+                Id = Guid.NewGuid(),
+                Type = Enum.Parse<FinancialType>(request.Type, ignoreCase: true),
+                Amount = request.Amount,
+                Description = request.Description,
+                Date = request.Date,
+                Category = request.Category,
+                CondominiumId = request.CondominiumId,
+                ReceiptUrl = request.ReceiptUrl
+            };
+            await _repository.AddAsync(entity);
+            await _repository.SaveChangesAsync();
+            return MapToDto(entity);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidOperationException($"Invalid Type value: {request.Type}. Expected 'Income' or 'Expense'.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Error creating financial record: {ex.Message}", ex);
+        }
     }
 
-    public async Task<FinancialSummaryDto> GetSummaryAsync(Guid buildingId)
+    public async Task<FinancialSummaryDto> GetSummaryAsync(Guid condominiumId)
     {
-        var records = await _repository.FindAsync(r => r.BuildingId == buildingId);
+        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         var dtos = records.Select(MapToDto).ToList();
         var totalIncome = dtos.Where(r => r.Type == "Income").Sum(r => r.Amount);
         var totalExpense = dtos.Where(r => r.Type == "Expense").Sum(r => r.Amount);
@@ -75,7 +86,7 @@ public class FinancialService
         Description = r.Description,
         Date = r.Date,
         Category = r.Category,
-        BuildingId = r.BuildingId,
+        CondominiumId = r.CondominiumId,
         ReceiptUrl = r.ReceiptUrl
     };
 }

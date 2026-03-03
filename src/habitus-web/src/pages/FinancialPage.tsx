@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Trash2 } from 'lucide-react';
 import { financialApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { FinancialRecordDto } from '../types';
+import type { FinancialRecordDto, CreateFinancialRecordRequest } from '../types';
 
 const categoryLabels: Record<string, string> = {
   Maintenance: 'Manutenção',
@@ -13,7 +13,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function FinancialPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const [records, setRecords] = useState<FinancialRecordDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -23,9 +23,16 @@ export default function FinancialPage() {
     description: '',
     date: new Date().toISOString().split('T')[0],
     category: 'Other',
-    buildingId: '',
+    condominiumId: condominiumId || '',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Update condominiumId when it changes
+  useEffect(() => {
+    if (condominiumId) {
+      setForm(prev => ({ ...prev, condominiumId }));
+    }
+  }, [condominiumId]);
 
   const load = () => {
     setLoading(true);
@@ -40,18 +47,51 @@ export default function FinancialPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!form.condominiumId) {
+      alert('Condomínio não identificado. Por favor, recarregue a página.');
+      return;
+    }
+    
+    if (!form.description || form.description.trim() === '') {
+      alert('Descrição é obrigatória.');
+      return;
+    }
+    
+    if (!form.amount || parseFloat(form.amount) <= 0) {
+      alert('Valor deve ser maior que zero.');
+      return;
+    }
+    
     setSubmitting(true);
     try {
-      await financialApi.create({
-        ...form,
+      const requestData: CreateFinancialRecordRequest = {
+        type: form.type,
         amount: parseFloat(form.amount),
+        description: form.description,
+        date: `${form.date}T00:00:00.000Z`, // ISO 8601 format with time
+        category: form.category,
+        condominiumId: form.condominiumId,
         receiptUrl: undefined,
-      } as Omit<FinancialRecordDto, 'id'>);
+      };
+      
+      console.log('Sending financial record:', requestData);
+      
+      await financialApi.create(requestData);
       setShowForm(false);
-      setForm({ type: 'Expense', amount: '', description: '', date: new Date().toISOString().split('T')[0], category: 'Other', buildingId: '' });
+      setForm({ 
+        type: 'Expense', 
+        amount: '', 
+        description: '', 
+        date: new Date().toISOString().split('T')[0], 
+        category: 'Other', 
+        condominiumId: form.condominiumId 
+      });
       load();
-    } catch {
-      /* ignore */
+    } catch (error: any) {
+      console.error('Erro ao criar registo financeiro:', error);
+      console.error('Error response:', error.response?.data);
+      alert(`Erro ao criar registo financeiro: ${error.response?.data?.message || error.message}`);
     } finally {
       setSubmitting(false);
     }

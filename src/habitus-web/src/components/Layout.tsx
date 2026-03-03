@@ -14,9 +14,21 @@ import {
   X,
   Building2,
   ClipboardList,
+  UserCircle,
+  Home,
+  Warehouse,
+  Truck,
 } from 'lucide-react';
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: any;
+  managerOnly?: boolean;
+  managerOrAdminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/maintenance', label: 'Manutenção', icon: Wrench },
   { to: '/financial', label: 'Financeiro', icon: DollarSign },
@@ -24,12 +36,15 @@ const navItems = [
   { to: '/reservations', label: 'Reservas', icon: Calendar },
   { to: '/documents', label: 'Documentos', icon: FileText },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
-  { to: '/units', label: 'Frações', icon: Building2, adminOnly: true },
-  { to: '/residents', label: 'Moradores', icon: Users, adminOnly: true },
+  { to: '/shared-spaces', label: 'Espaços Comuns', icon: Warehouse, managerOrAdminOnly: true },
+  { to: '/suppliers', label: 'Fornecedores', icon: Truck, managerOrAdminOnly: true },
+  { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
+  { to: '/units', label: 'Frações', icon: Home, managerOrAdminOnly: true },
+  { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -38,9 +53,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
-  const visibleNavItems = isAdmin
-    ? navItems
-    : navItems.filter((i) => !i.adminOnly);
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.managerOnly && !isManager) return false;
+    if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -102,9 +119,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{user?.role?.toLowerCase()}</p>
+                <p className="text-xs text-gray-500 truncate capitalize">
+                  {user?.role === 0 ? 'Gestor' : user?.role === 1 ? 'Administrador' : 'Morador'}
+                </p>
               </div>
             </div>
+            <NavLink
+              to="/profile"
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-2 w-full px-3 py-2 mb-2 text-sm rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-indigo-50 text-indigo-700'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`
+              }
+            >
+              <UserCircle className="w-4 h-4" />
+              Meu Perfil
+            </NavLink>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -2,7 +2,9 @@ export interface AuthResponse {
   token: string;
   email: string;
   name: string;
-  role: string;
+  role: UserRole;
+  condominiumId?: string;
+  unitId?: string;
 }
 
 export interface LoginRequest {
@@ -18,6 +20,7 @@ export interface RegisterRequest {
   unitId: string;
 }
 
+// Deprecated - use UserDto instead
 export interface ResidentDto {
   id: string;
   name: string;
@@ -28,20 +31,85 @@ export interface ResidentDto {
   createdAt: string;
 }
 
+export enum UserRole {
+  Manager = 0,
+  Admin = 1,
+  Resident = 2,
+}
+
+export interface UserDto {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  condominiumId?: string;
+  unitId?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  role: UserRole;
+  condominiumId?: string;
+  unitId?: string;
+}
+
+export interface UpdateUserRequest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  condominiumId?: string;
+  unitId?: string;
+  isActive: boolean;
+}
+
+export interface CondominiumDto {
+  id: string;
+  name: string;
+  address: string;
+  taxId: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+}
+
+export interface CreateCondominiumRequest {
+  name: string;
+  address: string;
+  taxId: string;
+}
+
+export interface UpdateCondominiumRequest {
+  id: string;
+  name: string;
+  address: string;
+  taxId: string;
+  isActive: boolean;
+}
+
 export interface UnitDto {
   id: string;
   number: string;
   floor: number;
   type: number;
+  apartmentNumber?: string;
   permillage: number;
-  buildingId: string;
+  condominiumId: string;
 }
 
 export interface CreateUnitRequest {
-  buildingId: string;
+  condominiumId: string;
   number: string;
   floor: number;
   type: number;
+  apartmentNumber?: string;
   permillage: number;
 }
 
@@ -51,8 +119,11 @@ export interface MaintenanceRequestDto {
   description: string;
   status: string;
   priority: string;
+  condominiumId: string;
   unitId: string;
   createdBy: string;
+  supplierId?: string;
+  adminComments?: string;
   createdAt: string;
   resolvedAt?: string;
   photos: string[];
@@ -63,9 +134,11 @@ export interface CreateMaintenanceRequest {
   title: string;
   description: string;
   priority: string;
+  condominiumId: string;
   unitId: string;
   createdBy: string;
   location: string;
+  photos?: string[];
 }
 
 export interface FinancialRecordDto {
@@ -75,7 +148,17 @@ export interface FinancialRecordDto {
   description: string;
   date: string;
   category: string;
-  buildingId: string;
+  condominiumId: string;
+  receiptUrl?: string;
+}
+
+export interface CreateFinancialRecordRequest {
+  type: string;
+  amount: number;
+  description: string;
+  date: string; // ISO date string, will be converted to DateTime on backend
+  category: string;
+  condominiumId: string;
   receiptUrl?: string;
 }
 
@@ -93,18 +176,20 @@ export interface NotificationDto {
   message: string;
   sentAt: string;
   isRead: boolean;
-  buildingId: string;
+  condominiumId: string;
   type: string;
 }
 
 export interface ReservationDto {
   id: string;
-  sharedSpaceId: string;
-  residentId: string;
+  condominiumId: string;
+  spaceId: string;
+  userId: string;
   startTime: string;
   endTime: string;
   status: string;
   createdAt: string;
+  adminComments?: string;
 }
 
 export interface SharedSpaceDto {
@@ -112,8 +197,16 @@ export interface SharedSpaceDto {
   name: string;
   description: string;
   capacity: number;
-  buildingId: string;
-  isAvailable: boolean;
+  condominiumId: string;
+  rules: string;
+}
+
+export interface CreateSharedSpaceRequest {
+  name: string;
+  description: string;
+  capacity: number;
+  condominiumId: string;
+  rules: string;
 }
 
 export interface DocumentDto {
@@ -123,7 +216,7 @@ export interface DocumentDto {
   url: string;
   uploadedAt: string;
   uploadedBy: string;
-  buildingId: string;
+  condominiumId: string;
 }
 
 export interface AssemblyDto {
@@ -132,5 +225,37 @@ export interface AssemblyDto {
   description: string;
   scheduledAt: string;
   status: string;
-  buildingId: string;
+  condominiumId: string;
+}
+
+export interface SupplierDto {
+  id: string;
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  address: string;
+  specialty: string;
+  isActive: boolean;
+  condominiumId: string;
+}
+
+export interface CreateSupplierRequest {
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  address: string;
+  specialty: string;
+  condominiumId: string;
+}
+
+export interface UpdateSupplierRequest {
+  name: string;
+  contact: string;
+  email: string;
+  phone: string;
+  address: string;
+  specialty: string;
+  isActive: boolean;
 }

@@ -1,0 +1,167 @@
+using Habitus.Application.DTOs.Condominium;
+using Habitus.Application.Interfaces;
+using Habitus.Domain.Entities;
+
+namespace Habitus.Application.Services;
+
+public class CondominiumService
+{
+    private readonly IRepository<Condominium> _condominiumRepository;
+    private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Unit> _unitRepository;
+
+    public CondominiumService(
+        IRepository<Condominium> condominiumRepository,
+        IRepository<User> userRepository,
+        IRepository<Unit> unitRepository)
+    {
+        _condominiumRepository = condominiumRepository;
+        _userRepository = userRepository;
+        _unitRepository = unitRepository;
+    }
+
+    public async Task<IEnumerable<CondominiumResponse>> GetAllCondominiumsAsync()
+    {
+        var condominiums = await _condominiumRepository.GetAllAsync();
+        var responses = new List<CondominiumResponse>();
+
+        foreach (var condo in condominiums)
+        {
+            var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
+            var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
+
+            responses.Add(new CondominiumResponse
+            {
+                Id = condo.Id,
+                Name = condo.Name,
+                Address = condo.Address,
+                TaxId = condo.TaxId,
+                CreatedAt = condo.CreatedAt,
+                IsActive = condo.IsActive,
+                TotalUnits = units.Count(),
+                TotalUsers = users.Count()
+            });
+        }
+
+        return responses;
+    }
+
+    public async Task<CondominiumDetailResponse?> GetCondominiumByIdAsync(Guid id)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(id);
+        if (condominium == null) return null;
+
+        var users = await _userRepository.FindAsync(u => u.CondominiumId == id);
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == id);
+
+        var admins = users.Where(u => u.Role == UserRole.Admin).Select(u => new UserSummary
+        {
+            Id = u.Id,
+            Name = u.Name,
+            Email = u.Email,
+            Role = u.Role.ToString()
+        }).ToList();
+
+        var unitSummaries = units.Select(u => new UnitSummary
+        {
+            Id = u.Id,
+            Number = u.Number,
+            Floor = u.Floor,
+            Type = u.Type.ToString()
+        }).ToList();
+
+        return new CondominiumDetailResponse
+        {
+            Id = condominium.Id,
+            Name = condominium.Name,
+            Address = condominium.Address,
+            TaxId = condominium.TaxId,
+            CreatedAt = condominium.CreatedAt,
+            IsActive = condominium.IsActive,
+            TotalUnits = unitSummaries.Count,
+            TotalUsers = users.Count(),
+            Admins = admins,
+            Units = unitSummaries
+        };
+    }
+
+    public async Task<CondominiumResponse> CreateCondominiumAsync(CreateCondominiumRequest request)
+    {
+        var condominium = new Condominium
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name,
+            Address = request.Address,
+            TaxId = request.TaxId,
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        await _condominiumRepository.AddAsync(condominium);
+        await _condominiumRepository.SaveChangesAsync();
+
+        return new CondominiumResponse
+        {
+            Id = condominium.Id,
+            Name = condominium.Name,
+            Address = condominium.Address,
+            TaxId = condominium.TaxId,
+            CreatedAt = condominium.CreatedAt,
+            IsActive = condominium.IsActive,
+            TotalUnits = 0,
+            TotalUsers = 0
+        };
+    }
+
+    public async Task<CondominiumResponse> UpdateCondominiumAsync(UpdateCondominiumRequest request)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(request.Id);
+        if (condominium == null)
+        {
+            throw new InvalidOperationException($"Condominium with ID {request.Id} not found.");
+        }
+
+        condominium.Name = request.Name;
+        condominium.Address = request.Address;
+        condominium.TaxId = request.TaxId;
+        condominium.IsActive = request.IsActive;
+
+        _condominiumRepository.Update(condominium);
+        await _condominiumRepository.SaveChangesAsync();
+
+        var users = await _userRepository.FindAsync(u => u.CondominiumId == condominium.Id);
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominium.Id);
+
+        return new CondominiumResponse
+        {
+            Id = condominium.Id,
+            Name = condominium.Name,
+            Address = condominium.Address,
+            TaxId = condominium.TaxId,
+            CreatedAt = condominium.CreatedAt,
+            IsActive = condominium.IsActive,
+            TotalUnits = units.Count(),
+            TotalUsers = users.Count()
+        };
+    }
+
+    public async Task<bool> DeleteCondominiumAsync(Guid id)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(id);
+        if (condominium == null) return false;
+
+        // Check if there are users or units associated
+        var users = await _userRepository.FindAsync(u => u.CondominiumId == id);
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == id);
+
+        if (users.Any() || units.Any())
+        {
+            throw new InvalidOperationException(
+                "Cannot delete condominium with existing users or units. Please remove them first or deactivate the condominium.");
+        }
+
+        _condominiumRepository.Remove(condominium);
+        await _condominiumRepository.SaveChangesAsync();
+        return true;
+    }
+}

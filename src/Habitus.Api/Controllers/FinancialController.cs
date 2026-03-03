@@ -24,16 +24,28 @@ public class FinancialController : ControllerBase
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpGet("summary/{buildingId}")]
-    public async Task<IActionResult> GetSummary(Guid buildingId)
-        => Ok(await _service.GetSummaryAsync(buildingId));
+    [HttpGet("summary/{condominiumId}")]
+    public async Task<IActionResult> GetSummary(Guid condominiumId)
+        => Ok(await _service.GetSummaryAsync(condominiumId));
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateFinancialRecordRequest request)
     {
-        var result = await _service.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Dados inválidos", errors = ModelState });
+            }
+            
+            var result = await _service.CreateAsync(request);
+            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message, details = ex.InnerException?.Message });
+        }
     }
 
     [HttpDelete("{id}")]
