@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Condominium;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -44,6 +46,44 @@ public class CondominiumService
         }
 
         return responses;
+    }
+
+    public async Task<PaginatedResponse<CondominiumResponse>> GetPagedCondominiumsAsync(int page, int pageSize, string? search = null)
+    {
+        var condominiums = await _condominiumRepository.GetAllAsync();
+        var responses = new List<CondominiumResponse>();
+
+        foreach (var condo in condominiums)
+        {
+            var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
+            var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
+
+            responses.Add(new CondominiumResponse
+            {
+                Id = condo.Id,
+                Name = condo.Name,
+                Address = condo.Address,
+                TaxId = condo.TaxId,
+                CreatedAt = condo.CreatedAt,
+                IsActive = condo.IsActive,
+                TotalUnits = units.Count(),
+                TotalUsers = users.Count()
+            });
+        }
+
+        var dtos = responses.AsEnumerable().OrderBy(c => c.Name);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(c =>
+                c.Name.ToLower().Contains(searchLower) ||
+                (c.Address ?? "").ToLower().Contains(searchLower) ||
+                (c.TaxId ?? "").ToLower().Contains(searchLower)
+            ).OrderBy(c => c.Name);
+        }
+        
+        return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
     public async Task<CondominiumDetailResponse?> GetCondominiumByIdAsync(Guid id)

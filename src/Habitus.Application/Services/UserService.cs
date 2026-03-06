@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Users;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -32,6 +34,26 @@ public class UserService
         return users.Select(MapToResponse);
     }
 
+    public async Task<PaginatedResponse<UserResponse>> GetPagedUsersAsync(int page, int pageSize, string? search = null)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(
+            u => true,
+            "Condominium", "Unit");
+        
+        var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(u =>
+                u.Name.ToLower().Contains(searchLower) ||
+                u.Email.ToLower().Contains(searchLower)
+            ).OrderBy(u => u.Name);
+        }
+        
+        return PaginationHelper.Paginate(dtos, page, pageSize);
+    }
+
     public async Task<IEnumerable<UserResponse>> GetUsersByCondominiumAsync(Guid condominiumId)
     {
         var users = await _userRepository.FindWithIncludesAsync(
@@ -39,6 +61,26 @@ public class UserService
             "Condominium", "Unit");
 
         return users.Select(MapToResponse);
+    }
+
+    public async Task<PaginatedResponse<UserResponse>> GetUsersByCondominiumPagedAsync(Guid condominiumId, int page = 1, int pageSize = 10, string? search = null)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(
+            u => u.CondominiumId == condominiumId,
+            "Condominium", "Unit");
+        
+        var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(u =>
+                u.Name.ToLower().Contains(searchLower) ||
+                u.Email.ToLower().Contains(searchLower)
+            ).OrderBy(u => u.Name);
+        }
+        
+        return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
     public async Task<UserResponse?> GetUserByIdAsync(Guid id)

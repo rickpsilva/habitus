@@ -63,7 +63,10 @@ echo ""
 # Restaura dependências Node.js
 echo -e "${BLUE}4. Instalando dependências Node.js (Web App)...${NC}"
 cd "$WEB_DIR"
-npm install >/dev/null 2>&1
+if ! npm install --legacy-peer-deps --silent; then
+    echo -e "${RED}✗ Erro ao instalar dependências Node.js${NC}"
+    exit 1
+fi
 echo -e "${GREEN}✓ Dependências Node.js instaladas${NC}"
 echo ""
 

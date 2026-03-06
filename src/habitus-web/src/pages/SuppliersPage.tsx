@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Plus, Truck, Mail, Phone, MapPin, Building2, X, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
 
 export default function SuppliersPage() {
   const { isAdmin } = useAuth();
@@ -12,6 +14,10 @@ export default function SuppliersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterActive, setFilterActive] = useState<string>('all');
   const [condominiumId, setCondominiumId] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<SupplierDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
   const [form, setForm] = useState<CreateSupplierRequest | UpdateSupplierRequest>({
     name: '',
     contact: '',
@@ -36,11 +42,13 @@ export default function SuppliersPage() {
     loadUserData();
   }, []);
 
-  const load = async () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
     try {
-      const response = await suppliersApi.getAll();
-      setSuppliers(response.data);
+      const response = await suppliersApi.getPaged(page, pageSize, search);
+      setPagination(response.data);
+      setSuppliers(response.data.items);
+      setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar fornecedores:', error);
     } finally {
@@ -48,7 +56,17 @@ export default function SuppliersPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +141,7 @@ export default function SuppliersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Truck className="w-7 h-7 text-indigo-600" />
@@ -133,28 +151,37 @@ export default function SuppliersPage() {
             Gerir fornecedores de serviços do condomínio
           </p>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setEditingId(null);
-              setForm({
-                name: '',
-                contact: '',
-                email: '',
-                phone: '',
-                address: '',
-                specialty: '',
-                condominiumId: '',
-                isActive: true,
-              } as any);
-              setShowForm(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Fornecedor
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar fornecedores..."
+            />
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setForm({
+                  name: '',
+                  contact: '',
+                  email: '',
+                  phone: '',
+                  address: '',
+                  specialty: '',
+                  condominiumId: '',
+                  isActive: true,
+                } as any);
+                setShowForm(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Fornecedor
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter */}
@@ -324,77 +351,87 @@ export default function SuppliersPage() {
           <p className="text-gray-500">Sem fornecedores registados</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSuppliers.map((supplier) => (
-            <div
-              key={supplier.id}
-              className={`bg-white rounded-xl p-5 shadow-sm border ${
-                supplier.isActive ? 'border-gray-200' : 'border-gray-300 bg-gray-50'
-              } hover:shadow-md transition-shadow`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    {supplier.name}
-                    {!supplier.isActive && (
-                      <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
-                        Inativo
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-sm text-indigo-600 font-medium">{supplier.specialty}</p>
-                </div>
-                {isAdmin && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEdit(supplier)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(supplier.id)}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredSuppliers.map((supplier) => (
+              <div
+                key={supplier.id}
+                className={`bg-white rounded-xl p-5 shadow-sm border ${
+                  supplier.isActive ? 'border-gray-200' : 'border-gray-300 bg-gray-50'
+                } hover:shadow-md transition-shadow`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      {supplier.name}
+                      {!supplier.isActive && (
+                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                          Inativo
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-indigo-600 font-medium">{supplier.specialty}</p>
                   </div>
-                )}
-              </div>
+                  {isAdmin && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEdit(supplier)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(supplier.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              <div className="space-y-2 text-sm">
-                {supplier.contact && (
+                <div className="space-y-2 text-sm">
+                  {supplier.contact && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Building2 className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{supplier.contact}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-gray-600">
-                    <Building2 className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate">{supplier.contact}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Phone className="w-4 h-4 flex-shrink-0" />
-                  <a href={`tel:${supplier.phone}`} className="hover:text-indigo-600">
-                    {supplier.phone}
-                  </a>
-                </div>
-                {supplier.email && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Mail className="w-4 h-4 flex-shrink-0" />
-                    <a href={`mailto:${supplier.email}`} className="hover:text-indigo-600 truncate">
-                      {supplier.email}
+                    <Phone className="w-4 h-4 flex-shrink-0" />
+                    <a href={`tel:${supplier.phone}`} className="hover:text-indigo-600">
+                      {supplier.phone}
                     </a>
                   </div>
-                )}
-                {supplier.address && (
-                  <div className="flex items-start gap-2 text-gray-600">
-                    <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <span className="text-xs leading-relaxed">{supplier.address}</span>
-                  </div>
-                )}
+                  {supplier.email && (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Mail className="w-4 h-4 flex-shrink-0" />
+                      <a href={`mailto:${supplier.email}`} className="hover:text-indigo-600 truncate">
+                        {supplier.email}
+                      </a>
+                    </div>
+                  )}
+                  {supplier.address && (
+                    <div className="flex items-start gap-2 text-gray-600">
+                      <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs leading-relaxed">{supplier.address}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          
+          {pagination && (
+            <Pagination
+              pagination={pagination}
+              currentPage={currentPage}
+              onPageChange={(page) => load(page)}
+            />
+          )}
+        </>
       )}
     </div>
   );

@@ -31,11 +31,13 @@ export interface ResidentDto {
   createdAt: string;
 }
 
-export enum UserRole {
-  Manager = 0,
-  Admin = 1,
-  Resident = 2,
-}
+export const UserRole = {
+  Manager: 0,
+  Admin: 1,
+  Resident: 2,
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export interface UserDto {
   id: string;
@@ -147,6 +149,7 @@ export interface FinancialRecordDto {
   amount: number;
   description: string;
   date: string;
+  fiscalYear: number;
   category: string;
   condominiumId: string;
   receiptUrl?: string;
@@ -168,6 +171,45 @@ export interface FinancialSummaryDto {
   balance: number;
   incomeByCategory: Record<string, number>;
   expensesByCategory: Record<string, number>;
+}
+
+export interface ReserveFundDto {
+  id: string;
+  condominiumId: string;
+  fiscalYear: number;
+  openingBalance: number;
+  deposits: number;
+  withdrawals: number;
+  closingBalance: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface UpdateReserveFundRequest {
+  deposits?: number;
+  withdrawals?: number;
+}
+
+export interface FinancialDashboardDto {
+  currentYear: number;
+  currentYearIncome: number;
+  currentYearExpenses: number;
+  currentYearBalance: number;
+  reserveFundBalance: number;
+  reserveFundDeposits: number;
+  reserveFundWithdrawals: number;
+  currentYearRecords: FinancialRecordDto[];
+  availableFiscalYears: number[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface NotificationDto {
@@ -224,8 +266,29 @@ export interface AssemblyDto {
   title: string;
   description: string;
   scheduledAt: string;
+  location: string;
   status: string;
+  minutes?: string;
+  notes?: string;
+  cancellationReason?: string;
+  createdAt: string;
+  updatedAt?: string;
   condominiumId: string;
+}
+
+export interface CreateAssemblyRequest {
+  title: string;
+  description: string;
+  scheduledAt: string;
+  location: string;
+  condominiumId: string;
+}
+
+export interface UpdateAssemblyRequest {
+  title?: string;
+  description?: string;
+  scheduledAt?: string;
+  location?: string;
 }
 
 export interface SupplierDto {

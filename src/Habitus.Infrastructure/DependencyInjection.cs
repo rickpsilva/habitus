@@ -66,6 +66,9 @@ public static class DependencyInjection
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
+        services.AddScoped<ReserveFundService>();
+        services.AddScoped<AssemblyService>();
+        services.AddScoped<INotificationService, NotificationService>();
         
         // New multi-condominium services
         services.AddScoped<UserService>();

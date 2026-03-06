@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Trash2, Edit2, Mail, Phone, Home, Shield } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2 } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse } from '../types';
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -37,6 +39,9 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<UserDto> | null>(null);
+  const pageSize = 10;
   const [formData, setFormData] = useState<CreateUserRequest>({
     name: '',
     email: '',
@@ -49,27 +54,29 @@ export default function UsersPage() {
   const [isActive, setIsActive] = useState(true);
   const [isInternalAdmin, setIsInternalAdmin] = useState(false); // Admin Interno com fração
 
-  const load = async () => {
+  const load = async (page: number = 1, searchQuery: string = search) => {
     setLoading(true);
     try {
       let usersResponse;
       
       // Admin: load only from their condominium, Manager: load all
       if (isAdmin && condominiumId) {
-        usersResponse = await usersApi.getByCondominium(condominiumId);
+        usersResponse = await usersApi.getByCondominiumPaged(condominiumId, page, pageSize, searchQuery);
       } else {
-        usersResponse = await usersApi.getAll();
+        usersResponse = await usersApi.getPaged(page, pageSize, searchQuery);
       }
       
       const unitsResponse = await unitsApi.getAll();
       
       // Filter out Managers from the list (Admin should not see Managers)
-      let usersData = usersResponse.data;
+      let usersData = usersResponse.data.items;
       if (isAdmin) {
         usersData = usersData.filter(u => u.role !== UserRole.Manager);
       }
       
+      setPagination(usersResponse.data);
       setUsers(usersData);
+      setCurrentPage(page);
       setUnits(unitsResponse.data);
       
       // Load condominiums
@@ -90,8 +97,17 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    load();
+    load(1);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (search !== undefined) {
+        load(1, search);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,23 +251,25 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Utilizadores</h1>
           <p className="text-gray-500 text-sm mt-0.5">{users.length} utilizadores registados</p>
         </div>
-        <button
-          onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Utilizador
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Pesquisar utilizadores..."
+            />
+          </div>
+          <button
+            onClick={handleNew}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Utilizador
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Pesquisar por nome ou email..."
-          className="flex-1 min-w-[200px] max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
         <select
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
@@ -315,7 +333,7 @@ export default function UsersPage() {
                 )}
                 {user.role === UserRole.Resident && (
                   <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4 shrink-0" />
+                    <Building2 className="w-4 h-4 shrink-0" />
                     <span className="flex-1 truncate">{unitLabel(user.unitId)}</span>
                   </div>
                 )}
@@ -324,6 +342,14 @@ export default function UsersPage() {
           ))
         )}
       </div>
+      
+      {pagination && !loading && filtered.length > 0 && (
+        <Pagination
+          pagination={pagination}
+          currentPage={currentPage}
+          onPageChange={(page) => load(page)}
+        />
+      )}
 
       {/* Modal */}
       {showModal && (

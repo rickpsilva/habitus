@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Suppliers;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +33,40 @@ public class SuppliersController : ControllerBase
             CondominiumId = s.CondominiumId.ToString()
         });
         return Ok(dtos);
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        
+        var suppliers = await _repository.GetAllAsync();
+        var dtos = suppliers.Select(s => new SupplierDto
+        {
+            Id = s.Id.ToString(),
+            Name = s.Name,
+            Contact = s.Contact,
+            Email = s.Email,
+            Phone = s.Phone,
+            Address = s.Address,
+            Specialty = s.Specialty,
+            IsActive = s.IsActive,
+            CondominiumId = s.CondominiumId.ToString()
+        }).OrderBy(s => s.Name);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(s =>
+                s.Name.ToLower().Contains(searchLower) ||
+                (s.Contact ?? "").ToLower().Contains(searchLower) ||
+                (s.Email ?? "").ToLower().Contains(searchLower) ||
+                (s.Specialty ?? "").ToLower().Contains(searchLower)
+            ).OrderBy(s => s.Name);
+        }
+        
+        return Ok(PaginationHelper.Paginate(dtos, page, pageSize));
     }
 
     [HttpGet("{id}")]

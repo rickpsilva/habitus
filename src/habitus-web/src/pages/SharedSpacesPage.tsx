@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import { sharedSpacesApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { SharedSpaceDto } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
 export default function SharedSpacesPage() {
   const { isAdmin } = useAuth();
@@ -10,6 +12,10 @@ export default function SharedSpacesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<SharedSpaceDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -19,19 +25,21 @@ export default function SharedSpacesPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
     try {
       const userData = await usersApi.getMe();
       const condominiumId = userData.data.condominiumId || '';
       
-      const response = await sharedSpacesApi.getAll();
+      const response = await sharedSpacesApi.getPaged(page, pageSize, search);
       // Filter by condominium if admin
       const filtered = isAdmin 
-        ? response.data.filter(s => s.condominiumId === condominiumId)
-        : response.data;
+        ? response.data.items.filter(s => s.condominiumId === condominiumId)
+        : response.data.items;
       
+      setPagination(response.data);
       setSpaces(filtered);
+      setCurrentPage(page);
       setForm(prev => ({ ...prev, condominiumId }));
     } catch (error) {
       console.error('Erro ao carregar espaços:', error);
@@ -41,8 +49,18 @@ export default function SharedSpacesPage() {
   };
 
   useEffect(() => { 
-    load(); 
+    load(1); 
   }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +167,7 @@ export default function SharedSpacesPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Building className="w-7 h-7" />
@@ -157,15 +175,24 @@ export default function SharedSpacesPage() {
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">Gestão dos espaços partilhados do condomínio</p>
             </div>
-            {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Novo Espaço
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              <div className="w-80">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Pesquisar espaços..."
+                />
+              </div>
+              {!showForm && (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  Novo Espaço
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -262,50 +289,62 @@ export default function SharedSpacesPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {spaces.map((space) => (
-                <div
-                  key={space.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 text-lg">{space.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Capacidade: {space.capacity} pessoas
-                      </p>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {spaces.map((space) => (
+                  <div
+                    key={space.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-lg">{space.name}</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Capacidade: {space.capacity} pessoas
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(space)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(space.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(space)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(space.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    
+                    {space.description && (
+                      <p className="text-sm text-gray-600 mb-3">{space.description}</p>
+                    )}
+                    
+                    {space.rules && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <p className="text-xs font-medium text-gray-700 mb-1">Regras:</p>
+                        <p className="text-xs text-gray-600 whitespace-pre-line">{space.rules}</p>
+                      </div>
+                    )}
                   </div>
-                  
-                  {space.description && (
-                    <p className="text-sm text-gray-600 mb-3">{space.description}</p>
-                  )}
-                  
-                  {space.rules && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-700 mb-1">Regras:</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-line">{space.rules}</p>
-                    </div>
-                  )}
+                ))}
+              </div>
+              
+              {pagination && (
+                <div className="mt-6">
+                  <Pagination
+                    pagination={pagination}
+                    currentPage={currentPage}
+                    onPageChange={(page) => load(page)}
+                  />
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

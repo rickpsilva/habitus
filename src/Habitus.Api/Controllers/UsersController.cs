@@ -27,6 +27,16 @@ public class UsersController : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("paged")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetPagedUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        var users = await _userService.GetPagedUsersAsync(page, pageSize, search);
+        return Ok(users);
+    }
+
     /// <summary>
     /// Get users by condominium (Manager and Admin)
     /// </summary>
@@ -47,6 +57,32 @@ public class UsersController : ControllerBase
         }
 
         var users = await _userService.GetUsersByCondominiumAsync(condominiumId);
+        return Ok(users);
+    }
+
+    /// <summary>
+    /// Get users by condominium with pagination (Manager and Admin)
+    /// </summary>
+    [HttpGet("condominium/{condominiumId}/paged")]
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> GetUsersByCondominiumPaged(Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        
+        // If Admin, verify they belong to this condominium
+        if (userRole == "Admin")
+        {
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+            if (userCondominiumId != condominiumId.ToString())
+            {
+                return Forbid("You can only view users from your own condominium.");
+            }
+        }
+
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var users = await _userService.GetUsersByCondominiumPagedAsync(condominiumId, page, pageSize, search);
         return Ok(users);
     }
 

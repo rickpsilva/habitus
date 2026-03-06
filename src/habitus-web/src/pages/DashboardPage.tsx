@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     maintenanceApi.getAll().then((r) => setMaintenance(r.data)).catch(() => {});
-    notificationsApi.getAll().then((r) => setNotifications(r.data)).catch(() => {});
+    notificationsApi.getAll(1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
     reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
     // Financial summary requires buildingId — skip if not available
     financialApi.getAll().then((r) => {

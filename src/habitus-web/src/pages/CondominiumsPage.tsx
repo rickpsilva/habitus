@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
 
 export default function CondominiumsPage() {
   const { isManager } = useAuth();
@@ -20,6 +22,10 @@ export default function CondominiumsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<CondominiumDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
   const [formData, setFormData] = useState<CreateCondominiumRequest>({
     name: '',
     address: '',
@@ -27,11 +33,13 @@ export default function CondominiumsPage() {
   });
   const [isActive, setIsActive] = useState(true);
 
-  const load = async () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
     try {
-      const response = await condominiumsApi.getAll();
-      setCondominiums(response.data);
+      const response = await condominiumsApi.getPaged(page, pageSize, search);
+      setPagination(response.data);
+      setCondominiums(response.data.items);
+      setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar condomínios:', error);
     } finally {
@@ -40,8 +48,17 @@ export default function CondominiumsPage() {
   };
 
   useEffect(() => {
-    load();
+    load(1);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,13 +131,22 @@ export default function CondominiumsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Condomínios</h1>
           <p className="text-gray-500 text-sm mt-0.5">{condominiums.length} condomínios registados</p>
         </div>
-        <button
-          onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Condomínio
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar condomínios..."
+            />
+          </div>
+          <button
+            onClick={handleNew}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Condomínio
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -180,6 +206,14 @@ export default function CondominiumsPage() {
           ))
         )}
       </div>
+      
+      {pagination && !loading && condominiums.length > 0 && (
+        <Pagination
+          pagination={pagination}
+          currentPage={currentPage}
+          onPageChange={(page) => load(page)}
+        />
+      )}
 
       {/* Modal */}
       {showModal && (

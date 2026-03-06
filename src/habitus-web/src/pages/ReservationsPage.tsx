@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, Check, X, AlertCircle, MessageSquare } from 'lucide-react';
+import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, X, AlertCircle, MessageSquare } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
 
 const statusLabels: Record<string, string> = {
   Pending: 'Pendente',
@@ -26,7 +28,7 @@ type SortField = 'spaceName' | 'startTime' | 'endTime' | 'status' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReservationsPage() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -37,6 +39,10 @@ export default function ReservationsPage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<ReservationDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
   const [form, setForm] = useState({
     spaceId: '',
     userId: '',
@@ -56,7 +62,7 @@ export default function ReservationsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReservationId, setDeleteReservationId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
     try {
       // Get current user data
@@ -68,7 +74,7 @@ export default function ReservationsPage() {
       
       // Load reservations and spaces (always needed)
       const [reservationsRes, spacesRes, unitsRes] = await Promise.all([
-        reservationsApi.getAll(),
+        reservationsApi.getPaged(page, pageSize, search),
         sharedSpacesApi.getAll(),
         unitsApi.getAll()
       ]);
@@ -87,7 +93,7 @@ export default function ReservationsPage() {
       // Filter by condominium
       const filteredSpaces = spacesRes.data.filter(s => s.condominiumId === condominiumId);
       const filteredUnits = unitsRes.data.filter(u => u.condominiumId === condominiumId);
-      let filteredReservations = reservationsRes.data.filter(r => r.condominiumId === condominiumId);
+      let filteredReservations = reservationsRes.data.items.filter(r => r.condominiumId === condominiumId);
       
       // Moradores only see their own reservations, Admins see all
       if (!isAdmin) {
@@ -95,10 +101,12 @@ export default function ReservationsPage() {
       }
       
       setSpaces(filteredSpaces);
+      setPagination(reservationsRes.data);
       setReservations(filteredReservations);
+      setCurrentPage(page);
       setUsers(usersData);
       setUnits(filteredUnits);
-      setForm(prev => ({ ...prev, userId, condominiumId }));
+      setForm(prev => ({ ...prev, userId, condominiumId: condominiumId || '' }));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -106,7 +114,17 @@ export default function ReservationsPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -379,7 +397,7 @@ export default function ReservationsPage() {
   };
 
   const getAvailableActions = (reservation: ReservationDto) => {
-    const actions = [];
+    const actions: Array<{ label: string; action: () => void; color: 'green' | 'red' | 'orange' }> = [];
     
     // Completed or already cancelled/rejected - no actions
     if (reservation.status === 'Completed' || reservation.status === 'Cancelled' || reservation.status === 'Rejected') {
@@ -469,6 +487,13 @@ export default function ReservationsPage() {
           <p className="text-gray-500 text-sm mt-0.5">Reservas dos espaços comuns</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar reservas..."
+            />
+          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -728,6 +753,16 @@ export default function ReservationsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {pagination && !loading && reservations.length > 0 && (
+          <div className="px-4 py-3 border-t border-gray-200">
+            <Pagination
+              pagination={pagination}
+              currentPage={currentPage}
+              onPageChange={(page) => load(page)}
+            />
           </div>
         )}
       </div>

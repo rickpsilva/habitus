@@ -20,6 +20,7 @@ public class HabitusDbContext : DbContext
     public DbSet<Intervention> Interventions => Set<Intervention>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<FinancialRecord> FinancialRecords => Set<FinancialRecord>();
+    public DbSet<ReserveFund> ReserveFunds => Set<ReserveFund>();
     public DbSet<Assembly> Assemblies => Set<Assembly>();
     public DbSet<AssemblyAttendance> AssemblyAttendances => Set<AssemblyAttendance>();
     public DbSet<AssemblyDecision> AssemblyDecisions => Set<AssemblyDecision>();

@@ -1,7 +1,9 @@
 using Habitus.Application.Interfaces;
+using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
@@ -11,15 +13,30 @@ namespace Habitus.Api.Controllers;
 public class NotificationsController : ControllerBase
 {
     private readonly IRepository<Notification> _repository;
-    public NotificationsController(IRepository<Notification> repository) => _repository = repository;
+    private readonly INotificationService _notificationService;
+
+    public NotificationsController(
+        IRepository<Notification> repository,
+        INotificationService notificationService)
+    {
+        _repository = repository;
+        _notificationService = notificationService;
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize);
+        return Ok(paginatedResult);
+    }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await _repository.GetByIdAsync(id);
+        var result = await _notificationService.GetByIdAsync(id);
         return result == null ? NotFound() : Ok(result);
     }
 
@@ -37,12 +54,25 @@ public class NotificationsController : ControllerBase
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkRead(Guid id)
     {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return NotFound();
-        entity.IsRead = true;
-        _repository.Update(entity);
-        await _repository.SaveChangesAsync();
-        return Ok(entity);
+        await _notificationService.MarkAsReadAsync(id);
+        return Ok();
+    }
+
+    [HttpPut("mark-all-read")]
+    public async Task<IActionResult> MarkAllRead()
+    {
+        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _notificationService.MarkAllAsReadAsync(condominiumId, userId);
+        return Ok();
+    }
+
+    [HttpDelete("clear-all")]
+    public async Task<IActionResult> ClearAll()
+    {
+        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        await _notificationService.DeleteAllAsync(condominiumId);
+        return NoContent();
     }
 
     [HttpDelete("{id}")]

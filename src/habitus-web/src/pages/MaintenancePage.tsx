@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, ChevronDown, X, Phone, Mail, MapPin, Building } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { MaintenanceRequestDto, CreateMaintenanceRequest, UserDto, Supplier } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse } from '../types';
 
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
@@ -26,12 +28,15 @@ const priorityLabels: Record<string, string> = {
 };
 
 export default function MaintenancePage() {
-  const { user, isAdmin, condominiumId, unitId } = useAuth();
-  const [currentUser, setCurrentUser] = useState<UserDto | null>(null);
+  const { isAdmin, condominiumId, unitId } = useAuth();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<MaintenanceRequestDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
   const [form, setForm] = useState<CreateMaintenanceRequest>({
     title: '',
     description: '',
@@ -47,7 +52,7 @@ export default function MaintenancePage() {
   // Status panel state
   const [showStatusPanel, setShowStatusPanel] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequestDto | null>(null);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [statusForm, setStatusForm] = useState({
     status: '',
     supplierId: '',
@@ -59,7 +64,6 @@ export default function MaintenancePage() {
     const loadUserData = async () => {
       try {
         const response = await usersApi.getMe();
-        setCurrentUser(response.data);
         // Update form with user data
         setForm(prev => ({
           ...prev,
@@ -71,10 +75,8 @@ export default function MaintenancePage() {
         console.error('Failed to load user data:', error);
       }
     };
-    if (user) {
-      loadUserData();
-    }
-  }, [user, condominiumId, unitId]);
+    loadUserData();
+  }, [condominiumId, unitId]);
 
   // Load suppliers
   useEffect(() => {
@@ -86,12 +88,28 @@ export default function MaintenancePage() {
     }
   }, [isAdmin, condominiumId]);
 
-  const load = () => {
+  const load = (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
-    maintenanceApi.getAll().then((r) => setRequests(r.data)).finally(() => setLoading(false));
+    maintenanceApi.getPaged(page, pageSize, search)
+      .then((r) => {
+        setPagination(r.data);
+        setRequests(r.data.items);
+        setCurrentPage(page);
+      })
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,13 +189,22 @@ export default function MaintenancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
           <p className="text-gray-500 text-sm mt-0.5">Pedidos de manutenção do condomínio</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Pedido
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar pedidos..."
+            />
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Pedido
+          </button>
+        </div>
       </div>
 
       {/* New request form */}
@@ -268,42 +295,52 @@ export default function MaintenancePage() {
             Sem pedidos de manutenção
           </div>
         ) : (
-          filtered.map((m) => {
-            const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
-            return (
-              <div key={m.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <Icon className="w-5 h-5 mt-0.5 shrink-0 text-gray-400" />
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{m.title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>{label}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityMap[m.priority] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {priorityLabels[m.priority] ?? m.priority}
-                        </span>
-                        {m.location && (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{m.location}</span>
-                        )}
+          <>
+            {filtered.map((m) => {
+              const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
+              return (
+                <div key={m.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Icon className="w-5 h-5 mt-0.5 shrink-0 text-gray-400" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900">{m.title}</p>
+                        <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>{label}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityMap[m.priority] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {priorityLabels[m.priority] ?? m.priority}
+                          </span>
+                          {m.location && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{m.location}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleOpenStatusPanel(m)}
+                        className="shrink-0 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
+                      >
+                        Gerir Estado
+                      </button>
+                    )}
                   </div>
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleOpenStatusPanel(m)}
-                      className="shrink-0 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
-                    >
-                      Gerir Estado
-                    </button>
-                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    {new Date(m.createdAt).toLocaleDateString('pt-PT')}
+                  </p>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  {new Date(m.createdAt).toLocaleDateString('pt-PT')}
-                </p>
-              </div>
-            );
-          })
+              );
+            })}
+            
+            {pagination && (
+              <Pagination
+                pagination={pagination}
+                currentPage={currentPage}
+                onPageChange={(page) => load(page)}
+              />
+            )}
+          </>
         )}
       </div>
 

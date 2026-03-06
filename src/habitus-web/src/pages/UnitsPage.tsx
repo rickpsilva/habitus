@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X, Home } from 'lucide-react';
+import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
 import { unitsApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { UnitDto, CreateUnitRequest, CondominiumDto } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { UnitDto, CreateUnitRequest, CondominiumDto, PaginatedResponse } from '../types';
 
 const unitTypeLabels: Record<number, string> = {
   0: 'Apartamento',
@@ -38,19 +40,25 @@ export default function UnitsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [filterCondominiumId, setFilterCondominiumId] = useState(condominiumId || '');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<UnitDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
 
-  const load = async () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
     try {
-      const unitsResponse = await unitsApi.getAll();
-      let unitsData = unitsResponse.data;
+      const unitsResponse = await unitsApi.getPaged(page, pageSize, search);
+      let unitsData = unitsResponse.data.items;
       
       // Filter by condominium if user is Admin
       if (isAdmin && condominiumId) {
         unitsData = unitsData.filter(u => u.condominiumId === condominiumId);
       }
       
+      setPagination(unitsResponse.data);
       setUnits(unitsData);
+      setCurrentPage(page);
       
       // Load condominiums for Manager
       if (isManager) {
@@ -65,8 +73,17 @@ export default function UnitsPage() {
   };
 
   useEffect(() => {
-    load();
+    load(1);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const openCreate = () => {
     setEditId(null);
@@ -165,13 +182,22 @@ export default function UnitsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
           <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Fração
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar frações..."
+            />
+          </div>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Fração
+          </button>
+        </div>
       </div>
 
       {/* Filter by condominium (Manager only) */}
@@ -316,7 +342,7 @@ export default function UnitsPage() {
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
         ) : filteredUnits.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Home className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
             Sem frações registadas
           </div>
         ) : (
@@ -363,6 +389,14 @@ export default function UnitsPage() {
           ))
         )}
       </div>
+      
+      {pagination && !loading && filteredUnits.length > 0 && (
+        <Pagination
+          pagination={pagination}
+          currentPage={currentPage}
+          onPageChange={(page) => load(page)}
+        />
+      )}
     </div>
   );
 }

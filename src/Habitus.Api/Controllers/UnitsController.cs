@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Units;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +19,28 @@ public class UnitsController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
+
+    [HttpGet("paged")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        
+        var units = await _repository.GetAllAsync();
+        var ordered = units.OrderBy(u => u.Number);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            ordered = ordered.Where(u =>
+                u.Number.ToLower().Contains(searchLower) ||
+                (u.ApartmentNumber ?? "").ToLower().Contains(searchLower)
+            ).OrderBy(u => u.Number);
+        }
+        
+        return Ok(PaginationHelper.Paginate(ordered, page, pageSize));
+    }
 
     [HttpGet("{id}")]
     [AllowAnonymous]

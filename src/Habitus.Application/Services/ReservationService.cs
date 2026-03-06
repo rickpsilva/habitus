@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Reservations;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -19,6 +21,22 @@ public class ReservationService
     {
         var items = await _repository.GetAllAsync();
         return items.Select(MapToDto);
+    }
+
+    public async Task<PaginatedResponse<ReservationDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    {
+        var items = await _repository.GetAllAsync();
+        var dtos = items.Select(MapToDto).OrderByDescending(r => r.StartTime);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(r =>
+                (r.AdminComments ?? "").ToLower().Contains(searchLower)
+            ).OrderByDescending(r => r.StartTime);
+        }
+        
+        return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
     public async Task<ReservationDto?> GetByIdAsync(Guid id)

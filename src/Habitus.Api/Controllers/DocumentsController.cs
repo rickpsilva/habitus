@@ -1,3 +1,5 @@
+using Habitus.Application.DTOs.Common;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +23,27 @@ public class DocumentsController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        
+        var documents = await _repository.GetAllAsync();
+        var ordered = documents.OrderByDescending(d => d.UploadedAt);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            ordered = ordered.Where(d =>
+                d.Name.ToLower().Contains(searchLower) ||
+                d.Type.ToString().ToLower().Contains(searchLower)
+            ).OrderByDescending(d => d.UploadedAt);
+        }
+        
+        return Ok(PaginationHelper.Paginate(ordered, page, pageSize));
+    }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)

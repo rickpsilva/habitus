@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationsApi } from '../api/services';
 import {
   LayoutDashboard,
   Wrench,
@@ -47,6 +48,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const loadUnreadCount = () => {
+      notificationsApi.getAll(1, 100).then((r) => {
+        // Count unread from all items (fetch more to get accurate count)
+        const unread = r.data.items.filter((n) => !n.isRead).length;
+        setUnreadCount(unread);
+      }).catch(() => {});
+    };
+
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -98,14 +114,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 to={to}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`
                 }
               >
-                <Icon className="w-5 h-5 shrink-0" />
+                <div className="relative">
+                  <Icon className={`w-5 h-5 shrink-0 ${to === '/notifications' && unreadCount > 0 ? 'animate-bell-ring' : ''}`} />
+                  {to === '/notifications' && unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
                 {label}
               </NavLink>
             ))}

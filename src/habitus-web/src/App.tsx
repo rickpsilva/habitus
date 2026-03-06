@@ -18,8 +18,6 @@ import UnitsPage from './pages/UnitsPage';
 import ProfilePage from './pages/ProfilePage';
 import SharedSpacesPage from './pages/SharedSpacesPage';
 import SuppliersPage from './pages/SuppliersPage';
-// Keep for backward compatibility during transition
-import ResidentsPage from './pages/ResidentsPage';
 
 export default function App() {
   return (

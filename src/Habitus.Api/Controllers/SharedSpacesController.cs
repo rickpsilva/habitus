@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.SharedSpaces;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -28,6 +30,35 @@ public class SharedSpacesController : ControllerBase
             Rules = s.Rules
         });
         return Ok(dtos);
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        
+        var spaces = await _repository.GetAllAsync();
+        var dtos = spaces.Select(s => new SharedSpaceDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            Description = s.Description,
+            Capacity = s.Capacity,
+            CondominiumId = s.CondominiumId,
+            Rules = s.Rules
+        }).OrderBy(s => s.Name);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(s =>
+                s.Name.ToLower().Contains(searchLower) ||
+                (s.Description ?? "").ToLower().Contains(searchLower)
+            ).OrderBy(s => s.Name);
+        }
+        
+        return Ok(PaginationHelper.Paginate(dtos, page, pageSize));
     }
 
     [HttpGet("{id}")]

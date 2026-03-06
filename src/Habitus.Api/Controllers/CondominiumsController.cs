@@ -27,6 +27,16 @@ public class CondominiumsController : ControllerBase
         return Ok(condominiums);
     }
 
+    [HttpGet("paged")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetPagedCondominiums([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        var condominiums = await _condominiumService.GetPagedCondominiumsAsync(page, pageSize, search);
+        return Ok(condominiums);
+    }
+
     /// <summary>
     /// Get condominium by ID (Manager can view any, Admin/Resident can view their own)
     /// </summary>

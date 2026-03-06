@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Maintenance;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -17,6 +19,24 @@ public class MaintenanceService
     {
         var requests = await _repository.GetAllAsync();
         return requests.Select(MapToDto);
+    }
+
+    public async Task<PaginatedResponse<MaintenanceRequestDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    {
+        var requests = await _repository.GetAllAsync();
+        var dtos = requests.Select(MapToDto).OrderByDescending(r => r.CreatedAt);
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(r =>
+                r.Title.ToLower().Contains(searchLower) ||
+                (r.Description ?? "").ToLower().Contains(searchLower) ||
+                (r.Location ?? "").ToLower().Contains(searchLower)
+            ).OrderByDescending(r => r.CreatedAt);
+        }
+        
+        return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
     public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id)

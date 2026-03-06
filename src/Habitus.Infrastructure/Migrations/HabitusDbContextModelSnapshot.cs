@@ -31,11 +31,27 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Minutes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduledAt")
@@ -47,6 +63,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -208,9 +227,8 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
@@ -221,6 +239,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ReceiptUrl")
                         .HasColumnType("text");
@@ -436,6 +457,43 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Reservations");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.ReserveFund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ClosingBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Deposits")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Withdrawals")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.ToTable("ReserveFunds");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Resident", b =>
@@ -883,6 +941,17 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.ReserveFund", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("ReserveFunds")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.Resident", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
@@ -1025,6 +1094,8 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("FinancialRecords");
 
                     b.Navigation("Notifications");
+
+                    b.Navigation("ReserveFunds");
 
                     b.Navigation("SharedSpaces");
 

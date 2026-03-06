@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { FileText, Download, Trash2 } from 'lucide-react';
 import { documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { DocumentDto } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { DocumentDto, PaginatedResponse } from '../types';
 
 const typeLabels: Record<string, string> = {
   Regulation: 'Regulamento',
@@ -26,13 +28,33 @@ export default function DocumentsPage() {
   const { isAdmin } = useAuth();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<DocumentDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
 
-  const load = () => {
+  const load = (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
-    documentsApi.getAll().then((r) => setDocuments(r.data)).finally(() => setLoading(false));
+    documentsApi.getPaged(page, pageSize, search)
+      .then((r) => {
+        setPagination(r.data);
+        setDocuments(r.data.items);
+        setCurrentPage(page);
+      })
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
+
+  // Search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar este documento?')) return;
@@ -42,9 +64,18 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Documentos e arquivos do condomínio</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Documentos e arquivos do condomínio</p>
+        </div>
+        <div className="w-80">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar documentos..."
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -98,6 +129,14 @@ export default function DocumentsPage() {
           ))
         )}
       </div>
+      
+      {pagination && !loading && documents.length > 0 && (
+        <Pagination
+          pagination={pagination}
+          currentPage={currentPage}
+          onPageChange={(page) => load(page)}
+        />
+      )}
     </div>
   );
 }
