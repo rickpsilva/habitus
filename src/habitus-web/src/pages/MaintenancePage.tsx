@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building } from 'lucide-react';
-import { maintenanceApi, usersApi, suppliersApi } from '../api/services';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
+import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
+import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse } from '../types';
+import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
@@ -59,6 +60,17 @@ export default function MaintenancePage() {
     adminComments: '',
   });
 
+  // Documents state
+  const [maintenanceDocuments, setMaintenanceDocuments] = useState<DocumentDto[]>([]);
+  const [showDocUploadModal, setShowDocUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadForm, setUploadForm] = useState({
+    name: '',
+    type: 'MaintenanceInvoice',
+    description: '',
+  });
+  const [uploading, setUploading] = useState(false);
+
   // Load current user data to get ID
   useEffect(() => {
     const loadUserData = async () => {
@@ -80,13 +92,13 @@ export default function MaintenancePage() {
 
   // Load suppliers
   useEffect(() => {
-    if (isAdmin && condominiumId) {
+    if (condominiumId) {
       suppliersApi.getAll().then((r) => {
         const filtered = r.data.filter(s => s.condominiumId === condominiumId && s.isActive);
         setSuppliers(filtered);
       }).catch(console.error);
     }
-  }, [isAdmin, condominiumId]);
+  }, [condominiumId]);
 
   const load = (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
@@ -151,12 +163,14 @@ export default function MaintenancePage() {
       adminComments: '',
     });
     setShowStatusPanel(true);
+    loadMaintenanceDocuments(request.id);
   };
 
   const handleCloseStatusPanel = () => {
     setShowStatusPanel(false);
     setSelectedRequest(null);
     setStatusForm({ status: '', supplierId: '', adminComments: '' });
+    setMaintenanceDocuments([]);
   };
 
   const handleStatusUpdate = async (e: React.FormEvent) => {
@@ -178,6 +192,68 @@ export default function MaintenancePage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Document management functions
+  const loadMaintenanceDocuments = async (maintenanceRequestId: string) => {
+    try {
+      const response = await documentsApi.getPaged(1, 100, '', 'Maintenance');
+      const docs = response.data.items.filter(doc => doc.maintenanceRequestId === maintenanceRequestId);
+      setMaintenanceDocuments(docs);
+    } catch (err) {
+      console.error('Failed to load maintenance documents:', err);
+    }
+  };
+
+  const handleDocUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || !selectedRequest) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('name', uploadForm.name);
+      formData.append('type', uploadForm.type);
+      formData.append('context', 'Maintenance');
+      formData.append('description', uploadForm.description);
+      formData.append('maintenanceRequestId', selectedRequest.id);
+
+      await documentsApi.upload(formData);
+      setShowDocUploadModal(false);
+      setUploadFile(null);
+      setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
+      loadMaintenanceDocuments(selectedRequest.id);
+    } catch (err) {
+      alert('Erro ao carregar documento');
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDocDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+    if (!selectedRequest) return;
+
+    try {
+      await documentsApi.delete(id);
+      loadMaintenanceDocuments(selectedRequest.id);
+    } catch (err) {
+      alert('Erro ao excluir documento');
+      console.error(err);
+    }
+  };
+
+  const handleDocDownload = (id: string, fileName: string) => {
+    const downloadUrl = documentsApi.download(id);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', fileName);
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const filtered = filter === 'All' ? requests : requests.filter((r) => r.status === filter);
@@ -317,12 +393,19 @@ export default function MaintenancePage() {
                         </div>
                       </div>
                     </div>
-                    {isAdmin && (
+                    {isAdmin ? (
                       <button
                         onClick={() => handleOpenStatusPanel(m)}
                         className="shrink-0 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
                       >
                         Gerir Estado
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenStatusPanel(m)}
+                        className="shrink-0 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
+                      >
+                        Ver Detalhes
                       </button>
                     )}
                   </div>
@@ -351,7 +434,9 @@ export default function MaintenancePage() {
           <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Gerir Estado da Manutenção</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {isAdmin ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
+              </h2>
               <button onClick={handleCloseStatusPanel} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -369,118 +454,393 @@ export default function MaintenancePage() {
               </div>
 
               {/* Form */}
-              <form onSubmit={handleStatusUpdate} className="space-y-4">
-                {/* Status Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select
-                    value={statusForm.status}
-                    onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {Object.entries(statusMap).map(([value, { label }]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Supplier Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fornecedor <span className="text-gray-400 font-normal">(opcional)</span>
-                  </label>
-                  <select
-                    value={statusForm.supplierId}
-                    onChange={(e) => setStatusForm({ ...statusForm, supplierId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Sem fornecedor</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} - {s.specialty}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Supplier Contact Info */}
-                {statusForm.supplierId && (
-                  (() => {
-                    const selectedSupplier = suppliers.find(s => s.id === statusForm.supplierId);
-                    return selectedSupplier ? (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                        <p className="text-xs font-medium text-blue-900 mb-2">Informações de Contato</p>
-                        {selectedSupplier.phone && (
-                          <div className="flex items-center gap-2 text-sm text-blue-700">
-                            <Phone className="w-4 h-4" />
-                            <span>{selectedSupplier.phone}</span>
-                          </div>
-                        )}
-                        {selectedSupplier.email && (
-                          <div className="flex items-center gap-2 text-sm text-blue-700">
-                            <Mail className="w-4 h-4" />
-                            <span>{selectedSupplier.email}</span>
-                          </div>
-                        )}
-                        {selectedSupplier.address && (
-                          <div className="flex items-center gap-2 text-sm text-blue-700">
-                            <MapPin className="w-4 h-4" />
-                            <span>{selectedSupplier.address}</span>
-                          </div>
-                        )}
-                        {selectedSupplier.contact && (
-                          <div className="flex items-center gap-2 text-sm text-blue-700">
-                            <Building className="w-4 h-4" />
-                            <span>{selectedSupplier.contact}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : null;
-                  })()
-                )}
-
-                {/* Admin Comments */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Comentário <span className="text-gray-400 font-normal">(opcional)</span>
-                  </label>
-                  <textarea
-                    value={statusForm.adminComments}
-                    onChange={(e) => setStatusForm({ ...statusForm, adminComments: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                    placeholder="Adicione um comentário sobre esta atualização..."
-                  />
-                </div>
-
-                {/* Comment History */}
-                {selectedRequest.adminComments && (
+              {isAdmin ? (
+                <form onSubmit={handleStatusUpdate} className="space-y-4">
+                  {/* Status Select */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Histórico de Comentários</label>
-                    <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                      <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                    <select
+                      value={statusForm.status}
+                      onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {Object.entries(statusMap).map(([value, { label }]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Supplier Select */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fornecedor <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
+                    <select
+                      value={statusForm.supplierId}
+                      onChange={(e) => setStatusForm({ ...statusForm, supplierId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Sem fornecedor</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} - {s.specialty}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Supplier Contact Info */}
+                  {statusForm.supplierId && (
+                    (() => {
+                      const selectedSupplier = suppliers.find(s => s.id === statusForm.supplierId);
+                      return selectedSupplier ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                          <p className="text-xs font-medium text-blue-900 mb-2">Informações de Contato</p>
+                          {selectedSupplier.phone && (
+                            <div className="flex items-center gap-2 text-sm text-blue-700">
+                              <Phone className="w-4 h-4" />
+                              <span>{selectedSupplier.phone}</span>
+                            </div>
+                          )}
+                          {selectedSupplier.email && (
+                            <div className="flex items-center gap-2 text-sm text-blue-700">
+                              <Mail className="w-4 h-4" />
+                              <span>{selectedSupplier.email}</span>
+                            </div>
+                          )}
+                          {selectedSupplier.address && (
+                            <div className="flex items-center gap-2 text-sm text-blue-700">
+                              <MapPin className="w-4 h-4" />
+                              <span>{selectedSupplier.address}</span>
+                            </div>
+                          )}
+                          {selectedSupplier.contact && (
+                            <div className="flex items-center gap-2 text-sm text-blue-700">
+                              <Building className="w-4 h-4" />
+                              <span>{selectedSupplier.contact}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()
+                  )}
+
+                  {/* Admin Comments */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Comentário <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
+                    <textarea
+                      value={statusForm.adminComments}
+                      onChange={(e) => setStatusForm({ ...statusForm, adminComments: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      placeholder="Adicione um comentário sobre esta atualização..."
+                    />
+                  </div>
+
+                  {/* Comment History */}
+                  {selectedRequest.adminComments && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Histórico de Comentários</label>
+                      <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                        <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Documents Section */}
+                  {selectedRequest.status !== 'Closed' && (
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-medium text-gray-700">Documentos</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowDocUploadModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Adicionar
+                        </button>
+                      </div>
+
+                      {maintenanceDocuments.length === 0 ? (
+                        <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg">
+                          <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                          <p className="text-xs">Nenhum documento anexado</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {maintenanceDocuments.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDocDownload(doc.id, doc.name)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Baixar"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDocDelete(doc.id)}
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseStatusPanel}
+                      className="flex-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {submitting ? 'A guardar...' : 'Guardar Alterações'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  {/* Read-only Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900">
+                      {statusMap[selectedRequest.status as keyof typeof statusMap]?.label || selectedRequest.status}
                     </div>
                   </div>
-                )}
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleCloseStatusPanel}
-                    className="flex-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {submitting ? 'A guardar...' : 'Guardar Alterações'}
-                  </button>
+                  {/* Read-only Supplier */}
+                  {selectedRequest.supplierId && (
+                    (() => {
+                      const supplier = suppliers.find(s => s.id === selectedRequest.supplierId);
+                      return supplier ? (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Fornecedor</label>
+                          <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900">
+                            {supplier.name} - {supplier.specialty}
+                          </div>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 mt-2">
+                            <p className="text-xs font-medium text-blue-900 mb-2">Informações de Contato</p>
+                            {supplier.phone && (
+                              <div className="flex items-center gap-2 text-sm text-blue-700">
+                                <Phone className="w-4 h-4" />
+                                <span>{supplier.phone}</span>
+                              </div>
+                            )}
+                            {supplier.email && (
+                              <div className="flex items-center gap-2 text-sm text-blue-700">
+                                <Mail className="w-4 h-4" />
+                                <span>{supplier.email}</span>
+                              </div>
+                            )}
+                            {supplier.address && (
+                              <div className="flex items-center gap-2 text-sm text-blue-700">
+                                <MapPin className="w-4 h-4" />
+                                <span>{supplier.address}</span>
+                              </div>
+                            )}
+                            {supplier.contact && (
+                              <div className="flex items-center gap-2 text-sm text-blue-700">
+                                <Building className="w-4 h-4" />
+                                <span>{supplier.contact}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()
+                  )}
+
+                  {/* Read-only Comment History */}
+                  {selectedRequest.adminComments && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Comentários</label>
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Read-only Documents */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Documentos</label>
+                    {maintenanceDocuments.length === 0 ? (
+                      <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg">
+                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-xs">Nenhum documento anexado</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {maintenanceDocuments.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                                <p className="text-xs text-gray-400">
+                                  {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDocDownload(doc.id, doc.name)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
+                              title="Baixar"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Close Button for Residents */}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleCloseStatusPanel}
+                      className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Fechar
+                    </button>
+                  </div>
                 </div>
-              </form>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Upload Modal */}
+      {showDocUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Adicionar Documento</h3>
+                  <p className="text-sm text-gray-500">Orçamento, fatura ou outro documento</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDocUploadModal(false);
+                  setUploadFile(null);
+                  setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDocUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento *
+                </label>
+                <select
+                  required
+                  value={uploadForm.type}
+                  onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="MaintenanceInvoice">Fatura</option>
+                  <option value="MaintenanceQuote">Orçamento</option>
+                  <option value="MaintenanceReport">Relatório</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Documento *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={uploadForm.name}
+                  onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
+                  placeholder="Ex: Fatura de Reparação"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  value={uploadForm.description}
+                  onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                  placeholder="Detalhes sobre este documento..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <FileUpload
+                onFileSelect={setUploadFile}
+                currentFile={uploadFile}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDocUploadModal(false);
+                    setUploadFile(null);
+                    setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!uploadFile || uploading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'A carregar...' : 'Adicionar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

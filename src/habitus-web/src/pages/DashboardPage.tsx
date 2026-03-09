@@ -22,12 +22,14 @@ function StatCard({
   icon: Icon,
   color,
   to,
+  subtitle,
 }: {
   title: string;
   value: string | number;
   icon: React.ElementType;
   color: string;
   to: string;
+  subtitle?: string;
 }) {
   return (
     <Link
@@ -40,6 +42,9 @@ function StatCard({
       <div>
         <p className="text-sm text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
+        {subtitle && (
+          <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+        )}
       </div>
     </Link>
   );
@@ -70,23 +75,26 @@ function statusBadge(status: string) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, condominiumId } = useAuth();
   const [maintenance, setMaintenance] = useState<MaintenanceRequestDto[]>([]);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
+  const [reserveFundBalance, setReserveFundBalance] = useState<number | null>(null);
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
 
   useEffect(() => {
     maintenanceApi.getAll().then((r) => setMaintenance(r.data)).catch(() => {});
     notificationsApi.getAll(1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
     reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
-    // Financial summary requires buildingId — skip if not available
-    financialApi.getAll().then((r) => {
-      const income = r.data.filter((f) => f.type === 'Income').reduce((s, f) => s + f.amount, 0);
-      const expenses = r.data.filter((f) => f.type === 'Expense').reduce((s, f) => s + f.amount, 0);
-      setBalance(income - expenses);
-    }).catch(() => {});
-  }, []);
+    // Load financial dashboard for current year
+    if (condominiumId) {
+      const currentYear = new Date().getFullYear();
+      financialApi.getDashboard(condominiumId, currentYear).then((r) => {
+        setBalance(r.data.currentYearBalance);
+        setReserveFundBalance(r.data.reserveFundBalance);
+      }).catch(() => {});
+    }
+  }, [condominiumId]);
 
   const pendingMaintenance = maintenance.filter((m) => m.status === 'Open');
   const inProgressMaintenance = maintenance.filter((m) => m.status === 'InProgress');
@@ -119,6 +127,7 @@ export default function DashboardPage() {
           icon={DollarSign}
           color="bg-green-100 text-green-600"
           to="/financial"
+          subtitle={reserveFundBalance !== null ? `Fundo de Reserva: €${reserveFundBalance.toFixed(2)}` : undefined}
         />
         <StatCard
           title="Notificações não lidas"

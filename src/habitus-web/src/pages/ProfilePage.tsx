@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield } from 'lucide-react';
-import { usersApi, condominiumsApi, unitsApi } from '../api/services';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X } from 'lucide-react';
+import { usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto } from '../types';
+import FileUpload from '../components/FileUpload';
+import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto } from '../types';
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -10,8 +11,21 @@ const roleLabels: Record<number, string> = {
   2: 'Morador',
 };
 
+const unitDocumentTypes: Record<string, string> = {
+  UnitInsurance: 'Seguro da Fração',
+  UnitOwnershipProof: 'Escritura',
+  UnitOther: 'Outro',
+};
+
+const unitDocumentColors: Record<string, string> = {
+  UnitInsurance: 'bg-blue-100 text-blue-700',
+  UnitOwnershipProof: 'bg-purple-100 text-purple-700',
+  UnitOther: 'bg-gray-100 text-gray-600',
+};
+
 export default function ProfilePage() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -29,6 +43,15 @@ export default function ProfilePage() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [unitDocuments, setUnitDocuments] = useState<DocumentDto[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadForm, setUploadForm] = useState({
+    name: '',
+    type: 'UnitInsurance',
+    description: '',
+  });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -60,6 +83,9 @@ export default function ProfilePage() {
           try {
             const unitResponse = await unitsApi.getById(currentUser.unitId);
             setUnit(unitResponse.data);
+            
+            // Load unit documents
+            loadUnitDocuments(currentUser.unitId);
           } catch (err) {
             console.error('Failed to load unit:', err);
           }
@@ -76,6 +102,79 @@ export default function ProfilePage() {
       loadUserData();
     }
   }, [user]);
+
+  const loadUnitDocuments = async (unitId: string) => {
+    try {
+      const response = await documentsApi.getPaged(1, 100, '', 'Unit');
+      // Filter documents by unitId
+      const unitDocs = response.data.items.filter(doc => doc.unitId === unitId);
+      setUnitDocuments(unitDocs);
+    } catch (err) {
+      console.error('Failed to load unit documents:', err);
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || !userData?.unitId) return;
+
+    setUploading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('name', uploadForm.name);
+      formData.append('type', uploadForm.type);
+      formData.append('context', 'Unit');
+      formData.append('description', uploadForm.description);
+      formData.append('unitId', userData.unitId);
+
+      await documentsApi.upload(formData);
+      setSuccess('Documento carregado com sucesso!');
+      setTimeout(() => setSuccess(''), 3000);
+      setShowUploadModal(false);
+      setUploadFile(null);
+      setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
+      loadUnitDocuments(userData.unitId);
+    } catch (err) {
+      setError('Erro ao carregar documento');
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+    if (!userData?.unitId) return;
+
+    try {
+      await documentsApi.delete(id);
+      setSuccess('Documento excluído com sucesso!');
+      setTimeout(() => setSuccess(''), 3000);
+      loadUnitDocuments(userData.unitId);
+    } catch (err) {
+      setError('Erro ao excluir documento');
+      console.error(err);
+    }
+  };
+
+  const handleDownload = async (id: string, fileName: string) => {
+    try {
+      const downloadUrl = documentsApi.download(id);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', fileName);
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setError('Erro ao baixar documento');
+      console.error(err);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,9 +254,51 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Gerencie suas informações pessoais</p>
+        <p className="text-gray-500 text-sm mt-0.5">Gerencie suas informações pessoais e segurança</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'profile'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            Perfil
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'security'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Segurança
+          </button>
+          {unit && (
+            <button
+              onClick={() => setActiveTab('documents')}
+              className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+                activeTab === 'documents'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Documentos
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Success/Error Messages */}
@@ -172,199 +313,386 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Profile Information */}
-      <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700">
-            <User className="w-6 h-6" />
+      {/* Profile Tab */}
+      {activeTab === 'profile' && (
+        <div className="space-y-6">
+          {/* Profile Information */}
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700">
+                <User className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Informações Pessoais</h2>
+                <p className="text-sm text-gray-500">Atualize seus dados pessoais</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Nome
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={profileData.name}
+                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </div>
+                </label>
+                <input
+                  type="email"
+                  value={profileData.email || ''}
+                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Telefone
+                  </div>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={profileData.phone}
+                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'A guardar...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Informações Pessoais</h2>
-            <p className="text-sm text-gray-500">Atualize seus dados pessoais</p>
+
+          {/* User Info Display (Read-only) */}
+          <div className="bg-gray-50 rounded-xl border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-gray-600" />
+              Informações de Conta
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                <span className="text-gray-600 flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Função:
+                </span>
+                <span className="font-medium text-gray-900">
+                  {userData && roleLabels[userData.role]}
+                </span>
+              </div>
+              
+              {condominium && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Condomínio:
+                  </span>
+                  <span className="font-medium text-gray-900">{condominium.name}</span>
+                </div>
+              )}
+              
+              {unit && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <Home className="w-4 h-4" />
+                    Fração:
+                  </span>
+                  <span className="font-medium text-gray-900">
+                    Fração {unit.number} – Piso {unit.floor}
+                  </span>
+                </div>
+              )}
+              
+              {userData && (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-gray-600">Estado:</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    userData.isActive 
+                      ? 'bg-emerald-100 text-emerald-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {userData.isActive ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+              )}
+              
+              <div className="pt-3 mt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  <strong>Nota:</strong> Para alterar função, condomínio ou fração, entre em contacto com o gestor ou administrador.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <form onSubmit={handleProfileUpdate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Nome
-              </div>
-            </label>
-            <input
-              type="text"
-              required
-              value={profileData.name}
-              onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+      {/* Security Tab */}
+      {activeTab === 'security' && (
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-700">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Alterar Senha</h2>
+              <p className="text-sm text-gray-500">Atualize sua senha de acesso</p>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email
-              </div>
-            </label>
-            <input
-              type="email"
-              value={profileData.email || ''}
-              onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          <form onSubmit={handlePasswordUpdate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
+              <input
+                type="password"
+                required
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Telefone
-              </div>
-            </label>
-            <input
-              type="tel"
-              required
-              value={profileData.phone}
-              onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
+            </div>
 
-          <div className="pt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nova Senha</label>
+              <input
+                type="password"
+                required
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Lock className="w-4 h-4" />
+                {saving ? 'A alterar...' : 'Alterar Senha'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Documents Tab */}
+      {activeTab === 'documents' && unit && (
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Documentos da Minha Fração</h2>
+                <p className="text-sm text-gray-500">Gerencie os documentos da sua habitação</p>
+              </div>
+            </div>
             <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Save className="w-4 h-4" />
-              {saving ? 'A guardar...' : 'Salvar Alterações'}
+              <Upload className="w-4 h-4" />
+              Carregar Documento
             </button>
           </div>
-        </form>
-      </div>
 
-      {/* Password Change */}
-      <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-700">
-            <Lock className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Alterar Senha</h2>
-            <p className="text-sm text-gray-500">Atualize sua senha de acesso</p>
+          {unitDocuments.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Nenhum documento carregado ainda.</p>
+              <p className="text-xs mt-2">
+                Carregue documentos como apólice de seguro, escritura, etc.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {unitDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <FileText className="w-5 h-5 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-gray-900 truncate">{doc.name}</p>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          unitDocumentColors[doc.type] || 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {unitDocumentTypes[doc.type] || doc.type}
+                        </span>
+                      </div>
+                      {doc.description && (
+                        <p className="text-sm text-gray-500 truncate">{doc.description}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">
+                        Atualizado: {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownload(doc.id, doc.name)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Baixar"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Carregar Documento</h3>
+                  <p className="text-sm text-gray-500">Adicione um documento à sua fração</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                  setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento *
+                </label>
+                <select
+                  required
+                  value={uploadForm.type}
+                  onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Object.entries(unitDocumentTypes).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Documento *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={uploadForm.name}
+                  onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
+                  placeholder="Ex: Apólice de Seguro 2026"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  value={uploadForm.description}
+                  onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                  placeholder="Adicione detalhes sobre este documento..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <FileUpload
+                onFileSelect={setUploadFile}
+                currentFile={uploadFile}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              />
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadFile(null);
+                    setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!uploadFile || uploading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploading ? 'A carregar...' : 'Carregar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <form onSubmit={handlePasswordUpdate} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
-            <input
-              type="password"
-              required
-              value={passwordData.currentPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={passwordData.newPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nova Senha</label>
-            <input
-              type="password"
-              required
-              value={passwordData.confirmPassword}
-              onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Lock className="w-4 h-4" />
-              {saving ? 'A alterar...' : 'Alterar Senha'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* User Info Display (Read-only) */}
-      <div className="bg-gray-50 rounded-xl border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-gray-600" />
-          Informações de Conta
-        </h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex items-center justify-between py-2 border-b border-gray-200">
-            <span className="text-gray-600 flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Função:
-            </span>
-            <span className="font-medium text-gray-900">
-              {userData && roleLabels[userData.role]}
-            </span>
-          </div>
-          
-          {condominium && (
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
-              <span className="text-gray-600 flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Condomínio:
-              </span>
-              <span className="font-medium text-gray-900">{condominium.name}</span>
-            </div>
-          )}
-          
-          {unit && (
-            <div className="flex items-center justify-between py-2 border-b border-gray-200">
-              <span className="text-gray-600 flex items-center gap-2">
-                <Home className="w-4 h-4" />
-                Fração:
-              </span>
-              <span className="font-medium text-gray-900">
-                Fração {unit.number} – Piso {unit.floor}
-              </span>
-            </div>
-          )}
-          
-          {userData && (
-            <div className="flex items-center justify-between py-2">
-              <span className="text-gray-600">Estado:</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                userData.isActive 
-                  ? 'bg-emerald-100 text-emerald-700' 
-                  : 'bg-red-100 text-red-700'
-              }`}>
-                {userData.isActive ? 'Ativo' : 'Inativo'}
-              </span>
-            </div>
-          )}
-          
-          <div className="pt-3 mt-2 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              <strong>Nota:</strong> Para alterar função, condomínio ou fração, entre em contacto com o gestor ou administrador.
-            </p>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

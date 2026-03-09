@@ -19,4 +19,5 @@ public class Assembly
     public Condominium Condominium { get; set; } = null!;
     public ICollection<AssemblyAttendance> Attendances { get; set; } = new List<AssemblyAttendance>();
     public ICollection<AssemblyDecision> Decisions { get; set; } = new List<AssemblyDecision>();
+    public ICollection<Document> Documents { get; set; } = new List<Document>();
 }

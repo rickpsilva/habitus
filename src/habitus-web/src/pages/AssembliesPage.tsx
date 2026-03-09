@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar } from 'lucide-react';
-import { assembliesApi } from '../api/services';
+import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
+import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
-import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse } from '../types';
+import MultipleFileUpload from '../components/MultipleFileUpload';
+import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse, DocumentDto } from '../types';
 
 const statusLabels: Record<string, string> = {
   Scheduled: 'Agendada',
@@ -65,6 +66,27 @@ export default function AssembliesPage() {
   // Cancel modal state
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+
+  // Documents state
+  const [assemblyDocuments, setAssemblyDocuments] = useState<DocumentDto[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [showUploadDocument, setShowUploadDocument] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadForm, setUploadForm] = useState<{
+    name: string;
+    type: 'AssemblyMinutes' | 'AssemblyConvocation' | 'AssemblyAttachment';
+    description: string;
+  }>({
+    name: '',
+    type: 'AssemblyMinutes',
+    description: '',
+  });
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+
+  // Quick upload modal (from card)
+  const [showQuickUploadModal, setShowQuickUploadModal] = useState(false);
+  const [quickUploadAssembly, setQuickUploadAssembly] = useState<AssemblyDto | null>(null);
+  const [dragOverAssemblyId, setDragOverAssemblyId] = useState<string | null>(null);
 
   const load = (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
@@ -313,6 +335,195 @@ export default function AssembliesPage() {
     }
   };
 
+  // Document management
+  const loadAssemblyDocuments = async (assemblyId: string) => {
+    setLoadingDocuments(true);
+    try {
+      const response = await documentsApi.getByAssembly(assemblyId);
+      setAssemblyDocuments(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar documentos:', error);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  // Load documents when detail modal opens
+  useEffect(() => {
+    if (showDetailModal && selectedAssembly) {
+      loadAssemblyDocuments(selectedAssembly.id);
+    }
+  }, [showDetailModal, selectedAssembly]);
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (uploadFiles.length === 0 || !selectedAssembly) return;
+
+    setUploadingDocument(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFiles[0]); // Use first file from array
+      formData.append('name', uploadForm.name);
+      formData.append('type', uploadForm.type);
+      formData.append('context', 'Assembly');
+      formData.append('assemblyId', selectedAssembly.id);
+      
+      if (uploadForm.description) {
+        formData.append('description', uploadForm.description);
+      }
+
+      await documentsApi.upload(formData);
+      setShowUploadDocument(false);
+      setUploadFiles([]);
+      setUploadForm({
+        name: '',
+        type: 'AssemblyMinutes',
+        description: '',
+      });
+      await loadAssemblyDocuments(selectedAssembly.id);
+    } catch (error) {
+      console.error('Erro ao fazer upload do documento:', error);
+      alert('Erro ao fazer upload do documento');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('Eliminar este documento?')) return;
+    try {
+      await documentsApi.delete(documentId);
+      if (selectedAssembly) {
+        await loadAssemblyDocuments(selectedAssembly.id);
+      }
+    } catch (error) {
+      console.error('Erro ao eliminar documento:', error);
+      alert('Erro ao eliminar documento');
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const documentTypeLabels: Record<string, string> = {
+    AssemblyMinutes: 'Ata',
+    AssemblyConvocation: 'Convocatória',
+    AssemblyAttachment: 'Anexo',
+  };
+
+  // Quick upload from card
+  const openQuickUpload = (assembly: AssemblyDto) => {
+    setQuickUploadAssembly(assembly);
+    setUploadFiles([]);
+    setUploadForm({
+      name: '',
+      type: 'AssemblyConvocation',
+      description: '',
+    });
+    setShowQuickUploadModal(true);
+  };
+
+  const handleQuickUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (uploadFiles.length === 0 || !quickUploadAssembly) return;
+
+    setUploadingDocument(true);
+    try {
+      const formData = new FormData();
+      
+      // Add all files
+      uploadFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      formData.append('context', 'Assembly');
+      formData.append('assemblyId', quickUploadAssembly.id);
+
+      const response = await documentsApi.uploadMultiple(formData);
+      
+      setShowQuickUploadModal(false);
+      setQuickUploadAssembly(null);
+      setUploadFiles([]);
+      setUploadForm({
+        name: '',
+        type: 'AssemblyConvocation',
+        description: '',
+      });
+
+      if (response.data.failed > 0) {
+        alert(`${response.data.success} ficheiro(s) carregado(s) com sucesso!\n${response.data.failed} falhou(aram):\n${response.data.errors.join('\n')}`);
+      } else {
+        alert(`${response.data.success} ficheiro(s) adicionado(s) com sucesso!`);
+      }
+
+      // Reload documents if in detail modal
+      if (selectedAssembly && selectedAssembly.id === quickUploadAssembly.id) {
+        await loadAssemblyDocuments(quickUploadAssembly.id);
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload dos documentos:', error);
+      alert('Erro ao fazer upload dos documentos');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  // Drag & drop handlers
+  const handleDragOver = (e: React.DragEvent, assemblyId: string, isDisabled: boolean) => {
+    if (isDisabled || !isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverAssemblyId(assemblyId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverAssemblyId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, assembly: AssemblyDto) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverAssemblyId(null);
+
+    if (assembly.status === 'Cancelled' || !isAdmin) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    // Validate each file size (100MB max)
+    const validFiles = files.filter(file => {
+      if (file.size > 100 * 1024 * 1024) {
+        alert(`Ficheiro "${file.name}" demasiado grande. Máximo: 100MB`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    // Limit to 10 files
+    if (validFiles.length > 10) {
+      alert('Máximo de 10 ficheiros por vez');
+      return;
+    }
+
+    setQuickUploadAssembly(assembly);
+    setUploadFiles(validFiles);
+    setUploadForm({
+      name: '',
+      type: 'AssemblyConvocation',
+      description: '',
+    });
+    setShowQuickUploadModal(true);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -437,79 +648,111 @@ export default function AssembliesPage() {
           </div>
         ) : (
           <>
-            {filteredAssemblies.map((a) => (
-              <div key={a.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-100 shrink-0">
-                      <ClipboardList className="w-5 h-5 text-teal-600" />
+            {filteredAssemblies.map((a) => {
+              const isDragOver = dragOverAssemblyId === a.id;
+              const isDisabled = a.status === 'Cancelled';
+              
+              return (
+                <div 
+                  key={a.id} 
+                  className={`bg-white rounded-xl shadow-sm border p-4 transition-all ${
+                    isDragOver && !isDisabled && isAdmin
+                      ? 'border-indigo-400 border-2 bg-indigo-50 shadow-lg'
+                      : 'border-gray-100'
+                  } ${!isDisabled && isAdmin ? 'hover:shadow-md' : ''}`}
+                  onDragOver={(e) => handleDragOver(e, a.id, isDisabled)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, a)}
+                >
+                  {isDragOver && !isDisabled && isAdmin && (
+                    <div className="flex items-center justify-center gap-2 mb-3 p-3 bg-indigo-100 border-2 border-dashed border-indigo-400 rounded-lg">
+                      <Upload className="w-5 h-5 text-indigo-600" />
+                      <span className="text-sm font-medium text-indigo-700">Soltar ficheiro para adicionar à assembleia</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <button 
-                        onClick={() => openDetails(a)}
-                        className="font-medium text-gray-900 hover:text-indigo-600 text-left"
-                      >
-                        {a.title}
-                      </button>
-                      {a.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{a.description}</p>}
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[a.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {statusLabels[a.status] ?? a.status}
-                        </span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(a.scheduledAt).toLocaleString('pt-PT')}
-                        </span>
-                        {a.location && (
-                          <span className="text-xs text-gray-400">{a.location}</span>
-                        )}
+                  )}
+                  
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-100 shrink-0">
+                        <ClipboardList className="w-5 h-5 text-teal-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <button 
+                          onClick={() => openDetails(a)}
+                          className="font-medium text-gray-900 hover:text-indigo-600 text-left"
+                        >
+                          {a.title}
+                        </button>
+                        {a.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{a.description}</p>}
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[a.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {statusLabels[a.status] ?? a.status}
+                          </span>
+                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(a.scheduledAt).toLocaleString('pt-PT')}
+                          </span>
+                          {a.location && (
+                            <span className="text-xs text-gray-400">{a.location}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Actions */}
-                  <div className="flex gap-2 shrink-0">
-                    {isAdmin && a.status === 'InProgress' && (
-                      <button 
-                        onClick={() => openNotes(a)}
-                        className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
-                        title="Editar Notas"
-                      >
-                        Notas
-                      </button>
-                    )}
-                    {isAdmin && (a.status === 'InProgress' || a.status === 'Scheduled') && (
-                      <button 
-                        onClick={() => openMinutes(a)}
-                        className="px-3 py-1.5 text-xs font-medium text-green-600 hover:bg-green-50 border border-green-200 rounded-lg transition-colors"
-                        title="Inserir Atas (marca como concluída)"
-                      >
-                        Atas
-                      </button>
-                    )}
-                    {isAdmin && a.status !== 'Cancelled' && a.status !== 'Completed' && (
-                      <button 
-                        onClick={() => openCancel(a)}
-                        className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
-                        title="Cancelar Assembleia"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                    {isAdmin && a.status === 'Scheduled' && (
-                      <>
-                        <button onClick={() => openEdit(a)} className="text-gray-400 hover:text-indigo-500">
-                          <Pencil className="w-4 h-4" />
+                    
+                    {/* Actions */}
+                    <div className="flex gap-2 shrink-0 flex-wrap">
+                      {isAdmin && a.status !== 'Cancelled' && (
+                        <button 
+                          onClick={() => openQuickUpload(a)}
+                          className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5"
+                          title="Adicionar Documentos"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          Documentos
                         </button>
-                        <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500">
-                          <Trash2 className="w-4 h-4" />
+                      )}
+                      {isAdmin && a.status === 'InProgress' && (
+                        <button 
+                          onClick={() => openNotes(a)}
+                          className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
+                          title="Editar Notas"
+                        >
+                          Notas
                         </button>
-                      </>
-                    )}
+                      )}
+                      {isAdmin && (a.status === 'InProgress' || a.status === 'Scheduled') && (
+                        <button 
+                          onClick={() => openMinutes(a)}
+                          className="px-3 py-1.5 text-xs font-medium text-green-600 hover:bg-green-50 border border-green-200 rounded-lg transition-colors"
+                          title="Inserir Atas (marca como concluída)"
+                        >
+                          Atas
+                        </button>
+                      )}
+                      {isAdmin && a.status !== 'Cancelled' && a.status !== 'Completed' && (
+                        <button 
+                          onClick={() => openCancel(a)}
+                          className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                          title="Cancelar Assembleia"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                      {isAdmin && a.status === 'Scheduled' && (
+                        <>
+                          <button onClick={() => openEdit(a)} className="text-gray-400 hover:text-indigo-500">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {pagination && (
               <Pagination
@@ -589,6 +832,146 @@ export default function AssembliesPage() {
                   </div>
                 </div>
               )}
+
+              {/* Documents Section */}
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-medium text-gray-500 uppercase">Documentos Anexados</label>
+                  {isAdmin && selectedAssembly.status !== 'Cancelled' && (
+                    <button
+                      onClick={() => setShowUploadDocument(!showUploadDocument)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {showUploadDocument ? 'Cancelar' : 'Adicionar Documento'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Upload Form */}
+                {showUploadDocument && isAdmin && selectedAssembly.status !== 'Cancelled' && (
+                  <form onSubmit={handleUploadDocument} className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+                    <MultipleFileUpload
+                      onFilesSelect={setUploadFiles}
+                      currentFiles={uploadFiles}
+                      removeFile={(index) => setUploadFiles(prev => prev.filter((_, i) => i !== index))}
+                      disabled={uploadingDocument}
+                      maxFiles={1}
+                    />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Nome do Documento *</label>
+                      <input
+                        type="text"
+                        value={uploadForm.name}
+                        onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Ex: Ata da Assembleia"
+                        required
+                        disabled={uploadingDocument}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Tipo *</label>
+                      <select
+                        value={uploadForm.type}
+                        onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value as any })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        required
+                        disabled={uploadingDocument}
+                      >
+                        <option value="AssemblyMinutes">Ata</option>
+                        <option value="AssemblyConvocation">Convocatória</option>
+                        <option value="AssemblyAttachment">Anexo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Descrição (opcional)</label>
+                      <textarea
+                        value={uploadForm.description}
+                        onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        rows={2}
+                        placeholder="Adicione notas sobre o documento..."
+                        disabled={uploadingDocument}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUploadDocument(false);
+                          setUploadFiles([]);
+                        }}
+                        className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        disabled={uploadingDocument}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={uploadFiles.length === 0 || uploadingDocument}
+                        className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingDocument ? 'A carregar...' : 'Carregar'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Documents List */}
+                <div className="space-y-2">
+                  {loadingDocuments ? (
+                    <div className="text-center py-4 text-sm text-gray-400">A carregar documentos...</div>
+                  ) : assemblyDocuments.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-gray-400">
+                      Nenhum documento anexado
+                    </div>
+                  ) : (
+                    assemblyDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-500">
+                                {documentTypeLabels[doc.type] || doc.type}
+                              </span>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-xs text-gray-500">{formatFileSize(doc.fileSize)}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                              </span>
+                            </div>
+                            {doc.description && (
+                              <p className="text-xs text-gray-500 mt-1 line-clamp-1">{doc.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={documentsApi.download(doc.id)}
+                            className="p-1.5 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors"
+                            title="Descarregar"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
               <button
@@ -754,6 +1137,75 @@ export default function AssembliesPage() {
                 {submitting ? 'A cancelar...' : 'Cancelar Assembleia'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Upload Modal */}
+      {showQuickUploadModal && quickUploadAssembly && isAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowQuickUploadModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-indigo-600" />
+                  Adicionar Documento
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {quickUploadAssembly.title}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowQuickUploadModal(false)} 
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickUpload} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Arquivos (máx. 10 ficheiros)
+                </label>
+                <MultipleFileUpload
+                  onFilesSelect={setUploadFiles}
+                  currentFiles={uploadFiles}
+                  removeFile={(index) => setUploadFiles(prev => prev.filter((_, i) => i !== index))}
+                  disabled={uploadingDocument}
+                  maxFiles={10}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Os tipos de documento serão detetados automaticamente com base nos nomes dos ficheiros.
+                  Use palavras-chave como "ata", "convocatoria" ou "anexo" nos nomes.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickUploadModal(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={uploadingDocument}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadFiles.length === 0 || uploadingDocument}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {uploadingDocument ? (
+                    <>A carregar...</>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

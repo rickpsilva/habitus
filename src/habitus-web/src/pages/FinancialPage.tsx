@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
-import { financialApi } from '../api/services';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon } from 'lucide-react';
+import { financialApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import FileUpload from '../components/FileUpload';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto } from '../types';
 
 // Updated category mappings matching backend FinancialCategory enum
@@ -27,6 +28,16 @@ const expenseCategoryLabels: Record<string, string> = {
 };
 
 const allCategoryLabels = { ...incomeCategoryLabels, ...expenseCategoryLabels };
+
+// Financial document types
+const financialDocTypeLabels: Record<string, string> = {
+  FinancialBankStatement: 'Extrato Bancário',
+  FinancialAnnualReport: 'Relatório Anual',
+  FinancialBudget: 'Orçamento Anual',
+  FinancialAudit: 'Auditoria',
+  FinancialTaxDocument: 'Documentos Fiscais',
+  FinancialOther: 'Outros',
+};
 
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
@@ -57,6 +68,17 @@ export default function FinancialPage() {
     condominiumId: condominiumId || '',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Document upload states
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadForm, setUploadForm] = useState({
+    name: '',
+    type: 'FinancialBankStatement',
+    description: '',
+    year: new Date().getFullYear().toString(),
+  });
+  const [uploading, setUploading] = useState(false);
 
   // Update condominiumId when it changes
   useEffect(() => {
@@ -232,6 +254,52 @@ export default function FinancialPage() {
     }
   };
 
+  const handleDocumentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('name', uploadForm.name);
+      formData.append('type', uploadForm.type);
+      formData.append('context', 'Financial');
+      formData.append('year', uploadForm.year);
+      
+      if (uploadForm.description) {
+        formData.append('description', uploadForm.description);
+      }
+
+      await documentsApi.upload(formData);
+      setShowDocumentModal(false);
+      setUploadFile(null);
+      setUploadForm({
+        name: '',
+        type: 'FinancialBankStatement',
+        description: '',
+        year: new Date().getFullYear().toString(),
+      });
+      alert('Documento carregado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      alert('Erro ao fazer upload do documento');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const openDocumentModal = () => {
+    setUploadForm({
+      name: '',
+      type: 'FinancialBankStatement',
+      description: '',
+      year: selectedYear.toString(),
+    });
+    setUploadFile(null);
+    setShowDocumentModal(true);
+  };
+
   const currentCategories = form.type === 'Income' ? incomeCategoryLabels : expenseCategoryLabels;
 
   return (
@@ -255,13 +323,22 @@ export default function FinancialPage() {
             ))}
           </select>
           {isAdmin && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Registo
-            </button>
+            <>
+              <button
+                onClick={openDocumentModal}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Adicionar Documento
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Registo
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -627,6 +704,110 @@ export default function FinancialPage() {
                 {submitting ? 'A processar...' : fundOperation === 'deposit' ? 'Transferir para Fundo' : 'Levantar do Fundo'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Upload Modal */}
+      {showDocumentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Adicionar Documento Financeiro</h2>
+              <button
+                onClick={() => setShowDocumentModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDocumentUpload} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Arquivo
+                </label>
+                <FileUpload
+                  onFileSelect={setUploadFile}
+                  currentFile={uploadFile}
+                  removeFile={() => setUploadFile(null)}
+                  disabled={uploading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Documento *
+                </label>
+                <input
+                  type="text"
+                  value={uploadForm.name}
+                  onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Ex: Extrato Bancário Janeiro 2024"
+                  required
+                  disabled={uploading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo *
+                </label>
+                <select
+                  value={uploadForm.type}
+                  onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                  disabled={uploading}
+                >
+                  {Object.entries(financialDocTypeLabels).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição (opcional)
+                </label>
+                <textarea
+                  value={uploadForm.description}
+                  onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Adicione notas ou detalhes sobre o documento..."
+                  disabled={uploading}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowDocumentModal(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={uploading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!uploadFile || uploading}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {uploading ? (
+                    <>A carregar...</>
+                  ) : (
+                    <>
+                      <UploadIcon className="w-4 h-4" />
+                      Carregar Documento
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

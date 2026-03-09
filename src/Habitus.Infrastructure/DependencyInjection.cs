@@ -36,7 +36,7 @@ public static class DependencyInjection
 
         if (isDevelopment || string.IsNullOrEmpty(azureStorageConnectionString))
         {
-            services.AddScoped<IBlobStorageService, MockBlobStorageService>();
+            services.AddScoped<IBlobStorageService, LocalFileStorageService>();
         }
         else
         {

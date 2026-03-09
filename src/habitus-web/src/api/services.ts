@@ -184,8 +184,20 @@ export const sharedSpacesApi = {
 
 export const documentsApi = {
   getAll: () => api.get<DocumentDto[]>('/documents'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<DocumentDto>>(`/documents/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getPaged: (page: number = 1, pageSize: number = 10, search?: string, context?: string) =>
+    api.get<PaginatedResponse<DocumentDto>>(`/documents/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${context ? `&context=${context}` : ''}`),
+  getById: (id: string) => api.get<DocumentDto>(`/documents/${id}`),
+  getByContext: (context: string) => api.get<DocumentDto[]>(`/documents/by-context/${context}`),
+  getByUnit: (unitId: string) => api.get<DocumentDto[]>(`/documents/unit/${unitId}`),
+  getByAssembly: (assemblyId: string) => api.get<DocumentDto[]>(`/documents/assembly/${assemblyId}`),
+  getByMaintenance: (maintenanceId: string) => api.get<DocumentDto[]>(`/documents/maintenance/${maintenanceId}`),
+  upload: (formData: FormData) => api.post<DocumentDto>('/documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  uploadMultiple: (formData: FormData) => api.post<{ success: number; failed: number; documents: DocumentDto[]; errors: string[] }>('/documents/upload-multiple', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  download: (id: string) => `/api/documents/${id}/download`,
   delete: (id: string) => api.delete(`/documents/${id}`),
 };
 

@@ -134,5 +134,36 @@ public class HabitusDbContext : DbContext
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        // Configure Document relationships and column mapping
+        modelBuilder.Entity<Document>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            
+            entity.HasOne(d => d.UploadedByUser)
+                .WithMany()
+                .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(d => d.Condominium)
+                .WithMany(c => c.Documents)
+                .HasForeignKey(d => d.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(d => d.Unit)
+                .WithMany(u => u.Documents)
+                .HasForeignKey(d => d.UnitId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasOne(d => d.Assembly)
+                .WithMany(a => a.Documents)
+                .HasForeignKey(d => d.AssemblyId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasOne(d => d.MaintenanceRequest)
+                .WithMany(m => m.Documents)
+                .HasForeignKey(d => d.MaintenanceRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 }

@@ -24,4 +24,5 @@ public class MaintenanceRequest
     public Supplier? Supplier { get; set; }
     public ICollection<MaintenanceConfirmation> Confirmations { get; set; } = new List<MaintenanceConfirmation>();
     public ICollection<Intervention> Interventions { get; set; } = new List<Intervention>();
+    public ICollection<Document> Documents { get; set; } = new List<Document>();
 }

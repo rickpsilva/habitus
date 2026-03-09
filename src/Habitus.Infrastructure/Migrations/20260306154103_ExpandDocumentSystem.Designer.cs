@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306154103_ExpandDocumentSystem")]
+    partial class ExpandDocumentSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,11 +228,11 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("UploadedByUserId")
+                    b.Property<Guid>("UploadedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("Year")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -847,8 +850,7 @@ namespace Habitus.Infrastructure.Migrations
                 {
                     b.HasOne("Habitus.Domain.Entities.Assembly", "Assembly")
                         .WithMany("Documents")
-                        .HasForeignKey("AssemblyId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("AssemblyId");
 
                     b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("Documents")
@@ -862,13 +864,11 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasOne("Habitus.Domain.Entities.MaintenanceRequest", "MaintenanceRequest")
                         .WithMany("Documents")
-                        .HasForeignKey("MaintenanceRequestId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("MaintenanceRequestId");
 
                     b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
                         .WithMany("Documents")
-                        .HasForeignKey("UnitId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("UnitId");
 
                     b.HasOne("Habitus.Domain.Entities.User", "UploadedByUser")
                         .WithMany()

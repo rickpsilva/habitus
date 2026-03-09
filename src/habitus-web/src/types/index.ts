@@ -255,10 +255,18 @@ export interface DocumentDto {
   id: string;
   name: string;
   type: string;
-  url: string;
+  context: string;
+  description?: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string;
   uploadedAt: string;
   uploadedBy: string;
   condominiumId: string;
+  unitId?: string;
+  assemblyId?: string;
+  maintenanceRequestId?: string;
+  year?: number;
 }
 
 export interface AssemblyDto {
