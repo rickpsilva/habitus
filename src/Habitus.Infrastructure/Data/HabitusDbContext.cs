@@ -28,6 +28,7 @@ public class HabitusDbContext : DbContext
     public DbSet<SharedSpace> SharedSpaces => Set<SharedSpace>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UsefulContact> UsefulContacts => Set<UsefulContact>();
+    public DbSet<Payment> Payments => Set<Payment>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -163,6 +164,60 @@ public class HabitusDbContext : DbContext
             entity.HasOne(d => d.MaintenanceRequest)
                 .WithMany(m => m.Documents)
                 .HasForeignKey(d => d.MaintenanceRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Configure Payment relationships
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.Description).IsRequired();
+            
+            entity.HasOne(p => p.Resident)
+                .WithMany()
+                .HasForeignKey(p => p.ResidentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(p => p.Unit)
+                .WithMany()
+                .HasForeignKey(p => p.UnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(p => p.Condominium)
+                .WithMany(c => c.Payments)
+                .HasForeignKey(p => p.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(p => p.ProcessedByUser)
+                .WithMany()
+                .HasForeignKey(p => p.ProcessedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasOne(p => p.FinancialRecord)
+                .WithMany()
+                .HasForeignKey(p => p.FinancialRecordId)
+                .OnDelete(DeleteBehavior.SetNull);
+            
+            entity.HasOne(p => p.Reservation)
+                .WithMany()
+                .HasForeignKey(p => p.ReservationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Configure Notification relationships
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            
+            entity.HasOne(n => n.Condominium)
+                .WithMany(c => c.Notifications)
+                .HasForeignKey(n => n.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(n => n.TargetUser)
+                .WithMany()
+                .HasForeignKey(n => n.TargetUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

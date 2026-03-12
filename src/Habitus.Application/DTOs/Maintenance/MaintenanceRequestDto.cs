@@ -16,4 +16,7 @@ public class MaintenanceRequestDto
     public string Location { get; set; } = string.Empty;
     public Guid? SupplierId { get; set; }
     public string? AdminComments { get; set; }
+    public bool HasExpense { get; set; }
+    public decimal? ExpenseAmount { get; set; }
+    public Guid? InvoiceDocumentId { get; set; }
 }

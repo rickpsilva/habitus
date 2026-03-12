@@ -130,6 +130,9 @@ export interface MaintenanceRequestDto {
   resolvedAt?: string;
   photos: string[];
   location: string;
+  hasExpense: boolean;
+  expenseAmount?: number;
+  invoiceDocumentId?: string;
 }
 
 export interface CreateMaintenanceRequest {
@@ -330,3 +333,67 @@ export interface UpdateSupplierRequest {
   specialty: string;
   isActive: boolean;
 }
+
+// Payment types
+export interface PaymentDto {
+  id: string;
+  residentId: string;
+  residentName: string;
+  unitId: string;
+  unitIdentifier: string;
+  condominiumId: string;
+  type: 'MonthlyFee' | 'ExtraordinaryFee' | 'Reservation' | 'Other';
+  method: 'BankTransfer' | 'MBWay' | 'Card';
+  amount: number;
+  description: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+  proofOfPaymentUrl?: string;
+  createdDate: string;
+  processedDate?: string;
+  rejectionReason?: string;
+  processedByUserName?: string;
+  financialRecordId?: string;
+  reservationId?: string;
+  receiptNumber?: number;
+  receiptYear?: number;
+  receiptIssuedDate?: string;
+  receiptIssuedByUserName?: string;
+  hasReceipt?: boolean;
+}
+
+export interface CreatePaymentRequest {
+  type: 'MonthlyFee' | 'ExtraordinaryFee' | 'Reservation' | 'Other';
+  method: 'BankTransfer' | 'MBWay' | 'Card';
+  amount: number;
+  description: string;
+  reservationId?: string;
+}
+
+export interface ApprovePaymentRequest {
+  adminNotes?: string;
+}
+
+export interface RejectPaymentRequest {
+  rejectionReason: string;
+}
+
+export interface PaymentMethodsDto {
+  iban?: string;
+  instructions?: string;
+  mbWay?: string;
+  mbReference?: string;
+  bankTransferEnabled: boolean;
+  mbWayEnabled: boolean;
+  cardEnabled: boolean;
+}
+
+export interface UpdatePaymentMethodsRequest {
+  iban?: string;
+  instructions?: string;
+  mbWay?: string;
+  mbReference?: string;
+  bankTransferEnabled: boolean;
+  mbWayEnabled: boolean;
+  cardEnabled: boolean;
+}
+

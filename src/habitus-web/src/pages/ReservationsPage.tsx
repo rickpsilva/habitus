@@ -392,6 +392,12 @@ export default function ReservationsPage() {
 
   const canRequestCancellation = (reservation: ReservationDto): boolean => {
     if (reservation.status !== 'Approved') return false;
+    
+    // Check if end time has not passed yet
+    const endTime = new Date(reservation.endTime);
+    const now = new Date();
+    if (endTime <= now) return false; // Cannot cancel if reservation has ended
+    
     // Only the reservation owner (Resident) can request cancellation, not Admin
     return !isAdmin && reservation.userId === currentUserId;
   };
@@ -421,7 +427,7 @@ export default function ReservationsPage() {
       }
     }
     
-    // User/Admin can request cancellation if approved
+    // User can request cancellation only if approved and not expired
     if (canRequestCancellation(reservation)) {
       actions.push(
         { label: 'Pedir Cancelamento', action: () => handleRequestCancellation(reservation.id), color: 'orange' }

@@ -58,6 +58,9 @@ export default function MaintenancePage() {
     status: '',
     supplierId: '',
     adminComments: '',
+    hasExpense: false,
+    expenseAmount: '',
+    invoiceDocumentId: '',
   });
 
   // Documents state
@@ -161,6 +164,9 @@ export default function MaintenancePage() {
       status: request.status,
       supplierId: request.supplierId || '',
       adminComments: '',
+      hasExpense: request.hasExpense || false,
+      expenseAmount: request.expenseAmount?.toString() || '',
+      invoiceDocumentId: request.invoiceDocumentId || '',
     });
     setShowStatusPanel(true);
     loadMaintenanceDocuments(request.id);
@@ -169,7 +175,14 @@ export default function MaintenancePage() {
   const handleCloseStatusPanel = () => {
     setShowStatusPanel(false);
     setSelectedRequest(null);
-    setStatusForm({ status: '', supplierId: '', adminComments: '' });
+    setStatusForm({ 
+      status: '', 
+      supplierId: '', 
+      adminComments: '',
+      hasExpense: false,
+      expenseAmount: '',
+      invoiceDocumentId: '',
+    });
     setMaintenanceDocuments([]);
   };
 
@@ -177,12 +190,27 @@ export default function MaintenancePage() {
     e.preventDefault();
     if (!selectedRequest) return;
 
+    // Validate expense fields if status is Resolved and hasExpense is true
+    if (statusForm.status === 'Resolved' && statusForm.hasExpense) {
+      if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
+        alert('Por favor, indique o valor da despesa.');
+        return;
+      }
+      if (!statusForm.invoiceDocumentId) {
+        alert('Por favor, anexe a fatura.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       await maintenanceApi.updateStatus(selectedRequest.id, {
         status: statusForm.status,
         supplierId: statusForm.supplierId || undefined,
         adminComments: statusForm.adminComments || undefined,
+        hasExpense: statusForm.status === 'Resolved' ? statusForm.hasExpense : false,
+        expenseAmount: statusForm.hasExpense && statusForm.expenseAmount ? parseFloat(statusForm.expenseAmount) : undefined,
+        invoiceDocumentId: statusForm.hasExpense && statusForm.invoiceDocumentId ? statusForm.invoiceDocumentId : undefined,
       });
       handleCloseStatusPanel();
       load();
@@ -245,15 +273,13 @@ export default function MaintenancePage() {
     }
   };
 
-  const handleDocDownload = (id: string, fileName: string) => {
-    const downloadUrl = documentsApi.download(id);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', fileName);
-    link.setAttribute('target', '_blank');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const handleDocDownload = async (id: string, fileName: string) => {
+    try {
+      await documentsApi.download(id, fileName);
+    } catch (error) {
+      alert('Erro ao fazer download do documento');
+      console.error(error);
+    }
   };
 
   const filtered = filter === 'All' ? requests : requests.filter((r) => r.status === filter);
@@ -537,6 +563,80 @@ export default function MaintenancePage() {
                       placeholder="Adicione um comentário sobre esta atualização..."
                     />
                   </div>
+
+                  {/* Expense Management - Only show when status is Resolved */}
+                  {statusForm.status === 'Resolved' && (
+                    <div className="border-t border-gray-200 pt-4 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="hasExpense"
+                          checked={statusForm.hasExpense}
+                          onChange={(e) => setStatusForm({ 
+                            ...statusForm, 
+                            hasExpense: e.target.checked,
+                            expenseAmount: e.target.checked ? statusForm.expenseAmount : '',
+                            invoiceDocumentId: e.target.checked ? statusForm.invoiceDocumentId : '',
+                          })}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <label htmlFor="hasExpense" className="text-sm font-medium text-gray-700 cursor-pointer">
+                          Teve despesa?
+                        </label>
+                      </div>
+
+                      {statusForm.hasExpense && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                          {/* Expense Amount */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Valor da Despesa <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={statusForm.expenseAmount}
+                                onChange={(e) => setStatusForm({ ...statusForm, expenseAmount: e.target.value })}
+                                required={statusForm.hasExpense}
+                                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Invoice Document */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Fatura <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={statusForm.invoiceDocumentId}
+                              onChange={(e) => setStatusForm({ ...statusForm, invoiceDocumentId: e.target.value })}
+                              required={statusForm.hasExpense}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Selecione a fatura</option>
+                              {maintenanceDocuments
+                                .filter(doc => doc.type === 'MaintenanceInvoice')
+                                .map((doc) => (
+                                  <option key={doc.id} value={doc.id}>
+                                    {doc.name} ({new Date(doc.uploadedAt).toLocaleDateString('pt-PT')})
+                                  </option>
+                                ))}
+                            </select>
+                            {maintenanceDocuments.filter(doc => doc.type === 'MaintenanceInvoice').length === 0 && (
+                              <p className="mt-1 text-xs text-orange-600">
+                                Nenhuma fatura anexada. Por favor, adicione uma fatura na secção de documentos abaixo.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Comment History */}
                   {selectedRequest.adminComments && (

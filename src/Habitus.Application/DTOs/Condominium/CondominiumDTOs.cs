@@ -49,3 +49,26 @@ public class UnitSummary
     public int Floor { get; set; }
     public string Type { get; set; } = string.Empty;
 }
+
+public class PaymentMethodsDto
+{
+    public string? Iban { get; set; }
+    public string? Instructions { get; set; }
+    public string? MbWay { get; set; }
+    public string? MbReference { get; set; }
+    public bool BankTransferEnabled { get; set; }
+    public bool MbWayEnabled { get; set; }
+    public bool CardEnabled { get; set; }
+}
+
+public class UpdatePaymentMethodsRequest
+{
+    public string? Iban { get; set; }
+    public string? Instructions { get; set; }
+    public string? MbWay { get; set; }
+    public string? MbReference { get; set; }
+    public bool BankTransferEnabled { get; set; }
+    public bool MbWayEnabled { get; set; }
+    public bool CardEnabled { get; set; }
+}
+

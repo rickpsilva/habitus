@@ -30,6 +30,12 @@ import type {
   SupplierDto,
   CreateSupplierRequest,
   UpdateSupplierRequest,
+  PaymentDto,
+  CreatePaymentRequest,
+  ApprovePaymentRequest,
+  RejectPaymentRequest,
+  PaymentMethodsDto,
+  UpdatePaymentMethodsRequest,
 } from '../types';
 
 export const authApi = {
@@ -109,7 +115,14 @@ export const maintenanceApi = {
   create: (data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>('/maintenance', data),
   update: (id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
     api.put<MaintenanceRequestDto>(`/maintenance/${id}`, data),
-  updateStatus: (id: string, data: { status: string; supplierId?: string; adminComments?: string }) =>
+  updateStatus: (id: string, data: { 
+    status: string; 
+    supplierId?: string; 
+    adminComments?: string;
+    hasExpense?: boolean;
+    expenseAmount?: number;
+    invoiceDocumentId?: string;
+  }) =>
     api.put<MaintenanceRequestDto>(`/maintenance/${id}/status`, data),
   delete: (id: string) => api.delete(`/maintenance/${id}`),
 };
@@ -197,7 +210,33 @@ export const documentsApi = {
   uploadMultiple: (formData: FormData) => api.post<{ success: number; failed: number; documents: DocumentDto[]; errors: string[] }>('/documents/upload-multiple', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  download: (id: string) => `/api/documents/${id}/download`,
+  download: async (id: string, fileName: string) => {
+    const response = await api.get(`/documents/${id}/download`, {
+      responseType: 'blob',
+    });
+    // Get the content type from response headers
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    
+    // Try to extract filename from Content-Disposition header if available
+    const contentDisposition = response.headers['content-disposition'];
+    let downloadFileName = fileName;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFileName = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+    
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', downloadFileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
   delete: (id: string) => api.delete(`/documents/${id}`),
 };
 
@@ -224,3 +263,39 @@ export const suppliersApi = {
   update: (id: string, data: UpdateSupplierRequest) => api.put<SupplierDto>(`/suppliers/${id}`, data),
   delete: (id: string) => api.delete(`/suppliers/${id}`),
 };
+
+export const paymentsApi = {
+  // Resident endpoints
+  create: (data: CreatePaymentRequest) => api.post<PaymentDto>('/payments', data),
+  getMyPayments: () => api.get<PaymentDto[]>('/payments'),
+  getById: (id: string) => api.get<PaymentDto>(`/payments/${id}`),
+  uploadProof: (id: string, proofUrl: string) => api.post(`/payments/${id}/proof`, { proofUrl }),
+  cancel: (id: string) => api.put<PaymentDto>(`/payments/${id}/cancel`),
+  
+  // Admin endpoints
+  getPending: () => api.get<PaymentDto[]>('/payments/pending'),
+  getPaged: (page: number = 1, pageSize: number = 10) =>
+    api.get<PaginatedResponse<PaymentDto>>(`/payments/paged?page=${page}&pageSize=${pageSize}`),
+  approve: (id: string, data?: ApprovePaymentRequest) => api.put<PaymentDto>(`/payments/${id}/approve`, data || {}),
+  reject: (id: string, data: RejectPaymentRequest) => api.put<PaymentDto>(`/payments/${id}/reject`, data),
+  issueReceipt: (id: string) => api.post(`/payments/${id}/issue-receipt`),
+  downloadReceipt: async (id: string, receiptNumber: number, receiptYear: number) => {
+    const response = await api.get(`/payments/${id}/receipt`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Recibo_${receiptNumber}_${receiptYear}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+};
+
+export const paymentMethodsApi = {
+  get: (condominiumId: string) => api.get<PaymentMethodsDto>(`/condominiums/${condominiumId}/payment-methods`),
+  update: (condominiumId: string, data: UpdatePaymentMethodsRequest) => 
+    api.put<PaymentMethodsDto>(`/condominiums/${condominiumId}/payment-methods`, data),
+};
+

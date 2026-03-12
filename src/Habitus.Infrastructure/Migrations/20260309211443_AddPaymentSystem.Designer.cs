@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260309211443_AddPaymentSystem")]
+    partial class AddPaymentSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -167,12 +170,6 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<bool>("PaymentBankTransferEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("PaymentCardEnabled")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("PaymentIban")
                         .HasColumnType("text");
 
@@ -184,9 +181,6 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Property<string>("PaymentMbWay")
                         .HasColumnType("text");
-
-                    b.Property<bool>("PaymentMbWayEnabled")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("TaxId")
                         .HasColumnType("text");
@@ -387,15 +381,6 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("ExpenseAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<bool>("HasExpense")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid?>("InvoiceDocumentId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasColumnType("text");
@@ -460,9 +445,6 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("TargetUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
@@ -475,8 +457,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("BuildingId");
 
                     b.HasIndex("CondominiumId");
-
-                    b.HasIndex("TargetUserId");
 
                     b.ToTable("Notifications");
                 });
@@ -503,9 +483,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<Guid?>("FinancialRecordId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Method")
-                        .HasColumnType("integer");
-
                     b.Property<Guid?>("ProcessedByUserId")
                         .HasColumnType("uuid");
 
@@ -514,21 +491,6 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Property<string>("ProofOfPaymentUrl")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("ReceiptIssuedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ReceiptIssuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ReceiptNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ReceiptPdfPath")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("ReceiptYear")
-                        .HasColumnType("integer");
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("text");
@@ -555,8 +517,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("FinancialRecordId");
 
                     b.HasIndex("ProcessedByUserId");
-
-                    b.HasIndex("ReceiptIssuedByUserId");
 
                     b.HasIndex("ReservationId");
 
@@ -1090,14 +1050,7 @@ namespace Habitus.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Habitus.Domain.Entities.User", "TargetUser")
-                        .WithMany()
-                        .HasForeignKey("TargetUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Condominium");
-
-                    b.Navigation("TargetUser");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Payment", b =>
@@ -1117,10 +1070,6 @@ namespace Habitus.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProcessedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Habitus.Domain.Entities.User", "ReceiptIssuedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReceiptIssuedByUserId");
 
                     b.HasOne("Habitus.Domain.Entities.Reservation", "Reservation")
                         .WithMany()
@@ -1144,8 +1093,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("FinancialRecord");
 
                     b.Navigation("ProcessedByUser");
-
-                    b.Navigation("ReceiptIssuedByUser");
 
                     b.Navigation("Reservation");
 

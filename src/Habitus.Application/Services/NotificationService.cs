@@ -7,7 +7,7 @@ namespace Habitus.Application.Services;
 public interface INotificationService
 {
     Task<IEnumerable<Notification>> GetAllOrderedAsync();
-    Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize);
+    Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole);
     Task<Notification?> GetByIdAsync(Guid id);
     Task MarkAsReadAsync(Guid id);
     Task MarkAllAsReadAsync(Guid condominiumId, string userId);
@@ -29,15 +29,21 @@ public class NotificationService : INotificationService
         return notifications.OrderByDescending(n => n.SentAt).ToList();
     }
 
-    public async Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize)
+    public async Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole)
     {
         var allNotifications = await _repository.GetAllAsync();
-        var ordered = allNotifications.OrderByDescending(n => n.SentAt).ToList();
         
-        var totalItems = ordered.Count;
+        // Filter by condominium and targetRole
+        var filtered = allNotifications
+            .Where(n => n.CondominiumId == condominiumId &&
+                       (userRole == "Admin" || n.TargetRole == userRole || string.IsNullOrEmpty(n.TargetRole)))
+            .OrderByDescending(n => n.SentAt)
+            .ToList();
+        
+        var totalItems = filtered.Count;
         var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
         
-        var items = ordered
+        var items = filtered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();

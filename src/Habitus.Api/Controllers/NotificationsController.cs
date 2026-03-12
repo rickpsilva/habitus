@@ -29,7 +29,10 @@ public class NotificationsController : ControllerBase
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize);
+        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
+        
+        var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize, condominiumId, userRole);
         return Ok(paginatedResult);
     }
 

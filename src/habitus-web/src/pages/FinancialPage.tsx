@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon } from 'lucide-react';
-import { financialApi, documentsApi } from '../api/services';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Settings, Clock, CheckCircle } from 'lucide-react';
+import { financialApi, documentsApi, paymentsApi, paymentMethodsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto } from '../types';
+import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, PaymentMethodsDto, UpdatePaymentMethodsRequest } from '../types';
 
 // Updated category mappings matching backend FinancialCategory enum
 const incomeCategoryLabels: Record<string, string> = {
@@ -42,10 +42,32 @@ const financialDocTypeLabels: Record<string, string> = {
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'settings'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
   const [reserveFund, setReserveFund] = useState<ReserveFundDto | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  
+  // Cash In - All payments (Admin only)
+  const [allPayments, setAllPayments] = useState<PaymentDto[]>([]);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('Pending');
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  
+  // Payment methods configuration (Admin only)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
+  const [editingPaymentMethods, setEditingPaymentMethods] = useState(false);
+  const [paymentMethodsForm, setPaymentMethodsForm] = useState<UpdatePaymentMethodsRequest>({
+    iban: '',
+    instructions: '',
+    mbWay: '',
+    mbReference: '',
+    bankTransferEnabled: true,
+    mbWayEnabled: false,
+    cardEnabled: false,
+  });
   
   // Records pagination
   const [records, setRecords] = useState<FinancialRecordDto[]>([]);
@@ -219,6 +241,29 @@ export default function FinancialPage() {
     }
   };
 
+  const handleDownloadProof = async (documentIdOrPath: string, description: string) => {
+    try {
+      // Check if it's a GUID (new format) or a path (old format)
+      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      if (guidRegex.test(documentIdOrPath)) {
+        // New format: document ID
+        await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
+      } else if (documentIdOrPath.startsWith('/uploads/')) {
+        // Old format: file path - show warning
+        alert('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
+        // Could open in new tab as fallback (though will fail without auth)
+        // window.open(documentIdOrPath, '_blank');
+      } else {
+        // Unknown format
+        alert('Formato de comprovativo não reconhecido.');
+      }
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      alert('Erro ao fazer download do comprovativo');
+    }
+  };
+
   const handleFundOperation = async () => {
     if (!condominiumId) return;
     if (!fundAmount || parseFloat(fundAmount) <= 0) {
@@ -300,6 +345,146 @@ export default function FinancialPage() {
     setShowDocumentModal(true);
   };
 
+  // Payment functions
+  const loadAllPayments = async () => {
+    if (!isAdmin || !condominiumId) return;
+    try {
+      // Load all payments (up to 500)
+      const response = await paymentsApi.getPaged(1, 500);
+      setAllPayments(response.data.items);
+    } catch (error) {
+      console.error('Error loading payments:', error);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    if (!isAdmin || !condominiumId) return;
+    try {
+      const response = await paymentMethodsApi.get(condominiumId);
+      setPaymentMethods(response.data);
+      setPaymentMethodsForm({
+        iban: response.data.iban || '',
+        instructions: response.data.instructions || '',
+        mbWay: response.data.mbWay || '',
+        mbReference: response.data.mbReference || '',
+        bankTransferEnabled: response.data.bankTransferEnabled ?? true,
+        mbWayEnabled: response.data.mbWayEnabled ?? false,
+        cardEnabled: response.data.cardEnabled ?? false,
+      });
+    } catch (error) {
+      console.error('Error loading payment methods:', error);
+    }
+  };
+
+  const handleApprovePayment = async (paymentId: string) => {
+    if (!confirm('Tem certeza que deseja aprovar este pagamento?')) return;
+    try {
+      await paymentsApi.approve(paymentId);
+      loadAllPayments();
+      alert('Pagamento aprovado com sucesso!');
+    } catch (error: any) {
+      console.error('Error approving payment:', error);
+      alert(error.response?.data?.message || 'Erro ao aprovar pagamento');
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!selectedPayment || !rejectionReason.trim()) {
+      alert('Por favor insira o motivo da rejeição');
+      return;
+    }
+    try {
+      await paymentsApi.reject(selectedPayment.id, { rejectionReason });
+      setShowRejectModal(false);
+      setSelectedPayment(null);
+      setRejectionReason('');
+      loadAllPayments();
+      alert('Pagamento rejeitado');
+    } catch (error: any) {
+      console.error('Error rejecting payment:', error);
+      alert(error.response?.data?.message || 'Erro ao rejeitar pagamento');
+    }
+  };
+
+  const handleSavePaymentMethods = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!condominiumId) return;
+    try {
+      const response = await paymentMethodsApi.update(condominiumId, paymentMethodsForm);
+      setPaymentMethods(response.data);
+      setEditingPaymentMethods(false);
+      alert('Métodos de pagamento atualizados com sucesso!');
+    } catch (error: any) {
+      console.error('Error saving payment methods:', error);
+      alert(error.response?.data?.message || 'Erro ao salvar métodos de pagamento');
+    }
+  };
+
+
+
+  const handleIssueReceipt = async (paymentId: string) => {
+    if (!confirm('Emitir recibo para este pagamento?')) return;
+    try {
+      await paymentsApi.issueReceipt(paymentId);
+      loadAllPayments();
+      alert('Recibo emitido com sucesso!');
+    } catch (error: any) {
+      console.error('Error issuing receipt:', error);
+      alert(error.response?.data?.message || 'Erro ao emitir recibo');
+    }
+  };
+
+  const handleDownloadReceipt = async (payment: PaymentDto) => {
+    if (!payment.receiptNumber || !payment.receiptYear) {
+      alert('Este pagamento ainda não tem recibo emitido');
+      return;
+    }
+    try {
+      await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
+    } catch (error: any) {
+      console.error('Error downloading receipt:', error);
+      alert(error.response?.data?.message || 'Erro ao baixar recibo');
+    }
+  };
+
+  // Load payments and payment methods when switching to those tabs
+  useEffect(() => {
+    if (activeTab === 'cashin' && isAdmin) {
+      loadAllPayments();
+    } else if (activeTab === 'settings' && isAdmin) {
+      loadPaymentMethods();
+    }
+  }, [activeTab, isAdmin, condominiumId]);
+
+  // Filter and search payments
+  const filteredPayments = allPayments.filter(payment => {
+    // Status filter
+    if (paymentStatusFilter !== 'All' && payment.status !== paymentStatusFilter) {
+      return false;
+    }
+    
+    // Search query
+    if (paymentSearchQuery.trim()) {
+      const query = paymentSearchQuery.toLowerCase();
+      return (
+        payment.residentName.toLowerCase().includes(query) ||
+        payment.unitIdentifier.toLowerCase().includes(query) ||
+        payment.description.toLowerCase().includes(query) ||
+        payment.amount.toString().includes(query)
+      );
+    }
+    
+    return true;
+  });
+
+  // Count by status
+  const paymentCounts = {
+    all: allPayments.length,
+    pending: allPayments.filter(p => p.status === 'Pending').length,
+    approved: allPayments.filter(p => p.status === 'Approved').length,
+    rejected: allPayments.filter(p => p.status === 'Rejected').length,
+  };
+
   const currentCategories = form.type === 'Income' ? incomeCategoryLabels : expenseCategoryLabels;
 
   return (
@@ -343,22 +528,70 @@ export default function FinancialPage() {
         </div>
       </div>
 
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-900">
-          <p className="font-medium mb-1">Como funciona a gestão financeira:</p>
-          <ul className="list-disc list-inside space-y-1 text-blue-800">
-            <li><strong>Conta Corrente:</strong> Receitas e despesas do ano fiscal {selectedYear}</li>
-            <li><strong>Fundo de Reserva:</strong> Acumulado obrigatório por lei para grandes obras e emergências</li>
-            <li>No fim do ano, o saldo positivo da conta corrente pode ser transferido para o fundo</li>
-          </ul>
+      {/* Tabs (Admin only) */}
+      {isAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'transactions'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Transações
+            </button>
+            <button
+              onClick={() => setActiveTab('cashin')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors relative ${
+                activeTab === 'cashin'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Cash In
+              {paymentCounts.pending > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {paymentCounts.pending}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'settings'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Configurações
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {loading ? (
+      {/* Transactions Tab Content */}
+      {activeTab === 'transactions' && (
+        <>
+          {/* Info Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-900">
+              <p className="font-medium mb-1">Como funciona a gestão financeira:</p>
+              <ul className="list-disc list-inside space-y-1 text-blue-800">
+                <li><strong>Conta Corrente:</strong> Receitas e despesas do ano fiscal {selectedYear}</li>
+                <li><strong>Fundo de Reserva:</strong> Acumulado obrigatório por lei para grandes obras e emergências</li>
+                <li>No fim do ano, o saldo positivo da conta corrente pode ser transferido para o fundo</li>
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'transactions' && loading ? (
         <div className="text-center py-12 text-gray-400">A carregar...</div>
-      ) : (
+      ) : activeTab === 'transactions' ? (
         <>
           {/* Dashboard Cards */}
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -628,7 +861,7 @@ export default function FinancialPage() {
             )}
           </div>
         </>
-      )}
+      ) : null}
 
       {/* Fund Management Modal */}
       {showFundModal && isAdmin && (
@@ -808,6 +1041,491 @@ export default function FinancialPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cash In Tab - Unified Payments Management */}
+      {activeTab === 'cashin' && isAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Cash In - Gestão de Pagamentos
+              </h2>
+              <div className="flex gap-2 text-xs text-gray-600">
+                <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded">
+                  Pendentes: {paymentCounts.pending}
+                </span>
+                <span className="px-2 py-1 bg-green-50 text-green-700 rounded">
+                  Aprovados: {paymentCounts.approved}
+                </span>
+                <span className="px-2 py-1 bg-red-50 text-red-700 rounded">
+                  Rejeitados: {paymentCounts.rejected}
+                </span>
+              </div>
+            </div>
+
+            {/* Filters and Search */}
+            <div className="mb-6 flex gap-3">
+              <div className="flex-1">
+                <SearchBar
+                  value={paymentSearchQuery}
+                  onChange={setPaymentSearchQuery}
+                  placeholder="Pesquisar por residente, fração, descrição ou valor..."
+                />
+              </div>
+              <div className="min-w-[200px]">
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="Pending">🟡 Pendentes</option>
+                  <option value="Approved">🟢 Aprovados</option>
+                  <option value="Rejected">🔴 Rejeitados</option>
+                  <option value="All">📋 Todos</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Payments List */}
+            {filteredPayments.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                {paymentSearchQuery ? 
+                  'Nenhum pagamento encontrado para a pesquisa' : 
+                  `Não há pagamentos ${paymentStatusFilter === 'All' ? '' : paymentStatusFilter.toLowerCase()}`
+                }
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPayments.map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-gray-900">
+                            {payment.residentName} - {payment.unitIdentifier}
+                          </h3>
+                          {/* Status Badge */}
+                          {payment.status === 'Pending' && (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-yellow-800 bg-yellow-100 rounded">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Pendente
+                            </span>
+                          )}
+                          {payment.status === 'Approved' && (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Aprovado
+                            </span>
+                          )}
+                          {payment.status === 'Rejected' && (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded">
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Rejeitado
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{payment.description}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <p className="text-xs text-gray-500">
+                            Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            {payment.method === 'BankTransfer' ? 'Transferência Bancária' : 
+                             payment.method === 'MBWay' ? 'MB Way' : 
+                             payment.method === 'Card' ? 'Cartão' : payment.method}
+                          </p>
+                        </div>
+                        
+                        {/* Receipt Info for Approved */}
+                        {payment.status === 'Approved' && payment.hasReceipt && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
+                              ✓ Recibo Nº {payment.receiptNumber}/{payment.receiptYear}
+                            </span>
+                            {payment.receiptIssuedDate && (
+                              <span className="text-xs text-gray-500">
+                                Emitido: {new Date(payment.receiptIssuedDate).toLocaleDateString('pt-PT')}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {payment.status === 'Approved' && !payment.hasReceipt && (
+                          <span className="inline-flex items-center mt-2 px-2 py-1 text-xs font-medium text-orange-800 bg-orange-100 rounded">
+                            ⏳ Aguarda emissão de recibo
+                          </span>
+                        )}
+                        
+                        {/* Rejection Reason */}
+                        {payment.status === 'Rejected' && payment.rejectionReason && (
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                            <strong>Motivo:</strong> {payment.rejectionReason}
+                          </div>
+                        )}
+
+                        {/* Processed Info */}
+                        {payment.processedDate && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Processado: {new Date(payment.processedDate).toLocaleDateString('pt-PT')}
+                            {payment.processedByUserName && ` por ${payment.processedByUserName}`}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="text-right ml-4">
+                        <div className="text-xl font-bold text-gray-900">
+                          €{payment.amount.toFixed(2)}
+                        </div>
+                        <span className="inline-block px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded mt-1">
+                          {payment.type === 'MonthlyFee' ? 'Quota Mensal' :
+                           payment.type === 'ExtraordinaryFee' ? 'Quota Extraordinária' :
+                           payment.type === 'Reservation' ? 'Reserva' : 'Outro'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Proof of Payment */}
+                    {payment.proofOfPaymentUrl && (
+                      <div className="mb-3">
+                        <button
+                          onClick={() => handleDownloadProof(payment.proofOfPaymentUrl!, payment.description)}
+                          className="text-sm text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          📎 Ver comprovativo de pagamento
+                        </button>
+                      </div>
+                    )}
+                    {!payment.proofOfPaymentUrl && payment.method === 'BankTransfer' && payment.status === 'Pending' && (
+                      <div className="mb-3">
+                        <p className="text-xs text-orange-600">
+                          ⚠️ Comprovativo não anexado
+                        </p>
+                      </div>
+                    )}
+                    {payment.method !== 'BankTransfer' && payment.status === 'Pending' && (
+                      <div className="mb-3">
+                        <p className="text-xs text-green-600">
+                          ✓ Pagamento automático - sem comprovativo
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Action Buttons - Context Dependent */}
+                    <div className="flex gap-2">
+                      {payment.status === 'Pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApprovePayment(payment.id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                            Aprovar
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setShowRejectModal(true);
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Rejeitar
+                          </button>
+                        </>
+                      )}
+                      
+                      {payment.status === 'Approved' && (
+                        <>
+                          {payment.hasReceipt ? (
+                            <button
+                              onClick={() => handleDownloadReceipt(payment)}
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <ArrowDownToLine className="w-4 h-4" />
+                              Descarregar Recibo
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleIssueReceipt(payment.id)}
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              Emitir Recibo
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Settings Tab - Payment Methods Configuration */}
+      {activeTab === 'settings' && isAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Métodos de Pagamento
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Configure os métodos de pagamento disponíveis para os residentes
+                </p>
+              </div>
+              {!editingPaymentMethods && (
+                <button
+                  onClick={() => setEditingPaymentMethods(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  Editar
+                </button>
+              )}
+            </div>
+
+            {editingPaymentMethods ? (
+              <form onSubmit={handleSavePaymentMethods} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    IBAN
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentMethodsForm.iban}
+                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, iban: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="PT50 0000 0000 0000 0000 0000 0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    MB Way
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentMethodsForm.mbWay}
+                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbWay: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="+351 912 345 678"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Referência Multibanco
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentMethodsForm.mbReference}
+                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbReference: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Entidade | Referência"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Instruções Adicionais
+                  </label>
+                  <textarea
+                    value={paymentMethodsForm.instructions}
+                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, instructions: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    rows={4}
+                    placeholder="Instruções especiais para os residentes sobre como efetuar pagamentos..."
+                  />
+                </div>
+
+                {/* Payment Methods Availability */}
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-900 mb-3">
+                    Métodos de Pagamento Disponíveis para Residentes
+                  </label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Selecione quais métodos de pagamento os residentes podem utilizar
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentMethodsForm.bankTransferEnabled}
+                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, bankTransferEnabled: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900">Transferência Bancária / NIB</span>
+                        <p className="text-xs text-gray-500 mt-0.5">Requer upload de comprovativo</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentMethodsForm.mbWayEnabled}
+                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbWayEnabled: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900">MB Way</span>
+                        <p className="text-xs text-gray-500 mt-0.5">Pagamento automático (em desenvolvimento)</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentMethodsForm.cardEnabled}
+                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, cardEnabled: e.target.checked })}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900">Cartão (Visa/Maestro)</span>
+                        <p className="text-xs text-gray-500 mt-0.5">Pagamento automático (em desenvolvimento)</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingPaymentMethods(false);
+                      loadPaymentMethods(); // Reset form
+                    }}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    Guardar Alterações
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-6">
+                {/* Payment Details */}
+                <div className="space-y-4">
+                  {paymentMethods?.iban && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">IBAN</h4>
+                      <p className="text-gray-900">{paymentMethods.iban}</p>
+                    </div>
+                  )}
+                  {paymentMethods?.mbWay && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">MB Way</h4>
+                      <p className="text-gray-900">{paymentMethods.mbWay}</p>
+                    </div>
+                  )}
+                  {paymentMethods?.mbReference && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Referência Multibanco</h4>
+                      <p className="text-gray-900">{paymentMethods.mbReference}</p>
+                    </div>
+                  )}
+                  {paymentMethods?.instructions && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">Instruções</h4>
+                      <p className="text-gray-900 whitespace-pre-wrap">{paymentMethods.instructions}</p>
+                    </div>
+                  )}
+                  {!paymentMethods?.iban && !paymentMethods?.mbWay && !paymentMethods?.mbReference && (
+                    <div className="text-center py-8 text-gray-500">
+                      Nenhum método de pagamento configurado
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Methods Status */}
+                {paymentMethods && (
+                  <div className="border-t border-gray-200 pt-6">
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">
+                      Métodos Disponíveis para Residentes
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${paymentMethods.bankTransferEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <span className="text-sm text-gray-700">Transferência Bancária / NIB</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.bankTransferEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {paymentMethods.bankTransferEnabled ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${paymentMethods.mbWayEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <span className="text-sm text-gray-700">MB Way</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.mbWayEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {paymentMethods.mbWayEnabled ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${paymentMethods.cardEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <span className="text-sm text-gray-700">Cartão (Visa/Maestro)</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.cardEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {paymentMethods.cardEnabled ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reject Payment Modal */}
+      {showRejectModal && selectedPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Rejeitar Pagamento</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Pagamento de <strong>{selectedPayment.residentName}</strong> no valor de{' '}
+              <strong>€{selectedPayment.amount.toFixed(2)}</strong>
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo da Rejeição *
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                rows={4}
+                placeholder="Explique o motivo da rejeição..."
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setSelectedPayment(null);
+                  setRejectionReason('');
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRejectPayment}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Rejeitar Pagamento
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -19,6 +19,9 @@ public class MaintenanceRequest
     public DateTime? ResolvedAt { get; set; }
     public List<string> Photos { get; set; } = new();
     public string Location { get; set; } = string.Empty;
+    public bool HasExpense { get; set; } = false;
+    public decimal? ExpenseAmount { get; set; }
+    public Guid? InvoiceDocumentId { get; set; }
     public Condominium Condominium { get; set; } = null!;
     public Unit Unit { get; set; } = null!;
     public Supplier? Supplier { get; set; }

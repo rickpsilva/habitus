@@ -204,4 +204,50 @@ public class CondominiumService
         await _condominiumRepository.SaveChangesAsync();
         return true;
     }
+
+    public async Task<PaymentMethodsDto?> GetPaymentMethodsAsync(Guid condominiumId)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+        if (condominium == null) return null;
+
+        return new PaymentMethodsDto
+        {
+            Iban = condominium.PaymentIban,
+            Instructions = condominium.PaymentInstructions,
+            MbWay = condominium.PaymentMbWay,
+            MbReference = condominium.PaymentMbReference,
+            BankTransferEnabled = condominium.PaymentBankTransferEnabled,
+            MbWayEnabled = condominium.PaymentMbWayEnabled,
+            CardEnabled = condominium.PaymentCardEnabled
+        };
+    }
+
+    public async Task<PaymentMethodsDto> UpdatePaymentMethodsAsync(Guid condominiumId, UpdatePaymentMethodsRequest request)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+        if (condominium == null)
+            throw new InvalidOperationException($"Condominium with ID {condominiumId} not found.");
+
+        condominium.PaymentIban = request.Iban;
+        condominium.PaymentInstructions = request.Instructions;
+        condominium.PaymentMbWay = request.MbWay;
+        condominium.PaymentMbReference = request.MbReference;
+        condominium.PaymentBankTransferEnabled = request.BankTransferEnabled;
+        condominium.PaymentMbWayEnabled = request.MbWayEnabled;
+        condominium.PaymentCardEnabled = request.CardEnabled;
+
+        _condominiumRepository.Update(condominium);
+        await _condominiumRepository.SaveChangesAsync();
+
+        return new PaymentMethodsDto
+        {
+            Iban = condominium.PaymentIban,
+            Instructions = condominium.PaymentInstructions,
+            MbWay = condominium.PaymentMbWay,
+            MbReference = condominium.PaymentMbReference,
+            BankTransferEnabled = condominium.PaymentBankTransferEnabled,
+            MbWayEnabled = condominium.PaymentMbWayEnabled,
+            CardEnabled = condominium.PaymentCardEnabled
+        };
+    }
 }

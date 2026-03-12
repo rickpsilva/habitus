@@ -9,6 +9,17 @@ public class Condominium
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     
+    // Payment Methods
+    public string? PaymentIban { get; set; }
+    public string? PaymentInstructions { get; set; }
+    public string? PaymentMbWay { get; set; }
+    public string? PaymentMbReference { get; set; }
+    
+    // Payment Methods Availability (for residents)
+    public bool PaymentBankTransferEnabled { get; set; } = true;
+    public bool PaymentMbWayEnabled { get; set; } = false;
+    public bool PaymentCardEnabled { get; set; } = false;
+    
     // Navigation properties
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
     public ICollection<User> Users { get; set; } = new List<User>();
@@ -21,4 +32,5 @@ public class Condominium
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<UsefulContact> UsefulContacts { get; set; } = new List<UsefulContact>();
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+    public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

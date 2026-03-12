@@ -154,6 +154,15 @@ export default function DocumentsPage() {
     load();
   };
 
+  const handleDownload = async (id: string, fileName: string) => {
+    try {
+      await documentsApi.download(id, fileName);
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      alert('Erro ao fazer download do documento');
+    }
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
@@ -529,13 +538,13 @@ export default function DocumentsPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
-                                  <a
-                                    href={documentsApi.download(d.id)}
+                                  <button
+                                    onClick={() => handleDownload(d.id, d.name)}
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
                                     Descarregar
-                                  </a>
+                                  </button>
                                   {isAdmin && (
                                     <button
                                       onClick={() => handleDelete(d.id)}
@@ -641,13 +650,13 @@ export default function DocumentsPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
-                                  <a
-                                    href={documentsApi.download(d.id)}
+                                  <button
+                                    onClick={() => handleDownload(d.id, d.name)}
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
                                     Descarregar
-                                  </a>
+                                  </button>
                                   {isAdmin && (
                                     <button
                                       onClick={() => handleDelete(d.id)}
@@ -753,13 +762,13 @@ export default function DocumentsPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
-                                  <a
-                                    href={documentsApi.download(d.id)}
+                                  <button
+                                    onClick={() => handleDownload(d.id, d.name)}
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
                                     Descarregar
-                                  </a>
+                                  </button>
                                   {isAdmin && (
                                     <button
                                       onClick={() => handleDelete(d.id)}
@@ -854,13 +863,13 @@ export default function DocumentsPage() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
-                                  <a
-                                    href={documentsApi.download(d.id)}
+                                  <button
+                                    onClick={() => handleDownload(d.id, d.name)}
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
                                     Descarregar
-                                  </a>
+                                  </button>
                                   {isAdmin && (
                                     <button
                                       onClick={() => handleDelete(d.id)}
@@ -917,13 +926,13 @@ export default function DocumentsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-3">
-                <a
-                  href={documentsApi.download(d.id)}
+                <button
+                  onClick={() => handleDownload(d.id, d.name)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                 >
                   <Download className="w-3 h-3" />
                   Descarregar
-                </a>
+                </button>
                 {isAdmin && (
                   <button
                     onClick={() => handleDelete(d.id)}

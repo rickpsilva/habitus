@@ -19,6 +19,7 @@ import {
   Home,
   Warehouse,
   Truck,
+  CreditCard,
 } from 'lucide-react';
 
 interface NavItem {
@@ -27,12 +28,14 @@ interface NavItem {
   icon: any;
   managerOnly?: boolean;
   managerOrAdminOnly?: boolean;
+  residentOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/maintenance', label: 'Manutenção', icon: Wrench },
   { to: '/financial', label: 'Financeiro', icon: DollarSign },
+  { to: '/payments', label: 'Pagamentos', icon: CreditCard, residentOnly: true },
   { to: '/notifications', label: 'Notificações', icon: Bell },
   { to: '/reservations', label: 'Reservas', icon: Calendar },
   { to: '/documents', label: 'Documentos', icon: FileText },
@@ -45,7 +48,7 @@ const navItems: NavItem[] = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout, isAdmin, isManager } = useAuth();
+  const { user, logout, isAdmin, isManager, isResident } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -72,6 +75,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const visibleNavItems = navItems.filter((item) => {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
+    if (item.residentOnly && !isResident) return false;
     return true;
   });
 

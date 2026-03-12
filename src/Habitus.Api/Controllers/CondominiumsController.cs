@@ -124,4 +124,62 @@ public class CondominiumsController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Get payment methods for a condominium
+    /// </summary>
+    [HttpGet("{id}/payment-methods")]
+    public async Task<IActionResult> GetPaymentMethods(Guid id)
+    {
+        try
+        {
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+
+            // Non-managers can only view their condominium's payment methods
+            if (userRole != "Manager" && userCondominiumId != id.ToString())
+            {
+                return Forbid("You can only view your own condominium's payment methods.");
+            }
+
+            var paymentMethods = await _condominiumService.GetPaymentMethodsAsync(id);
+            if (paymentMethods == null) return NotFound();
+
+            return Ok(paymentMethods);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update payment methods for a condominium (Admin only)
+    /// </summary>
+    [HttpPut("{id}/payment-methods")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdatePaymentMethods(Guid id, [FromBody] UpdatePaymentMethodsRequest request)
+    {
+        try
+        {
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+
+            // Admin can only update their own condominium's payment methods
+            if (userCondominiumId != id.ToString())
+            {
+                return Forbid("Admins can only update their own condominium's payment methods.");
+            }
+
+            var paymentMethods = await _condominiumService.UpdatePaymentMethodsAsync(id, request);
+            return Ok(paymentMethods);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

@@ -402,6 +402,15 @@ export default function AssembliesPage() {
     }
   };
 
+  const handleDocumentDownload = async (id: string, fileName: string) => {
+    try {
+      await documentsApi.download(id, fileName);
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      alert('Erro ao fazer download do documento');
+    }
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -950,13 +959,13 @@ export default function AssembliesPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <a
-                            href={documentsApi.download(doc.id)}
+                          <button
+                            onClick={() => handleDocumentDownload(doc.id, doc.name)}
                             className="p-1.5 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors"
                             title="Descarregar"
                           >
                             <Download className="w-4 h-4" />
-                          </a>
+                          </button>
                           {isAdmin && (
                             <button
                               onClick={() => handleDeleteDocument(doc.id)}

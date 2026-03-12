@@ -162,14 +162,7 @@ export default function ProfilePage() {
 
   const handleDownload = async (id: string, fileName: string) => {
     try {
-      const downloadUrl = documentsApi.download(id);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', fileName);
-      link.setAttribute('target', '_blank');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await documentsApi.download(id, fileName);
     } catch (err) {
       setError('Erro ao baixar documento');
       console.error(err);
