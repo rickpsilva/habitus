@@ -29,6 +29,9 @@ public class CommunicationSettings
     public string? SmsApiKey { get; set; }
     public string? SmsFromNumber { get; set; }
     
+    // Announcements Configuration
+    public bool AllowAnnouncementComments { get; set; } = true;
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313215524_AddAnnouncementsSystem")]
+    partial class AddAnnouncementsSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,7 +32,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("ApprovedByUserId")
                         .HasColumnType("uuid");
@@ -48,7 +51,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsAnonymous")
                         .HasColumnType("boolean");
@@ -57,7 +60,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("text");
@@ -73,10 +76,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ValidUntil")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -118,7 +121,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -144,7 +147,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsAnonymous")
                         .HasColumnType("boolean");
@@ -153,7 +156,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -176,7 +179,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ReadAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -206,7 +209,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -223,7 +226,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -233,7 +236,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -254,7 +257,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ConfirmedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ResidentId")
                         .HasColumnType("uuid");
@@ -276,7 +279,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("DecidedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -328,7 +331,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("EmailEnabled")
                         .HasColumnType("boolean");
@@ -367,7 +370,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("WhatsAppApiKey")
                         .HasColumnType("text");
@@ -402,7 +405,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -488,7 +491,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UploadedByUserId")
                         .HasColumnType("uuid");
@@ -532,7 +535,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -563,7 +566,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("MaintenanceRequestId")
                         .HasColumnType("uuid");
@@ -573,7 +576,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid");
@@ -594,7 +597,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ConfirmedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("MaintenanceRequestId")
                         .HasColumnType("uuid");
@@ -622,7 +625,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
@@ -652,7 +655,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -698,7 +701,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SentAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("TargetRole")
                         .IsRequired()
@@ -725,64 +728,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("Notifications");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.NotificationDispatchDelivery", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Channel")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid>("CondominiumId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("DispatchKey")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime?>("LastAttemptAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Recipient")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CondominiumId");
-
-                    b.HasIndex("Channel", "DispatchKey", "Recipient")
-                        .IsUnique();
-
-                    b.ToTable("NotificationDispatchDeliveries");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -796,7 +741,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -812,7 +757,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ProcessedDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ProofOfPaymentUrl")
                         .HasColumnType("text");
@@ -821,7 +766,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("ReceiptIssuedDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ReceiptNumber")
                         .HasColumnType("integer");
@@ -903,7 +848,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("MBReferenceEnabled")
                         .HasColumnType("boolean");
@@ -924,7 +869,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -976,7 +921,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("AppliedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("AppliedBy")
                         .HasColumnType("text");
@@ -985,7 +930,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("ExtraordinaryQuota")
                         .HasColumnType("numeric");
@@ -1021,10 +966,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("EndTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("SharedSpaceId")
                         .HasColumnType("uuid");
@@ -1033,7 +978,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -1067,7 +1012,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Deposits")
                         .HasColumnType("numeric");
@@ -1079,7 +1024,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Withdrawals")
                         .HasColumnType("numeric");
@@ -1098,7 +1043,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1116,7 +1061,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("PasswordResetTokenExpiry")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Phone")
                         .IsRequired()
@@ -1302,7 +1247,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1312,7 +1257,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1326,7 +1271,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("PasswordResetTokenExpiry")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Phone")
                         .IsRequired()
@@ -1362,7 +1307,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("GrantedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("UserId", "CondominiumId");
 

@@ -14,13 +14,16 @@ public class NotificationsController : ControllerBase
 {
     private readonly IRepository<Notification> _repository;
     private readonly INotificationService _notificationService;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public NotificationsController(
         IRepository<Notification> repository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        INotificationDispatchService notificationDispatchService)
     {
         _repository = repository;
         _notificationService = notificationService;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     [HttpGet]
@@ -31,8 +34,9 @@ public class NotificationsController : ControllerBase
 
         var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
         var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         
-        var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize, condominiumId, userRole);
+        var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize, condominiumId, userRole, userId);
         return Ok(paginatedResult);
     }
 
@@ -51,13 +55,18 @@ public class NotificationsController : ControllerBase
         notification.SentAt = DateTime.UtcNow;
         await _repository.AddAsync(notification);
         await _repository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
         return CreatedAtAction(nameof(GetById), new { id = notification.Id }, notification);
     }
 
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkRead(Guid id)
     {
-        await _notificationService.MarkAsReadAsync(id);
+        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await _notificationService.MarkAsReadAsync(id, condominiumId, userRole, userId);
         return Ok();
     }
 
@@ -65,8 +74,10 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> MarkAllRead()
     {
         var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _notificationService.MarkAllAsReadAsync(condominiumId, userId);
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await _notificationService.MarkAllAsReadAsync(condominiumId, userRole, userId);
         return Ok();
     }
 

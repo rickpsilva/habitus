@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { notificationsApi } from '../api/services';
+import { announcementsApi, notificationsApi } from '../api/services';
+import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import {
   LayoutDashboard,
   Wrench,
@@ -15,9 +16,12 @@ import {
   X,
   Building2,
   ClipboardList,
+  Megaphone,
   UserCircle,
   CreditCard,
   Settings,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,6 +39,7 @@ const navItems: NavItem[] = [
   { to: '/financial', label: 'Financeiro', icon: DollarSign },
   { to: '/payments', label: 'Pagamentos', icon: CreditCard, residentOnly: true },
   { to: '/notifications', label: 'Notificações', icon: Bell },
+  { to: '/announcements', label: 'Comunicados', icon: Megaphone },
   { to: '/reservations', label: 'Reservas', icon: Calendar },
   { to: '/documents', label: 'Documentos', icon: FileText },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
@@ -43,24 +48,80 @@ const navItems: NavItem[] = [
   { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true },
 ];
 
+const adminMenuOrder = [
+  '/dashboard',
+  '/notifications',
+  '/announcements',
+  '/maintenance',
+  '/financial',
+  '/reservations',
+  '/documents',
+  '/assemblies',
+  '/users',
+  '/settings',
+];
+
+const residentMenuOrder = [
+  '/dashboard',
+  '/notifications',
+  '/announcements',
+  '/payments',
+  '/reservations',
+  '/maintenance',
+  '/documents',
+  '/assemblies',
+  '/financial',
+];
+
+const managerMenuOrder = [
+  '/dashboard',
+  '/notifications',
+  '/announcements',
+  '/maintenance',
+  '/financial',
+  '/reservations',
+  '/documents',
+  '/assemblies',
+  '/users',
+  '/settings',
+  '/condominiums',
+];
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin, isManager, isResident } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingAnnouncementsCount, setPendingAnnouncementsCount] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
 
   useEffect(() => {
-    const loadUnreadCount = () => {
-      notificationsApi.getAll(1, 100).then((r) => {
-        // Count unread from all items (fetch more to get accurate count)
-        const unread = r.data.items.filter((n) => !n.isRead).length;
+    const loadCounts = async () => {
+      try {
+        const notificationsRes = await notificationsApi.getAll(1, 100);
+        const unread = notificationsRes.data.items.filter((n) => !n.isRead).length;
         setUnreadCount(unread);
-      }).catch(() => {});
+
+        if (isAdmin && user?.condominiumId) {
+          const statsRes = await announcementsApi.getStats(user.condominiumId);
+          setPendingAnnouncementsCount(statsRes.data.pendingApproval ?? 0);
+        } else {
+          setPendingAnnouncementsCount(0);
+        }
+      } catch {
+        // Ignore menu counter errors to keep navigation responsive.
+      }
     };
 
-    loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 30000); // Refresh every 30s
+    loadCounts();
+    const interval = setInterval(loadCounts, 30000); // Refresh every 30s
     return () => clearInterval(interval);
+  }, [isAdmin, user?.condominiumId]);
+
+  useEffect(() => {
+    return onThemeChanged(() => {
+      setIsDarkMode(getIsDarkMode());
+    });
   }, []);
 
   const handleLogout = () => {
@@ -68,11 +129,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  const handleToggleTheme = () => {
+    const nextIsDark = toggleTheme();
+    setIsDarkMode(nextIsDark);
+  };
+
   const visibleNavItems = navItems.filter((item) => {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
     if (item.residentOnly && !isResident) return false;
     return true;
+  });
+
+  const roleMenuOrder = isManager ? managerMenuOrder : isAdmin ? adminMenuOrder : residentMenuOrder;
+
+  const orderedNavItems = [...visibleNavItems].sort((a, b) => {
+    const indexA = roleMenuOrder.indexOf(a.to);
+    const indexB = roleMenuOrder.indexOf(b.to);
+
+    const safeIndexA = indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA;
+    const safeIndexB = indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB;
+
+    return safeIndexA - safeIndexB;
   });
 
   return (
@@ -108,7 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {visibleNavItems.map(({ to, label, icon: Icon }) => (
+            {orderedNavItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -126,6 +204,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   {to === '/notifications' && unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white animate-pulse">
                       {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                  {to === '/announcements' && isAdmin && pendingAnnouncementsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                      {pendingAnnouncementsCount > 9 ? '9+' : pendingAnnouncementsCount}
                     </span>
                   )}
                 </div>
@@ -161,6 +244,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <UserCircle className="w-4 h-4" />
               Meu Perfil
             </NavLink>
+            <button
+              onClick={handleToggleTheme}
+              className="flex items-center gap-2 w-full px-3 py-2 mb-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {isDarkMode ? 'Modo claro' : 'Modo escuro'}
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -205,6 +205,8 @@ export interface FinancialDashboardDto {
   reserveFundWithdrawals: number;
   currentYearRecords: FinancialRecordDto[];
   availableFiscalYears: number[];
+  noiseAnnouncementsCurrentYear: number;
+  noiseAnnouncementsPreviousYear: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -463,6 +465,8 @@ export interface CommunicationSettingsDto {
   smsEnabled: boolean;
   smsProvider?: string;
   smsFromNumber?: string;
+  // Announcements Configuration
+  allowAnnouncementComments: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -488,6 +492,8 @@ export interface UpdateCommunicationSettingsRequest {
   smsProvider?: string;
   smsApiKey?: string;
   smsFromNumber?: string;
+  // Announcements Configuration
+  allowAnnouncementComments: boolean;
 }
 
 // Quota Plans
@@ -526,4 +532,96 @@ export interface UpdateQuotaPlanRequest {
   extraordinaryQuota: number;
 }
 
+// Announcements
+export interface AnnouncementDto {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  status: string;
+  isAnonymous: boolean;
+  isPinned: boolean;
+  validUntil?: string;
+  createdAt: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  authorId: string;
+  authorName: string;
+  condominiumId: string;
+  unitId?: string;
+  unitNumber?: string;
+  approvedByUserId?: string;
+  approvedByUserName?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  totalReads: number;
+  totalComments: number;
+  totalAttachments: number;
+  isReadByCurrentUser: boolean;
+  attachments: AnnouncementAttachmentDto[];
+  comments: AnnouncementCommentDto[];
+}
+
+export interface AnnouncementAttachmentDto {
+  id: string;
+  announcementId: string;
+  fileName: string;
+  filePath: string;
+  type: string;
+  fileSize: number;
+  contentType?: string;
+  uploadedAt: string;
+}
+
+export interface AnnouncementCommentDto {
+  id: string;
+  announcementId: string;
+  authorId: string;
+  authorName: string;
+  unitId?: string;
+  unitNumber?: string;
+  content: string;
+  isAnonymous: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateAnnouncementRequest {
+  title: string;
+  content: string;
+  category: string;
+  isAnonymous?: boolean;
+  validUntil?: string;
+  publishImmediately?: boolean;
+}
+
+export interface UpdateAnnouncementRequest {
+  title: string;
+  content: string;
+  category: string;
+  isAnonymous: boolean;
+  validUntil?: string;
+}
+
+export interface ApproveAnnouncementRequest {
+  isApproved: boolean;
+  rejectionReason?: string;
+}
+
+export interface CreateAnnouncementCommentRequest {
+  content: string;
+  isAnonymous?: boolean;
+}
+
+export interface AnnouncementStatsDto {
+  totalAnnouncements: number;
+  pendingApproval: number;
+  published: number;
+  myDrafts: number;
+  unread: number;
+}
+
+export interface AnnouncementSettingsDto {
+  allowAnnouncementComments: boolean;
+}
 

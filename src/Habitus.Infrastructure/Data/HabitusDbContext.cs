@@ -33,6 +33,11 @@ public class HabitusDbContext : DbContext
     public DbSet<CommunicationSettings> CommunicationSettings => Set<CommunicationSettings>();
     public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();
     public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<AnnouncementAttachment> AnnouncementAttachments => Set<AnnouncementAttachment>();
+    public DbSet<AnnouncementComment> AnnouncementComments => Set<AnnouncementComment>();
+    public DbSet<AnnouncementReadStatus> AnnouncementReadStatuses => Set<AnnouncementReadStatus>();
+    public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -223,6 +228,18 @@ public class HabitusDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(n => n.TargetUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<NotificationDispatchDelivery>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.Channel).HasMaxLength(32).IsRequired();
+            entity.Property(d => d.DispatchKey).HasMaxLength(128).IsRequired();
+            entity.Property(d => d.Recipient).HasMaxLength(256).IsRequired();
+            entity.Property(d => d.Status).HasMaxLength(32).IsRequired();
+            entity.Property(d => d.LastError).HasMaxLength(2000);
+            entity.HasIndex(d => new { d.Channel, d.DispatchKey, d.Recipient }).IsUnique();
+            entity.HasIndex(d => d.CondominiumId);
         });
 
         // Configure PaymentSettings relationships

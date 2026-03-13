@@ -50,4 +50,8 @@ public class FinancialDashboardDto
     
     // Available fiscal years for filtering
     public List<int> AvailableFiscalYears { get; set; } = new();
+
+    // Announcements metrics (Noise/Perturbações)
+    public int NoiseAnnouncementsCurrentYear { get; set; }
+    public int NoiseAnnouncementsPreviousYear { get; set; }
 }

@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313235036_AddNotificationDispatchIdempotency")]
+    partial class AddNotificationDispatchIdempotency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -731,9 +734,6 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Channel")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -750,28 +750,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<DateTime?>("LastAttemptAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("LastError")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
                     b.Property<string>("Recipient")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 

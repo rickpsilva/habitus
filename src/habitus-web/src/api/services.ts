@@ -42,6 +42,15 @@ import type {
   QuotaPlanDto,
   CreateQuotaPlanRequest,
   UpdateQuotaPlanRequest,
+  AnnouncementDto,
+  AnnouncementAttachmentDto,
+  AnnouncementCommentDto,
+  CreateAnnouncementRequest,
+  UpdateAnnouncementRequest,
+  ApproveAnnouncementRequest,
+  CreateAnnouncementCommentRequest,
+  AnnouncementStatsDto,
+  AnnouncementSettingsDto,
 } from '../types';
 
 export const authApi = {
@@ -326,5 +335,38 @@ export const quotaPlansApi = {
     api.post<{ message: string }>(`/condominiums/${condominiumId}/quota-plans/${id}/apply`, {}),
   delete: (condominiumId: string, id: string) => 
     api.delete(`/condominiums/${condominiumId}/quota-plans/${id}`),
+};
+
+export const announcementsApi = {
+  getAll: (condominiumId: string, status?: string) =>
+    api.get<AnnouncementDto[]>(`/condominiums/${condominiumId}/announcements${status ? `?status=${status}` : ''}`),
+  getById: (condominiumId: string, id: string) =>
+    api.get<AnnouncementDto>(`/condominiums/${condominiumId}/announcements/${id}`),
+  getStats: (condominiumId: string) =>
+    api.get<AnnouncementStatsDto>(`/condominiums/${condominiumId}/announcements/stats`),
+  getSettings: (condominiumId: string) =>
+    api.get<AnnouncementSettingsDto>(`/condominiums/${condominiumId}/announcements/settings`),
+  create: (condominiumId: string, data: CreateAnnouncementRequest) =>
+    api.post<AnnouncementDto>(`/condominiums/${condominiumId}/announcements`, data),
+  update: (condominiumId: string, id: string, data: UpdateAnnouncementRequest) =>
+    api.put<AnnouncementDto>(`/condominiums/${condominiumId}/announcements/${id}`, data),
+  publish: (condominiumId: string, id: string) =>
+    api.post<{ message: string }>(`/condominiums/${condominiumId}/announcements/${id}/publish`, {}),
+  approve: (condominiumId: string, id: string, data: ApproveAnnouncementRequest) =>
+    api.post<{ message: string }>(`/condominiums/${condominiumId}/announcements/${id}/approve`, data),
+  togglePin: (condominiumId: string, id: string) =>
+    api.post<{ isPinned: boolean }>(`/condominiums/${condominiumId}/announcements/${id}/pin`, {}),
+  delete: (condominiumId: string, id: string) =>
+    api.delete(`/condominiums/${condominiumId}/announcements/${id}`),
+  addComment: (condominiumId: string, id: string, data: CreateAnnouncementCommentRequest) =>
+    api.post<AnnouncementCommentDto>(`/condominiums/${condominiumId}/announcements/${id}/comments`, data),
+  deleteComment: (condominiumId: string, announcementId: string, commentId: string) =>
+    api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/comments/${commentId}`),
+  uploadAttachment: (condominiumId: string, id: string, formData: FormData) =>
+    api.post<AnnouncementAttachmentDto>(`/condominiums/${condominiumId}/announcements/${id}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  deleteAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
+    api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}`),
 };
 

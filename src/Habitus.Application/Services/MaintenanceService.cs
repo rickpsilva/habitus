@@ -11,15 +11,18 @@ public class MaintenanceService
     private readonly IRepository<MaintenanceRequest> _repository;
     private readonly IRepository<Notification> _notificationRepository;
     private readonly IRepository<FinancialRecord> _financialRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public MaintenanceService(
         IRepository<MaintenanceRequest> repository,
         IRepository<Notification> notificationRepository,
-        IRepository<FinancialRecord> financialRepository)
+        IRepository<FinancialRecord> financialRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _repository = repository;
         _notificationRepository = notificationRepository;
         _financialRepository = financialRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<IEnumerable<MaintenanceRequestDto>> GetAllAsync()
@@ -85,6 +88,7 @@ public class MaintenanceService
         };
         await _notificationRepository.AddAsync(notification);
         await _notificationRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
         
         return MapToDto(entity);
     }

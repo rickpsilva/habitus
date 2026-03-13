@@ -10,13 +10,16 @@ public class FinancialService
 {
     private readonly IRepository<FinancialRecord> _repository;
     private readonly IRepository<ReserveFund> _reserveFundRepository;
+    private readonly IRepository<Announcement> _announcementRepository;
 
     public FinancialService(
         IRepository<FinancialRecord> repository,
-        IRepository<ReserveFund> reserveFundRepository)
+        IRepository<ReserveFund> reserveFundRepository,
+        IRepository<Announcement> announcementRepository)
     {
         _repository = repository;
         _reserveFundRepository = reserveFundRepository;
+        _announcementRepository = announcementRepository;
     }
 
     public async Task<IEnumerable<FinancialRecordDto>> GetAllAsync()
@@ -105,6 +108,7 @@ public class FinancialService
     public async Task<FinancialDashboardDto> GetDashboardAsync(Guid condominiumId, int? fiscalYear = null)
     {
         var targetYear = fiscalYear ?? DateTime.UtcNow.Year;
+        var previousYear = targetYear - 1;
         
         // Get records for the target year (exclude reserve fund movements)
         var yearRecords = await _repository.FindAsync(r => 
@@ -125,6 +129,15 @@ public class FinancialService
         // Get all fiscal years available
         var allRecords = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         var availableYears = allRecords.Select(r => r.FiscalYear).Distinct().OrderByDescending(y => y).ToList();
+
+        // Get published announcements for noise/perturbations and compute year-over-year counts.
+        var noiseAnnouncements = await _announcementRepository.FindAsync(a =>
+            a.CondominiumId == condominiumId &&
+            a.Category == AnnouncementCategory.Noise &&
+            a.Status == AnnouncementStatus.Published);
+
+        var noiseCurrentYear = noiseAnnouncements.Count(a => (a.PublishedAt ?? a.CreatedAt).Year == targetYear);
+        var noisePreviousYear = noiseAnnouncements.Count(a => (a.PublishedAt ?? a.CreatedAt).Year == previousYear);
         
         return new FinancialDashboardDto
         {
@@ -136,7 +149,9 @@ public class FinancialService
             ReserveFundDeposits = fund?.Deposits ?? 0,
             ReserveFundWithdrawals = fund?.Withdrawals ?? 0,
             CurrentYearRecords = yearDtos,
-            AvailableFiscalYears = availableYears
+            AvailableFiscalYears = availableYears,
+            NoiseAnnouncementsCurrentYear = noiseCurrentYear,
+            NoiseAnnouncementsPreviousYear = noisePreviousYear
         };
     }
 

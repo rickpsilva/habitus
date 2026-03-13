@@ -52,6 +52,8 @@ public static class DependencyInjection
             services.AddScoped<IEmailService, AzureCommunicationEmailService>();
         }
 
+        services.AddScoped<IWhatsAppService, MockWhatsAppService>();
+
         if (isDevelopment || string.IsNullOrEmpty(azureTranslationKey))
         {
             services.AddScoped<ITranslationService, MockTranslationService>();
@@ -69,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<ReserveFundService>();
         services.AddScoped<AssemblyService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
         services.AddScoped<PaymentService>();
         services.AddScoped<ReceiptService>();
         

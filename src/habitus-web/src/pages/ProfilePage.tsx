@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp, Moon, Sun } from 'lucide-react';
 import { usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import FileUpload from '../components/FileUpload';
+import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto } from '../types';
 
 const roleLabels: Record<number, string> = {
@@ -52,6 +53,18 @@ export default function ProfilePage() {
     description: '',
   });
   const [uploading, setUploading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
+
+  useEffect(() => {
+    return onThemeChanged(() => {
+      setIsDarkMode(getIsDarkMode());
+    });
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextIsDark = toggleTheme();
+    setIsDarkMode(nextIsDark);
+  };
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -452,6 +465,21 @@ export default function ProfilePage() {
                 </div>
               )}
               
+              {userData && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    {isDarkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                    Tema:
+                  </span>
+                  <button
+                    onClick={handleToggleTheme}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                  >
+                    {isDarkMode ? 'Mudar para claro' : 'Mudar para escuro'}
+                  </button>
+                </div>
+              )}
+
               {userData && (
                 <div className="flex items-center justify-between py-2">
                   <span className="text-gray-600">Estado:</span>

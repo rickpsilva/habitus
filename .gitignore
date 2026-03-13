@@ -31,3 +31,7 @@ uploads/
 # Uploaded receipts (local development only, production uses Azure Blob Storage)
 receipts/
 **receipts/
+
+# Uploaded announcements files (local development only, production uses Azure Blob Storage)
+announcements/
+**/announcements/

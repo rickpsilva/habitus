@@ -20,6 +20,7 @@ import SharedSpacesPage from './pages/SharedSpacesPage';
 import SuppliersPage from './pages/SuppliersPage';
 import PaymentsPage from './pages/PaymentsPage';
 import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/financial" element={<FinancialPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/reservations" element={<ReservationsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/assemblies" element={<AssembliesPage />} />

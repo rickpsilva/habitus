@@ -719,6 +719,7 @@ function CommunicationChannelsContent() {
         smsEnabled: settings.smsEnabled,
         smsProvider: settings.smsProvider,
         smsFromNumber: settings.smsFromNumber,
+        allowAnnouncementComments: settings.allowAnnouncementComments,
       };
       
       await communicationSettingsApi.update(condominiumId, request);
@@ -745,6 +746,28 @@ function CommunicationChannelsContent() {
       </div>
 
       <div className="space-y-6 max-w-4xl">
+        {/* Announcements Configuration */}
+        <div className="border border-gray-200 rounded-lg p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-gray-900">Comunicados</p>
+              <p className="text-sm text-gray-500">Permitir comentários e respostas nos comunicados</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.allowAnnouncementComments}
+                onChange={(e) => setSettings({ ...settings, allowAnnouncementComments: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500">
+            Quando desativado, os comunicados ficam apenas em modo de visualização.
+          </p>
+        </div>
+
         {/* Email Configuration */}
         <div className="border border-gray-200 rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">

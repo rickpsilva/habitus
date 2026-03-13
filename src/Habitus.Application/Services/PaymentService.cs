@@ -13,19 +13,22 @@ public class PaymentService
     private readonly IRepository<Notification> _notificationRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Unit> _unitRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public PaymentService(
         IRepository<Payment> paymentRepository,
         IRepository<FinancialRecord> financialRepository,
         IRepository<Notification> notificationRepository,
         IRepository<User> userRepository,
-        IRepository<Unit> unitRepository)
+        IRepository<Unit> unitRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _paymentRepository = paymentRepository;
         _financialRepository = financialRepository;
         _notificationRepository = notificationRepository;
         _userRepository = userRepository;
         _unitRepository = unitRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<PaymentDto> CreateAsync(CreatePaymentRequest request, Guid residentId, Guid unitId, Guid condominiumId)
@@ -66,6 +69,7 @@ public class PaymentService
         
         await _notificationRepository.AddAsync(notification);
         await _notificationRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
 
         return await MapToDtoAsync(payment);
     }
@@ -183,6 +187,7 @@ public class PaymentService
 
         await _notificationRepository.AddAsync(notification);
         await _paymentRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: false);
 
         return await MapToDtoAsync(payment);
     }
@@ -209,6 +214,8 @@ public class PaymentService
             .Where(u => u.UnitId == payment.UnitId && u.Role == UserRole.Resident)
             .ToList();
 
+        var createdNotifications = new List<Notification>();
+
         foreach (var user in unitUsers)
         {
             var notification = new Notification
@@ -225,9 +232,11 @@ public class PaymentService
             };
 
             await _notificationRepository.AddAsync(notification);
+            createdNotifications.Add(notification);
         }
 
         await _paymentRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(createdNotifications, sendExternalChannels: false);
 
         return await MapToDtoAsync(payment);
     }

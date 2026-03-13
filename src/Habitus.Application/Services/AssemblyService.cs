@@ -10,13 +10,16 @@ public class AssemblyService
 {
     private readonly IRepository<Assembly> _repository;
     private readonly IRepository<Notification> _notificationRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public AssemblyService(
         IRepository<Assembly> repository,
-        IRepository<Notification> notificationRepository)
+        IRepository<Notification> notificationRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _repository = repository;
         _notificationRepository = notificationRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<IEnumerable<AssemblyDto>> GetAllAsync()
@@ -89,7 +92,8 @@ public class AssemblyService
         await CreateNotificationForCondominiumUsersAsync(
             request.CondominiumId,
             "Nova Assembleia Agendada",
-            $"Foi agendada uma nova assembleia: {request.Title} para {request.ScheduledAt:dd/MM/yyyy HH:mm}"
+            $"Foi agendada uma nova assembleia: {request.Title} para {request.ScheduledAt:dd/MM/yyyy HH:mm}",
+            sendExternalChannels: true
         );
 
         return MapToDto(assembly);
@@ -114,7 +118,8 @@ public class AssemblyService
         await CreateNotificationForCondominiumUsersAsync(
             assembly.CondominiumId,
             "Assembleia Atualizada",
-            $"A assembleia '{assembly.Title}' foi atualizada."
+            $"A assembleia '{assembly.Title}' foi atualizada.",
+            sendExternalChannels: false
         );
 
         return MapToDto(assembly);
@@ -146,7 +151,8 @@ public class AssemblyService
         await CreateNotificationForCondominiumUsersAsync(
             assembly.CondominiumId,
             "Assembleia Concluída",
-            $"A assembleia '{assembly.Title}' foi concluída. As atas já estão disponíveis."
+            $"A assembleia '{assembly.Title}' foi concluída. As atas já estão disponíveis.",
+            sendExternalChannels: false
         );
 
         return MapToDto(assembly);
@@ -197,13 +203,14 @@ public class AssemblyService
         await CreateNotificationForCondominiumUsersAsync(
             assembly.CondominiumId,
             "Assembleia Cancelada",
-            $"A assembleia '{assembly.Title}' foi cancelada. Motivo: {request.CancellationReason}"
+            $"A assembleia '{assembly.Title}' foi cancelada. Motivo: {request.CancellationReason}",
+            sendExternalChannels: false
         );
 
         return MapToDto(assembly);
     }
 
-    private async Task CreateNotificationForCondominiumUsersAsync(Guid condominiumId, string title, string message)
+    private async Task CreateNotificationForCondominiumUsersAsync(Guid condominiumId, string title, string message, bool sendExternalChannels)
     {
         var notification = new Notification
         {
@@ -219,6 +226,7 @@ public class AssemblyService
 
         await _notificationRepository.AddAsync(notification);
         await _notificationRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels);
     }
 
     /// <summary>

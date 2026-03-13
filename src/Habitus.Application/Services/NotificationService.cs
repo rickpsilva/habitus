@@ -7,10 +7,10 @@ namespace Habitus.Application.Services;
 public interface INotificationService
 {
     Task<IEnumerable<Notification>> GetAllOrderedAsync();
-    Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole);
+    Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole, Guid userId);
     Task<Notification?> GetByIdAsync(Guid id);
-    Task MarkAsReadAsync(Guid id);
-    Task MarkAllAsReadAsync(Guid condominiumId, string userId);
+    Task MarkAsReadAsync(Guid id, Guid condominiumId, string userRole, Guid userId);
+    Task MarkAllAsReadAsync(Guid condominiumId, string userRole, Guid userId);
     Task DeleteAllAsync(Guid condominiumId);
 }
 
@@ -29,14 +29,18 @@ public class NotificationService : INotificationService
         return notifications.OrderByDescending(n => n.SentAt).ToList();
     }
 
-    public async Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole)
+    public async Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole, Guid userId)
     {
         var allNotifications = await _repository.GetAllAsync();
         
-        // Filter by condominium and targetRole
+        // User-targeted notifications are private. Role-targeted notifications are shared by role.
         var filtered = allNotifications
-            .Where(n => n.CondominiumId == condominiumId &&
-                       (userRole == "Admin" || n.TargetRole == userRole || string.IsNullOrEmpty(n.TargetRole)))
+            .Where(n =>
+                n.CondominiumId == condominiumId &&
+                (
+                    (n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
+                    (!n.TargetUserId.HasValue && (n.TargetRole == userRole || string.IsNullOrEmpty(n.TargetRole)))
+                ))
             .OrderByDescending(n => n.SentAt)
             .ToList();
         
@@ -63,20 +67,29 @@ public class NotificationService : INotificationService
         return await _repository.GetByIdAsync(id);
     }
 
-    public async Task MarkAsReadAsync(Guid id)
+    public async Task MarkAsReadAsync(Guid id, Guid condominiumId, string userRole, Guid userId)
     {
         var notification = await _repository.GetByIdAsync(id);
         if (notification == null) return;
+
+        var canAccess = notification.CondominiumId == condominiumId &&
+                        ((notification.TargetUserId.HasValue && notification.TargetUserId.Value == userId) ||
+                         (!notification.TargetUserId.HasValue &&
+                          (notification.TargetRole == userRole || string.IsNullOrEmpty(notification.TargetRole))));
+        if (!canAccess) return;
         
         notification.IsRead = true;
         _repository.Update(notification);
         await _repository.SaveChangesAsync();
     }
 
-    public async Task MarkAllAsReadAsync(Guid condominiumId, string userId)
+    public async Task MarkAllAsReadAsync(Guid condominiumId, string userRole, Guid userId)
     {
         var notifications = await _repository.FindAsync(n => 
-            n.CondominiumId == condominiumId && !n.IsRead);
+            n.CondominiumId == condominiumId &&
+            !n.IsRead &&
+            ((n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
+             (!n.TargetUserId.HasValue && (n.TargetRole == userRole || string.IsNullOrEmpty(n.TargetRole)))));
         
         foreach (var notification in notifications)
         {

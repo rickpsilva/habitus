@@ -24,6 +24,9 @@ public class CommunicationSettingsDto
     public bool SmsEnabled { get; set; }
     public string? SmsProvider { get; set; }
     public string? SmsFromNumber { get; set; }
+
+    // Announcements Configuration
+    public bool AllowAnnouncementComments { get; set; }
     
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
@@ -53,4 +56,7 @@ public class UpdateCommunicationSettingsRequest
     public string? SmsProvider { get; set; }
     public string? SmsApiKey { get; set; }
     public string? SmsFromNumber { get; set; }
+
+    // Announcements Configuration
+    public bool AllowAnnouncementComments { get; set; } = true;
 }

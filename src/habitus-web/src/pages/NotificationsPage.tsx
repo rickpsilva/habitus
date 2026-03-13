@@ -4,6 +4,19 @@ import { notificationsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { NotificationDto, PaginatedResponse } from '../types';
 
+function parseNotificationMessage(message: string) {
+  const lines = message.split('\n').map((l) => l.trim()).filter(Boolean);
+  const plain = lines.filter((l) => !l.startsWith('Ver: ') && !l.startsWith('Thumb: ')).join(' ');
+  const linkLine = lines.find((l) => l.startsWith('Ver: '));
+  const thumbLine = lines.find((l) => l.startsWith('Thumb: '));
+
+  return {
+    plain,
+    link: linkLine ? linkLine.replace('Ver: ', '').trim() : undefined,
+    thumb: thumbLine ? thumbLine.replace('Thumb: ', '').trim() : undefined,
+  };
+}
+
 export default function NotificationsPage() {
   const { isAdmin } = useAuth();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
@@ -95,6 +108,9 @@ export default function NotificationsPage() {
         ) : (
           <>
             {notifications.map((n) => (
+              (() => {
+                const parsed = parseNotificationMessage(n.message);
+                return (
               <div
                 key={n.id}
                 className={`bg-white rounded-xl shadow-sm border p-4 ${!n.isRead ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'}`}
@@ -116,8 +132,26 @@ export default function NotificationsPage() {
                         {new Date(n.sentAt).toLocaleDateString('pt-PT')}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{parsed.plain}</p>
+                    {parsed.thumb && (
+                      <a href={parsed.thumb} target="_blank" rel="noreferrer" className="inline-block mt-2">
+                        <img src={parsed.thumb} alt="Pré-visualização" className="w-28 h-20 object-cover rounded border border-gray-200" />
+                      </a>
+                    )}
                     <div className="flex items-center gap-3 mt-2">
+                      {parsed.link && (
+                        <button
+                          onClick={async () => {
+                            if (!n.isRead) {
+                              await markRead(n.id);
+                            }
+                            window.location.href = parsed.link!;
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Ver comunicado
+                        </button>
+                      )}
                       {!n.isRead && (
                         <button
                           onClick={() => markRead(n.id)}
@@ -139,6 +173,8 @@ export default function NotificationsPage() {
                   </div>
                 </div>
               </div>
+                );
+              })()
             ))}
 
             {/* Pagination Controls */}

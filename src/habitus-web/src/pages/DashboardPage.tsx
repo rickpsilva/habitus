@@ -11,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Volume2,
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,6 +83,9 @@ export default function DashboardPage() {
   const [reserveFundBalance, setReserveFundBalance] = useState<number | null>(null);
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [noiseAnnouncementsCurrentYear, setNoiseAnnouncementsCurrentYear] = useState<number>(0);
+  const [noiseAnnouncementsPreviousYear, setNoiseAnnouncementsPreviousYear] = useState<number>(0);
+  const [dashboardYear, setDashboardYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     // Get current user ID
@@ -94,8 +98,11 @@ export default function DashboardPage() {
     if (condominiumId) {
       const currentYear = new Date().getFullYear();
       financialApi.getDashboard(condominiumId, currentYear).then((r) => {
+        setDashboardYear(r.data.currentYear);
         setBalance(r.data.currentYearBalance);
         setReserveFundBalance(r.data.reserveFundBalance);
+        setNoiseAnnouncementsCurrentYear(r.data.noiseAnnouncementsCurrentYear ?? 0);
+        setNoiseAnnouncementsPreviousYear(r.data.noiseAnnouncementsPreviousYear ?? 0);
       }).catch(() => {});
     }
   }, [condominiumId]);
@@ -130,6 +137,17 @@ export default function DashboardPage() {
   
   const unreadNotifications = notifications.filter((n) => !n.isRead);
 
+  const noiseYoYLabel = (() => {
+    if (noiseAnnouncementsPreviousYear === 0) {
+      if (noiseAnnouncementsCurrentYear === 0) return '0%';
+      return 'n/a';
+    }
+
+    const change = ((noiseAnnouncementsCurrentYear - noiseAnnouncementsPreviousYear) / noiseAnnouncementsPreviousYear) * 100;
+    const sign = change > 0 ? '+' : '';
+    return `${sign}${change.toFixed(1)}%`;
+  })();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -141,7 +159,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard
           title="Pedidos de Manutenção"
           value={pendingMaintenance.length + inProgressMaintenance.length}
@@ -170,6 +188,14 @@ export default function DashboardPage() {
           icon={Calendar}
           color="bg-purple-100 text-purple-600"
           to="/reservations"
+        />
+        <StatCard
+          title="Comunicados Barulho/Perturbação"
+          value={noiseAnnouncementsCurrentYear}
+          icon={Volume2}
+          color="bg-amber-100 text-amber-700"
+          to="/announcements?category=Noise"
+          subtitle={`Ano homólogo (${dashboardYear - 1}): ${noiseAnnouncementsPreviousYear} • Variação: ${noiseYoYLabel}`}
         />
       </div>
 

@@ -54,6 +54,7 @@ public class CommunicationSettingsController : ControllerBase
                     SmsEnabled = false,
                     SmsProvider = null,
                     SmsFromNumber = null,
+                    AllowAnnouncementComments = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 });
@@ -77,6 +78,7 @@ public class CommunicationSettingsController : ControllerBase
                 SmsEnabled = communicationSettings.SmsEnabled,
                 SmsProvider = communicationSettings.SmsProvider,
                 SmsFromNumber = communicationSettings.SmsFromNumber,
+                AllowAnnouncementComments = communicationSettings.AllowAnnouncementComments,
                 CreatedAt = communicationSettings.CreatedAt,
                 UpdatedAt = communicationSettings.UpdatedAt
             };
@@ -150,6 +152,7 @@ public class CommunicationSettingsController : ControllerBase
             communicationSettings.SmsEnabled = request.SmsEnabled;
             communicationSettings.SmsProvider = request.SmsProvider;
             communicationSettings.SmsFromNumber = request.SmsFromNumber;
+            communicationSettings.AllowAnnouncementComments = request.AllowAnnouncementComments;
             
             // Only update SMS API key if provided
             if (!string.IsNullOrWhiteSpace(request.SmsApiKey))
@@ -189,6 +192,7 @@ public class CommunicationSettingsController : ControllerBase
                 SmsEnabled = communicationSettings.SmsEnabled,
                 SmsProvider = communicationSettings.SmsProvider,
                 SmsFromNumber = communicationSettings.SmsFromNumber,
+                AllowAnnouncementComments = communicationSettings.AllowAnnouncementComments,
                 CreatedAt = communicationSettings.CreatedAt,
                 UpdatedAt = communicationSettings.UpdatedAt
             };
