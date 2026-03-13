@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260313192505_AddCommunicationSettings")]
+    partial class AddCommunicationSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -704,81 +707,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("PaymentSettings");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AnnualQuota")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("BaseMonthlyQuota")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("InflationAmount")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("MonthlyQuota")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("QuarterlyQuota")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("QuotaPlanId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UnitId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuotaPlanId");
-
-                    b.HasIndex("UnitId");
-
-                    b.ToTable("QuotaCalculations");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("AppliedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("AppliedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("CondominiumId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("ExtraordinaryQuota")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("InflationRate")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("CondominiumId", "Year");
-
-                    b.ToTable("QuotaPlans");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.Reservation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1008,9 +936,6 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Property<int>("Floor")
                         .HasColumnType("integer");
-
-                    b.Property<decimal>("MonthlyQuota")
-                        .HasColumnType("numeric");
 
                     b.Property<string>("Number")
                         .IsRequired()
@@ -1391,36 +1316,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Condominium");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
-                {
-                    b.HasOne("Habitus.Domain.Entities.QuotaPlan", "QuotaPlan")
-                        .WithMany("Calculations")
-                        .HasForeignKey("QuotaPlanId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
-                        .WithMany()
-                        .HasForeignKey("UnitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuotaPlan");
-
-                    b.Navigation("Unit");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
-                {
-                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
-                        .WithMany()
-                        .HasForeignKey("CondominiumId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Condominium");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.Reservation", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
@@ -1632,11 +1527,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Documents");
 
                     b.Navigation("Interventions");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
-                {
-                    b.Navigation("Calculations");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.SharedSpace", b =>

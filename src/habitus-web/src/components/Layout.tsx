@@ -16,10 +16,8 @@ import {
   Building2,
   ClipboardList,
   UserCircle,
-  Home,
-  Warehouse,
-  Truck,
   CreditCard,
+  Settings,
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,10 +38,8 @@ const navItems: NavItem[] = [
   { to: '/reservations', label: 'Reservas', icon: Calendar },
   { to: '/documents', label: 'Documentos', icon: FileText },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
-  { to: '/shared-spaces', label: 'Espaços Comuns', icon: Warehouse, managerOrAdminOnly: true },
-  { to: '/suppliers', label: 'Fornecedores', icon: Truck, managerOrAdminOnly: true },
+  { to: '/settings', label: 'Configuração Condomínio', icon: Settings, managerOrAdminOnly: true },
   { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
-  { to: '/units', label: 'Frações', icon: Home, managerOrAdminOnly: true },
   { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true },
 ];
 

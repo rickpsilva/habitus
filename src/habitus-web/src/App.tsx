@@ -19,6 +19,7 @@ import ProfilePage from './pages/ProfilePage';
 import SharedSpacesPage from './pages/SharedSpacesPage';
 import SuppliersPage from './pages/SuppliersPage';
 import PaymentsPage from './pages/PaymentsPage';
+import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/condominiums" element={<CondominiumsPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/units" element={<UnitsPage />} />
+            <Route path="/settings" element={<CondominiumSettingsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             {/* Legacy route - redirect to users */}
             <Route path="/residents" element={<Navigate to="/users" replace />} />

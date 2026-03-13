@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Settings, Clock, CheckCircle } from 'lucide-react';
-import { financialApi, documentsApi, paymentsApi, paymentMethodsApi } from '../api/services';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, PaymentMethodsDto, UpdatePaymentMethodsRequest } from '../types';
+import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
 
 // Updated category mappings matching backend FinancialCategory enum
 const incomeCategoryLabels: Record<string, string> = {
@@ -42,7 +42,7 @@ const financialDocTypeLabels: Record<string, string> = {
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'settings'>('transactions');
+  const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'quota-plans'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
   const [reserveFund, setReserveFund] = useState<ReserveFundDto | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -55,19 +55,6 @@ export default function FinancialPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
-  
-  // Payment methods configuration (Admin only)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
-  const [editingPaymentMethods, setEditingPaymentMethods] = useState(false);
-  const [paymentMethodsForm, setPaymentMethodsForm] = useState<UpdatePaymentMethodsRequest>({
-    iban: '',
-    instructions: '',
-    mbWay: '',
-    mbReference: '',
-    bankTransferEnabled: true,
-    mbWayEnabled: false,
-    cardEnabled: false,
-  });
   
   // Records pagination
   const [records, setRecords] = useState<FinancialRecordDto[]>([]);
@@ -357,25 +344,6 @@ export default function FinancialPage() {
     }
   };
 
-  const loadPaymentMethods = async () => {
-    if (!isAdmin || !condominiumId) return;
-    try {
-      const response = await paymentMethodsApi.get(condominiumId);
-      setPaymentMethods(response.data);
-      setPaymentMethodsForm({
-        iban: response.data.iban || '',
-        instructions: response.data.instructions || '',
-        mbWay: response.data.mbWay || '',
-        mbReference: response.data.mbReference || '',
-        bankTransferEnabled: response.data.bankTransferEnabled ?? true,
-        mbWayEnabled: response.data.mbWayEnabled ?? false,
-        cardEnabled: response.data.cardEnabled ?? false,
-      });
-    } catch (error) {
-      console.error('Error loading payment methods:', error);
-    }
-  };
-
   const handleApprovePayment = async (paymentId: string) => {
     if (!confirm('Tem certeza que deseja aprovar este pagamento?')) return;
     try {
@@ -406,22 +374,6 @@ export default function FinancialPage() {
     }
   };
 
-  const handleSavePaymentMethods = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!condominiumId) return;
-    try {
-      const response = await paymentMethodsApi.update(condominiumId, paymentMethodsForm);
-      setPaymentMethods(response.data);
-      setEditingPaymentMethods(false);
-      alert('Métodos de pagamento atualizados com sucesso!');
-    } catch (error: any) {
-      console.error('Error saving payment methods:', error);
-      alert(error.response?.data?.message || 'Erro ao salvar métodos de pagamento');
-    }
-  };
-
-
-
   const handleIssueReceipt = async (paymentId: string) => {
     if (!confirm('Emitir recibo para este pagamento?')) return;
     try {
@@ -447,12 +399,10 @@ export default function FinancialPage() {
     }
   };
 
-  // Load payments and payment methods when switching to those tabs
+  // Load payments when switching to cashin tab
   useEffect(() => {
     if (activeTab === 'cashin' && isAdmin) {
       loadAllPayments();
-    } else if (activeTab === 'settings' && isAdmin) {
-      loadPaymentMethods();
     }
   }, [activeTab, isAdmin, condominiumId]);
 
@@ -558,14 +508,14 @@ export default function FinancialPage() {
               )}
             </button>
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => setActiveTab('quota-plans')}
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'settings'
+                activeTab === 'quota-plans'
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Configurações
+              Planos de Quotas
             </button>
           </div>
         </div>
@@ -1269,223 +1219,6 @@ export default function FinancialPage() {
         </div>
       )}
 
-      {/* Settings Tab - Payment Methods Configuration */}
-      {activeTab === 'settings' && isAdmin && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Métodos de Pagamento
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Configure os métodos de pagamento disponíveis para os residentes
-                </p>
-              </div>
-              {!editingPaymentMethods && (
-                <button
-                  onClick={() => setEditingPaymentMethods(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  Editar
-                </button>
-              )}
-            </div>
-
-            {editingPaymentMethods ? (
-              <form onSubmit={handleSavePaymentMethods} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    IBAN
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentMethodsForm.iban}
-                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, iban: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="PT50 0000 0000 0000 0000 0000 0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    MB Way
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentMethodsForm.mbWay}
-                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbWay: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="+351 912 345 678"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Referência Multibanco
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentMethodsForm.mbReference}
-                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbReference: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Entidade | Referência"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Instruções Adicionais
-                  </label>
-                  <textarea
-                    value={paymentMethodsForm.instructions}
-                    onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, instructions: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    rows={4}
-                    placeholder="Instruções especiais para os residentes sobre como efetuar pagamentos..."
-                  />
-                </div>
-
-                {/* Payment Methods Availability */}
-                <div className="border-t border-gray-200 pt-4">
-                  <label className="block text-sm font-medium text-gray-900 mb-3">
-                    Métodos de Pagamento Disponíveis para Residentes
-                  </label>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Selecione quais métodos de pagamento os residentes podem utilizar
-                  </p>
-                  
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={paymentMethodsForm.bankTransferEnabled}
-                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, bankTransferEnabled: e.target.checked })}
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900">Transferência Bancária / NIB</span>
-                        <p className="text-xs text-gray-500 mt-0.5">Requer upload de comprovativo</p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={paymentMethodsForm.mbWayEnabled}
-                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, mbWayEnabled: e.target.checked })}
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900">MB Way</span>
-                        <p className="text-xs text-gray-500 mt-0.5">Pagamento automático (em desenvolvimento)</p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={paymentMethodsForm.cardEnabled}
-                        onChange={(e) => setPaymentMethodsForm({ ...paymentMethodsForm, cardEnabled: e.target.checked })}
-                        className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900">Cartão (Visa/Maestro)</span>
-                        <p className="text-xs text-gray-500 mt-0.5">Pagamento automático (em desenvolvimento)</p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingPaymentMethods(false);
-                      loadPaymentMethods(); // Reset form
-                    }}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-                  >
-                    Guardar Alterações
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-6">
-                {/* Payment Details */}
-                <div className="space-y-4">
-                  {paymentMethods?.iban && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">IBAN</h4>
-                      <p className="text-gray-900">{paymentMethods.iban}</p>
-                    </div>
-                  )}
-                  {paymentMethods?.mbWay && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">MB Way</h4>
-                      <p className="text-gray-900">{paymentMethods.mbWay}</p>
-                    </div>
-                  )}
-                  {paymentMethods?.mbReference && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Referência Multibanco</h4>
-                      <p className="text-gray-900">{paymentMethods.mbReference}</p>
-                    </div>
-                  )}
-                  {paymentMethods?.instructions && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Instruções</h4>
-                      <p className="text-gray-900 whitespace-pre-wrap">{paymentMethods.instructions}</p>
-                    </div>
-                  )}
-                  {!paymentMethods?.iban && !paymentMethods?.mbWay && !paymentMethods?.mbReference && (
-                    <div className="text-center py-8 text-gray-500">
-                      Nenhum método de pagamento configurado
-                    </div>
-                  )}
-                </div>
-
-                {/* Payment Methods Status */}
-                {paymentMethods && (
-                  <div className="border-t border-gray-200 pt-6">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      Métodos Disponíveis para Residentes
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${paymentMethods.bankTransferEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        <span className="text-sm text-gray-700">Transferência Bancária / NIB</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.bankTransferEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {paymentMethods.bankTransferEnabled ? 'Ativo' : 'Desativado'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${paymentMethods.mbWayEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        <span className="text-sm text-gray-700">MB Way</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.mbWayEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {paymentMethods.mbWayEnabled ? 'Ativo' : 'Desativado'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${paymentMethods.cardEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        <span className="text-sm text-gray-700">Cartão (Visa/Maestro)</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${paymentMethods.cardEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {paymentMethods.cardEnabled ? 'Ativo' : 'Desativado'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Reject Payment Modal */}
       {showRejectModal && selectedPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1529,6 +1262,585 @@ export default function FinancialPage() {
           </div>
         </div>
       )}
+
+      {/* Quota Plans Section (Admin Only) */}
+      {activeTab === 'quota-plans' && isAdmin && <FinancialPlansContent />}
     </div>
   );
+}
+
+// ========== Financial Plans Content Component ==========
+function FinancialPlansContent() {
+  const { condominiumId } = useAuth();
+  const currentYear = new Date().getFullYear();
+  const [units, setUnits] = useState<UnitDto[]>([]);
+  const [quotaPlans, setQuotaPlans] = useState<QuotaPlanDto[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<QuotaPlanDto | null>(null);
+  const [view, setView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
+  const [isQuotasPanelExpanded, setIsQuotasPanelExpanded] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    year: currentYear,
+    inflationRate: 0,
+    extraordinaryQuota: 0
+  });
+
+  useEffect(() => {
+    loadData();
+  }, [condominiumId]);
+
+  const loadData = async () => {
+    try {
+      const [unitsRes, plansRes] = await Promise.all([
+        unitsApi.getAll(),
+        quotaPlansApi.getAll(condominiumId!)
+      ]);
+
+      // Filter units by condominium
+      const condoUnits = unitsRes.data.filter(u => u.condominiumId === condominiumId);
+      setUnits(condoUnits);
+
+      // Filter plans by condominium and sort by year desc
+      const condoPlans = plansRes.data
+        .filter(p => p.condominiumId === condominiumId)
+        .sort((a, b) => b.year - a.year);
+      setQuotaPlans(condoPlans);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
+
+  const handleCreatePlan = async () => {
+    try {
+      await quotaPlansApi.create(condominiumId!, {
+        year: formData.year,
+        inflationRate: formData.inflationRate,
+        extraordinaryQuota: formData.extraordinaryQuota
+      });
+      await loadData();
+      setView('list');
+      setFormData({
+        year: currentYear,
+        inflationRate: 0,
+        extraordinaryQuota: 0
+      });
+    } catch (error) {
+      console.error('Error creating plan:', error);
+      alert('Erro ao criar plano');
+    }
+  };
+
+  const handleUpdatePlan = async () => {
+    if (!selectedPlan) return;
+    try {
+      await quotaPlansApi.update(condominiumId!, selectedPlan.id, {
+        inflationRate: formData.inflationRate,
+        extraordinaryQuota: formData.extraordinaryQuota
+      });
+      await loadData();
+      setView('list');
+      setSelectedPlan(null);
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      alert('Erro ao atualizar plano');
+    }
+  };
+
+  const handleApplyPlan = async (planId: string) => {
+    if (!confirm('Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações.')) {
+      return;
+    }
+    try {
+      await quotaPlansApi.apply(condominiumId!, planId);
+      await loadData();
+      alert('Plano aplicado com sucesso!');
+    } catch (error) {
+      console.error('Error applying plan:', error);
+      alert('Erro ao aplicar plano');
+    }
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    if (!confirm('Tem a certeza que deseja eliminar este plano?')) {
+      return;
+    }
+    try {
+      await quotaPlansApi.delete(condominiumId!, planId);
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting plan:', error);
+      alert('Erro ao eliminar plano');
+    }
+  };
+
+  const handleViewPlan = async (plan: QuotaPlanDto) => {
+    setSelectedPlan(plan);
+    setView('view');
+  };
+
+  const handleEditPlan = (plan: QuotaPlanDto) => {
+    setSelectedPlan(plan);
+    setFormData({
+      year: plan.year,
+      inflationRate: plan.inflationRate,
+      extraordinaryQuota: plan.extraordinaryQuota
+    });
+    setView('edit');
+  };
+
+  const handleSaveUnitQuotas = async () => {
+    try {
+      // Save all unit monthly quotas
+      await Promise.all(
+        units.map(unit =>
+          unitsApi.update(unit.id, {
+            ...unit,
+            monthlyQuota: unit.monthlyQuota || 0
+          })
+        )
+      );
+      alert('Quotas atualizadas com sucesso!');
+      setIsQuotasPanelExpanded(false);
+    } catch (error) {
+      console.error('Error saving quotas:', error);
+      alert('Erro ao guardar quotas');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      Draft: 'bg-gray-100 text-gray-800',
+      Active: 'bg-blue-100 text-blue-800',
+      Applied: 'bg-green-100 text-green-800',
+      Archived: 'bg-yellow-100 text-yellow-800'
+    };
+    const labels = {
+      Draft: 'Rascunho',
+      Active: 'Ativo',
+      Applied: 'Aplicado',
+      Archived: 'Arquivado'
+    };
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium ${badges[status as keyof typeof badges] || badges.Draft}`}>
+        {labels[status as keyof typeof labels] || status}
+      </span>
+    );
+  };
+
+  // ========== LIST VIEW ==========
+  if (view === 'list') {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Planos Financeiros</h2>
+            <p className="text-gray-600 mt-1">Gerir planos de quotas por ano</p>
+          </div>
+          <button
+            onClick={() => setView('create')}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Novo Plano
+          </button>
+        </div>
+
+        {/* Unit Monthly Quotas Panel */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Valores Base das Quotas Mensais por Fração</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Defina os valores mensais base para cada fração. Estes valores serão usados nos cálculos dos planos.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsQuotasPanelExpanded(!isQuotasPanelExpanded)}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              {isQuotasPanelExpanded ? (
+                <>
+                  <ChevronUp className="w-5 h-5" />
+                  Ocultar
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-5 h-5" />
+                  Expandir
+                </>
+              )}
+            </button>
+          </div>
+
+          {isQuotasPanelExpanded && (
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {units.map(unit => (
+                  <div key={unit.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                    <label className="flex-1 text-sm font-medium text-gray-700">
+                      {unit.number}
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500 text-sm">€</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={unit.monthlyQuota || 0}
+                        onChange={(e) => {
+                          const newUnits = units.map(u =>
+                            u.id === unit.id ? { ...u, monthlyQuota: parseFloat(e.target.value) || 0 } : u
+                          );
+                          setUnits(newUnits);
+                        }}
+                        className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={handleSaveUnitQuotas}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Guardar Quotas
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Plans List */}
+        <div className="space-y-4">
+          {quotaPlans.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">Nenhum plano criado ainda</p>
+              <p className="text-gray-500 text-sm mt-1">Clique em "Novo Plano" para começar</p>
+            </div>
+          ) : (
+            quotaPlans.map(plan => (
+              <div key={plan.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold text-gray-900">Plano {plan.year}</h3>
+                      {getStatusBadge(plan.status)}
+                    </div>
+                    <div className="flex gap-6 mt-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Inflação:</span>
+                        <span className="ml-2 font-semibold text-gray-900">{plan.inflationRate}%</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Quota Extraordinária:</span>
+                        <span className="ml-2 font-semibold text-gray-900">€{plan.extraordinaryQuota.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewPlan(plan)}
+                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Ver detalhes"
+                    >
+                      <Eye className="w-5 h-5" />
+                    </button>
+                    {plan.status === 'Draft' && (
+                      <>
+                        <button
+                          onClick={() => handleEditPlan(plan)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlan(plan.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {plan.status === 'Draft' && (
+                  <button
+                    onClick={() => handleApplyPlan(plan.id)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    Aplicar Plano de Quota {plan.year}
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ========== CREATE/EDIT FORM ==========
+  if (view === 'create' || view === 'edit') {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            {view === 'create' ? 'Criar Novo Plano' : 'Editar Plano'}
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ano *
+              </label>
+              <input
+                type="number"
+                value={formData.year}
+                onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                min={currentYear}
+                required
+                disabled={view === 'edit'}
+              />
+              {view === 'edit' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  O ano não pode ser alterado após a criação do plano
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Percentagem de Inflação (%)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.inflationRate}
+                onChange={(e) => setFormData({ ...formData, inflationRate: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Este valor será aplicado sobre a quota mensal base de cada fração
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quota Extraordinária (€)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.extraordinaryQuota}
+                onChange={(e) => setFormData({ ...formData, extraordinaryQuota: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Valor adicional que será dividido igualmente por todas as frações
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => {
+                setView('list');
+                setSelectedPlan(null);
+                setFormData({
+                  year: currentYear,
+                  inflationRate: 0,
+                  extraordinaryQuota: 0
+                });
+              }}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={view === 'create' ? handleCreatePlan : handleUpdatePlan}
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              {view === 'create' ? 'Criar Plano' : 'Guardar Alterações'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== VIEW PLAN DETAILS ==========
+  if (view === 'view' && selectedPlan) {
+    const extraordinaryPerUnit = selectedPlan.extraordinaryQuota / (units.length || 1);
+
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={() => {
+              setView('list');
+              setSelectedPlan(null);
+            }}
+            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700"
+          >
+            <ChevronDown className="w-5 h-5 rotate-90" />
+            Voltar
+          </button>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <h2 className="text-2xl font-bold text-gray-900">Plano {selectedPlan.year}</h2>
+                {getStatusBadge(selectedPlan.status)}
+              </div>
+              <div className="grid grid-cols-3 gap-6 text-sm">
+                <div>
+                  <span className="text-gray-600">Inflação:</span>
+                  <span className="ml-2 font-semibold text-gray-900">{selectedPlan.inflationRate}%</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Quota Extraordinária Total:</span>
+                  <span className="ml-2 font-semibold text-gray-900">€{selectedPlan.extraordinaryQuota.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Extraordinária por Fração:</span>
+                  <span className="ml-2 font-semibold text-gray-900">€{extraordinaryPerUnit.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Calculations Table */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Fração
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quota Base
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Inflação ({selectedPlan.inflationRate}%)
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quota Extraordinária
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mensal
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trimestral
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Anual
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {units.map(unit => {
+                  const baseQuota = unit.monthlyQuota || 0;
+                  const inflationAmount = baseQuota * (selectedPlan.inflationRate / 100);
+                  const quotaWithInflation = baseQuota + inflationAmount;
+                  const monthlyTotal = quotaWithInflation + extraordinaryPerUnit;
+                  const quarterlyTotal = monthlyTotal * 3;
+                  const annualTotal = monthlyTotal * 12;
+
+                  return (
+                    <tr key={unit.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {unit.number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                        €{baseQuota.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        €{inflationAmount.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                        €{extraordinaryPerUnit.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                        €{monthlyTotal.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                        €{quarterlyTotal.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                        €{annualTotal.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Totals Row */}
+                <tr className="bg-gray-50 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    TOTAL
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{units.reduce((sum, u) => sum + (u.monthlyQuota || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{units.reduce((sum, u) => sum + ((u.monthlyQuota || 0) * (selectedPlan.inflationRate / 100)), 0).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{selectedPlan.extraordinaryQuota.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{units.reduce((sum, u) => {
+                      const base = u.monthlyQuota || 0;
+                      const inflation = base * (selectedPlan.inflationRate / 100);
+                      return sum + base + inflation + extraordinaryPerUnit;
+                    }, 0).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{(units.reduce((sum, u) => {
+                      const base = u.monthlyQuota || 0;
+                      const inflation = base * (selectedPlan.inflationRate / 100);
+                      return sum + base + inflation + extraordinaryPerUnit;
+                    }, 0) * 3).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    €{(units.reduce((sum, u) => {
+                      const base = u.monthlyQuota || 0;
+                      const inflation = base * (selectedPlan.inflationRate / 100);
+                      return sum + base + inflation + extraordinaryPerUnit;
+                    }, 0) * 12).toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {selectedPlan.status === 'Draft' && (
+          <div className="mt-6">
+            <button
+              onClick={() => handleApplyPlan(selectedPlan.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <CheckCircle className="w-5 h-5" />
+              Aplicar Plano de Quota {selectedPlan.year}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
 }

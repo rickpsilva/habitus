@@ -10,6 +10,7 @@ public class CreateUnitRequest
     public UnitType Type { get; set; }
     public string? ApartmentNumber { get; set; }
     public decimal Permillage { get; set; }
+    public decimal MonthlyQuota { get; set; }
 }
 
 public class UpdateUnitRequest
@@ -20,4 +21,5 @@ public class UpdateUnitRequest
     public UnitType Type { get; set; }
     public string? ApartmentNumber { get; set; }
     public decimal Permillage { get; set; }
+    public decimal MonthlyQuota { get; set; }
 }

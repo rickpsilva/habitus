@@ -13,7 +13,7 @@ const unitTypeLabels: Record<number, string> = {
   2: 'Estacionamento',
 };
 
-export default function UnitsPage() {
+export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
   
@@ -36,6 +36,7 @@ export default function UnitsPage() {
     type: 0,
     apartmentNumber: '',
     permillage: 0,
+    monthlyQuota: 0,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -94,6 +95,7 @@ export default function UnitsPage() {
       type: 0,
       apartmentNumber: '',
       permillage: 0,
+      monthlyQuota: 0,
     });
     setError('');
     setShowForm(true);
@@ -108,6 +110,7 @@ export default function UnitsPage() {
       type: u.type,
       apartmentNumber: u.apartmentNumber || '',
       permillage: u.permillage,
+      monthlyQuota: u.monthlyQuota || 0,
     });
     setError('');
     setShowForm(true);
@@ -117,7 +120,7 @@ export default function UnitsPage() {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'floor' || name === 'permillage' || name === 'type' ? Number(value) : value,
+      [name]: name === 'floor' || name === 'permillage' || name === 'type' || name === 'monthlyQuota' ? Number(value) : value,
     }));
   };
 
@@ -178,11 +181,13 @@ export default function UnitsPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
-        </div>
-        <div className="flex items-center gap-3">
+        {!embedded && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
+            <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
+          </div>
+        )}
+        <div className="flex items-center gap-3 ml-auto">
           <div className="w-80">
             <SearchBar
               value={searchQuery}
@@ -315,6 +320,22 @@ export default function UnitsPage() {
                   placeholder="Ex: 85.50"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quota Mensal Base (€)
+                </label>
+                <input
+                  type="number"
+                  name="monthlyQuota"
+                  value={form.monthlyQuota}
+                  onChange={handleChange}
+                  min={0}
+                  step={0.01}
+                  placeholder="Ex: 45.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Valor mensal da quota desta fração</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <button

@@ -62,7 +62,8 @@ public class UnitsController : ControllerBase
             Floor = request.Floor,
             Type = request.Type,
             ApartmentNumber = request.ApartmentNumber,
-            Permillage = request.Permillage
+            Permillage = request.Permillage,
+            MonthlyQuota = request.MonthlyQuota
         };
         
         await _repository.AddAsync(unit);
@@ -83,6 +84,7 @@ public class UnitsController : ControllerBase
         existing.Type = request.Type;
         existing.ApartmentNumber = request.ApartmentNumber;
         existing.Permillage = request.Permillage;
+        existing.MonthlyQuota = request.MonthlyQuota;
         
         _repository.Update(existing);
         await _repository.SaveChangesAsync();

@@ -29,6 +29,10 @@ public class HabitusDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UsefulContact> UsefulContacts => Set<UsefulContact>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentSettings> PaymentSettings => Set<PaymentSettings>();
+    public DbSet<CommunicationSettings> CommunicationSettings => Set<CommunicationSettings>();
+    public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();
+    public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -219,6 +223,65 @@ public class HabitusDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(n => n.TargetUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Configure PaymentSettings relationships
+        modelBuilder.Entity<PaymentSettings>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            
+            entity.HasOne(p => p.Condominium)
+                .WithMany()
+                .HasForeignKey(p => p.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(p => p.CondominiumId);
+        });
+
+        // Configure CommunicationSettings relationships
+        modelBuilder.Entity<CommunicationSettings>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            
+            entity.HasOne(c => c.Condominium)
+                .WithMany()
+                .HasForeignKey(c => c.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(c => c.CondominiumId);
+        });
+
+        // Configure QuotaPlan relationships
+        modelBuilder.Entity<QuotaPlan>(entity =>
+        {
+            entity.HasKey(q => q.Id);
+            
+            entity.HasOne(q => q.Condominium)
+                .WithMany()
+                .HasForeignKey(q => q.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(q => new { q.CondominiumId, q.Year });
+            entity.HasIndex(q => q.Status);
+        });
+
+        // Configure QuotaCalculation relationships
+        modelBuilder.Entity<QuotaCalculation>(entity =>
+        {
+            entity.HasKey(q => q.Id);
+            
+            entity.HasOne(q => q.QuotaPlan)
+                .WithMany(p => p.Calculations)
+                .HasForeignKey(q => q.QuotaPlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(q => q.Unit)
+                .WithMany()
+                .HasForeignKey(q => q.UnitId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasIndex(q => q.QuotaPlanId);
+            entity.HasIndex(q => q.UnitId);
         });
     }
 }

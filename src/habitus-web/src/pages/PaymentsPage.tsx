@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, CreditCard, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
@@ -258,39 +258,6 @@ export default function PaymentsPage() {
         </button>
       </div>
 
-      {/* Payment Methods Card */}
-      {paymentMethods && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 flex items-center gap-2 mb-3">
-            <CreditCard className="w-5 h-5" />
-            Métodos de Pagamento Disponíveis
-          </h3>
-          <div className="space-y-2 text-sm text-blue-800">
-            {paymentMethods.iban && (
-              <div>
-                <strong>IBAN:</strong> {paymentMethods.iban}
-              </div>
-            )}
-            {paymentMethods.mbWay && (
-              <div>
-                <strong>MB Way:</strong> {paymentMethods.mbWay}
-              </div>
-            )}
-            {paymentMethods.mbReference && (
-              <div>
-                <strong>Referência MB:</strong> {paymentMethods.mbReference}
-              </div>
-            )}
-            {paymentMethods.instructions && (
-              <div className="mt-2 pt-2 border-t border-blue-200">
-                <strong>Instruções:</strong>
-                <p className="mt-1">{paymentMethods.instructions}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Payments List */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -358,39 +325,6 @@ export default function PaymentsPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Novo Pagamento</h2>
             
-            {/* Payment Methods Info */}
-            {paymentMethods && (
-              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <h3 className="font-semibold text-blue-900 flex items-center gap-2 text-sm mb-2">
-                  <CreditCard className="w-4 h-4" />
-                  Métodos de Pagamento Disponíveis
-                </h3>
-                <div className="space-y-1 text-xs text-blue-800">
-                  {paymentMethods.iban && (
-                    <div>
-                      <strong>IBAN:</strong> {paymentMethods.iban}
-                    </div>
-                  )}
-                  {paymentMethods.mbWay && (
-                    <div>
-                      <strong>MB Way:</strong> {paymentMethods.mbWay}
-                    </div>
-                  )}
-                  {paymentMethods.mbReference && (
-                    <div>
-                      <strong>Referência MB:</strong> {paymentMethods.mbReference}
-                    </div>
-                  )}
-                  {paymentMethods.instructions && (
-                    <div className="mt-2 pt-2 border-t border-blue-200">
-                      <strong>Instruções:</strong>
-                      <p className="mt-1">{paymentMethods.instructions}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -450,6 +384,30 @@ export default function PaymentsPage() {
                   </p>
                 )}
               </div>
+
+              {/* Conditional Payment Method Details */}
+              {form.method === 'BankTransfer' && paymentMethods?.bankTransferIban && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-blue-900 mb-1">Dados para Transferência:</p>
+                  {paymentMethods.bankTransferAccountHolder && (
+                    <p className="text-sm text-blue-800">
+                      <strong>Titular:</strong> {paymentMethods.bankTransferAccountHolder}
+                    </p>
+                  )}
+                  <p className="text-sm text-blue-800">
+                    <strong>IBAN:</strong> {paymentMethods.bankTransferIban}
+                  </p>
+                </div>
+              )}
+              
+              {form.method === 'MBWay' && paymentMethods?.mbWayPhoneNumber && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-blue-900 mb-1">Dados para MB Way:</p>
+                  <p className="text-sm text-blue-800">
+                    <strong>Número:</strong> {paymentMethods.mbWayPhoneNumber}
+                  </p>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

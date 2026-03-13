@@ -103,6 +103,7 @@ export interface UnitDto {
   type: number;
   apartmentNumber?: string;
   permillage: number;
+  monthlyQuota: number;
   condominiumId: string;
 }
 
@@ -113,6 +114,7 @@ export interface CreateUnitRequest {
   type: number;
   apartmentNumber?: string;
   permillage: number;
+  monthlyQuota: number;
 }
 
 export interface MaintenanceRequestDto {
@@ -378,22 +380,150 @@ export interface RejectPaymentRequest {
 }
 
 export interface PaymentMethodsDto {
-  iban?: string;
-  instructions?: string;
-  mbWay?: string;
-  mbReference?: string;
+  // Bank Transfer Configuration
   bankTransferEnabled: boolean;
+  bankTransferIban?: string;
+  bankTransferAccountHolder?: string;
+  // MB Reference Configuration
+  mbReferenceEnabled: boolean;
+  mbReferenceEntity?: string;
+  mbReferenceReference?: string;
+  // MB Way Configuration
   mbWayEnabled: boolean;
+  mbWayPhoneNumber?: string;
+  // Card Payment Configuration
   cardEnabled: boolean;
+  cardProvider?: string;
+  cardPublicKey?: string;
 }
 
-export interface UpdatePaymentMethodsRequest {
-  iban?: string;
-  instructions?: string;
-  mbWay?: string;
-  mbReference?: string;
+export interface PaymentSettingsDto {
+  id: string;
+  condominiumId: string;
+  // Bank Transfer Configuration
   bankTransferEnabled: boolean;
+  bankTransferIban?: string;
+  bankTransferAccountHolder?: string;
+  // MB Reference Configuration
+  mbReferenceEnabled: boolean;
+  mbReferenceEntity?: string;
+  mbReferenceReference?: string;
+  // MB Way Configuration
   mbWayEnabled: boolean;
+  mbWayPhoneNumber?: string;
+  mbWayMerchantId?: string;
+  // Card Payment Configuration
   cardEnabled: boolean;
+  cardProvider?: string;
+  cardPublicKey?: string;
+  cardMerchantId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
+
+export interface UpdatePaymentSettingsRequest {
+  // Bank Transfer Configuration
+  bankTransferEnabled: boolean;
+  bankTransferIban?: string;
+  bankTransferAccountHolder?: string;
+  // MB Reference Configuration
+  mbReferenceEnabled: boolean;
+  mbReferenceEntity?: string;
+  mbReferenceReference?: string;
+  // MB Way Configuration
+  mbWayEnabled: boolean;
+  mbWayPhoneNumber?: string;
+  mbWayMerchantId?: string;
+  // Card Payment Configuration
+  cardEnabled: boolean;
+  cardProvider?: string;
+  cardPublicKey?: string;
+  cardSecretKey?: string;
+  cardMerchantId?: string;
+}
+
+// Communication Settings
+export interface CommunicationSettingsDto {
+  id: string;
+  condominiumId: string;
+  // Email Configuration
+  emailEnabled: boolean;
+  emailSmtpHost?: string;
+  emailSmtpPort?: number;
+  emailUsername?: string;
+  emailFromAddress?: string;
+  emailFromName?: string;
+  emailUseSsl: boolean;
+  // WhatsApp Configuration
+  whatsAppEnabled: boolean;
+  whatsAppPhoneNumber?: string;
+  whatsAppApiProvider?: string;
+  whatsAppGroupId?: string;
+  // SMS Configuration
+  smsEnabled: boolean;
+  smsProvider?: string;
+  smsFromNumber?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateCommunicationSettingsRequest {
+  // Email Configuration
+  emailEnabled: boolean;
+  emailSmtpHost?: string;
+  emailSmtpPort?: number;
+  emailUsername?: string;
+  emailPassword?: string;
+  emailFromAddress?: string;
+  emailFromName?: string;
+  emailUseSsl: boolean;
+  // WhatsApp Configuration
+  whatsAppEnabled: boolean;
+  whatsAppPhoneNumber?: string;
+  whatsAppApiKey?: string;
+  whatsAppApiProvider?: string;
+  whatsAppGroupId?: string;
+  // SMS Configuration
+  smsEnabled: boolean;
+  smsProvider?: string;
+  smsApiKey?: string;
+  smsFromNumber?: string;
+}
+
+// Quota Plans
+export interface QuotaCalculationDto {
+  id: string;
+  unitId: string;
+  unitNumber: string;
+  baseMonthlyQuota: number;
+  inflationAmount: number;
+  monthlyQuota: number;
+  quarterlyQuota: number;
+  annualQuota: number;
+}
+
+export interface QuotaPlanDto {
+  id: string;
+  condominiumId: string;
+  year: number;
+  inflationRate: number;
+  extraordinaryQuota: number;
+  status: 'Draft' | 'Active' | 'Applied' | 'Archived';
+  createdAt: string;
+  appliedAt?: string;
+  appliedBy?: string;
+  calculations: QuotaCalculationDto[];
+}
+
+export interface CreateQuotaPlanRequest {
+  year: number;
+  inflationRate: number;
+  extraordinaryQuota: number;
+}
+
+export interface UpdateQuotaPlanRequest {
+  inflationRate: number;
+  extraordinaryQuota: number;
+}
+
 

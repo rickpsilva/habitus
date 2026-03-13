@@ -6,7 +6,7 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
 
-export default function SuppliersPage() {
+export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,16 +142,18 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Truck className="w-7 h-7 text-indigo-600" />
-            Fornecedores
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Gerir fornecedores de serviços do condomínio
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+        {!embedded && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Truck className="w-7 h-7 text-indigo-600" />
+              Fornecedores
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Gerir fornecedores de serviços do condomínio
+            </p>
+          </div>
+        )}
+        <div className="flex items-center gap-3 ml-auto">
           <div className="w-80">
             <SearchBar
               value={searchQuery}

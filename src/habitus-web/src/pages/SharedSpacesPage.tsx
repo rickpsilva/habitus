@@ -6,7 +6,7 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
-export default function SharedSpacesPage() {
+export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,35 +164,35 @@ export default function SharedSpacesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between gap-4">
-            <div>
+    <div className={embedded ? "" : "p-6 max-w-7xl mx-auto"}>
+      <div className={embedded ? "" : "bg-white rounded-xl shadow-sm border border-gray-200"}>
+        <div className={embedded ? "" : "p-6 border-b border-gray-200"}>
+          {!embedded && (
+            <div className="mb-4">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Building className="w-7 h-7" />
                 Espaços Comuns
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">Gestão dos espaços partilhados do condomínio</p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-80">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Pesquisar espaços..."
-                />
-              </div>
-              {!showForm && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  Novo Espaço
-                </button>
-              )}
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <div className="w-80">
+              <SearchBar
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Pesquisar espaços..."
+              />
             </div>
+            {!showForm && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Novo Espaço
+              </button>
+            )}
           </div>
         </div>
 

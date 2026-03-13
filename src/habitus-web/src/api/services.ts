@@ -35,7 +35,13 @@ import type {
   ApprovePaymentRequest,
   RejectPaymentRequest,
   PaymentMethodsDto,
-  UpdatePaymentMethodsRequest,
+  PaymentSettingsDto,
+  UpdatePaymentSettingsRequest,
+  CommunicationSettingsDto,
+  UpdateCommunicationSettingsRequest,
+  QuotaPlanDto,
+  CreateQuotaPlanRequest,
+  UpdateQuotaPlanRequest,
 } from '../types';
 
 export const authApi = {
@@ -295,7 +301,30 @@ export const paymentsApi = {
 
 export const paymentMethodsApi = {
   get: (condominiumId: string) => api.get<PaymentMethodsDto>(`/condominiums/${condominiumId}/payment-methods`),
-  update: (condominiumId: string, data: UpdatePaymentMethodsRequest) => 
-    api.put<PaymentMethodsDto>(`/condominiums/${condominiumId}/payment-methods`, data),
+};
+
+export const paymentSettingsApi = {
+  get: (condominiumId: string) => api.get<PaymentSettingsDto>(`/condominiums/${condominiumId}/payment-settings`),
+  update: (condominiumId: string, data: UpdatePaymentSettingsRequest) => 
+    api.put<PaymentSettingsDto>(`/condominiums/${condominiumId}/payment-settings`, data),
+};
+
+export const communicationSettingsApi = {
+  get: (condominiumId: string) => api.get<CommunicationSettingsDto>(`/condominiums/${condominiumId}/communication-settings`),
+  update: (condominiumId: string, data: UpdateCommunicationSettingsRequest) => 
+    api.put<CommunicationSettingsDto>(`/condominiums/${condominiumId}/communication-settings`, data),
+};
+
+export const quotaPlansApi = {
+  getAll: (condominiumId: string) => api.get<QuotaPlanDto[]>(`/condominiums/${condominiumId}/quota-plans`),
+  getById: (condominiumId: string, id: string) => api.get<QuotaPlanDto>(`/condominiums/${condominiumId}/quota-plans/${id}`),
+  create: (condominiumId: string, data: CreateQuotaPlanRequest) => 
+    api.post<QuotaPlanDto>(`/condominiums/${condominiumId}/quota-plans`, data),
+  update: (condominiumId: string, id: string, data: UpdateQuotaPlanRequest) => 
+    api.put<QuotaPlanDto>(`/condominiums/${condominiumId}/quota-plans/${id}`, data),
+  apply: (condominiumId: string, id: string) => 
+    api.post<{ message: string }>(`/condominiums/${condominiumId}/quota-plans/${id}/apply`, {}),
+  delete: (condominiumId: string, id: string) => 
+    api.delete(`/condominiums/${condominiumId}/quota-plans/${id}`),
 };
 

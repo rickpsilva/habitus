@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp } from 'lucide-react';
 import { usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import FileUpload from '../components/FileUpload';
@@ -418,6 +418,37 @@ export default function ProfilePage() {
                   <span className="font-medium text-gray-900">
                     Fração {unit.number} – Piso {unit.floor}
                   </span>
+                </div>
+              )}
+              
+              {unit && unit.monthlyQuota > 0 && (
+                <div className="py-2 border-b border-gray-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-4 h-4 text-indigo-600" />
+                    <span className="text-gray-600 font-medium">
+                      Quotas {new Date().getFullYear()}:
+                    </span>
+                  </div>
+                  <div className="ml-6 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Mensal:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        €{unit.monthlyQuota.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Trimestral:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        €{(unit.monthlyQuota * 3).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Anual:</span>
+                      <span className="text-sm font-semibold text-indigo-600">
+                        €{(unit.monthlyQuota * 12).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
               

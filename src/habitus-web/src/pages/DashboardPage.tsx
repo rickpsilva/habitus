@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
-import { maintenanceApi, financialApi, notificationsApi, reservationsApi } from '../api/services';
+import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { MaintenanceRequestDto, NotificationDto, ReservationDto } from '../types';
 
@@ -81,8 +81,12 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [reserveFundBalance, setReserveFundBalance] = useState<number | null>(null);
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Get current user ID
+    usersApi.getMe().then((r) => setUserId(r.data.id)).catch(() => {});
+    
     maintenanceApi.getAll().then((r) => setMaintenance(r.data)).catch(() => {});
     notificationsApi.getAll(1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
     reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
@@ -96,10 +100,34 @@ export default function DashboardPage() {
     }
   }, [condominiumId]);
 
+  const now = new Date();
+  
   const pendingMaintenance = maintenance.filter((m) => m.status === 'Open');
   const inProgressMaintenance = maintenance.filter((m) => m.status === 'InProgress');
-  const pendingReservations = reservations.filter((r) => r.status === 'Pending');
-  const approvedReservations = reservations.filter((r) => r.status === 'Approved');
+  
+  // Filter reservations based on user role and end date
+  const activeReservations = reservations.filter((r) => {
+    // Filter by status (Pending or Approved)
+    const isRelevantStatus = r.status === 'Pending' || r.status === 'Approved';
+    if (!isRelevantStatus) return false;
+    
+    // Filter by end date (must be >= current date)
+    const endDate = new Date(r.endTime);
+    const isNotPast = endDate >= now;
+    if (!isNotPast) return false;
+    
+    // Filter by user role
+    if (user?.role === 2) {
+      // Morador: only their own reservations
+      return r.userId === userId;
+    } else if (user?.role === 1) {
+      // Admin: all reservations in their condominium
+      return r.condominiumId === condominiumId;
+    }
+    
+    return false;
+  });
+  
   const unreadNotifications = notifications.filter((n) => !n.isRead);
 
   return (
@@ -138,7 +166,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Reservas"
-          value={pendingReservations.length + approvedReservations.length}
+          value={activeReservations.length}
           icon={Calendar}
           color="bg-purple-100 text-purple-600"
           to="/reservations"

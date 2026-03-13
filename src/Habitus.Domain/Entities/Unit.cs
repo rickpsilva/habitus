@@ -11,6 +11,7 @@ public class Unit
     public UnitType Type { get; set; }
     public string? ApartmentNumber { get; set; }
     public decimal Permillage { get; set; }
+    public decimal MonthlyQuota { get; set; } // Quota mensal base da fração
     public Condominium Condominium { get; set; } = null!;
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<MaintenanceRequest> MaintenanceRequests { get; set; } = new List<MaintenanceRequest>();

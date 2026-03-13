@@ -11,15 +11,18 @@ public class CondominiumService
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Unit> _unitRepository;
+    private readonly IRepository<PaymentSettings> _paymentSettingsRepository;
 
     public CondominiumService(
         IRepository<Condominium> condominiumRepository,
         IRepository<User> userRepository,
-        IRepository<Unit> unitRepository)
+        IRepository<Unit> unitRepository,
+        IRepository<PaymentSettings> paymentSettingsRepository)
     {
         _condominiumRepository = condominiumRepository;
         _userRepository = userRepository;
         _unitRepository = unitRepository;
+        _paymentSettingsRepository = paymentSettingsRepository;
     }
 
     public async Task<IEnumerable<CondominiumResponse>> GetAllCondominiumsAsync()
@@ -210,6 +213,28 @@ public class CondominiumService
         var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
         if (condominium == null) return null;
 
+        // Try to get payment settings first (new structure)
+        var paymentSettings = await _paymentSettingsRepository.FindAsync(ps => ps.CondominiumId == condominiumId);
+        var settings = paymentSettings.FirstOrDefault();
+
+        if (settings != null)
+        {
+            // Use new PaymentSettings structure
+            return new PaymentMethodsDto
+            {
+                Iban = settings.BankTransferIban,
+                Instructions = null, // Not in new structure, could be added if needed
+                MbWay = settings.MBWayPhoneNumber,
+                MbReference = settings.MBReferenceEntity != null && settings.MBReferenceReference != null
+                    ? $"{settings.MBReferenceEntity} | {settings.MBReferenceReference}"
+                    : null,
+                BankTransferEnabled = settings.BankTransferEnabled,
+                MbWayEnabled = settings.MBWayEnabled,
+                CardEnabled = settings.CardEnabled
+            };
+        }
+
+        // Fallback to old Condominium fields (for backward compatibility)
         return new PaymentMethodsDto
         {
             Iban = condominium.PaymentIban,
