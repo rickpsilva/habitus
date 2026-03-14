@@ -23,3 +23,15 @@ Thumbs.db
 # Node / Frontend
 src/habitus-web/node_modules/
 src/habitus-web/dist/
+
+# Uploaded files (local development only, production uses Azure Blob Storage)
+uploads/
+**/uploads/
+
+# Uploaded receipts (local development only, production uses Azure Blob Storage)
+receipts/
+**receipts/
+
+# Uploaded announcements files (local development only, production uses Azure Blob Storage)
+announcements/
+**/announcements/

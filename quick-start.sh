@@ -19,6 +19,13 @@ WEB_DIR="$PROJECT_ROOT/src/habitus-web"
 echo -e "${BLUE}🚀 Habitus Quick Start${NC}"
 echo ""
 
+# Para todos os serviços primeiro para garantir um arranque limpo
+echo -e "${BLUE}0. Parando serviços existentes...${NC}"
+cd "$PROJECT_ROOT"
+./run-local.sh stop-all >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Serviços parados${NC}"
+echo ""
+
 # Inicia BD e pgAdmin
 echo -e "${BLUE}1. Iniciando PostgreSQL e pgAdmin...${NC}"
 cd "$PROJECT_ROOT"
@@ -56,7 +63,10 @@ echo ""
 # Restaura dependências Node.js
 echo -e "${BLUE}4. Instalando dependências Node.js (Web App)...${NC}"
 cd "$WEB_DIR"
-npm install >/dev/null 2>&1
+if ! npm install --legacy-peer-deps --silent; then
+    echo -e "${RED}✗ Erro ao instalar dependências Node.js${NC}"
+    exit 1
+fi
 echo -e "${GREEN}✓ Dependências Node.js instaladas${NC}"
 echo ""
 

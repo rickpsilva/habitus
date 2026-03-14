@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
-import { unitsApi } from '../api/services';
+import { unitsApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { UnitDto, CreateUnitRequest } from '../types';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import type { UnitDto, CreateUnitRequest, CondominiumDto, PaginatedResponse } from '../types';
 
 const unitTypeLabels: Record<number, string> = {
   0: 'Apartamento',
@@ -10,36 +13,90 @@ const unitTypeLabels: Record<number, string> = {
   2: 'Estacionamento',
 };
 
-const DEFAULT_BUILDING_ID = '00000000-0000-0000-0000-000000000001';
-
-const emptyForm = (): CreateUnitRequest => ({
-  buildingId: DEFAULT_BUILDING_ID,
-  number: '',
-  floor: 0,
-  type: 0,
-  permillage: 0,
-});
-
-export default function UnitsPage() {
-  const { isAdmin } = useAuth();
+export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
+  const { isAdmin, isManager, condominiumId } = useAuth();
+  const navigate = useNavigate();
+  
+  // Guard: Only Manager and Admin can access
+  useEffect(() => {
+    if (!isManager && !isAdmin) {
+      navigate('/dashboard');
+    }
+  }, [isManager, isAdmin, navigate]);
+  
   const [units, setUnits] = useState<UnitDto[]>([]);
+  const [condominiums, setCondominiums] = useState<CondominiumDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState<CreateUnitRequest>(emptyForm());
+  const [form, setForm] = useState<CreateUnitRequest>({
+    condominiumId: condominiumId || '',
+    number: '',
+    floor: 0,
+    type: 0,
+    apartmentNumber: '',
+    permillage: 0,
+    monthlyQuota: 0,
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [filterCondominiumId, setFilterCondominiumId] = useState(condominiumId || '');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse<UnitDto> | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const pageSize = 10;
 
-  const load = () => {
+  const load = async (page: number = 1, search: string = searchQuery) => {
     setLoading(true);
-    unitsApi.getAll().then((r) => setUnits(r.data)).finally(() => setLoading(false));
+    try {
+      const unitsResponse = await unitsApi.getPaged(page, pageSize, search);
+      let unitsData = unitsResponse.data.items;
+      
+      // Filter by condominium if user is Admin
+      if (isAdmin && condominiumId) {
+        unitsData = unitsData.filter(u => u.condominiumId === condominiumId);
+      }
+      
+      setPagination(unitsResponse.data);
+      setUnits(unitsData);
+      setCurrentPage(page);
+      
+      // Load condominiums for Manager
+      if (isManager) {
+        const condosResponse = await condominiumsApi.getAll();
+        setCondominiums(condosResponse.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar frações:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load(1);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== undefined) {
+        load(1, searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const openCreate = () => {
     setEditId(null);
-    setForm(emptyForm());
+    setForm({
+      condominiumId: isAdmin ? condominiumId || '' : '',
+      number: '',
+      floor: 0,
+      type: 0,
+      apartmentNumber: '',
+      permillage: 0,
+      monthlyQuota: 0,
+    });
     setError('');
     setShowForm(true);
   };
@@ -47,11 +104,13 @@ export default function UnitsPage() {
   const openEdit = (u: UnitDto) => {
     setEditId(u.id);
     setForm({
-      buildingId: u.buildingId,
+      condominiumId: u.condominiumId,
       number: u.number,
       floor: u.floor,
       type: u.type,
+      apartmentNumber: u.apartmentNumber || '',
       permillage: u.permillage,
+      monthlyQuota: u.monthlyQuota || 0,
     });
     setError('');
     setShowForm(true);
@@ -61,12 +120,18 @@ export default function UnitsPage() {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'floor' || name === 'permillage' || name === 'type' ? Number(value) : value,
+      [name]: name === 'floor' || name === 'permillage' || name === 'type' || name === 'monthlyQuota' ? Number(value) : value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!form.condominiumId) {
+      setError('Selecione um condomínio');
+      return;
+    }
+    
     setSaving(true);
     setError('');
     try {
@@ -86,15 +151,29 @@ export default function UnitsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Remover esta fração?')) return;
-    await unitsApi.delete(id);
-    load();
+    try {
+      await unitsApi.delete(id);
+      load();
+    } catch (error) {
+      console.error('Erro ao remover fração:', error);
+      alert('Erro ao remover fração. Pode haver utilizadores associados.');
+    }
   };
 
-  if (!isAdmin) {
+  const condominiumLabel = (condoId: string) => {
+    const c = condominiums.find(c => c.id === condoId);
+    return c ? c.name : condoId.slice(0, 8) + '…';
+  };
+
+  const filteredUnits = filterCondominiumId 
+    ? units.filter(u => u.condominiumId === filterCondominiumId)
+    : units;
+
+  if (!isManager && !isAdmin) {
     return (
       <div className="text-center py-20 text-gray-400">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a administradores</p>
+        <p>Acesso restrito a gestores e administradores</p>
       </div>
     );
   }
@@ -102,18 +181,45 @@ export default function UnitsPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{units.length} frações registadas</p>
+        {!embedded && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
+            <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
+          </div>
+        )}
+        <div className="flex items-center gap-3 ml-auto">
+          <div className="w-80">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar frações..."
+            />
+          </div>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Fração
+          </button>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Fração
-        </button>
       </div>
+
+      {/* Filter by condominium (Manager only) */}
+      {isManager && condominiums.length > 0 && (
+        <div className="flex gap-3">
+          <select
+            value={filterCondominiumId}
+            onChange={(e) => setFilterCondominiumId(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">Todos os condomínios</option>
+            {condominiums.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Form modal */}
       {showForm && (
@@ -133,8 +239,25 @@ export default function UnitsPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isManager && !editId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio *</label>
+                  <select
+                    name="condominiumId"
+                    value={form.condominiumId}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="">Selecione...</option>
+                    {condominiums.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Fração</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Fração *</label>
                 <input
                   type="text"
                   name="number"
@@ -146,7 +269,7 @@ export default function UnitsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Piso</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Piso *</label>
                 <input
                   type="number"
                   name="floor"
@@ -156,8 +279,21 @@ export default function UnitsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+              {form.type === 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Apartamento</label>
+                  <input
+                    type="text"
+                    name="apartmentNumber"
+                    value={form.apartmentNumber || ''}
+                    onChange={handleChange}
+                    placeholder="Ex: A, B, Esq, Dto"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
                 <select
                   name="type"
                   value={form.type}
@@ -171,7 +307,7 @@ export default function UnitsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Permilagem (‰)
+                  Permilagem (‰) *
                 </label>
                 <input
                   type="number"
@@ -184,6 +320,22 @@ export default function UnitsPage() {
                   placeholder="Ex: 85.50"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quota Mensal Base (€)
+                </label>
+                <input
+                  type="number"
+                  name="monthlyQuota"
+                  value={form.monthlyQuota}
+                  onChange={handleChange}
+                  min={0}
+                  step={0.01}
+                  placeholder="Ex: 45.00"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Valor mensal da quota desta fração</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <button
@@ -209,13 +361,13 @@ export default function UnitsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : units.length === 0 ? (
+        ) : filteredUnits.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
             Sem frações registadas
           </div>
         ) : (
-          units.map((u) => (
+          filteredUnits.map((u) => (
             <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -223,7 +375,9 @@ export default function UnitsPage() {
                     {u.number}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Fração {u.number}</p>
+                    <p className="font-medium text-gray-900">
+                      Fração {u.number}{u.apartmentNumber && u.type === 0 ? ` - ${u.apartmentNumber}` : ''}
+                    </p>
                     <span className="text-xs text-gray-500">Piso {u.floor}</span>
                   </div>
                 </div>
@@ -237,6 +391,12 @@ export default function UnitsPage() {
                 </div>
               </div>
               <div className="mt-3 space-y-1.5 text-sm text-gray-500">
+                {isManager && (
+                  <div className="flex items-center justify-between">
+                    <span>Condomínio</span>
+                    <span className="font-medium text-gray-700">{condominiumLabel(u.condominiumId)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span>Tipo</span>
                   <span className="font-medium text-gray-700">{unitTypeLabels[u.type] ?? u.type}</span>
@@ -250,6 +410,14 @@ export default function UnitsPage() {
           ))
         )}
       </div>
+      
+      {pagination && !loading && filteredUnits.length > 0 && (
+        <Pagination
+          pagination={pagination}
+          currentPage={currentPage}
+          onPageChange={(page) => load(page)}
+        />
+      )}
     </div>
   );
 }

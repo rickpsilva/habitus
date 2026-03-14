@@ -13,4 +13,16 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: [
+      '@tiptap/react',
+      '@tiptap/starter-kit',
+      '@tiptap/extension-color',
+      '@tiptap/extension-text-style',
+      '@tiptap/extension-text-align',
+      '@tiptap/extension-underline',
+      '@tiptap/extension-link',
+      '@tiptap/extension-placeholder',
+    ],
+  },
 })

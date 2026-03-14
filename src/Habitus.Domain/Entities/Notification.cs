@@ -9,8 +9,10 @@ public class Notification
     public string Message { get; set; } = string.Empty;
     public NotificationType Type { get; set; }
     public string TargetRole { get; set; } = string.Empty;
-    public Guid BuildingId { get; set; }
+    public Guid? TargetUserId { get; set; } // Optional: for user-specific notifications
+    public Guid CondominiumId { get; set; }
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
     public bool IsRead { get; set; }
-    public Building Building { get; set; } = null!;
+    public Condominium Condominium { get; set; } = null!;
+    public User? TargetUser { get; set; }
 }

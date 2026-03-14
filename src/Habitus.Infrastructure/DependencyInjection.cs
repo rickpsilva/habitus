@@ -24,7 +24,8 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<HabitusDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, 
+                b => b.MigrationsAssembly("Habitus.Infrastructure")));
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
@@ -35,7 +36,7 @@ public static class DependencyInjection
 
         if (isDevelopment || string.IsNullOrEmpty(azureStorageConnectionString))
         {
-            services.AddScoped<IBlobStorageService, MockBlobStorageService>();
+            services.AddScoped<IBlobStorageService, LocalFileStorageService>();
         }
         else
         {
@@ -51,6 +52,8 @@ public static class DependencyInjection
             services.AddScoped<IEmailService, AzureCommunicationEmailService>();
         }
 
+        services.AddScoped<IWhatsAppService, MockWhatsAppService>();
+
         if (isDevelopment || string.IsNullOrEmpty(azureTranslationKey))
         {
             services.AddScoped<ITranslationService, MockTranslationService>();
@@ -65,6 +68,16 @@ public static class DependencyInjection
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
+        services.AddScoped<ReserveFundService>();
+        services.AddScoped<AssemblyService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
+        services.AddScoped<PaymentService>();
+        services.AddScoped<ReceiptService>();
+        
+        // New multi-condominium services
+        services.AddScoped<UserService>();
+        services.AddScoped<CondominiumService>();
 
         return services;
     }

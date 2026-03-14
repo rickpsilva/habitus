@@ -12,8 +12,15 @@ import NotificationsPage from './pages/NotificationsPage';
 import ReservationsPage from './pages/ReservationsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import AssembliesPage from './pages/AssembliesPage';
-import ResidentsPage from './pages/ResidentsPage';
+import CondominiumsPage from './pages/CondominiumsPage';
+import UsersPage from './pages/UsersPage';
 import UnitsPage from './pages/UnitsPage';
+import ProfilePage from './pages/ProfilePage';
+import SharedSpacesPage from './pages/SharedSpacesPage';
+import SuppliersPage from './pages/SuppliersPage';
+import PaymentsPage from './pages/PaymentsPage';
+import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
 
 export default function App() {
   return (
@@ -29,11 +36,20 @@ export default function App() {
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/financial" element={<FinancialPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/reservations" element={<ReservationsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/assemblies" element={<AssembliesPage />} />
-            <Route path="/residents" element={<ResidentsPage />} />
+            <Route path="/shared-spaces" element={<SharedSpacesPage />} />
+            <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/condominiums" element={<CondominiumsPage />} />
+            <Route path="/users" element={<UsersPage />} />
             <Route path="/units" element={<UnitsPage />} />
+            <Route path="/settings" element={<CondominiumSettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            {/* Legacy route - redirect to users */}
+            <Route path="/residents" element={<Navigate to="/users" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

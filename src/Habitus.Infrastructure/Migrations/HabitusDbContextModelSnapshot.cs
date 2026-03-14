@@ -22,21 +22,45 @@ namespace Habitus.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Habitus.Domain.Entities.Assembly", b =>
+            modelBuilder.Entity("Habitus.Domain.Entities.Announcement", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Description")
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -45,9 +69,177 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("ValidUntil")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("Announcements");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AnnouncementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnnouncementId");
+
+                    b.ToTable("AnnouncementAttachments");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AnnouncementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnnouncementId");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("AnnouncementComments");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementReadStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AnnouncementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ReadAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnnouncementId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AnnouncementReadStatuses");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Assembly", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Minutes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BuildingId");
+
+                    b.HasIndex("CondominiumId");
 
                     b.ToTable("Assemblies");
                 });
@@ -62,7 +254,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("ResidentId")
                         .HasColumnType("uuid");
@@ -84,7 +276,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("DecidedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -123,14 +315,167 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("Buildings");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.CommunicationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowAnnouncementComments")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EmailFromAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmailFromName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmailPassword")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmailSmtpHost")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("EmailSmtpPort")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("EmailUseSsl")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EmailUsername")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SmsApiKey")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("SmsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SmsFromNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SmsProvider")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("WhatsAppApiKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WhatsAppApiProvider")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("WhatsAppEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("WhatsAppGroupId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("WhatsAppPhoneNumber")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.ToTable("CommunicationSettings");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Condominium", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PaymentBankTransferEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("PaymentCardEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PaymentIban")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentInstructions")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentMbReference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentMbWay")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PaymentMbWayEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TaxId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxId");
+
+                    b.ToTable("Condominiums");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<Guid?>("AssemblyId")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Context")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("MaintenanceRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -139,19 +484,31 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UploadedBy")
+                    b.Property<Guid?>("UnitId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AssemblyId");
+
                     b.HasIndex("BuildingId");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("MaintenanceRequestId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("UploadedByUserId");
 
                     b.ToTable("Documents");
                 });
@@ -165,19 +522,24 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("numeric");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ReceiptUrl")
                         .HasColumnType("text");
@@ -189,6 +551,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
                     b.ToTable("FinancialRecords");
                 });
 
@@ -199,7 +563,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("MaintenanceRequestId")
                         .HasColumnType("uuid");
@@ -209,7 +573,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("SupplierId")
                         .HasColumnType("uuid");
@@ -230,7 +594,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ConfirmedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("MaintenanceRequestId")
                         .HasColumnType("uuid");
@@ -251,8 +615,14 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AdminComments")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
@@ -260,6 +630,15 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("ExpenseAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("HasExpense")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("InvoiceDocumentId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Location")
                         .IsRequired()
@@ -273,10 +652,13 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -286,6 +668,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("SupplierId");
 
                     b.HasIndex("UnitId");
 
@@ -298,7 +684,10 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsRead")
@@ -309,11 +698,14 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("SentAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("TargetRole")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid?>("TargetUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -326,7 +718,294 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("TargetUserId");
+
                     b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.NotificationDispatchDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("DispatchKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Recipient")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("Channel", "DispatchKey", "Recipient")
+                        .IsUnique();
+
+                    b.ToTable("NotificationDispatchDeliveries");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("FinancialRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ProcessedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ProcessedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ProofOfPaymentUrl")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ReceiptIssuedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReceiptIssuedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("ReceiptNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReceiptPdfPath")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ReceiptYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("FinancialRecordId");
+
+                    b.HasIndex("ProcessedByUserId");
+
+                    b.HasIndex("ReceiptIssuedByUserId");
+
+                    b.HasIndex("ReservationId");
+
+                    b.HasIndex("ResidentId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.PaymentSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BankTransferAccountHolder")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("BankTransferEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("BankTransferIban")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CardEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CardMerchantId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardPublicKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardSecretKey")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("MBReferenceEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MBReferenceEntity")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MBReferenceReference")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("MBWayEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MBWayMerchantId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MBWayPhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.ToTable("PaymentSettings");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AnnualQuota")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("BaseMonthlyQuota")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("InflationAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("MonthlyQuota")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("QuarterlyQuota")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("QuotaPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuotaPlanId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("QuotaCalculations");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("AppliedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<decimal>("ExtraordinaryQuota")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("InflationRate")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CondominiumId", "Year");
+
+                    b.ToTable("QuotaPlans");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Reservation", b =>
@@ -335,26 +1014,81 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("AdminComments")
+                        .HasColumnType("text");
 
-                    b.Property<Guid>("ResidentId")
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("SharedSpaceId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("SpaceId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("SharedSpaceId");
 
                     b.HasIndex("SpaceId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Reservations");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.ReserveFund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ClosingBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<decimal>("Deposits")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<decimal>("Withdrawals")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.ToTable("ReserveFunds");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Resident", b =>
@@ -364,7 +1098,7 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -382,14 +1116,15 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("PasswordResetTokenExpiry")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("UnitId")
                         .HasColumnType("uuid");
@@ -407,11 +1142,14 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Capacity")
                         .HasColumnType("integer");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -429,6 +1167,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
                     b.ToTable("SharedSpaces");
                 });
 
@@ -438,7 +1178,14 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Contact")
@@ -448,6 +1195,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -465,6 +1215,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
                     b.ToTable("Suppliers");
                 });
 
@@ -474,11 +1226,20 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<string>("ApartmentNumber")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Floor")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("MonthlyQuota")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("Number")
                         .IsRequired()
@@ -494,6 +1255,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
                     b.ToTable("Units");
                 });
 
@@ -503,11 +1266,14 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BuildingId")
+                    b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Category")
                         .HasColumnType("integer");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -521,18 +1287,189 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
+                    b.HasIndex("CondominiumId");
+
                     b.ToTable("UsefulContacts");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.UserCondominium", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CanManage")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("UserId", "CondominiumId");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.ToTable("UserCondominiums");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Announcement", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.User", "ApprovedByUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId");
+
+                    b.HasOne("Habitus.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId");
+
+                    b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementAttachment", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Announcement", "Announcement")
+                        .WithMany("Attachments")
+                        .HasForeignKey("AnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Announcement");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementComment", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Announcement", "Announcement")
+                        .WithMany("Comments")
+                        .HasForeignKey("AnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId");
+
+                    b.Navigation("Announcement");
+
+                    b.Navigation("Author");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.AnnouncementReadStatus", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Announcement", "Announcement")
+                        .WithMany("ReadStatuses")
+                        .HasForeignKey("AnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Announcement");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Assembly", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("Assemblies")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Assemblies")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.AssemblyAttendance", b =>
@@ -557,26 +1494,74 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Assembly");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
+            modelBuilder.Entity("Habitus.Domain.Entities.CommunicationSettings", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
-                        .WithMany("Documents")
-                        .HasForeignKey("BuildingId")
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Assembly", "Assembly")
+                        .WithMany("Documents")
+                        .HasForeignKey("AssemblyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
+                        .WithMany("Documents")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Documents")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.MaintenanceRequest", "MaintenanceRequest")
+                        .WithMany("Documents")
+                        .HasForeignKey("MaintenanceRequestId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany("Documents")
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assembly");
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("MaintenanceRequest");
+
+                    b.Navigation("Unit");
+
+                    b.Navigation("UploadedByUser");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.FinancialRecord", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("FinancialRecords")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("FinancialRecords")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Intervention", b =>
@@ -611,41 +1596,192 @@ namespace Habitus.Infrastructure.Migrations
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceRequest", b =>
                 {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Supplier", "Supplier")
+                        .WithMany("MaintenanceRequests")
+                        .HasForeignKey("SupplierId");
+
                     b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
                         .WithMany("MaintenanceRequests")
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Supplier");
+
                     b.Navigation("Unit");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Notification", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("Notifications")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Notifications")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.HasOne("Habitus.Domain.Entities.User", "TargetUser")
+                        .WithMany()
+                        .HasForeignKey("TargetUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("TargetUser");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Payments")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.FinancialRecord", "FinancialRecord")
+                        .WithMany()
+                        .HasForeignKey("FinancialRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.User", "ProcessedByUser")
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.User", "ReceiptIssuedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReceiptIssuedByUserId");
+
+                    b.HasOne("Habitus.Domain.Entities.Reservation", "Reservation")
+                        .WithMany()
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.User", "Resident")
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("FinancialRecord");
+
+                    b.Navigation("ProcessedByUser");
+
+                    b.Navigation("ReceiptIssuedByUser");
+
+                    b.Navigation("Reservation");
+
+                    b.Navigation("Resident");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.PaymentSettings", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.QuotaPlan", "QuotaPlan")
+                        .WithMany("Calculations")
+                        .HasForeignKey("QuotaPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("QuotaPlan");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Reservation", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.SharedSpace", "Space")
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.SharedSpace", null)
                         .WithMany("Reservations")
+                        .HasForeignKey("SharedSpaceId");
+
+                    b.HasOne("Habitus.Domain.Entities.SharedSpace", "Space")
+                        .WithMany()
                         .HasForeignKey("SpaceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Habitus.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
                     b.Navigation("Space");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.ReserveFund", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("ReserveFunds")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Resident", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
-                        .WithMany("Residents")
+                        .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -655,46 +1791,107 @@ namespace Habitus.Infrastructure.Migrations
 
             modelBuilder.Entity("Habitus.Domain.Entities.SharedSpace", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("SharedSpaces")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("SharedSpaces")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Supplier", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("Suppliers")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Suppliers")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Unit", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("Units")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Units")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.UsefulContact", b =>
                 {
-                    b.HasOne("Habitus.Domain.Entities.Building", "Building")
+                    b.HasOne("Habitus.Domain.Entities.Building", null)
                         .WithMany("UsefulContacts")
-                        .HasForeignKey("BuildingId")
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("UsefulContacts")
+                        .HasForeignKey("CondominiumId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Building");
+                    b.Navigation("Condominium");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.User", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Users")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany("Users")
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.UserCondominium", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("UserCondominiums")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.User", "User")
+                        .WithMany("UserCondominiums")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Announcement", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Comments");
+
+                    b.Navigation("ReadStatuses");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Assembly", b =>
@@ -702,6 +1899,8 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Attendances");
 
                     b.Navigation("Decisions");
+
+                    b.Navigation("Documents");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Building", b =>
@@ -723,11 +1922,45 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("UsefulContacts");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.Condominium", b =>
+                {
+                    b.Navigation("Assemblies");
+
+                    b.Navigation("Documents");
+
+                    b.Navigation("FinancialRecords");
+
+                    b.Navigation("Notifications");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("ReserveFunds");
+
+                    b.Navigation("SharedSpaces");
+
+                    b.Navigation("Suppliers");
+
+                    b.Navigation("Units");
+
+                    b.Navigation("UsefulContacts");
+
+                    b.Navigation("UserCondominiums");
+
+                    b.Navigation("Users");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceRequest", b =>
                 {
                     b.Navigation("Confirmations");
 
+                    b.Navigation("Documents");
+
                     b.Navigation("Interventions");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
+                {
+                    b.Navigation("Calculations");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.SharedSpace", b =>
@@ -738,13 +1971,22 @@ namespace Habitus.Infrastructure.Migrations
             modelBuilder.Entity("Habitus.Domain.Entities.Supplier", b =>
                 {
                     b.Navigation("Interventions");
+
+                    b.Navigation("MaintenanceRequests");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Unit", b =>
                 {
+                    b.Navigation("Documents");
+
                     b.Navigation("MaintenanceRequests");
 
-                    b.Navigation("Residents");
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.User", b =>
+                {
+                    b.Navigation("UserCondominiums");
                 });
 #pragma warning restore 612, 618
         }

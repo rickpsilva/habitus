@@ -1,4 +1,6 @@
+using Habitus.Application.DTOs.Assemblies;
 using Habitus.Application.Interfaces;
+using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,64 +12,97 @@ namespace Habitus.Api.Controllers;
 [Authorize]
 public class AssembliesController : ControllerBase
 {
-    private readonly IRepository<Assembly> _assemblyRepository;
+    private readonly AssemblyService _service;
     private readonly IRepository<AssemblyAttendance> _attendanceRepository;
     private readonly IRepository<AssemblyDecision> _decisionRepository;
 
     public AssembliesController(
-        IRepository<Assembly> assemblyRepository,
+        AssemblyService service,
         IRepository<AssemblyAttendance> attendanceRepository,
         IRepository<AssemblyDecision> decisionRepository)
     {
-        _assemblyRepository = assemblyRepository;
+        _service = service;
         _attendanceRepository = attendanceRepository;
         _decisionRepository = decisionRepository;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() => Ok(await _assemblyRepository.GetAllAsync());
+    public async Task<ActionResult<IEnumerable<AssemblyDto>>> GetAll()
+    {
+        var result = await _service.GetAllAsync();
+        return Ok(result);
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        var result = await _service.GetPagedAsync(page, pageSize, search);
+        return Ok(result);
+    }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<ActionResult<AssemblyDto>> GetById(Guid id)
     {
-        var result = await _assemblyRepository.GetByIdAsync(id);
+        var result = await _service.GetByIdAsync(id);
         return result == null ? NotFound() : Ok(result);
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] Assembly assembly)
+    public async Task<ActionResult<AssemblyDto>> Create([FromBody] CreateAssemblyRequest request)
     {
-        assembly.Id = Guid.NewGuid();
-        await _assemblyRepository.AddAsync(assembly);
-        await _assemblyRepository.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = assembly.Id }, assembly);
+        var result = await _service.CreateAsync(request);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Assembly assembly)
+    public async Task<ActionResult<AssemblyDto>> Update(Guid id, [FromBody] UpdateAssemblyRequest request)
     {
-        var existing = await _assemblyRepository.GetByIdAsync(id);
-        if (existing == null) return NotFound();
-        existing.Title = assembly.Title;
-        existing.Description = assembly.Description;
-        existing.ScheduledAt = assembly.ScheduledAt;
-        existing.Status = assembly.Status;
-        _assemblyRepository.Update(existing);
-        await _assemblyRepository.SaveChangesAsync();
-        return Ok(existing);
+        var result = await _service.UpdateAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("{id}/minutes")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<AssemblyDto>> UpdateMinutes(Guid id, [FromBody] UpdateMinutesRequest request)
+    {
+        var result = await _service.UpdateMinutesAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("{id}/draft-minutes")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<AssemblyDto>> UpdateMinutesDraft(Guid id, [FromBody] UpdateMinutesRequest request)
+    {
+        var result = await _service.UpdateMinutesDraftAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("{id}/notes")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<AssemblyDto>> UpdateNotes(Guid id, [FromBody] UpdateNotesRequest request)
+    {
+        var result = await _service.UpdateNotesAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("{id}/cancel")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<AssemblyDto>> Cancel(Guid id, [FromBody] CancelAssemblyRequest request)
+    {
+        var result = await _service.CancelAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var entity = await _assemblyRepository.GetByIdAsync(id);
-        if (entity == null) return NotFound();
-        _assemblyRepository.Remove(entity);
-        await _assemblyRepository.SaveChangesAsync();
-        return NoContent();
+        var deleted = await _service.DeleteAsync(id);
+        return deleted ? NoContent() : NotFound();
     }
 
     [HttpPost("{id}/attendance")]

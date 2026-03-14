@@ -343,7 +343,7 @@ install_web_dependencies() {
     separator
 
     cd "$WEB_DIR"
-    npm install
+    npm install --legacy-peer-deps
     log_success "Dependências da Web App instaladas"
     echo ""
 }

@@ -11,10 +11,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Volume2,
 } from 'lucide-react';
-import { maintenanceApi, financialApi, notificationsApi, reservationsApi } from '../api/services';
+import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { MaintenanceRequestDto, NotificationDto } from '../types';
+import type { MaintenanceRequestDto, NotificationDto, ReservationDto } from '../types';
 
 function StatCard({
   title,
@@ -22,12 +23,14 @@ function StatCard({
   icon: Icon,
   color,
   to,
+  subtitle,
 }: {
   title: string;
   value: string | number;
   icon: React.ElementType;
   color: string;
   to: string;
+  subtitle?: string;
 }) {
   return (
     <Link
@@ -40,6 +43,9 @@ function StatCard({
       <div>
         <p className="text-sm text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
+        {subtitle && (
+          <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+        )}
       </div>
     </Link>
   );
@@ -47,15 +53,19 @@ function StatCard({
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
+    Open: 'bg-yellow-100 text-yellow-700',
     Pending: 'bg-yellow-100 text-yellow-700',
     InProgress: 'bg-blue-100 text-blue-700',
     Resolved: 'bg-green-100 text-green-700',
+    Closed: 'bg-gray-100 text-gray-500',
     Cancelled: 'bg-gray-100 text-gray-500',
   };
   const labels: Record<string, string> = {
+    Open: 'Aberto',
     Pending: 'Pendente',
     InProgress: 'Em curso',
     Resolved: 'Resolvido',
+    Closed: 'Fechado',
     Cancelled: 'Cancelado',
   };
   return (
@@ -66,26 +76,77 @@ function statusBadge(status: string) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, condominiumId } = useAuth();
   const [maintenance, setMaintenance] = useState<MaintenanceRequestDto[]>([]);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
-  const [reservationCount, setReservationCount] = useState(0);
+  const [reserveFundBalance, setReserveFundBalance] = useState<number | null>(null);
+  const [reservations, setReservations] = useState<ReservationDto[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [noiseAnnouncementsCurrentYear, setNoiseAnnouncementsCurrentYear] = useState<number>(0);
+  const [noiseAnnouncementsPreviousYear, setNoiseAnnouncementsPreviousYear] = useState<number>(0);
+  const [dashboardYear, setDashboardYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
+    // Get current user ID
+    usersApi.getMe().then((r) => setUserId(r.data.id)).catch(() => {});
+    
     maintenanceApi.getAll().then((r) => setMaintenance(r.data)).catch(() => {});
-    notificationsApi.getAll().then((r) => setNotifications(r.data)).catch(() => {});
-    reservationsApi.getAll().then((r) => setReservationCount(r.data.length)).catch(() => {});
-    // Financial summary requires buildingId — skip if not available
-    financialApi.getAll().then((r) => {
-      const income = r.data.filter((f) => f.type === 'Income').reduce((s, f) => s + f.amount, 0);
-      const expenses = r.data.filter((f) => f.type === 'Expense').reduce((s, f) => s + f.amount, 0);
-      setBalance(income - expenses);
-    }).catch(() => {});
-  }, []);
+    notificationsApi.getAll(1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
+    reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
+    // Load financial dashboard for current year
+    if (condominiumId) {
+      const currentYear = new Date().getFullYear();
+      financialApi.getDashboard(condominiumId, currentYear).then((r) => {
+        setDashboardYear(r.data.currentYear);
+        setBalance(r.data.currentYearBalance);
+        setReserveFundBalance(r.data.reserveFundBalance);
+        setNoiseAnnouncementsCurrentYear(r.data.noiseAnnouncementsCurrentYear ?? 0);
+        setNoiseAnnouncementsPreviousYear(r.data.noiseAnnouncementsPreviousYear ?? 0);
+      }).catch(() => {});
+    }
+  }, [condominiumId]);
 
-  const pendingMaintenance = maintenance.filter((m) => m.status === 'Pending' || m.status === 'InProgress');
+  const now = new Date();
+  
+  const pendingMaintenance = maintenance.filter((m) => m.status === 'Open');
+  const inProgressMaintenance = maintenance.filter((m) => m.status === 'InProgress');
+  
+  // Filter reservations based on user role and end date
+  const activeReservations = reservations.filter((r) => {
+    // Filter by status (Pending or Approved)
+    const isRelevantStatus = r.status === 'Pending' || r.status === 'Approved';
+    if (!isRelevantStatus) return false;
+    
+    // Filter by end date (must be >= current date)
+    const endDate = new Date(r.endTime);
+    const isNotPast = endDate >= now;
+    if (!isNotPast) return false;
+    
+    // Filter by user role
+    if (user?.role === 2) {
+      // Morador: only their own reservations
+      return r.userId === userId;
+    } else if (user?.role === 1) {
+      // Admin: all reservations in their condominium
+      return r.condominiumId === condominiumId;
+    }
+    
+    return false;
+  });
+  
   const unreadNotifications = notifications.filter((n) => !n.isRead);
+
+  const noiseYoYLabel = (() => {
+    if (noiseAnnouncementsPreviousYear === 0) {
+      if (noiseAnnouncementsCurrentYear === 0) return '0%';
+      return 'n/a';
+    }
+
+    const change = ((noiseAnnouncementsCurrentYear - noiseAnnouncementsPreviousYear) / noiseAnnouncementsPreviousYear) * 100;
+    const sign = change > 0 ? '+' : '';
+    return `${sign}${change.toFixed(1)}%`;
+  })();
 
   return (
     <div className="space-y-6">
@@ -98,10 +159,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard
           title="Pedidos de Manutenção"
-          value={pendingMaintenance.length}
+          value={pendingMaintenance.length + inProgressMaintenance.length}
           icon={Wrench}
           color="bg-orange-100 text-orange-600"
           to="/maintenance"
@@ -112,6 +173,7 @@ export default function DashboardPage() {
           icon={DollarSign}
           color="bg-green-100 text-green-600"
           to="/financial"
+          subtitle={reserveFundBalance !== null ? `Fundo de Reserva: €${reserveFundBalance.toFixed(2)}` : undefined}
         />
         <StatCard
           title="Notificações não lidas"
@@ -121,11 +183,19 @@ export default function DashboardPage() {
           to="/notifications"
         />
         <StatCard
-          title="Reservas ativas"
-          value={reservationCount}
+          title="Reservas"
+          value={activeReservations.length}
           icon={Calendar}
           color="bg-purple-100 text-purple-600"
           to="/reservations"
+        />
+        <StatCard
+          title="Comunicados Barulho/Perturbação"
+          value={noiseAnnouncementsCurrentYear}
+          icon={Volume2}
+          color="bg-amber-100 text-amber-700"
+          to="/announcements?category=Noise"
+          subtitle={`Ano homólogo (${dashboardYear - 1}): ${noiseAnnouncementsPreviousYear} • Variação: ${noiseYoYLabel}`}
         />
       </div>
 

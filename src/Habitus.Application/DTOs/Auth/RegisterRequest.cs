@@ -6,6 +6,7 @@ public class RegisterRequest
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
-    public Guid UnitId { get; set; }
-    public string Role { get; set; } = "Resident";
+    public Guid? UnitId { get; set; }  // Optional: only required for Residents
+    public Guid? CondominiumId { get; set; }  // Optional for Managers, required for Admin and Resident
+    public string Role { get; set; } = "Resident"; // Manager, Admin, or Resident
 }

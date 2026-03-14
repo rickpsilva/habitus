@@ -8,6 +8,6 @@ public class UsefulContact
     public string Name { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public ContactCategory Category { get; set; }
-    public Guid BuildingId { get; set; }
-    public Building Building { get; set; } = null!;
+    public Guid CondominiumId { get; set; }
+    public Condominium Condominium { get; set; } = null!;
 }

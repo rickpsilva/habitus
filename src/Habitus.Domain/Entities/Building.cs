@@ -1,5 +1,10 @@
 namespace Habitus.Domain.Entities;
 
+/// <summary>
+/// DEPRECATED: Use Condominium entity instead.
+/// This entity is kept for backward compatibility during migration.
+/// </summary>
+[Obsolete("Use Condominium entity instead. This will be removed in a future version.")]
 public class Building
 {
     public Guid Id { get; set; }

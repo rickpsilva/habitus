@@ -4,7 +4,13 @@ Habitus is a modern condominium management platform built with **.NET 8** and a 
 
 ## Features
 
+- **Multi-Condominium Support** — platform now supports multiple condominiums with proper access control
+- **User Management** — separate User entity for authentication (Managers, Admins, Residents)
 - **Resident & Unit Management** — manage buildings, units, and resident profiles
+- **User Roles & Permissions**:
+  - **Manager (HOI)** — Platform-level access; can create condominiums, manage users and units across all condominiums
+  - **Admin** — Condominium-level access; can create users and manage units for their assigned condominium
+  - **Resident** — Unit-level access; standard resident permissions
 - **Document Storage** — insurance policies, receipts, meeting minutes (Azure Blob Storage)
 - **Maintenance Requests** — photo attachments, location details, multi‑resident confirmation workflow
 - **Interventions & Suppliers** — scheduled interventions linked to supplier contacts
@@ -19,7 +25,7 @@ Habitus is a modern condominium management platform built with **.NET 8** and a 
 
 ```
 src/
-├── Habitus.Domain/         # Domain entities and enums
+├── Habitus.Domain/         # Domain entities and enums (User, Condominium, Unit, etc.)
 ├── Habitus.Application/    # Services, DTOs, and interfaces
 ├── Habitus.Infrastructure/ # EF Core (PostgreSQL), Azure services, repositories
 └── Habitus.Api/            # ASP.NET Core Web API, JWT auth, Swagger
@@ -88,6 +94,8 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | Controller | Base Path |
 |-----------|-----------|
 | Auth | `/api/auth` |
+| Users | `/api/users` |
+| Condominiums | `/api/condominiums` |
 | Residents | `/api/residents` |
 | Units | `/api/units` |
 | Documents | `/api/documents` |
@@ -106,9 +114,14 @@ Full interactive documentation is available via Swagger at `/swagger`.
 
 | Role | Access |
 |------|--------|
-| `Admin` | Full access to all endpoints including unit and resident management |
-| `Resident` | Read/create access to most endpoints; no admin-only operations |
-| `Manager` | Platform-level role for managing multiple condominiums (HOI – Head of Interaction) |
+| `Manager` | Platform-level access: manage multiple condominiums, create/edit users and units across all condominiums |
+| `Admin` | Condominium-level access: create users, create/edit/delete units for their assigned condominium only |
+| `Resident` | Unit-level access: read/create access to most endpoints within their condominium; no admin-only operations |
+
+**Notes:**  
+- Managers and Admins are NOT required to have a unit assignment
+- Admins are assigned to a single condominium
+- Managers can access and manage multiple condominiums
 
 ## Running Tests
 

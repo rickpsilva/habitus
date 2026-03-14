@@ -6,8 +6,8 @@ public class SharedSpace
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public int Capacity { get; set; }
-    public Guid BuildingId { get; set; }
+    public Guid CondominiumId { get; set; }
     public string Rules { get; set; } = string.Empty;
-    public Building Building { get; set; } = null!;
+    public Condominium Condominium { get; set; } = null!;
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }

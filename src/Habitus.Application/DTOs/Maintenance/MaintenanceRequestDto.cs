@@ -7,10 +7,16 @@ public class MaintenanceRequestDto
     public string Description { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;
+    public Guid CondominiumId { get; set; }
     public Guid UnitId { get; set; }
     public Guid CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
     public List<string> Photos { get; set; } = new();
     public string Location { get; set; } = string.Empty;
+    public Guid? SupplierId { get; set; }
+    public string? AdminComments { get; set; }
+    public bool HasExpense { get; set; }
+    public decimal? ExpenseAmount { get; set; }
+    public Guid? InvoiceDocumentId { get; set; }
 }

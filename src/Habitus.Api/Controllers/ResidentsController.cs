@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Habitus.Api.Controllers;
 
+/// <summary>
+/// DEPRECATED: Use UsersController instead for managing users.
+/// This controller is kept for backward compatibility during migration.
+/// </summary>
+[Obsolete("Use UsersController instead. This will be removed in a future version.")]
 [ApiController]
 [Route("api/residents")]
 [Authorize]

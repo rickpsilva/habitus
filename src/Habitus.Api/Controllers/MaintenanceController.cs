@@ -17,6 +17,14 @@ public class MaintenanceController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+        return Ok(await _service.GetPagedAsync(page, pageSize, search));
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -37,7 +45,13 @@ public class MaintenanceController : ControllerBase
         var result = await _service.UpdateAsync(id, request);
         return result == null ? NotFound() : Ok(result);
     }
-
+    [HttpPut("{id}/status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<MaintenanceRequestDto>> UpdateStatus(Guid id, [FromBody] UpdateMaintenanceStatusRequest request)
+    {
+        var result = await _service.UpdateStatusAsync(id, request);
+        return result == null ? NotFound() : Ok(result);
+    }
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
