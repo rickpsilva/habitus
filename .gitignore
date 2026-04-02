@@ -35,3 +35,9 @@ receipts/
 # Uploaded announcements files (local development only, production uses Azure Blob Storage)
 announcements/
 **/announcements/
+
+#tools
+tools/
+
+.github/
+.vscode/

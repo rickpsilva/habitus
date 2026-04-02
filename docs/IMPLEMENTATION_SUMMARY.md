@@ -4,6 +4,79 @@
 
 A plataforma Habitus foi atualizada com sucesso para suportar múltiplos condomínios com controlo de acesso hierárquico conforme solicitado.
 
+---
+
+## 🆕 Sessão de Abril 2026 — Manager Experience + Billing
+
+### Correção Swagger
+- ✅ `DocumentsController` refatorado: DTOs nested `UploadDocumentForm` / `UploadMultipleDocumentsForm` para corrigir HTTP 500 no Swagger ao gerar operações multipart
+- ✅ Teste de regressão adicionado em `tests/Habitus.Api.IntegrationTests/SwaggerIntegrationTests.cs`
+
+### Separação do Papel Manager
+
+**Backend:**
+- ✅ `NotificationService` — Manager só recebe notificações dirigidas ao role `Manager` ou a si próprio; notificações de condomínio não aparecem
+- ✅ `NotificationsController` — parsing null-safe do claim `CondominiumId` (Managers não têm condomínio no JWT)
+
+**Frontend:**
+- ✅ `Layout.tsx` — Manager tem menu próprio (`managerMenuOrder`): Dashboard, Condomínios, Faturação, Utilizadores. Manutenção, Financeiro, Comunicados, Reservas, Documentos, Assembleias e Configuração Condomínio são exclusivos de Admin/Resident
+- ✅ `DashboardPage.tsx` — Manager vê "Painel do Gestor" com estatísticas de plataforma (condomínios, utilizadores, MRR) e secção dos planos
+- ✅ `NotificationsPage.tsx` — Manager vê mensagem informativa; sem feed de notificações de condomínio
+- ✅ `ProfilePage.tsx` — Manager não vê secções de fração, condomínio nem documentos
+- ✅ `UsersPage.tsx` — Quando autenticado como Manager, a página mostra "Gestores do Portal" e apenas utilizadores com `role=Manager`; formulário sem campos de condomínio/fração
+
+### Sistema de Subscrições e Faturação
+
+**Domain (`src/Habitus.Domain/Entities/`):**
+```
+SubscriptionPlan.cs       — PlanTier (Free/Silver/Gold), preços mensais/anuais/quinquenais
+PlanFeature.cs            — Catálogo de features por plano (FeatureKey + FeatureLabel)
+CondominiumSubscription.cs — Subscrição ativa num condomínio (BillingCycle, SubscriptionStatus)
+```
+
+**Application (`src/Habitus.Application/`):**
+```
+DTOs/Subscriptions/SubscriptionDtos.cs   — SubscriptionPlanDto, CondominiumSubscriptionDto,
+                                           AssignSubscriptionRequest, SubscriptionStatsDto
+Services/SubscriptionService.cs          — GetAllPlans, AssignSubscription, CancelSubscription, GetStats
+```
+
+**Infrastructure:**
+- ✅ `HabitusDbContext` — 3 novos `DbSet`, fluent config com `HasData` que semeia os 3 planos e 20 features
+- ✅ Migração EF `AddSubscriptions` aplicada à base de dados
+- ✅ `DependencyInjection.cs` — `SubscriptionService` registado
+
+**API (`src/Habitus.Api/Controllers/SubscriptionsController.cs`):**
+| Endpoint | Acesso |
+|---|---|
+| `GET /api/subscriptions/plans` | Todos autenticados |
+| `GET /api/subscriptions/plans/{id}` | Todos autenticados |
+| `GET /api/subscriptions` | Manager |
+| `GET /api/subscriptions/stats` | Manager |
+| `GET /api/subscriptions/my` | Admin/Resident (condomínio do caller) |
+| `POST /api/subscriptions` | Manager |
+| `DELETE /api/subscriptions/{id}` | Manager |
+
+**Frontend (`src/habitus-web/src/`):**
+```
+pages/BillingPage.tsx           — Página Manager-only: cards dos planos, tabela de subscrições
+                                    por condomínio, modal de atribuição com selector de ciclo
+api/services.ts                 — subscriptionsApi (getPlans, getAll, getStats, getMy, assign, cancel)
+types/index.ts                  — SubscriptionPlanDto, CondominiumSubscriptionDto,
+                                    AssignSubscriptionRequest, SubscriptionStatsDto
+App.tsx + Layout.tsx            — Rota /billing adicionada; nav item "Faturação" no menu Manager
+```
+
+**Dados semeados automaticamente:**
+
+| Plano | Mensal | Anual | 5 Anos | Features |
+|---|---|---|---|---|
+| Free | 0 € | 0 € | 0 € | 3 (manutenção, comunicados, documentos até 10) |
+| Silver | 29,90 € | 299 € | 1 299 € | 7 (+ reservas, financeiro, assembleias, email) |
+| Gold | 59,90 € | 599 € | 2 499 € | 10 (+ analytics, WhatsApp, API REST) |
+
+---
+
 ## 🎯 Objetivos Alcançados
 
 ### 1. **Separação de Utilizadores e Residentes**
