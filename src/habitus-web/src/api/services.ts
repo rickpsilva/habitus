@@ -3,6 +3,10 @@ import type {
   AuthResponse,
   LoginRequest,
   RegisterRequest,
+  RegisterResidentRequest,
+  CondominiumPublicDto,
+  UnitPublicDto,
+  PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
   FinancialRecordDto,
@@ -51,6 +55,11 @@ import type {
   CreateAnnouncementCommentRequest,
   AnnouncementStatsDto,
   AnnouncementSettingsDto,
+  SubscriptionPlanDto,
+  CondominiumSubscriptionDto,
+  AssignSubscriptionRequest,
+  SubscriptionStatsDto,
+  CondominiumActiveUsersDto,
 } from '../types';
 
 export const authApi = {
@@ -89,12 +98,17 @@ export const usersApi = {
   },
   updatePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
     api.put(`/users/${id}/password`, data),
+  getActiveLastMonthByCondominium: () =>
+    api.get<CondominiumActiveUsersDto[]>('/users/active-last-month-by-condominium'),
   delete: (id: string) => api.delete(`/users/${id}`),
 };
 
 // New condominiums API
 export const condominiumsApi = {
   getAll: () => api.get<CondominiumDto[]>('/condominiums'),
+  getPublic: () => api.get<CondominiumPublicDto[]>('/condominiums/public'),
+  getUnitsPublic: (condominiumId: string) =>
+    api.get<UnitPublicDto[]>(`/condominiums/${condominiumId}/units/public`),
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
     api.get<PaginatedResponse<CondominiumDto>>(`/condominiums/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getById: (id: string) => api.get<CondominiumDto>(`/condominiums/${id}`),
@@ -368,5 +382,23 @@ export const announcementsApi = {
     }),
   deleteAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
     api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}`),
+};
+
+export const subscriptionsApi = {
+  getPlans: () => api.get<SubscriptionPlanDto[]>('/subscriptions/plans'),
+  getPlanById: (id: string) => api.get<SubscriptionPlanDto>(`/subscriptions/plans/${id}`),
+  getAll: () => api.get<CondominiumSubscriptionDto[]>('/subscriptions'),
+  getStats: () => api.get<SubscriptionStatsDto>('/subscriptions/stats'),
+  getMy: () => api.get<CondominiumSubscriptionDto>('/subscriptions/my'),
+  assign: (data: AssignSubscriptionRequest) => api.post<CondominiumSubscriptionDto>('/subscriptions', data),
+  cancel: (id: string) => api.delete(`/subscriptions/${id}`),
+};
+
+export const userRegistrationApi = {
+  registerResident: (condominiumId: string, data: RegisterResidentRequest) =>
+    api.post<{ message: string }>(`/user/register/${condominiumId}/resident`, data),
+  getPendingUsers: () => api.get<PendingUserDto[]>('/user/pending'),
+  approveUser: (userId: string) => api.post<{ message: string }>(`/user/pending/${userId}/approve`, {}),
+  rejectUser: (userId: string) => api.delete<{ message: string }>(`/user/pending/${userId}/reject`),
 };
 

@@ -17,7 +17,41 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phone: string;
+  unitId?: string;
+  condominiumId?: string;
+  role?: 'Manager' | 'Admin' | 'Resident';
+}
+
+export interface RegisterResidentRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
   unitId: string;
+}
+
+export interface CondominiumPublicDto {
+  id: string;
+  name: string;
+  address: string;
+}
+
+export interface UnitPublicDto {
+  id: string;
+  number: string;
+  floor: number;
+  apartmentNumber?: string;
+}
+
+export interface PendingUserDto {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  unitId?: string;
+  unitNumber?: string;
+  condominiumId?: string;
+  createdAt: string;
 }
 
 // Deprecated - use UserDto instead
@@ -70,6 +104,12 @@ export interface UpdateUserRequest {
   condominiumId?: string;
   unitId?: string;
   isActive: boolean;
+}
+
+export interface CondominiumActiveUsersDto {
+  condominiumId: string;
+  condominiumName: string;
+  activeUsersLastMonth: number;
 }
 
 export interface CondominiumDto {
@@ -623,5 +663,48 @@ export interface AnnouncementStatsDto {
 
 export interface AnnouncementSettingsDto {
   allowAnnouncementComments: boolean;
+}
+
+// Subscription / Billing
+export interface PlanFeatureDto {
+  featureKey: string;
+  featureLabel: string;
+}
+
+export interface SubscriptionPlanDto {
+  id: string;
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  priceQuinquennial: number;
+  isActive: boolean;
+  features: PlanFeatureDto[];
+}
+
+export interface CondominiumSubscriptionDto {
+  id: string;
+  condominiumId: string;
+  condominiumName: string;
+  plan: SubscriptionPlanDto;
+  billingCycle: string;
+  status: string;
+  startDate: string;
+  endDate?: string;
+  nextBillingDate: string;
+  priceAtPurchase: number;
+}
+
+export interface AssignSubscriptionRequest {
+  condominiumId: string;
+  planId: string;
+  billingCycle: string;
+}
+
+export interface SubscriptionStatsDto {
+  totalCondominiums: number;
+  activeSubscriptions: number;
+  monthlyBillingVolume: number;
 }
 

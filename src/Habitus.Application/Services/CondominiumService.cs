@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Condominium;
+using Habitus.Application.DTOs.Users;
 using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
@@ -274,5 +275,39 @@ public class CondominiumService
             MbWayEnabled = condominium.PaymentMbWayEnabled,
             CardEnabled = condominium.PaymentCardEnabled
         };
+    }
+
+    // ── Public registration helpers (no auth required) ────────────────────────
+
+    /// <summary>Returns the minimal list of active condominiums for the public registration page.</summary>
+    public async Task<IEnumerable<CondominiumPublicDto>> GetPublicListAsync()
+    {
+        var condominiums = await _condominiumRepository.FindAsync(c => c.IsActive);
+        return condominiums
+            .OrderBy(c => c.Name)
+            .Select(c => new CondominiumPublicDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Address = c.Address
+            });
+    }
+
+    /// <summary>Returns the units of a condominium for the public registration page.</summary>
+    public async Task<IEnumerable<UnitPublicDto>?> GetUnitsForRegistrationAsync(Guid condominiumId)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+        if (condominium == null) return null;
+
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominiumId);
+        return units
+            .OrderBy(u => u.Floor).ThenBy(u => u.Number)
+            .Select(u => new UnitPublicDto
+            {
+                Id = u.Id,
+                Number = u.Number,
+                Floor = u.Floor,
+                ApartmentNumber = u.ApartmentNumber
+            });
     }
 }

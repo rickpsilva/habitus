@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2 } from 'lucide-react';
-import { usersApi, unitsApi, condominiumsApi } from '../api/services';
+import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse } from '../types';
+import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -53,42 +53,42 @@ export default function UsersPage() {
   });
   const [isActive, setIsActive] = useState(true);
   const [isInternalAdmin, setIsInternalAdmin] = useState(false); // Admin Interno com fração
+  const [pendingUsers, setPendingUsers] = useState<PendingUserDto[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
   const load = async (page: number = 1, searchQuery: string = search) => {
     setLoading(true);
     try {
       let usersResponse;
-      
-      // Admin: load only from their condominium, Manager: load all
+
       if (isAdmin && condominiumId) {
         usersResponse = await usersApi.getByCondominiumPaged(condominiumId, page, pageSize, searchQuery);
       } else {
         usersResponse = await usersApi.getPaged(page, pageSize, searchQuery);
       }
-      
-      const unitsResponse = await unitsApi.getAll();
-      
-      // Filter out Managers from the list (Admin should not see Managers)
+
       let usersData = usersResponse.data.items;
-      if (isAdmin) {
+      if (isManager) {
+        // Manager only sees other platform Managers
+        usersData = usersData.filter(u => u.role === UserRole.Manager);
+      } else if (isAdmin) {
+        // Admin never sees platform Managers
         usersData = usersData.filter(u => u.role !== UserRole.Manager);
       }
-      
+
       setPagination(usersResponse.data);
       setUsers(usersData);
       setCurrentPage(page);
-      setUnits(unitsResponse.data);
-      
-      // Load condominiums
-      if (isManager) {
-        // Manager can see all condominiums
-        const condosResponse = await condominiumsApi.getAll();
-        setCondominiums(condosResponse.data);
-      } else if (isAdmin && condominiumId) {
-        // Admin can only see their own condominium
-        const condoResponse = await condominiumsApi.getById(condominiumId);
-        setCondominiums([condoResponse.data]);
+
+      if (isAdmin) {
+        const unitsResponse = await unitsApi.getAll();
+        setUnits(unitsResponse.data);
+        if (condominiumId) {
+          const condoResponse = await condominiumsApi.getById(condominiumId);
+          setCondominiums([condoResponse.data]);
+        }
       }
+      // Manager doesn't need units or condominiums in this view
     } catch (error) {
       console.error('Erro ao carregar utilizadores:', error);
     } finally {
@@ -98,7 +98,31 @@ export default function UsersPage() {
 
   useEffect(() => {
     load(1);
+    if (isAdmin) loadPending();
   }, []);
+
+  const loadPending = async () => {
+    setPendingLoading(true);
+    try {
+      const r = await userRegistrationApi.getPendingUsers();
+      setPendingUsers(r.data);
+    } catch { /* silent */ } finally {
+      setPendingLoading(false);
+    }
+  };
+
+  const handleApprove = async (userId: string) => {
+    await userRegistrationApi.approveUser(userId);
+    // Move user from pending to active list
+    setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+    load(currentPage);
+  };
+
+  const handleReject = async (userId: string) => {
+    if (!confirm('Tem a certeza que deseja recusar e remover este utilizador?')) return;
+    await userRegistrationApi.rejectUser(userId);
+    setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -164,7 +188,7 @@ export default function UsersPage() {
       email: '',
       password: '',
       phone: '',
-      role: 2,
+      role: isManager ? UserRole.Manager : 2,
       condominiumId: isAdmin ? condominiumId || undefined : undefined,
       unitId: undefined,
     });
@@ -246,6 +270,55 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5">
+      {/* ── Pending approvals (Admin only) ─────────────────────────────────── */}
+      {isAdmin && (
+        <div className="bg-white rounded-xl border border-amber-200 shadow-sm">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-amber-100">
+            <Clock className="w-5 h-5 text-amber-500" />
+            <h2 className="text-base font-semibold text-gray-900">Pedidos Pendentes de Aprovação</h2>
+            {pendingUsers.length > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                {pendingUsers.length}
+              </span>
+            )}
+          </div>
+          {pendingLoading ? (
+            <div className="px-6 py-4 text-sm text-gray-400">A carregar…</div>
+          ) : pendingUsers.length === 0 ? (
+            <div className="px-6 py-4 text-sm text-gray-400">Nenhum pedido pendente.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {pendingUsers.map((u) => (
+                <li key={u.id} className="flex items-center justify-between px-6 py-3 gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                    <p className="text-xs text-gray-500">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleApprove(u.id)}
+                      title="Aprovar"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Aprovar
+                    </button>
+                    <button
+                      onClick={() => handleReject(u.id)}
+                      title="Recusar"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Recusar
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Utilizadores</h1>
@@ -269,18 +342,19 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <select
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-        >
-          <option value="">Todas as funções</option>
-          {isManager && <option value="0">Gestor</option>}
-          <option value="1">Administrador</option>
-          <option value="2">Morador</option>
-        </select>
-      </div>
+      {!isManager && (
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">Todas as funções</option>
+            <option value="1">Administrador</option>
+            <option value="2">Morador</option>
+          </select>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
@@ -402,83 +476,89 @@ export default function UsersPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Função *</label>
-                <select
-                  required
-                  value={formData.role}
-                  onChange={(e) => {
-                    const newRole = Number(e.target.value) as UserRole;
-                    setFormData({ ...formData, role: newRole, unitId: undefined });
-                    // Resetar Admin Interno quando mudar role
-                    if (newRole !== UserRole.Admin) {
-                      setIsInternalAdmin(false);
-                    }
-                  }}
-                  disabled={isAdmin && !editingId}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
-                >
-                  {isManager && <option value="0">Gestor</option>}
-                  <option value="1">Administrador</option>
-                  <option value="2">Morador</option>
-                </select>
-                {isAdmin && !editingId && <p className="text-xs text-gray-500 mt-1">Admin só pode criar Admin e Morador</p>}
-              </div>
-              {(formData.role === UserRole.Admin || formData.role === UserRole.Resident) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio *</label>
-                  <select
-                    required
-                    value={formData.condominiumId || ''}
-                    onChange={(e) => setFormData({ ...formData, condominiumId: e.target.value || undefined, unitId: undefined })}
-                    disabled={isAdmin}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
-                  >
-                    <option value="">Selecione...</option>
-                    {condominiums.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+              {isManager ? (
+                // Manager: role is fixed to Manager, no condominium/unit
+                <div className="px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 font-medium">
+                  Gestor do Portal
                 </div>
-              )}
-              {formData.role === UserRole.Admin && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isInternalAdmin"
-                    checked={isInternalAdmin}
-                    onChange={(e) => {
-                      setIsInternalAdmin(e.target.checked);
-                      // Se desmarcar Admin Interno, limpar unitId
-                      if (!e.target.checked) {
-                        setFormData({ ...formData, unitId: undefined });
-                      }
-                    }}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <label htmlFor="isInternalAdmin" className="text-sm font-medium text-gray-700">
-                    Admin Interno (com fração atribuída)
-                  </label>
-                </div>
-              )}
-              {(formData.role === UserRole.Resident || (formData.role === UserRole.Admin && isInternalAdmin)) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fração *</label>
-                  <select
-                    required={formData.role === 2}
-                    value={formData.unitId || ''}
-                    onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
-                    disabled={!formData.condominiumId}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
-                  >
-                    <option value="">Selecione...</option>
-                    {availableUnits.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        Fração {u.number} – Piso {u.floor}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Função *</label>
+                    <select
+                      required
+                      value={formData.role}
+                      onChange={(e) => {
+                        const newRole = Number(e.target.value) as UserRole;
+                        setFormData({ ...formData, role: newRole, unitId: undefined });
+                        if (newRole !== UserRole.Admin) setIsInternalAdmin(false);
+                      }}
+                      disabled={isAdmin && !editingId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                    >
+                      <option value="1">Administrador</option>
+                      <option value="2">Morador</option>
+                    </select>
+                    {isAdmin && !editingId && (
+                      <p className="text-xs text-gray-500 mt-1">Admin só pode criar Admin e Morador</p>
+                    )}
+                  </div>
+                  {(formData.role === UserRole.Admin || formData.role === UserRole.Resident) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio *</label>
+                      <select
+                        required
+                        value={formData.condominiumId || ''}
+                        onChange={(e) =>
+                          setFormData({ ...formData, condominiumId: e.target.value || undefined, unitId: undefined })
+                        }
+                        disabled={isAdmin}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                      >
+                        <option value="">Selecione...</option>
+                        {condominiums.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {formData.role === UserRole.Admin && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="isInternalAdmin"
+                        checked={isInternalAdmin}
+                        onChange={(e) => {
+                          setIsInternalAdmin(e.target.checked);
+                          if (!e.target.checked) setFormData({ ...formData, unitId: undefined });
+                        }}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label htmlFor="isInternalAdmin" className="text-sm font-medium text-gray-700">
+                        Admin Interno (com fração atribuída)
+                      </label>
+                    </div>
+                  )}
+                  {(formData.role === UserRole.Resident || (formData.role === UserRole.Admin && isInternalAdmin)) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fração *</label>
+                      <select
+                        required={formData.role === 2}
+                        value={formData.unitId || ''}
+                        onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
+                        disabled={!formData.condominiumId}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                      >
+                        <option value="">Selecione...</option>
+                        {availableUnits.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            Fração {u.number} – Piso {u.floor}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </>
               )}
               {editingId && (
                 <div className="flex items-center gap-2">

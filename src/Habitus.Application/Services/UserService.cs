@@ -262,6 +262,26 @@ public class UserService
         await _userCondominiumRepository.SaveChangesAsync();
     }
 
+    public async Task<List<CondominiumActiveUsersDto>> GetActiveUsersByCondominiumLastMonthAsync()
+    {
+        var since = DateTime.UtcNow.AddMonths(-1);
+        var allCondominiums = await _condominiumRepository.FindAsync(c => c.IsActive);
+        var activeUsers = await _userRepository.FindAsync(
+            u => u.Role != UserRole.Manager && u.IsActive && u.LastLoginAt >= since);
+        var grouped = activeUsers
+            .GroupBy(u => u.CondominiumId)
+            .ToDictionary(g => g.Key, g => g.Count());
+        return allCondominiums
+            .Select(c => new CondominiumActiveUsersDto
+            {
+                CondominiumId = c.Id,
+                CondominiumName = c.Name,
+                ActiveUsersLastMonth = grouped.GetValueOrDefault(c.Id, 0),
+            })
+            .OrderByDescending(x => x.ActiveUsersLastMonth)
+            .ToList();
+    }
+
     private UserResponse MapToResponse(User user)
     {
         return new UserResponse
@@ -279,5 +299,84 @@ public class UserService
             CreatedAt = user.CreatedAt,
             LastLoginAt = user.LastLoginAt
         };
+    }
+
+    // ── Pending resident approval ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns inactive residents pending approval for the given condominium.
+    /// </summary>
+    public async Task<IEnumerable<PendingUserDto>> GetPendingUsersAsync(Guid condominiumId)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(
+            u => u.CondominiumId == condominiumId && !u.IsActive && u.Role == UserRole.Resident,
+            "Unit");
+
+        return users.Select(u => new PendingUserDto
+        {
+            Id = u.Id,
+            Name = u.Name,
+            Email = u.Email,
+            Phone = u.Phone,
+            UnitId = u.UnitId,
+            UnitNumber = u.Unit?.Number,
+            CondominiumId = u.CondominiumId,
+            CreatedAt = u.CreatedAt
+        });
+    }
+
+    /// <summary>
+    /// Approves a pending resident. Caller must be an Admin of the condominium
+    /// or an active resident of the same unit.
+    /// </summary>
+    public async Task<(bool success, string? error)> ApprovePendingUserAsync(
+        Guid userId, Guid approverId, string approverRole, Guid? approverUnitId)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(u => u.Id == userId, "Unit");
+        var pendingUser = users.FirstOrDefault();
+
+        if (pendingUser == null || pendingUser.IsActive)
+            return (false, "Utilizador não encontrado ou já activo.");
+
+        if (!CanActOnPendingUser(pendingUser, approverId, approverRole, approverUnitId))
+            return (false, "Sem permissão para aprovar este utilizador.");
+
+        pendingUser.IsActive = true;
+        _userRepository.Update(pendingUser);
+        await _userRepository.SaveChangesAsync();
+        return (true, null);
+    }
+
+    /// <summary>
+    /// Rejects (deletes) a pending resident. Caller must be an Admin of the condominium
+    /// or an active resident of the same unit.
+    /// </summary>
+    public async Task<(bool success, string? error)> RejectPendingUserAsync(
+        Guid userId, Guid approverId, string approverRole, Guid? approverUnitId)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(u => u.Id == userId, "Unit");
+        var pendingUser = users.FirstOrDefault();
+
+        if (pendingUser == null || pendingUser.IsActive)
+            return (false, "Utilizador não encontrado ou já activo.");
+
+        if (!CanActOnPendingUser(pendingUser, approverId, approverRole, approverUnitId))
+            return (false, "Sem permissão para recusar este utilizador.");
+
+        _userRepository.Remove(pendingUser);
+        await _userRepository.SaveChangesAsync();
+        return (true, null);
+    }
+
+    private static bool CanActOnPendingUser(
+        User pendingUser, Guid approverId, string approverRole, Guid? approverUnitId)
+    {
+        if (approverRole == "Admin")
+            return pendingUser.CondominiumId.HasValue; // Admin of same condo (enforced at controller)
+
+        if (approverRole == "Resident" && approverUnitId.HasValue)
+            return pendingUser.UnitId == approverUnitId;
+
+        return false;
     }
 }

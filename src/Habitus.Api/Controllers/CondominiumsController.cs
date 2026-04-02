@@ -27,6 +27,29 @@ public class CondominiumsController : ControllerBase
         return Ok(condominiums);
     }
 
+    /// <summary>
+    /// Public: minimal condominium list for the resident self-registration page. No authentication required.
+    /// </summary>
+    [HttpGet("public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicCondominiums()
+    {
+        var condominiums = await _condominiumService.GetPublicListAsync();
+        return Ok(condominiums);
+    }
+
+    /// <summary>
+    /// Public: units of a condominium for the resident self-registration page. No authentication required.
+    /// </summary>
+    [HttpGet("{condominiumId}/units/public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicUnits(Guid condominiumId)
+    {
+        var units = await _condominiumService.GetUnitsForRegistrationAsync(condominiumId);
+        if (units == null) return NotFound();
+        return Ok(units);
+    }
+
     [HttpGet("paged")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetPagedCondominiums([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)

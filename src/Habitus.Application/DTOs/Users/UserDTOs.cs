@@ -39,9 +39,43 @@ public class UserResponse
     public DateTime? LastLoginAt { get; set; }
 }
 
+public class CondominiumActiveUsersDto
+{
+    public Guid CondominiumId { get; set; }
+    public string CondominiumName { get; set; } = string.Empty;
+    public int ActiveUsersLastMonth { get; set; }
+}
+
 public class AssignUserToCondominiumRequest
 {
     public Guid UserId { get; set; }
     public Guid CondominiumId { get; set; }
     public bool CanManage { get; set; } = true;
+}
+
+public class PendingUserDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public Guid? UnitId { get; set; }
+    public string? UnitNumber { get; set; }
+    public Guid? CondominiumId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CondominiumPublicDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+}
+
+public class UnitPublicDto
+{
+    public Guid Id { get; set; }
+    public string Number { get; set; } = string.Empty;
+    public int Floor { get; set; }
+    public string? ApartmentNumber { get; set; }
 }
