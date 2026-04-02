@@ -17,15 +17,15 @@ public class ReservationService
         _spaceRepository = spaceRepository;
     }
 
-    public async Task<IEnumerable<ReservationDto>> GetAllAsync()
+    public async Task<IEnumerable<ReservationDto>> GetAllAsync(Guid condominiumId)
     {
-        var items = await _repository.GetAllAsync();
+        var items = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         return items.Select(MapToDto);
     }
 
-    public async Task<PaginatedResponse<ReservationDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    public async Task<PaginatedResponse<ReservationDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string? search = null)
     {
-        var items = await _repository.GetAllAsync();
+        var items = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         var dtos = items.Select(MapToDto).OrderByDescending(r => r.StartTime);
         
         if (!string.IsNullOrWhiteSpace(search))
@@ -39,10 +39,20 @@ public class ReservationService
         return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
-    public async Task<ReservationDto?> GetByIdAsync(Guid id)
+    public async Task<ReservationDto?> GetByIdAsync(Guid id, Guid condominiumId)
     {
         var item = await _repository.GetByIdAsync(id);
-        return item == null ? null : MapToDto(item);
+        if (item == null || item.CondominiumId != condominiumId) return null;
+        return MapToDto(item);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, Guid condominiumId)
+    {
+        var entity = await _repository.GetByIdAsync(id);
+        if (entity == null || entity.CondominiumId != condominiumId) return false;
+        _repository.Remove(entity);
+        await _repository.SaveChangesAsync();
+        return true;
     }
 
     public async Task<(ReservationDto? Dto, string? Error)> CreateAsync(CreateReservationRequest request)
@@ -75,15 +85,6 @@ public class ReservationService
         await _repository.AddAsync(entity);
         await _repository.SaveChangesAsync();
         return (MapToDto(entity), null);
-    }
-
-    public async Task<bool> DeleteAsync(Guid id)
-    {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return false;
-        _repository.Remove(entity);
-        await _repository.SaveChangesAsync();
-        return true;
     }
 
     public async Task<(ReservationDto? Dto, string? Error)> UpdateAsync(Guid id, UpdateReservationRequest request)
@@ -119,10 +120,12 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> ApproveAsync(Guid id, ChangeReservationStatusRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> ApproveAsync(Guid id, ChangeReservationStatusRequest request, Guid condominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
+            return (null, "Reservation not found.");
+        if (entity.CondominiumId != condominiumId)
             return (null, "Reservation not found.");
 
         if (entity.Status != ReservationStatus.Pending)
@@ -137,10 +140,12 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> RejectAsync(Guid id, ChangeReservationStatusRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> RejectAsync(Guid id, ChangeReservationStatusRequest request, Guid condominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
+            return (null, "Reservation not found.");
+        if (entity.CondominiumId != condominiumId)
             return (null, "Reservation not found.");
 
         if (entity.Status != ReservationStatus.Pending)
@@ -155,10 +160,12 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> RequestCancellationAsync(Guid id)
+    public async Task<(ReservationDto? Dto, string? Error)> RequestCancellationAsync(Guid id, Guid condominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
+            return (null, "Reservation not found.");
+        if (entity.CondominiumId != condominiumId)
             return (null, "Reservation not found.");
 
         if (entity.Status != ReservationStatus.Approved)
@@ -171,10 +178,12 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> ApproveCancellationAsync(Guid id, ChangeReservationStatusRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> ApproveCancellationAsync(Guid id, ChangeReservationStatusRequest request, Guid condominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
+            return (null, "Reservation not found.");
+        if (entity.CondominiumId != condominiumId)
             return (null, "Reservation not found.");
 
         if (entity.Status != ReservationStatus.CancellationRequested)
@@ -189,10 +198,12 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> RejectCancellationAsync(Guid id, ChangeReservationStatusRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> RejectCancellationAsync(Guid id, ChangeReservationStatusRequest request, Guid condominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
+            return (null, "Reservation not found.");
+        if (entity.CondominiumId != condominiumId)
             return (null, "Reservation not found.");
 
         if (entity.Status != ReservationStatus.CancellationRequested)

@@ -45,6 +45,7 @@ const navItems: NavItem[] = [
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
   { to: '/settings', label: 'Configuração Condomínio', icon: Settings, managerOrAdminOnly: true },
   { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
+  { to: '/billing', label: 'Faturação', icon: CreditCard, managerOnly: true },
   { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true },
 ];
 
@@ -75,16 +76,9 @@ const residentMenuOrder = [
 
 const managerMenuOrder = [
   '/dashboard',
-  '/notifications',
-  '/announcements',
-  '/maintenance',
-  '/financial',
-  '/reservations',
-  '/documents',
-  '/assemblies',
-  '/users',
-  '/settings',
   '/condominiums',
+  '/billing',
+  '/users',
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -98,6 +92,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadCounts = async () => {
       try {
+        if (isManager) {
+          setUnreadCount(0);
+          setPendingAnnouncementsCount(0);
+          return;
+        }
+
         const notificationsRes = await notificationsApi.getAll(1, 100);
         const unread = notificationsRes.data.items.filter((n) => !n.isRead).length;
         setUnreadCount(unread);
@@ -116,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     loadCounts();
     const interval = setInterval(loadCounts, 30000); // Refresh every 30s
     return () => clearInterval(interval);
-  }, [isAdmin, user?.condominiumId]);
+  }, [isAdmin, isManager, user?.condominiumId]);
 
   useEffect(() => {
     return onThemeChanged(() => {
@@ -138,6 +138,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
     if (item.residentOnly && !isResident) return false;
+    // Manager only sees items explicitly in the manager menu order
+    if (isManager && !managerMenuOrder.includes(item.to)) return false;
     return true;
   });
 

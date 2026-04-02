@@ -14,6 +14,29 @@ namespace Habitus.Api.Controllers;
 [Authorize]
 public class DocumentsController : ControllerBase
 {
+    public sealed class UploadDocumentForm
+    {
+        public IFormFile File { get; set; } = null!;
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public string Context { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? UnitId { get; set; }
+        public string? AssemblyId { get; set; }
+        public string? MaintenanceRequestId { get; set; }
+        public int? Year { get; set; }
+    }
+
+    public sealed class UploadMultipleDocumentsForm
+    {
+        public List<IFormFile> Files { get; set; } = [];
+        public string Context { get; set; } = string.Empty;
+        public string? UnitId { get; set; }
+        public string? AssemblyId { get; set; }
+        public string? MaintenanceRequestId { get; set; }
+        public int? Year { get; set; }
+    }
+
     private readonly IRepository<Document> _repository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<MaintenanceRequest> _maintenanceRepository;
@@ -39,10 +62,11 @@ public class DocumentsController : ControllerBase
 
         if (user == null) return Unauthorized();
 
-        // Admin sees all documents
+        // Admin sees all documents within their own condominium
         if (user.Role == UserRole.Admin)
         {
-            var allDocuments = await _repository.GetAllAsync();
+            var allDocuments = (await _repository.GetAllAsync())
+                .Where(d => d.CondominiumId == user.CondominiumId);
             var dtos = allDocuments.Select(d => new
             {
                 id = d.Id.ToString(),
@@ -309,14 +333,14 @@ public class DocumentsController : ControllerBase
 
         if (user == null) return Unauthorized();
 
-        // Only admins can access unit documents
+        // Only admins can access unit documents — scoped to their condominium
         if (user.Role != UserRole.Admin)
         {
             return Forbid();
         }
 
         var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Unit && d.UnitId == unitId)
+            .Where(d => d.Context == DocumentContext.Unit && d.UnitId == unitId && d.CondominiumId == user.CondominiumId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -400,19 +424,21 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 104857600)] // 100 MB
     [RequestSizeLimit(104857600)] // 100 MB
-    public async Task<IActionResult> Upload(
-        [FromForm] IFormFile file,
-        [FromForm] string name,
-        [FromForm] string type,
-        [FromForm] string context,
-        [FromForm] string? description = null,
-        [FromForm] string? unitId = null,
-        [FromForm] string? assemblyId = null,
-        [FromForm] string? maintenanceRequestId = null,
-        [FromForm] int? year = null)
+    public async Task<IActionResult> Upload([FromForm] UploadDocumentForm request)
     {
+        var file = request.File;
+        var name = request.Name;
+        var type = request.Type;
+        var context = request.Context;
+        var description = request.Description;
+        var unitId = request.UnitId;
+        var assemblyId = request.AssemblyId;
+        var maintenanceRequestId = request.MaintenanceRequestId;
+        var year = request.Year;
+
         if (file == null || file.Length == 0)
         {
             return BadRequest("No file uploaded");
@@ -535,16 +561,18 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("upload-multiple")]
+    [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB total
     [RequestSizeLimit(524288000)] // 500 MB total
-    public async Task<IActionResult> UploadMultiple(
-        [FromForm] List<IFormFile> files,
-        [FromForm] string context,
-        [FromForm] string? unitId = null,
-        [FromForm] string? assemblyId = null,
-        [FromForm] string? maintenanceRequestId = null,
-        [FromForm] int? year = null)
+    public async Task<IActionResult> UploadMultiple([FromForm] UploadMultipleDocumentsForm request)
     {
+        var files = request.Files;
+        var context = request.Context;
+        var unitId = request.UnitId;
+        var assemblyId = request.AssemblyId;
+        var maintenanceRequestId = request.MaintenanceRequestId;
+        var year = request.Year;
+
         try
         {
             if (files == null || files.Count == 0)

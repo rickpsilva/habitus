@@ -263,4 +263,15 @@ public class UsersController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Get active users count grouped by condominium for the last month (Manager only)
+    /// </summary>
+    [HttpGet("active-last-month-by-condominium")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetActiveLastMonthByCondominium()
+    {
+        var result = await _userService.GetActiveUsersByCondominiumLastMonthAsync();
+        return Ok(result);
+    }
 }

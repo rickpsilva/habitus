@@ -107,8 +107,11 @@ export default function MaintenancePage() {
     setLoading(true);
     maintenanceApi.getPaged(page, pageSize, search)
       .then((r) => {
+        const scopedItems = condominiumId
+          ? r.data.items.filter((item) => item.condominiumId === condominiumId)
+          : [];
         setPagination(r.data);
-        setRequests(r.data.items);
+        setRequests(scopedItems);
         setCurrentPage(page);
       })
       .finally(() => setLoading(false));

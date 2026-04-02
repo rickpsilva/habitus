@@ -32,7 +32,10 @@ public class NotificationsController : ControllerBase
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var condominiumClaim = User.FindFirstValue("CondominiumId");
+        var condominiumId = Guid.TryParse(condominiumClaim, out var parsedCondominiumId)
+            ? parsedCondominiumId
+            : Guid.Empty;
         var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         
@@ -62,7 +65,10 @@ public class NotificationsController : ControllerBase
     [HttpPut("{id}/read")]
     public async Task<IActionResult> MarkRead(Guid id)
     {
-        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var condominiumClaim = User.FindFirstValue("CondominiumId");
+        var condominiumId = Guid.TryParse(condominiumClaim, out var parsedCondominiumId)
+            ? parsedCondominiumId
+            : Guid.Empty;
         var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -73,7 +79,10 @@ public class NotificationsController : ControllerBase
     [HttpPut("mark-all-read")]
     public async Task<IActionResult> MarkAllRead()
     {
-        var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+        var condominiumClaim = User.FindFirstValue("CondominiumId");
+        var condominiumId = Guid.TryParse(condominiumClaim, out var parsedCondominiumId)
+            ? parsedCondominiumId
+            : Guid.Empty;
         var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Resident";
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
