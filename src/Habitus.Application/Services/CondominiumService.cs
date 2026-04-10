@@ -198,6 +198,10 @@ public class CondominiumService
         condominium.Address = request.Address;
         condominium.TaxId = request.TaxId;  // Keep old field for backward compatibility
         condominium.TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId);
+        if (request.Email != null)
+        {
+            condominium.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        }
         condominium.IsActive = request.IsActive;
 
         _condominiumRepository.Update(condominium);

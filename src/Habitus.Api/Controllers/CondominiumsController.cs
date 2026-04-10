@@ -119,6 +119,11 @@ public class CondominiumsController : ControllerBase
                 return Forbid("Admins can only update their own condominium.");
             }
 
+            if (userRole == "Manager" && request.Email != null)
+            {
+                return Forbid("Only admins can change condominium email.");
+            }
+
             var condominium = await _condominiumService.UpdateCondominiumAsync(request);
             return Ok(condominium);
         }

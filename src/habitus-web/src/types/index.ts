@@ -134,6 +134,7 @@ export interface UpdateCondominiumRequest {
   name: string;
   address: string;
   taxId: string;
+  email?: string;
   isActive: boolean;
 }
 

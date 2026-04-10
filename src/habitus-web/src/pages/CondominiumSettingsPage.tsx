@@ -112,6 +112,7 @@ export default function CondominiumSettingsPage() {
 
 function GeneralCondominiumContent() {
   const { condominiumId } = useAuth();
+  const [condominiumData, setCondominiumData] = useState<{ name: string; address: string; taxId: string; isActive: boolean } | null>(null);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -125,6 +126,12 @@ function GeneralCondominiumContent() {
         const response = await condominiumsApi.getById(condominiumId);
         setCondominiumName(response.data.name);
         setEmail(response.data.email || '');
+        setCondominiumData({
+          name: response.data.name,
+          address: response.data.address,
+          taxId: response.data.taxId,
+          isActive: response.data.isActive,
+        });
       } catch (error) {
         console.error('Error loading condominium data:', error);
         alert('Erro ao carregar dados do condomínio');
@@ -137,10 +144,17 @@ function GeneralCondominiumContent() {
   }, [condominiumId]);
 
   const handleSave = async () => {
-    if (!condominiumId) return;
+    if (!condominiumId || !condominiumData) return;
     setSaving(true);
     try {
-      await condominiumsApi.updateEmail(condominiumId, email.trim() || undefined);
+      await condominiumsApi.update(condominiumId, {
+        id: condominiumId,
+        name: condominiumData.name,
+        address: condominiumData.address,
+        taxId: condominiumData.taxId,
+        email: email.trim() || '',
+        isActive: condominiumData.isActive,
+      });
       alert('Email do condomínio guardado com sucesso!');
     } catch (error) {
       console.error('Error saving condominium email:', error);
