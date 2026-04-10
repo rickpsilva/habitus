@@ -126,6 +126,7 @@ export interface CreateCondominiumRequest {
   name: string;
   address: string;
   taxId: string;
+  email?: string;
 }
 
 export interface UpdateCondominiumRequest {

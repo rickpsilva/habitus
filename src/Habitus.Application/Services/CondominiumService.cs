@@ -158,6 +158,7 @@ public class CondominiumService
             Name = request.Name,
             Address = request.Address,
             TaxId = request.TaxId,  // Keep old field for backward compatibility
+            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId),
             CreatedAt = DateTime.UtcNow,
             IsActive = true

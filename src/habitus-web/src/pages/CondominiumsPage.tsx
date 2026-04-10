@@ -32,6 +32,7 @@ export default function CondominiumsPage() {
     name: '',
     address: '',
     taxId: '',
+    email: '',
   });
   const [isActive, setIsActive] = useState(true);
 
@@ -79,7 +80,7 @@ export default function CondominiumsPage() {
       }
       setShowModal(false);
       setEditingId(null);
-      setFormData({ name: '', address: '', taxId: '' });
+      setFormData({ name: '', address: '', taxId: '', email: '' });
       setIsActive(true);
       load();
     } catch (error) {
@@ -94,6 +95,7 @@ export default function CondominiumsPage() {
       name: condo.name,
       address: condo.address,
       taxId: condo.taxId,
+      email: condo.email || '',
     });
     setIsActive(condo.isActive);
     setShowModal(true);
@@ -112,7 +114,7 @@ export default function CondominiumsPage() {
 
   const handleNew = () => {
     setEditingId(null);
-    setFormData({ name: '', address: '', taxId: '' });
+    setFormData({ name: '', address: '', taxId: '', email: '' });
     setIsActive(true);
     setShowModal(true);
   };
@@ -301,18 +303,24 @@ export default function CondominiumsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
-              {editingId && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
-                  <input
-                    type="email"
-                    value={condominiums.find((c) => c.id === editingId)?.email || ''}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">O email é visível ao gestor, mas a edição é feita pelo admin em Configurações.</p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email do Condomínio {editingId ? '' : <span className="text-gray-400">(opcional)</span>}
+                </label>
+                <input
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  disabled={!!editingId}
+                  placeholder="geral@condominio.pt"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${editingId ? 'border-gray-200 bg-gray-50 text-gray-500' : 'border-gray-300'}`}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {editingId
+                    ? 'Depois de criado, o email é editado apenas pelo admin em Configurações.'
+                    : 'Pode definir já o email de contacto do condomínio no momento da criação.'}
+                </p>
+              </div>
               {editingId && (
                 <div className="flex items-center gap-2">
                   <input
