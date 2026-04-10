@@ -56,7 +56,7 @@ public class EncryptionService : IEncryptionService
                 var ciphertextBytes = new byte[plaintextBytes.Length];
                 var tag = new byte[TagSize];
 
-                aes.Encrypt(nonce, plaintextBytes, null, ciphertextBytes, tag);
+                aes.Encrypt(nonce, plaintextBytes, ciphertextBytes, tag);
 
                 // Combine nonce + ciphertext + tag and return as base64
                 var result = new byte[NonceSize + ciphertextBytes.Length + TagSize];
@@ -101,7 +101,7 @@ public class EncryptionService : IEncryptionService
                 Buffer.BlockCopy(encryptedData, NonceSize + ciphertextBytes.Length, tag, 0, TagSize);
 
                 var plaintextBytes = new byte[ciphertextBytes.Length];
-                aes.Decrypt(nonce, ciphertextBytes, null, tag, plaintextBytes);
+                aes.Decrypt(nonce, ciphertextBytes, tag, plaintextBytes);
 
                 return Encoding.UTF8.GetString(plaintextBytes);
             }
