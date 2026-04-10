@@ -18,10 +18,12 @@ import {
   CreditCard,
   Shield,
   Layers,
+  Wallet,
+  ArrowRight,
 } from 'lucide-react';
-import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi } from '../api/services';
+import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { MaintenanceRequestDto, NotificationDto, ReservationDto, CondominiumActiveUsersDto } from '../types';
+import type { MaintenanceRequestDto, NotificationDto, ReservationDto, CondominiumActiveUsersDto, PlatformBillingSettingsDto } from '../types';
 
 function StatCard({
   title,
@@ -97,6 +99,7 @@ export default function DashboardPage() {
   const [managerActiveUserCount, setManagerActiveUserCount] = useState<number>(0);
   const [managerMrr, setManagerMrr] = useState<number | null>(null);
   const [activeByCondominium, setActiveByCondominium] = useState<CondominiumActiveUsersDto[]>([]);
+  const [platformBillingSettings, setPlatformBillingSettings] = useState<PlatformBillingSettingsDto | null>(null);
 
   useEffect(() => {
     if (isManager) {
@@ -108,6 +111,7 @@ export default function DashboardPage() {
       subscriptionsApi.getStats().then((r) => setManagerMrr(r.data.monthlyBillingVolume)).catch(() => {});
         usersApi.getActiveLastMonthByCondominium().then((r) => setActiveByCondominium(r.data)).catch(() => {});
         subscriptionsApi.getStats().then((r) => setManagerMrr(r.data.monthlyBillingVolume)).catch(() => {});
+        platformBillingSettingsApi.get().then((r) => setPlatformBillingSettings(r.data)).catch(() => {});
       return;
     }
 
@@ -258,6 +262,47 @@ export default function DashboardPage() {
                 Pack Gold — 59,90€/mês
               </p>
               <p className="text-xs text-gray-500 mt-2">Analytics avançado, WhatsApp e acesso à API REST.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-indigo-600" />
+                Faturação da Plataforma
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Tens um resumo imediato aqui; a gestão detalhada continua na página de Faturação.
+              </p>
+            </div>
+            <Link to="/billing" className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+              Abrir Faturação
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-lg border border-gray-200 p-4">
+              <p className="text-xs text-gray-500">MRR atual</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {managerMrr !== null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(managerMrr) : '—'}
+              </p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <p className="text-xs text-gray-500">Gateway</p>
+              <p className={`text-xl font-bold mt-1 ${platformBillingSettings?.gatewayEnabled ? 'text-emerald-700' : 'text-gray-700'}`}>
+                {platformBillingSettings?.gatewayEnabled ? 'Ativo' : 'Inativo'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">{platformBillingSettings?.gatewayProvider || 'stripe'}</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <p className="text-xs text-gray-500">Configuração Stripe</p>
+              <p className="text-xl font-bold text-gray-900 mt-1">
+                {platformBillingSettings?.hasSecretKey && platformBillingSettings?.hasWebhookSecret ? 'Completa' : 'Incompleta'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Configurações editáveis em Faturação</p>
             </div>
           </div>
         </div>

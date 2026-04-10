@@ -580,6 +580,9 @@ public class InvoiceService
         if (invoice.Status == InvoiceStatus.Cancelled)
             throw new InvalidOperationException("Cannot initiate payment on a cancelled invoice");
 
+        if (invoice.Status == InvoiceStatus.Draft)
+            throw new InvalidOperationException("Invoice must be emitted before payment can be initiated");
+
         var description = $"Habitus - {invoice.PlanName} ({invoice.Series}-{invoice.Year}/{invoice.Number:D3})";
 
         var session = await gateway.CreatePaymentSessionAsync(

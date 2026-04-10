@@ -42,6 +42,7 @@ public class HabitusDbContext : DbContext
     public DbSet<AnnouncementReadStatus> AnnouncementReadStatuses => Set<AnnouncementReadStatus>();
     public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -257,6 +258,12 @@ public class HabitusDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasIndex(p => p.CondominiumId);
+        });
+
+        modelBuilder.Entity<PlatformBillingSettings>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.GatewayProvider).IsRequired();
         });
 
         // Configure CommunicationSettings relationships

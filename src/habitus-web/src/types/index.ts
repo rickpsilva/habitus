@@ -484,6 +484,27 @@ export interface UpdatePaymentSettingsRequest {
   cardMerchantId?: string;
 }
 
+export interface PlatformBillingSettingsDto {
+  id: string;
+  gatewayEnabled: boolean;
+  gatewayProvider: string;
+  publicKey?: string;
+  merchantDisplayName?: string;
+  hasSecretKey: boolean;
+  hasWebhookSecret: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePlatformBillingSettingsRequest {
+  gatewayEnabled: boolean;
+  gatewayProvider: string;
+  publicKey?: string;
+  secretKey?: string;
+  webhookSecret?: string;
+  merchantDisplayName?: string;
+}
+
 // Communication Settings
 export interface CommunicationSettingsDto {
   id: string;

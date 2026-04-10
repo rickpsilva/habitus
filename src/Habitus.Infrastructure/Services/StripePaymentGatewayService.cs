@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Billing;
 using Habitus.Application.Interfaces;
+using Habitus.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Stripe;
@@ -14,25 +15,26 @@ namespace Habitus.Infrastructure.Services;
 /// </summary>
 public class StripePaymentGatewayService : IPaymentGatewayService
 {
-    private readonly string _webhookSecret;
+    private readonly IRepository<PlatformBillingSettings> _platformBillingSettingsRepository;
+    private readonly IEncryptionService _encryptionService;
+    private readonly string? _fallbackSecretKey;
+    private readonly string? _fallbackWebhookSecret;
     private readonly ILogger<StripePaymentGatewayService> _logger;
 
     // Metadata key used to attach the invoiceId to the Stripe session
     private const string InvoiceIdMetadataKey = "habitus_invoice_id";
 
     public StripePaymentGatewayService(
+        IRepository<PlatformBillingSettings> platformBillingSettingsRepository,
+        IEncryptionService encryptionService,
         IConfiguration configuration,
         ILogger<StripePaymentGatewayService> logger)
     {
+        _platformBillingSettingsRepository = platformBillingSettingsRepository;
+        _encryptionService = encryptionService;
         _logger = logger;
-
-        var secretKey = configuration["Stripe:SecretKey"]
-            ?? throw new InvalidOperationException("Stripe:SecretKey is not configured");
-
-        _webhookSecret = configuration["Stripe:WebhookSecret"]
-            ?? throw new InvalidOperationException("Stripe:WebhookSecret is not configured");
-
-        StripeConfiguration.ApiKey = secretKey;
+        _fallbackSecretKey = configuration["Stripe:SecretKey"];
+        _fallbackWebhookSecret = configuration["Stripe:WebhookSecret"];
     }
 
     /// <inheritdoc/>
@@ -45,6 +47,8 @@ public class StripePaymentGatewayService : IPaymentGatewayService
         string cancelUrl,
         CancellationToken ct = default)
     {
+        StripeConfiguration.ApiKey = await ResolveSecretKeyAsync();
+
         // Stripe amounts are in the smallest currency unit (cents for EUR)
         var amountInCents = (long)Math.Round(amount * 100, 0);
 
@@ -96,10 +100,12 @@ public class StripePaymentGatewayService : IPaymentGatewayService
         string signatureHeader,
         CancellationToken ct = default)
     {
+        var webhookSecret = ResolveWebhookSecret();
+
         Event stripeEvent;
         try
         {
-            stripeEvent = EventUtility.ConstructEvent(payload, signatureHeader, _webhookSecret);
+            stripeEvent = EventUtility.ConstructEvent(payload, signatureHeader, webhookSecret);
         }
         catch (StripeException ex)
         {
@@ -144,5 +150,37 @@ public class StripePaymentGatewayService : IPaymentGatewayService
             InvoiceId = invoiceId,
             GatewayReference = session.Id
         });
+    }
+
+    private async Task<string> ResolveSecretKeyAsync()
+    {
+        var settings = (await _platformBillingSettingsRepository.GetAllAsync()).FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(settings?.SecretKeyEncrypted))
+        {
+            return _encryptionService.Decrypt(settings.SecretKeyEncrypted);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_fallbackSecretKey))
+        {
+            return _fallbackSecretKey;
+        }
+
+        throw new InvalidOperationException("Stripe:SecretKey is not configured");
+    }
+
+    private string ResolveWebhookSecret()
+    {
+        var settings = _platformBillingSettingsRepository.GetAllAsync().GetAwaiter().GetResult().FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(settings?.WebhookSecretEncrypted))
+        {
+            return _encryptionService.Decrypt(settings.WebhookSecretEncrypted);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_fallbackWebhookSecret))
+        {
+            return _fallbackWebhookSecret;
+        }
+
+        throw new InvalidOperationException("Stripe:WebhookSecret is not configured");
     }
 }

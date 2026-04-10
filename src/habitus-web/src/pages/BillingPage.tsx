@@ -19,8 +19,10 @@ import {
   Clock,
   XCircle,
   ExternalLink,
+  KeyRound,
+  Save,
 } from 'lucide-react';
-import { subscriptionsApi, condominiumsApi, invoicesApi } from '../api/services';
+import { subscriptionsApi, condominiumsApi, invoicesApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type {
   SubscriptionPlanDto,
@@ -31,6 +33,8 @@ import type {
   CreateSubscriptionPlanRequest,
   UpdateSubscriptionPlanRequest,
   InvoiceDto,
+  PlatformBillingSettingsDto,
+  UpdatePlatformBillingSettingsRequest,
 } from '../types';
 
 const tierMeta: Record<string, { icon: React.ElementType; color: string; badge: string }> = {
@@ -603,6 +607,177 @@ function PlanCard({
   );
 }
 
+function GatewaySettingsPanel() {
+  const [settings, setSettings] = useState<PlatformBillingSettingsDto | null>(null);
+  const [form, setForm] = useState<UpdatePlatformBillingSettingsRequest>({
+    gatewayEnabled: false,
+    gatewayProvider: 'stripe',
+    publicKey: '',
+    secretKey: '',
+    webhookSecret: '',
+    merchantDisplayName: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await platformBillingSettingsApi.get();
+        setSettings(response.data);
+        setForm({
+          gatewayEnabled: response.data.gatewayEnabled,
+          gatewayProvider: response.data.gatewayProvider || 'stripe',
+          publicKey: response.data.publicKey || '',
+          secretKey: '',
+          webhookSecret: '',
+          merchantDisplayName: response.data.merchantDisplayName || '',
+        });
+      } catch {
+        setError('Não foi possível carregar a configuração do gateway.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await platformBillingSettingsApi.update(form);
+      setSettings(response.data);
+      setForm((prev) => ({ ...prev, secretKey: '', webhookSecret: '' }));
+      setSuccess('Configuração do gateway guardada.');
+    } catch {
+      setError('Erro ao guardar a configuração do gateway.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <KeyRound className="w-4 h-4 text-indigo-600" />
+        <h2 className="text-base font-semibold text-gray-900">Gateway de Pagamento</h2>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
+        {loading ? (
+          <div className="flex items-center text-sm text-gray-400">
+            <RefreshCw className="w-4 h-4 animate-spin mr-2" /> A carregar configuração...
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Ativar gateway</span>
+                <select
+                  value={form.gatewayEnabled ? 'true' : 'false'}
+                  onChange={(e) => setForm({ ...form, gatewayEnabled: e.target.value === 'true' })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="false">Desativado</option>
+                  <option value="true">Ativado</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Provider</span>
+                <select
+                  value={form.gatewayProvider}
+                  onChange={(e) => setForm({ ...form, gatewayProvider: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="stripe">Stripe</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Public Key</span>
+                <input
+                  value={form.publicKey || ''}
+                  onChange={(e) => setForm({ ...form, publicKey: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  placeholder="pk_live_..."
+                />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Merchant / descrição</span>
+                <input
+                  value={form.merchantDisplayName || ''}
+                  onChange={(e) => setForm({ ...form, merchantDisplayName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  placeholder="Habitus Billing"
+                />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Secret Key</span>
+                <input
+                  type="password"
+                  value={form.secretKey || ''}
+                  onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  placeholder={settings?.hasSecretKey ? 'Já configurada. Preencha para substituir.' : 'sk_live_...'}
+                />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-gray-600">Webhook Secret</span>
+                <input
+                  type="password"
+                  value={form.webhookSecret || ''}
+                  onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  placeholder={settings?.hasWebhookSecret ? 'Já configurado. Preencha para substituir.' : 'whsec_...'}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <p className="text-gray-500">Estado</p>
+                <p className={`font-semibold ${form.gatewayEnabled ? 'text-emerald-700' : 'text-gray-700'}`}>
+                  {form.gatewayEnabled ? 'Gateway ativo' : 'Gateway inativo'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <p className="text-gray-500">Secret Key</p>
+                <p className="font-semibold text-gray-800">{settings?.hasSecretKey ? 'Configurada' : 'Em falta'}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
+                <p className="text-gray-500">Webhook Secret</p>
+                <p className="font-semibold text-gray-800">{settings?.hasWebhookSecret ? 'Configurado' : 'Em falta'}</p>
+              </div>
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {success && <p className="text-sm text-emerald-600">{success}</p>}
+
+            <div className="flex items-center justify-between border-t border-gray-100 pt-4 gap-4">
+              <p className="text-xs text-gray-500 max-w-2xl">
+                Estas credenciais são usadas pelo checkout Stripe das faturas da plataforma. Os segredos ficam guardados no backend e não são devolvidos ao frontend.
+              </p>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'A guardar...' : 'Guardar'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function BillingPage() {
   const { isManager } = useAuth();
   const navigate = useNavigate();
@@ -858,6 +1033,8 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
+
+      <GatewaySettingsPanel />
 
       {/* Plans */}
       <section>

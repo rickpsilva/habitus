@@ -41,6 +41,8 @@ import type {
   PaymentMethodsDto,
   PaymentSettingsDto,
   UpdatePaymentSettingsRequest,
+  PlatformBillingSettingsDto,
+  UpdatePlatformBillingSettingsRequest,
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
   QuotaPlanDto,
@@ -430,5 +432,11 @@ export const invoicesApi = {
     api.get(`/invoices/${condominiumId}/saft?year=${year}`),
   saftXmlUrl: (condominiumId: string, year: number) =>
     `/api/invoices/${condominiumId}/saft?year=${year}&format=xml`,
+};
+
+export const platformBillingSettingsApi = {
+  get: () => api.get<PlatformBillingSettingsDto>('/platform/billing-settings'),
+  update: (data: UpdatePlatformBillingSettingsRequest) =>
+    api.put<PlatformBillingSettingsDto>('/platform/billing-settings', data),
 };
 
