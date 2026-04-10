@@ -6,6 +6,123 @@ A plataforma Habitus foi atualizada com sucesso para suportar múltiplos condom�
 
 ---
 
+## 🆕 Sessão de Abril 2026 — Sistema de Faturação Completo
+
+### Etapa 1 — Encriptação de NIF (RGPD)
+
+**Domain:**
+- `Invoice.CustomerTaxIdEncrypted` — campo AES-256-GCM; campo `CustomerTaxId` marcado `[Obsolete]`
+- Helpers na entidade: `SetCustomerTaxIdEncrypted()`, `GetCustomerTaxIdMasked()`
+
+**Infrastructure:**
+- `IEncryptionService` + `EncryptionService` (AES-256-GCM, chave de 32 bytes em `appsettings["EncryptionKey"]`)
+- Migração `AddEncryptionFieldsForSensitiveData` — adiciona `*Encrypted` em `Condominiums` e `Invoices`
+
+### Etapa 2 — Geração e Armazenamento de PDF
+
+**Application:**
+- `InvoicePdfService` (QuestPDF) — gera PDF com logótipo, dados do condomínio, NIF mascarado, linhas IVA
+- `InvoiceService.GenerateAndStorePdfAsync()` — gera bytes → `IBlobStorageService.UploadAsync()` → guarda URL em `Invoice.PdfPath`
+
+**API:**
+- `GET /api/invoices/detail/{id}/pdf` — redireciona para URL do blob; fallback 501 se PDF em falta
+
+### Etapa 3 — Email Automático + Campo `Condominium.Email`
+
+**Domain:**
+- `Condominium.Email` — novo campo `string?`
+- Migração `AddCondominiumEmail` aplicada
+
+**Application:**
+- `InvoiceService.SendInvoiceEmailAsync()` — fire-and-forget após emissão
+- `InvoiceService.BuildInvoiceEmailHtml()` — template HTML profissional PT com referência, valor, prazo e botão PDF
+
+### Etapa 4 — Exportação SAF-T PT
+
+**Application:**
+- `SaftXmlService.GenerateSaftXml()` — XML SAF-T PT v1.04_01 (Portaria 302/2016)
+  - Secção `Header`: empresa, NIF, ano fiscal, datas
+  - Secção `MasterFiles`: tabela de clientes + tabela de impostos (IVA 23%)
+  - Secção `SourceDocuments/SalesInvoices`: faturas com linhas, totais, estado
+- `CondominiumInfoDto` — DTO para cabeçalho SAF-T e PDF
+- `ExportSaftInvoicesAsync()` no `InvoiceService` → `List<SaftInvoiceDto>`
+
+**API:**
+- `GET /api/invoices/{condoId}/saft?year=2026` — JSON (painel)
+- `GET /api/invoices/{condoId}/saft?year=2026&format=xml` — download XML `SAFT-PT_*.xml`
+
+### Etapa 5 — Gateway de Pagamentos (Stripe)
+
+**Application:**
+- `IPaymentGatewayService` — interface com `CreatePaymentSessionAsync` + `HandleWebhookAsync`
+- DTOs: `PaymentSessionDto`, `PaymentWebhookResult`, `InitiateInvoicePaymentResponse`
+
+**Infrastructure:**
+- `MockPaymentGatewayService` — usado em desenvolvimento; retorna URL mock sem chamar Stripe
+- `StripePaymentGatewayService` — Stripe Checkout Sessions; verificação HMAC-SHA256 de webhooks
+- Pacote NuGet: `Stripe.net` v47.0.0
+
+**Domain:**
+- `Invoice.PaymentSessionId` — associa sessão Stripe à fatura
+- Migração `AddInvoicePaymentSessionId` aplicada
+
+**Application:**
+- `InvoiceService.InitiateInvoicePaymentAsync()` — cria sessão, persiste `PaymentSessionId`, devolve URL
+- `InvoiceService.HandlePaymentWebhookAsync()` — processa `checkout.session.completed`, chama `MarkInvoiceAsPaidAsync`
+
+**API:**
+
+| Endpoint | Acesso | Descrição |
+|---|---|---|
+| `POST /api/invoices/detail/{id}/initiate-payment` | Manager / Resident do condomínio | Cria sessão Stripe, devolve URL checkout |
+| `POST /api/invoices/webhooks/stripe` | `[AllowAnonymous]` + HMAC | Webhook Stripe → auto-marca fatura como paga |
+
+**Configuração (`appsettings.json`):**
+```json
+"Stripe": {
+  "SecretKey": "",       // sk_live_*** (variável de ambiente em produção)
+  "WebhookSecret": "",   // whsec_*** (Stripe Dashboard → Webhooks)
+  "PublicKey": ""        // pk_live_*** (frontend se necessário)
+}
+```
+
+### Etapa 6 — Dashboard de Faturas (Frontend)
+
+Integrado na `BillingPage` (Manager-only), abaixo das subscrições:
+
+**Funcionalidades:**
+- Seletor de condomínio, filtros por estado e ano
+- Mini-painel de stats: total emitido, cobrado, em dívida, count vencidas
+- Tabela com: referência SAF-T, data emissão, vencimento (vermelho se vencido), plano, total, estado
+- Ações por linha: download PDF, marcar paga ✓, pagar via Stripe ↗, cancelar ✗
+- Modal de detalhe: breakdown subtotal/IVA/total, todas as datas, botões de acção
+- Botão "Gerar Em Dívida" — trigger manual de `POST /invoices/generate-due`
+- Exportação SAF-T XML com seletor de ano
+
+**Ficheiros alterados:**
+```
+src/habitus-web/src/pages/BillingPage.tsx   — InvoicesDashboard + StatusBadge adicionados
+src/habitus-web/src/api/services.ts         — invoicesApi (list, get, markPaid, cancel, etc.)
+src/habitus-web/src/types/index.ts          — InvoiceDto, MarkInvoicePaidRequest,
+                                               CancelInvoiceRequest, InitiateInvoicePaymentResponse
+```
+
+---
+
+## Migrações EF aplicadas (cronológico)
+
+| Migração | Conteúdo |
+|---|---|
+| `AddEncryptionFieldsForSensitiveData` | Campos `*Encrypted` em Condominiums e Invoices |
+| `AddSubscriptionPlanDiscountsAndManagement` | Descontos anuais/quinquenais, campos gestão |
+| `SeedDefaultSubscriptionPlans` | Planos Free/Silver/Gold + features no DB |
+| `AddInvoiceEntity` | Entidade `Invoice` completa (SAF-T compatible) |
+| `AddInvoiceCustomerTaxIdEncrypted` | `Invoice.CustomerTaxIdEncrypted` |
+| `AddCondominiumEmail` | `Condominium.Email` |
+| `AddInvoicePaymentSessionId` | `Invoice.PaymentSessionId` |
+
+---
+
 ## 🆕 Sessão de Abril 2026 — Manager Experience + Billing
 
 ### Correção Swagger

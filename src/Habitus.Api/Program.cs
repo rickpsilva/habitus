@@ -6,6 +6,7 @@ using Habitus.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using AspNetCoreRateLimit;
 
 // Allow Npgsql to accept DateTime with Kind=Unspecified (treat as UTC).
 // This avoids errors when dates come from JSON deserialization without timezone info.
@@ -68,6 +69,17 @@ builder.Services.AddAuthorization();
 builder.Services.AddHealthChecks();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 
+// ================== Rate Limiting ==================
+// Protege contra DoS e brute-force attacks
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(
+    builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.Configure<ClientRateLimitOptions>(
+    builder.Configuration.GetSection("ClientRateLimiting"));
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+// ===================================================
+
 var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(',') ?? ["http://localhost:3000", "http://localhost:5173"];
 builder.Services.AddCors(options =>
 {
@@ -92,6 +104,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.UseHttpsRedirection();
+app.UseIpRateLimiting();  // ⬅️ Rate limiting middleware (antes de auth)
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

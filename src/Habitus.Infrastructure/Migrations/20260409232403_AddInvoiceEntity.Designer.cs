@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409232403_AddInvoiceEntity")]
+    partial class AddInvoiceEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -404,9 +407,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<string>("Email")
-                        .HasColumnType("text");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -671,11 +671,8 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<string>("CustomerTaxId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CustomerTaxIdEncrypted")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid?>("DocumentId")
                         .HasColumnType("uuid");
@@ -700,9 +697,6 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Property<DateTime?>("PaidDate")
                         .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("PaymentSessionId")
-                        .HasColumnType("text");
 
                     b.Property<string>("PdfPath")
                         .HasColumnType("text");

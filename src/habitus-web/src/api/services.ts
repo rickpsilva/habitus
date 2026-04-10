@@ -56,10 +56,17 @@ import type {
   AnnouncementStatsDto,
   AnnouncementSettingsDto,
   SubscriptionPlanDto,
+  FeatureCatalogItemDto,
   CondominiumSubscriptionDto,
   AssignSubscriptionRequest,
   SubscriptionStatsDto,
+  CreateSubscriptionPlanRequest,
+  UpdateSubscriptionPlanRequest,
   CondominiumActiveUsersDto,
+  InvoiceDto,
+  MarkInvoicePaidRequest,
+  CancelInvoiceRequest,
+  InitiateInvoicePaymentResponse,
 } from '../types';
 
 export const authApi = {
@@ -387,6 +394,10 @@ export const announcementsApi = {
 export const subscriptionsApi = {
   getPlans: () => api.get<SubscriptionPlanDto[]>('/subscriptions/plans'),
   getPlanById: (id: string) => api.get<SubscriptionPlanDto>(`/subscriptions/plans/${id}`),
+  getFeatureCatalog: () => api.get<FeatureCatalogItemDto[]>('/subscriptions/features/catalog'),
+  createPlan: (data: CreateSubscriptionPlanRequest) => api.post<SubscriptionPlanDto>('/subscriptions/plans', data),
+  updatePlan: (id: string, data: UpdateSubscriptionPlanRequest) => api.put<SubscriptionPlanDto>(`/subscriptions/plans/${id}`, data),
+  resetDefaultPlans: () => api.post<SubscriptionPlanDto[]>('/subscriptions/plans/reset-defaults', {}),
   getAll: () => api.get<CondominiumSubscriptionDto[]>('/subscriptions'),
   getStats: () => api.get<SubscriptionStatsDto>('/subscriptions/stats'),
   getMy: () => api.get<CondominiumSubscriptionDto>('/subscriptions/my'),
@@ -400,5 +411,24 @@ export const userRegistrationApi = {
   getPendingUsers: () => api.get<PendingUserDto[]>('/user/pending'),
   approveUser: (userId: string) => api.post<{ message: string }>(`/user/pending/${userId}/approve`, {}),
   rejectUser: (userId: string) => api.delete<{ message: string }>(`/user/pending/${userId}/reject`),
+};
+
+export const invoicesApi = {
+  list: (condominiumId: string) =>
+    api.get<InvoiceDto[]>(`/invoices/${condominiumId}`),
+  get: (invoiceId: string) =>
+    api.get<InvoiceDto>(`/invoices/detail/${invoiceId}`),
+  markPaid: (invoiceId: string, data: MarkInvoicePaidRequest) =>
+    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/mark-paid`, data),
+  cancel: (invoiceId: string, data: CancelInvoiceRequest) =>
+    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/cancel`, data),
+  generateDue: () =>
+    api.post<{ message: string }>('/invoices/generate-due', {}),
+  initiatePayment: (invoiceId: string) =>
+    api.post<InitiateInvoicePaymentResponse>(`/invoices/detail/${invoiceId}/initiate-payment`, {}),
+  exportSaftJson: (condominiumId: string, year: number) =>
+    api.get(`/invoices/${condominiumId}/saft?year=${year}`),
+  saftXmlUrl: (condominiumId: string, year: number) =>
+    `/api/invoices/${condominiumId}/saft?year=${year}&format=xml`,
 };
 

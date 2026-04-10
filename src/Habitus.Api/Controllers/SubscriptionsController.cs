@@ -31,6 +31,60 @@ public class SubscriptionsController : ControllerBase
         return plan is null ? NotFound() : Ok(plan);
     }
 
+    // GET api/subscriptions/features/catalog
+    [HttpGet("features/catalog")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetFeatureCatalog()
+    {
+        var features = await _service.GetFeatureCatalogAsync();
+        return Ok(features);
+    }
+
+    // POST api/subscriptions/plans - create plan (Manager only)
+    [HttpPost("plans")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> CreatePlan([FromBody] CreateSubscriptionPlanRequest request)
+    {
+        try
+        {
+            var plan = await _service.CreatePlanAsync(request);
+            return CreatedAtAction(nameof(GetPlan), new { id = plan.Id }, plan);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // PUT api/subscriptions/plans/{id} - update plan (Manager only)
+    [HttpPut("plans/{id:guid}")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> UpdatePlan(Guid id, [FromBody] UpdateSubscriptionPlanRequest request)
+    {
+        try
+        {
+            var plan = await _service.UpdatePlanAsync(id, request);
+            return Ok(plan);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // POST api/subscriptions/plans/reset-defaults - restore canonical Free/Silver/Gold plans
+    [HttpPost("plans/reset-defaults")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> ResetDefaultPlans()
+    {
+        var plans = await _service.ResetDefaultPlansAsync();
+        return Ok(plans);
+    }
+
     // GET api/subscriptions — all active subscriptions (Manager only)
     [HttpGet]
     [Authorize(Roles = "Manager")]

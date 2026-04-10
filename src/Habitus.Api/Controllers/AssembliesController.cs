@@ -1,6 +1,7 @@
 using Habitus.Application.DTOs.Assemblies;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
+using Habitus.Api.Middleware;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ namespace Habitus.Api.Controllers;
 [ApiController]
 [Route("api/assemblies")]
 [Authorize(Roles = "Admin,Resident")]
+[RequireFeature("assemblies")]
 public class AssembliesController : ControllerBase
 {
     private readonly AssemblyService _service;

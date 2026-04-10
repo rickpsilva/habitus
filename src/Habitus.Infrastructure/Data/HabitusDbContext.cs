@@ -41,6 +41,7 @@ public class HabitusDbContext : DbContext
     public DbSet<AnnouncementComment> AnnouncementComments => Set<AnnouncementComment>();
     public DbSet<AnnouncementReadStatus> AnnouncementReadStatuses => Set<AnnouncementReadStatus>();
     public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -315,14 +316,16 @@ public class HabitusDbContext : DbContext
             entity.Property(p => p.Name).IsRequired().HasMaxLength(64);
             entity.Property(p => p.Description).HasMaxLength(512);
             entity.Property(p => p.PriceMonthly).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.AnnualDiscountPercent).HasColumnType("decimal(5,2)");
+            entity.Property(p => p.QuinquennialDiscountPercent).HasColumnType("decimal(5,2)");
             entity.Property(p => p.PriceAnnual).HasColumnType("decimal(18,2)");
             entity.Property(p => p.PriceQuinquennial).HasColumnType("decimal(18,2)");
             entity.HasIndex(p => p.Tier);
 
             entity.HasData(
-                new SubscriptionPlan { Id = freePlanId,   Name = "Free",   Tier = PlanTier.Free,   Description = "Base operacional com features essenciais.",                                 PriceMonthly = 0m,     PriceAnnual = 0m,      PriceQuinquennial = 0m,      IsActive = true },
-                new SubscriptionPlan { Id = silverPlanId, Name = "Silver", Tier = PlanTier.Silver, Description = "Automações e módulos avançados para condomínios em crescimento.",     PriceMonthly = 29.90m, PriceAnnual = 299.00m, PriceQuinquennial = 1299.00m, IsActive = true },
-                new SubscriptionPlan { Id = goldPlanId,   Name = "Gold",   Tier = PlanTier.Gold,   Description = "Controlo total: analytics, WhatsApp e acesso à API REST.", PriceMonthly = 59.90m, PriceAnnual = 599.00m, PriceQuinquennial = 2499.00m, IsActive = true }
+                new SubscriptionPlan { Id = freePlanId,   Name = "Free",   Tier = PlanTier.Free,   Description = "Base operacional com features essenciais.",                                 PriceMonthly = 0m,     AnnualDiscountPercent = 0m,  QuinquennialDiscountPercent = 0m,  PriceAnnual = 0m,      PriceQuinquennial = 0m,      IsActive = true },
+                new SubscriptionPlan { Id = silverPlanId, Name = "Silver", Tier = PlanTier.Silver, Description = "Automações e módulos avançados para condomínios em crescimento.",     PriceMonthly = 29.90m, AnnualDiscountPercent = 17m, QuinquennialDiscountPercent = 30m, PriceAnnual = 299.00m, PriceQuinquennial = 1299.00m, IsActive = true },
+                new SubscriptionPlan { Id = goldPlanId,   Name = "Gold",   Tier = PlanTier.Gold,   Description = "Controlo total: analytics, WhatsApp e acesso à API REST.", PriceMonthly = 59.90m, AnnualDiscountPercent = 17m, QuinquennialDiscountPercent = 30m, PriceAnnual = 599.00m, PriceQuinquennial = 2499.00m, IsActive = true }
             );
         });
 
@@ -383,6 +386,62 @@ public class HabitusDbContext : DbContext
                 .WithMany(p => p.Subscriptions)
                 .HasForeignKey(s => s.PlanId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Invoices (SAF-T Compatible) ───────────────────────────────────────
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Number).IsRequired();
+            entity.Property(i => i.Series).IsRequired().HasMaxLength(8);
+            entity.Property(i => i.Year).IsRequired();
+            entity.Property(i => i.Type).IsRequired();
+            entity.Property(i => i.CustomerName).IsRequired().HasMaxLength(256);
+            entity.Property(i => i.CustomerTaxIdEncrypted).HasMaxLength(255); // Encrypted NIF
+            entity.Property(i => i.CustomerAddress).HasMaxLength(512);
+            entity.Property(i => i.PlanName).IsRequired().HasMaxLength(128);
+            entity.Property(i => i.SubtotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.VatAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.VatRate).HasColumnType("decimal(5,2)");
+
+            // Relationships
+            entity.HasOne(i => i.Condominium)
+                .WithMany(c => c.Invoices)
+                .HasForeignKey(i => i.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(i => i.Subscription)
+                .WithMany(s => s.Invoices)
+                .HasForeignKey(i => i.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(i => i.IssuedByUser)
+                .WithMany()
+                .HasForeignKey(i => i.IssuedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(i => i.Document)
+                .WithMany()
+                .HasForeignKey(i => i.DocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Indexes for performance (SAF-T reporting queries)
+            entity.HasIndex(i => new { i.CondominiumId, i.Year, i.Number })
+                .IsUnique()
+                .HasDatabaseName("IX_Invoice_Unique_CondominiumYear");
+            
+            entity.HasIndex(i => new { i.CondominiumId, i.IssuedDate })
+                .HasDatabaseName("IX_Invoice_CondominiumIssued");
+            
+            entity.HasIndex(i => i.Status)
+                .HasDatabaseName("IX_Invoice_Status");
+            
+            entity.HasIndex(i => i.DueDate)
+                .HasDatabaseName("IX_Invoice_DueDate");
+            
+            entity.HasIndex(i => new { i.CondominiumId, i.Status })
+                .HasDatabaseName("IX_Invoice_CondominiumStatus");
         });
     }
 }

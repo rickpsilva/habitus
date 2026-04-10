@@ -20,4 +20,5 @@ public class CondominiumSubscription
 
     public Condominium Condominium { get; set; } = null!;
     public SubscriptionPlan Plan { get; set; } = null!;
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

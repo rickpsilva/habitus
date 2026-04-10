@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409224916_SeedDefaultSubscriptionPlans")]
+    partial class SeedDefaultSubscriptionPlans
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -404,9 +407,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<string>("Email")
-                        .HasColumnType("text");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -641,143 +641,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("SupplierId");
 
                     b.ToTable("Interventions");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.Invoice", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CancellationReason")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("CondominiumId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CustomerAddress")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("CustomerTaxId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CustomerTaxIdEncrypted")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<Guid?>("DocumentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("DueDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<Guid?>("IssuedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("IssuedDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Number")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("OriginalInvoiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("PaidDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("PaymentSessionId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PdfPath")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("PeriodEndDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("PeriodStartDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("PlanName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("Series")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SubscriptionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("SubtotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<Guid?>("UpdatedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("VatAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("VatRate")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<int>("Year")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("DueDate")
-                        .HasDatabaseName("IX_Invoice_DueDate");
-
-                    b.HasIndex("IssuedByUserId");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_Invoice_Status");
-
-                    b.HasIndex("SubscriptionId");
-
-                    b.HasIndex("CondominiumId", "IssuedDate")
-                        .HasDatabaseName("IX_Invoice_CondominiumIssued");
-
-                    b.HasIndex("CondominiumId", "Status")
-                        .HasDatabaseName("IX_Invoice_CondominiumStatus");
-
-                    b.HasIndex("CondominiumId", "Year", "Number")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Invoice_Unique_CondominiumYear");
-
-                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceConfirmation", b =>
@@ -2078,39 +1941,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Supplier");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.Invoice", b =>
-                {
-                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
-                        .WithMany("Invoices")
-                        .HasForeignKey("CondominiumId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Habitus.Domain.Entities.Document", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Habitus.Domain.Entities.User", "IssuedByUser")
-                        .WithMany()
-                        .HasForeignKey("IssuedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Habitus.Domain.Entities.CondominiumSubscription", "Subscription")
-                        .WithMany("Invoices")
-                        .HasForeignKey("SubscriptionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Condominium");
-
-                    b.Navigation("Document");
-
-                    b.Navigation("IssuedByUser");
-
-                    b.Navigation("Subscription");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceConfirmation", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.MaintenanceRequest", "MaintenanceRequest")
@@ -2469,8 +2299,6 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Navigation("FinancialRecords");
 
-                    b.Navigation("Invoices");
-
                     b.Navigation("Notifications");
 
                     b.Navigation("Payments");
@@ -2488,11 +2316,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("UserCondominiums");
 
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.CondominiumSubscription", b =>
-                {
-                    b.Navigation("Invoices");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceRequest", b =>

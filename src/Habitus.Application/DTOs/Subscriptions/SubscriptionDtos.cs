@@ -1,6 +1,15 @@
+using Habitus.Domain.Entities;
+
 namespace Habitus.Application.DTOs.Subscriptions;
 
 public class PlanFeatureDto
+{
+    public string FeatureKey { get; set; } = string.Empty;
+    public string FeatureLabel { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+}
+
+public class FeatureCatalogItemDto
 {
     public string FeatureKey { get; set; } = string.Empty;
     public string FeatureLabel { get; set; } = string.Empty;
@@ -13,10 +22,42 @@ public class SubscriptionPlanDto
     public string Tier { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal PriceMonthly { get; set; }
+    public decimal AnnualDiscountPercent { get; set; }
+    public decimal QuinquennialDiscountPercent { get; set; }
     public decimal PriceAnnual { get; set; }
     public decimal PriceQuinquennial { get; set; }
     public bool IsActive { get; set; }
     public List<PlanFeatureDto> Features { get; set; } = new();
+}
+
+public class PlanFeatureToggleRequest
+{
+    public string FeatureKey { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+}
+
+public class CreateSubscriptionPlanRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Tier { get; set; } = PlanTier.Free.ToString();
+    public string Description { get; set; } = string.Empty;
+    public decimal PriceMonthly { get; set; }
+    public decimal AnnualDiscountPercent { get; set; }
+    public decimal QuinquennialDiscountPercent { get; set; }
+    public bool IsActive { get; set; } = true;
+    public List<PlanFeatureToggleRequest> Features { get; set; } = new();
+}
+
+public class UpdateSubscriptionPlanRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Tier { get; set; } = PlanTier.Free.ToString();
+    public string Description { get; set; } = string.Empty;
+    public decimal PriceMonthly { get; set; }
+    public decimal AnnualDiscountPercent { get; set; }
+    public decimal QuinquennialDiscountPercent { get; set; }
+    public bool IsActive { get; set; }
+    public List<PlanFeatureToggleRequest> Features { get; set; } = new();
 }
 
 public class CondominiumSubscriptionDto

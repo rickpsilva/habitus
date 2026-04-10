@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Financial;
 using Habitus.Application.Services;
+using Habitus.Api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,6 +10,7 @@ namespace Habitus.Api.Controllers;
 [ApiController]
 [Route("api/financial")]
 [Authorize(Roles = "Admin,Resident")]
+[RequireFeature("financial")]
 public class FinancialController : ControllerBase
 {
     private readonly FinancialService _service;

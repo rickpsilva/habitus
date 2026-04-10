@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Maintenance;
 using Habitus.Application.Services;
+using Habitus.Api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,6 +10,7 @@ namespace Habitus.Api.Controllers;
 [ApiController]
 [Route("api/maintenance")]
 [Authorize(Roles = "Admin,Resident")]
+[RequireFeature("maintenance")]
 public class MaintenanceController : ControllerBase
 {
     private readonly MaintenanceService _service;

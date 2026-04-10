@@ -9,6 +9,8 @@ public class SubscriptionPlan
     public PlanTier Tier { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal PriceMonthly { get; set; }
+    public decimal AnnualDiscountPercent { get; set; }
+    public decimal QuinquennialDiscountPercent { get; set; }
     public decimal PriceAnnual { get; set; }
     public decimal PriceQuinquennial { get; set; }
     public bool IsActive { get; set; } = true;

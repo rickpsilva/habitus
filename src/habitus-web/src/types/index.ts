@@ -669,6 +669,12 @@ export interface AnnouncementSettingsDto {
 export interface PlanFeatureDto {
   featureKey: string;
   featureLabel: string;
+  isEnabled: boolean;
+}
+
+export interface FeatureCatalogItemDto {
+  featureKey: string;
+  featureLabel: string;
 }
 
 export interface SubscriptionPlanDto {
@@ -677,10 +683,39 @@ export interface SubscriptionPlanDto {
   tier: string;
   description: string;
   priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
   priceAnnual: number;
   priceQuinquennial: number;
   isActive: boolean;
   features: PlanFeatureDto[];
+}
+
+export interface PlanFeatureToggleRequest {
+  featureKey: string;
+  isEnabled: boolean;
+}
+
+export interface CreateSubscriptionPlanRequest {
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
+  isActive: boolean;
+  features: PlanFeatureToggleRequest[];
+}
+
+export interface UpdateSubscriptionPlanRequest {
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
+  isActive: boolean;
+  features: PlanFeatureToggleRequest[];
 }
 
 export interface CondominiumSubscriptionDto {
@@ -706,5 +741,49 @@ export interface SubscriptionStatsDto {
   totalCondominiums: number;
   activeSubscriptions: number;
   monthlyBillingVolume: number;
+}
+
+// ============= Invoice / Billing =============
+
+export interface InvoiceDto {
+  id: string;
+  number: number;
+  series: string;
+  year: number;
+  invoiceRef: string;
+  type: string;
+  issuedDate: string;
+  dueDate: string;
+  paidDate?: string;
+  condominiumId: string;
+  condominiumName: string;
+  customerName: string;
+  planName: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  subtotalAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  vatRate: number;
+  status: 'Draft' | 'Emitted' | 'Paid' | 'Overdue' | 'Cancelled';
+  pdfUrl?: string;
+  isOverdue: boolean;
+  cancellationReason?: string;
+  notes?: string;
+}
+
+export interface MarkInvoicePaidRequest {
+  paidDate?: string;
+  notes?: string;
+}
+
+export interface CancelInvoiceRequest {
+  reason: string;
+  notes?: string;
+}
+
+export interface InitiateInvoicePaymentResponse {
+  paymentUrl: string;
+  sessionId: string;
 }
 

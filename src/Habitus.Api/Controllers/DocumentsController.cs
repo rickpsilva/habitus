@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Habitus.Api.Middleware;
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
@@ -12,6 +13,7 @@ namespace Habitus.Api.Controllers;
 [ApiController]
 [Route("api/documents")]
 [Authorize]
+[RequireFeature("documents")]
 public class DocumentsController : ControllerBase
 {
     public sealed class UploadDocumentForm

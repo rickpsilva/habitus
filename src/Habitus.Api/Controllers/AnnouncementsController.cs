@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Announcements;
 using Habitus.Application.Interfaces;
+using Habitus.Api.Middleware;
 using Habitus.Domain.Entities;
 using Habitus.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,7 @@ namespace Habitus.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/condominiums/{condominiumId}/[controller]")]
+[RequireFeature("announcements")]
 public class AnnouncementsController : ControllerBase
 {
     private readonly HabitusDbContext _context;

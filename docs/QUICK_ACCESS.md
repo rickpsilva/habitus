@@ -100,6 +100,23 @@ Se estás a usar WSL2, os serviços funcionam normalmente em `localhost` no Wind
 
 ---
 
+## 🧾 Endpoints de Faturação
+
+| Endpoint | Método | Acesso | Descrição |
+|---|---|---|---|
+| `/api/invoices/{condoId}` | GET | Manager/Resident | Listar faturas do condomínio |
+| `/api/invoices/detail/{id}` | GET | Manager/Resident | Detalhe de uma fatura |
+| `/api/invoices/detail/{id}/pdf` | GET | Manager/Resident | Redirect para PDF no blob storage |
+| `/api/invoices/detail/{id}/mark-paid` | POST | Manager | Marcar fatura como paga |
+| `/api/invoices/detail/{id}/cancel` | POST | Manager | Cancelar fatura (com motivo) |
+| `/api/invoices/detail/{id}/initiate-payment` | POST | Manager/Resident | Criar sessão Stripe, devolver URL checkout |
+| `/api/invoices/generate-due` | POST | Manager | Gerar faturas em dívida manualmente |
+| `/api/invoices/{condoId}/saft?year=` | GET | Manager | Exportar SAF-T (JSON summary) |
+| `/api/invoices/{condoId}/saft?year=&format=xml` | GET | Manager | Descarregar ficheiro SAF-T PT XML |
+| `/api/invoices/webhooks/stripe` | POST | `[AllowAnonymous]` | Webhook Stripe (HMAC verificado) |
+
+---
+
 ## ❓ Troubleshooting
 
 ### pgAdmin não conecta

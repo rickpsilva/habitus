@@ -1,5 +1,6 @@
 using Habitus.Application.DTOs.Reservations;
 using Habitus.Application.Services;
+using Habitus.Api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,6 +10,7 @@ namespace Habitus.Api.Controllers;
 [ApiController]
 [Route("api/reservations")]
 [Authorize(Roles = "Admin,Resident")]
+[RequireFeature("reservations")]
 public class ReservationsController : ControllerBase
 {
     private readonly ReservationService _service;
