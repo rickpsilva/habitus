@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
   { to: '/reservations', label: 'Reservas', icon: Calendar, featureKey: 'reservations' },
   { to: '/documents', label: 'Documentos', icon: FileText, featureKey: 'documents' },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList, featureKey: 'assemblies' },
-  { to: '/settings', label: 'Configuração Condomínio', icon: Settings, managerOrAdminOnly: true },
+  { to: '/settings', label: 'Configurações', icon: Settings, managerOrAdminOnly: true },
   { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
   { to: '/billing', label: 'Faturação', icon: CreditCard, managerOnly: true },
   { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
@@ -82,6 +82,7 @@ const managerMenuOrder = [
   '/condominiums',
   '/billing',
   '/users',
+  '/settings',
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
