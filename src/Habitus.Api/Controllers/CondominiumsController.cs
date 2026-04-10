@@ -129,6 +129,30 @@ public class CondominiumsController : ControllerBase
     }
 
     /// <summary>
+    /// Update condominium contact email (Admin of the condominium only)
+    /// </summary>
+    [HttpPut("{id}/email")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateCondominiumEmail(Guid id, [FromBody] UpdateCondominiumEmailRequest request)
+    {
+        try
+        {
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+            if (userCondominiumId != id.ToString())
+            {
+                return Forbid("Admins can only update the email of their own condominium.");
+            }
+
+            var condominium = await _condominiumService.UpdateCondominiumEmailAsync(id, request.Email);
+            return Ok(condominium);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Delete condominium (Manager only)
     /// </summary>
     [HttpDelete("{id}")]

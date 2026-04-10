@@ -124,6 +124,8 @@ export const condominiumsApi = {
   create: (data: CreateCondominiumRequest) => api.post<CondominiumDto>('/condominiums', data),
   update: (id: string, data: UpdateCondominiumRequest) =>
     api.put<CondominiumDto>(`/condominiums/${id}`, data),
+  updateEmail: (id: string, email?: string) =>
+    api.put<CondominiumDto>(`/condominiums/${id}/email`, { email }),
   delete: (id: string) => api.delete(`/condominiums/${id}`),
 };
 

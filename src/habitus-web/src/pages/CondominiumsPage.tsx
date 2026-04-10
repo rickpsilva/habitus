@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
@@ -225,6 +225,10 @@ export default function CondominiumsPage() {
                 <div className="flex items-center gap-2 text-gray-600">
                   <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">NIF: {condo.taxId}</span>
                 </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Mail className="w-4 h-4 shrink-0" />
+                  <span className="text-sm">{condo.email || 'Sem email configurado'}</span>
+                </div>
                 {visibleLinkCondoId === condo.id && (
                   <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5">
                     <p className="text-xs font-medium text-emerald-800 mb-1">Link de registo para Admin</p>
@@ -297,6 +301,18 @@ export default function CondominiumsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+              {editingId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
+                  <input
+                    type="email"
+                    value={condominiums.find((c) => c.id === editingId)?.email || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">O email é visível ao gestor, mas a edição é feita pelo admin em Configurações.</p>
+                </div>
+              )}
               {editingId && (
                 <div className="flex items-center gap-2">
                   <input

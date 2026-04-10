@@ -50,6 +50,7 @@ public class CondominiumService
                 Name = condo.Name,
                 Address = condo.Address,
                 TaxId = decryptedTaxId,
+                Email = condo.Email,
                 CreatedAt = condo.CreatedAt,
                 IsActive = condo.IsActive,
                 TotalUnits = units.Count(),
@@ -81,6 +82,7 @@ public class CondominiumService
                 Name = condo.Name,
                 Address = condo.Address,
                 TaxId = decryptedTaxId,
+                Email = condo.Email,
                 CreatedAt = condo.CreatedAt,
                 IsActive = condo.IsActive,
                 TotalUnits = units.Count(),
@@ -138,6 +140,7 @@ public class CondominiumService
             Name = condominium.Name,
             Address = condominium.Address,
             TaxId = decryptedTaxId,
+            Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
             IsActive = condominium.IsActive,
             TotalUnits = unitSummaries.Count,
@@ -174,6 +177,7 @@ public class CondominiumService
             Name = condominium.Name,
             Address = condominium.Address,
             TaxId = decryptedTaxId,
+            Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
             IsActive = condominium.IsActive,
             TotalUnits = 0,
@@ -212,6 +216,41 @@ public class CondominiumService
             Name = condominium.Name,
             Address = condominium.Address,
             TaxId = decryptedTaxId,
+            Email = condominium.Email,
+            CreatedAt = condominium.CreatedAt,
+            IsActive = condominium.IsActive,
+            TotalUnits = units.Count(),
+            TotalUsers = users.Count()
+        };
+    }
+
+    public async Task<CondominiumResponse> UpdateCondominiumEmailAsync(Guid condominiumId, string? email)
+    {
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+        if (condominium == null)
+        {
+            throw new InvalidOperationException($"Condominium with ID {condominiumId} not found.");
+        }
+
+        condominium.Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+
+        _condominiumRepository.Update(condominium);
+        await _condominiumRepository.SaveChangesAsync();
+
+        var users = await _userRepository.FindAsync(u => u.CondominiumId == condominium.Id);
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominium.Id);
+
+        var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
+            ? condominium.TaxId
+            : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+
+        return new CondominiumResponse
+        {
+            Id = condominium.Id,
+            Name = condominium.Name,
+            Address = condominium.Address,
+            TaxId = decryptedTaxId,
+            Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
             IsActive = condominium.IsActive,
             TotalUnits = units.Count(),

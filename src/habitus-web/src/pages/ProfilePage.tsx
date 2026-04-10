@@ -421,6 +421,16 @@ export default function ProfilePage() {
                   <span className="font-medium text-gray-900">{condominium.name}</span>
                 </div>
               )}
+
+              {!isManager && condominium && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email do condomínio:
+                  </span>
+                  <span className="font-medium text-gray-900">{condominium.email || 'Sem email configurado'}</span>
+                </div>
+              )}
               
               {!isManager && unit && (
                 <div className="flex items-center justify-between py-2 border-b border-gray-200">

@@ -4,7 +4,7 @@ import {
   Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi } from '../api/services';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
@@ -15,7 +15,7 @@ import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
 
-type TabKey = 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing';
 
 interface Tab {
   key: TabKey;
@@ -24,6 +24,7 @@ interface Tab {
 }
 
 const adminTabs: Tab[] = [
+  { key: 'general', label: 'Geral', icon: Home },
   { key: 'spaces', label: 'Espaços Comuns', icon: Warehouse },
   { key: 'suppliers', label: 'Fornecedores', icon: Truck },
   { key: 'units', label: 'Frações', icon: Home },
@@ -98,10 +99,101 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'spaces' && <SharedSpacesContent />}
           {activeTab === 'suppliers' && <SuppliersContent />}
           {activeTab === 'units' && <UnitsContent />}
+          {activeTab === 'general' && <GeneralCondominiumContent />}
           {activeTab === 'receipts' && <ReceiptTemplateContent />}
           {activeTab === 'payments' && <PaymentMethodsContent />}
           {activeTab === 'communication' && <CommunicationChannelsContent />}
           {activeTab === 'platform-billing' && <PlatformBillingContent />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GeneralCondominiumContent() {
+  const { condominiumId } = useAuth();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [condominiumName, setCondominiumName] = useState('');
+
+  useEffect(() => {
+    const loadCondominium = async () => {
+      if (!condominiumId) return;
+      setLoading(true);
+      try {
+        const response = await condominiumsApi.getById(condominiumId);
+        setCondominiumName(response.data.name);
+        setEmail(response.data.email || '');
+      } catch (error) {
+        console.error('Error loading condominium data:', error);
+        alert('Erro ao carregar dados do condomínio');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCondominium();
+  }, [condominiumId]);
+
+  const handleSave = async () => {
+    if (!condominiumId) return;
+    setSaving(true);
+    try {
+      await condominiumsApi.updateEmail(condominiumId, email.trim() || undefined);
+      alert('Email do condomínio guardado com sucesso!');
+    } catch (error) {
+      console.error('Error saving condominium email:', error);
+      alert('Erro ao guardar email do condomínio');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Gerais</h3>
+        <p className="text-sm text-gray-500">Gerir o email de contacto visível aos moradores e usado nas notificações de faturação</p>
+      </div>
+
+      <div className="space-y-4 max-w-2xl">
+        <div className="border border-gray-200 rounded-lg p-5 bg-white space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio</label>
+            <input
+              type="text"
+              value={condominiumName}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="geral@condominio.pt"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4 inline mr-2" />
+            {saving ? 'A guardar...' : 'Guardar Email'}
+          </button>
         </div>
       </div>
     </div>
