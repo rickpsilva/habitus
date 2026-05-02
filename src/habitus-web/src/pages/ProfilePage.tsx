@@ -25,7 +25,7 @@ const unitDocumentColors: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isManager } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -291,7 +291,7 @@ export default function ProfilePage() {
             <Shield className="w-4 h-4" />
             Segurança
           </button>
-          {unit && (
+          {!isManager && unit && (
             <button
               onClick={() => setActiveTab('documents')}
               className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                 </span>
               </div>
               
-              {condominium && (
+              {!isManager && condominium && (
                 <div className="flex items-center justify-between py-2 border-b border-gray-200">
                   <span className="text-gray-600 flex items-center gap-2">
                     <Building2 className="w-4 h-4" />
@@ -421,8 +421,18 @@ export default function ProfilePage() {
                   <span className="font-medium text-gray-900">{condominium.name}</span>
                 </div>
               )}
+
+              {!isManager && condominium && (
+                <div className="flex items-center justify-between py-2 border-b border-gray-200">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email do condomínio:
+                  </span>
+                  <span className="font-medium text-gray-900">{condominium.email || 'Sem email configurado'}</span>
+                </div>
+              )}
               
-              {unit && (
+              {!isManager && unit && (
                 <div className="flex items-center justify-between py-2 border-b border-gray-200">
                   <span className="text-gray-600 flex items-center gap-2">
                     <Home className="w-4 h-4" />
@@ -434,7 +444,7 @@ export default function ProfilePage() {
                 </div>
               )}
               
-              {unit && unit.monthlyQuota > 0 && (
+              {!isManager && unit && unit.monthlyQuota > 0 && (
                 <div className="py-2 border-b border-gray-200">
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-4 h-4 text-indigo-600" />
@@ -495,7 +505,9 @@ export default function ProfilePage() {
               
               <div className="pt-3 mt-2 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
-                  <strong>Nota:</strong> Para alterar função, condomínio ou fração, entre em contacto com o gestor ou administrador.
+                  <strong>Nota:</strong> {isManager
+                    ? 'A área de Gestor é focada em segurança e informações gerais da plataforma.'
+                    : 'Para alterar função, condomínio ou fração, entre em contacto com o gestor ou administrador.'}
                 </p>
               </div>
             </div>

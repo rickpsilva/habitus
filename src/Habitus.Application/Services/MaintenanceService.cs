@@ -25,16 +25,29 @@ public class MaintenanceService
         _notificationDispatchService = notificationDispatchService;
     }
 
-    public async Task<IEnumerable<MaintenanceRequestDto>> GetAllAsync()
+    public async Task<IEnumerable<MaintenanceRequestDto>> GetAllAsync(Guid condominiumId, string userRole, Guid userId, Guid? unitId)
     {
         var requests = await _repository.GetAllAsync();
-        return requests.Select(MapToDto);
+        return requests
+            .Where(r => CanUserAccessMaintenance(r, condominiumId, userRole, userId, unitId))
+            .Select(MapToDto)
+            .OrderByDescending(r => r.CreatedAt);
     }
 
-    public async Task<PaginatedResponse<MaintenanceRequestDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    public async Task<PaginatedResponse<MaintenanceRequestDto>> GetPagedAsync(
+        int page,
+        int pageSize,
+        Guid condominiumId,
+        string userRole,
+        Guid userId,
+        Guid? unitId,
+        string? search = null)
     {
         var requests = await _repository.GetAllAsync();
-        var dtos = requests.Select(MapToDto).OrderByDescending(r => r.CreatedAt);
+        var dtos = requests
+            .Where(r => CanUserAccessMaintenance(r, condominiumId, userRole, userId, unitId))
+            .Select(MapToDto)
+            .OrderByDescending(r => r.CreatedAt);
         
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -49,10 +62,13 @@ public class MaintenanceService
         return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
-    public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id)
+    public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id, Guid condominiumId, string userRole, Guid userId, Guid? unitId)
     {
         var request = await _repository.GetByIdAsync(id);
-        return request == null ? null : MapToDto(request);
+        if (request == null) return null;
+        if (!CanUserAccessMaintenance(request, condominiumId, userRole, userId, unitId)) return null;
+
+        return MapToDto(request);
     }
 
     public async Task<MaintenanceRequestDto> CreateAsync(CreateMaintenanceRequest request)
@@ -93,10 +109,18 @@ public class MaintenanceService
         return MapToDto(entity);
     }
 
-    public async Task<MaintenanceRequestDto?> UpdateAsync(Guid id, UpdateMaintenanceRequest request)
+    public async Task<MaintenanceRequestDto?> UpdateAsync(
+        Guid id,
+        UpdateMaintenanceRequest request,
+        Guid condominiumId,
+        string userRole,
+        Guid userId,
+        Guid? unitId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return null;
+        if (!CanUserAccessMaintenance(entity, condominiumId, userRole, userId, unitId)) return null;
+
         if (request.Status != null) entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
         if (request.Priority != null) entity.Priority = Enum.Parse<MaintenancePriority>(request.Priority);
         if (request.Description != null) entity.Description = request.Description;
@@ -106,10 +130,37 @@ public class MaintenanceService
         return MapToDto(entity);
     }
 
-    public async Task<MaintenanceRequestDto?> UpdateStatusAsync(Guid id, UpdateMaintenanceStatusRequest request)
+    public Task<MaintenanceRequestDto?> UpdateAsync(Guid id, UpdateMaintenanceRequest request)
+    {
+        return UpdateWithoutScopeAsync(id, request);
+    }
+
+    private async Task<MaintenanceRequestDto?> UpdateWithoutScopeAsync(Guid id, UpdateMaintenanceRequest request)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return null;
+
+        if (request.Status != null) entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
+        if (request.Priority != null) entity.Priority = Enum.Parse<MaintenancePriority>(request.Priority);
+        if (request.Description != null) entity.Description = request.Description;
+        if (entity.Status == MaintenanceStatus.Resolved) entity.ResolvedAt = DateTime.UtcNow;
+
+        _repository.Update(entity);
+        await _repository.SaveChangesAsync();
+        return MapToDto(entity);
+    }
+
+    public async Task<MaintenanceRequestDto?> UpdateStatusAsync(
+        Guid id,
+        UpdateMaintenanceStatusRequest request,
+        Guid condominiumId,
+        string userRole,
+        Guid userId,
+        Guid? unitId)
+    {
+        var entity = await _repository.GetByIdAsync(id);
+        if (entity == null) return null;
+        if (!CanUserAccessMaintenance(entity, condominiumId, userRole, userId, unitId)) return null;
 
         entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
         
@@ -184,13 +235,40 @@ public class MaintenanceService
         return MapToDto(entity);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid condominiumId, string userRole, Guid userId, Guid? unitId)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return false;
+        if (!CanUserAccessMaintenance(entity, condominiumId, userRole, userId, unitId)) return false;
+
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return true;
+    }
+
+    private static bool CanUserAccessMaintenance(
+        MaintenanceRequest request,
+        Guid condominiumId,
+        string userRole,
+        Guid userId,
+        Guid? unitId)
+    {
+        if (!request.CondominiumId.Equals(condominiumId))
+        {
+            return false;
+        }
+
+        if (string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase))
+        {
+            return request.CreatedBy == userId || (unitId.HasValue && request.UnitId == unitId.Value);
+        }
+
+        return false;
     }
 
     private static MaintenanceRequestDto MapToDto(MaintenanceRequest r) => new()

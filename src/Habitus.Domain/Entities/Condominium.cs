@@ -5,12 +5,15 @@ public class Condominium
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
-    public string? TaxId { get; set; }  // NIF or NIPC
+    public string? Email { get; set; }  // Contact email for notifications
+    public string? TaxId { get; set; }  // NIF or NIPC - will be deprecated, use TaxIdEncrypted
+    public string? TaxIdEncrypted { get; set; }  // Encrypted NIF or NIPC (new field)
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     
     // Payment Methods
-    public string? PaymentIban { get; set; }
+    public string? PaymentIban { get; set; } = string.Empty; // Will be deprecated, use PaymentIbanEncrypted
+    public string? PaymentIbanEncrypted { get; set; } = string.Empty; // Encrypted IBAN (new field)
     public string? PaymentInstructions { get; set; }
     public string? PaymentMbWay { get; set; }
     public string? PaymentMbReference { get; set; }
@@ -33,4 +36,5 @@ public class Condominium
     public ICollection<UsefulContact> UsefulContacts { get; set; } = new List<UsefulContact>();
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

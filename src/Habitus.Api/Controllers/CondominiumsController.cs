@@ -27,6 +27,29 @@ public class CondominiumsController : ControllerBase
         return Ok(condominiums);
     }
 
+    /// <summary>
+    /// Public: minimal condominium list for the resident self-registration page. No authentication required.
+    /// </summary>
+    [HttpGet("public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicCondominiums()
+    {
+        var condominiums = await _condominiumService.GetPublicListAsync();
+        return Ok(condominiums);
+    }
+
+    /// <summary>
+    /// Public: units of a condominium for the resident self-registration page. No authentication required.
+    /// </summary>
+    [HttpGet("{condominiumId}/units/public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicUnits(Guid condominiumId)
+    {
+        var units = await _condominiumService.GetUnitsForRegistrationAsync(condominiumId);
+        if (units == null) return NotFound();
+        return Ok(units);
+    }
+
     [HttpGet("paged")]
     [Authorize(Roles = "Manager")]
     public async Task<IActionResult> GetPagedCondominiums([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
@@ -96,7 +119,36 @@ public class CondominiumsController : ControllerBase
                 return Forbid("Admins can only update their own condominium.");
             }
 
+            if (userRole == "Manager" && request.Email != null)
+            {
+                return Forbid("Only admins can change condominium email.");
+            }
+
             var condominium = await _condominiumService.UpdateCondominiumAsync(request);
+            return Ok(condominium);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update condominium contact email (Admin of the condominium only)
+    /// </summary>
+    [HttpPut("{id}/email")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateCondominiumEmail(Guid id, [FromBody] UpdateCondominiumEmailRequest request)
+    {
+        try
+        {
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+            if (userCondominiumId != id.ToString())
+            {
+                return Forbid("Admins can only update the email of their own condominium.");
+            }
+
+            var condominium = await _condominiumService.UpdateCondominiumEmailAsync(id, request.Email);
             return Ok(condominium);
         }
         catch (Exception ex)

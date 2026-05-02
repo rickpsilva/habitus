@@ -92,11 +92,15 @@ export default function AssembliesPage() {
     setLoading(true);
     assembliesApi.getPaged(page, pageSize, search)
       .then((r) => {
+        // Defensive: only show assemblies belonging to the logged-in user's condominium
+        const scoped = condominiumId
+          ? r.data.items.filter((a) => a.condominiumId === condominiumId)
+          : [];
         // Sort by most recent scheduled date first
-        const sorted = r.data.items.sort((a, b) => 
+        const sorted = scoped.sort((a, b) => 
           new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
         );
-        setPagination(r.data);
+        setPagination({ ...r.data, items: sorted, totalItems: sorted.length });
         setAssemblies(sorted);
         setCurrentPage(page);
       })

@@ -3,6 +3,10 @@ import type {
   AuthResponse,
   LoginRequest,
   RegisterRequest,
+  RegisterResidentRequest,
+  CondominiumPublicDto,
+  UnitPublicDto,
+  PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
   FinancialRecordDto,
@@ -37,6 +41,8 @@ import type {
   PaymentMethodsDto,
   PaymentSettingsDto,
   UpdatePaymentSettingsRequest,
+  PlatformBillingSettingsDto,
+  UpdatePlatformBillingSettingsRequest,
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
   QuotaPlanDto,
@@ -51,6 +57,18 @@ import type {
   CreateAnnouncementCommentRequest,
   AnnouncementStatsDto,
   AnnouncementSettingsDto,
+  SubscriptionPlanDto,
+  FeatureCatalogItemDto,
+  CondominiumSubscriptionDto,
+  AssignSubscriptionRequest,
+  SubscriptionStatsDto,
+  CreateSubscriptionPlanRequest,
+  UpdateSubscriptionPlanRequest,
+  CondominiumActiveUsersDto,
+  InvoiceDto,
+  MarkInvoicePaidRequest,
+  CancelInvoiceRequest,
+  InitiateInvoicePaymentResponse,
 } from '../types';
 
 export const authApi = {
@@ -89,18 +107,25 @@ export const usersApi = {
   },
   updatePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
     api.put(`/users/${id}/password`, data),
+  getActiveLastMonthByCondominium: () =>
+    api.get<CondominiumActiveUsersDto[]>('/users/active-last-month-by-condominium'),
   delete: (id: string) => api.delete(`/users/${id}`),
 };
 
 // New condominiums API
 export const condominiumsApi = {
   getAll: () => api.get<CondominiumDto[]>('/condominiums'),
+  getPublic: () => api.get<CondominiumPublicDto[]>('/condominiums/public'),
+  getUnitsPublic: (condominiumId: string) =>
+    api.get<UnitPublicDto[]>(`/condominiums/${condominiumId}/units/public`),
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
     api.get<PaginatedResponse<CondominiumDto>>(`/condominiums/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getById: (id: string) => api.get<CondominiumDto>(`/condominiums/${id}`),
   create: (data: CreateCondominiumRequest) => api.post<CondominiumDto>('/condominiums', data),
   update: (id: string, data: UpdateCondominiumRequest) =>
     api.put<CondominiumDto>(`/condominiums/${id}`, data),
+  updateEmail: (id: string, email?: string) =>
+    api.put<CondominiumDto>(`/condominiums/${id}/email`, { email }),
   delete: (id: string) => api.delete(`/condominiums/${id}`),
 };
 
@@ -368,5 +393,52 @@ export const announcementsApi = {
     }),
   deleteAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
     api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}`),
+};
+
+export const subscriptionsApi = {
+  getPlans: () => api.get<SubscriptionPlanDto[]>('/subscriptions/plans'),
+  getPlanById: (id: string) => api.get<SubscriptionPlanDto>(`/subscriptions/plans/${id}`),
+  getFeatureCatalog: () => api.get<FeatureCatalogItemDto[]>('/subscriptions/features/catalog'),
+  createPlan: (data: CreateSubscriptionPlanRequest) => api.post<SubscriptionPlanDto>('/subscriptions/plans', data),
+  updatePlan: (id: string, data: UpdateSubscriptionPlanRequest) => api.put<SubscriptionPlanDto>(`/subscriptions/plans/${id}`, data),
+  resetDefaultPlans: () => api.post<SubscriptionPlanDto[]>('/subscriptions/plans/reset-defaults', {}),
+  getAll: () => api.get<CondominiumSubscriptionDto[]>('/subscriptions'),
+  getStats: () => api.get<SubscriptionStatsDto>('/subscriptions/stats'),
+  getMy: () => api.get<CondominiumSubscriptionDto>('/subscriptions/my'),
+  assign: (data: AssignSubscriptionRequest) => api.post<CondominiumSubscriptionDto>('/subscriptions', data),
+  cancel: (id: string) => api.delete(`/subscriptions/${id}`),
+};
+
+export const userRegistrationApi = {
+  registerResident: (condominiumId: string, data: RegisterResidentRequest) =>
+    api.post<{ message: string }>(`/user/register/${condominiumId}/resident`, data),
+  getPendingUsers: () => api.get<PendingUserDto[]>('/user/pending'),
+  approveUser: (userId: string) => api.post<{ message: string }>(`/user/pending/${userId}/approve`, {}),
+  rejectUser: (userId: string) => api.delete<{ message: string }>(`/user/pending/${userId}/reject`),
+};
+
+export const invoicesApi = {
+  list: (condominiumId: string) =>
+    api.get<InvoiceDto[]>(`/invoices/${condominiumId}`),
+  get: (invoiceId: string) =>
+    api.get<InvoiceDto>(`/invoices/detail/${invoiceId}`),
+  markPaid: (invoiceId: string, data: MarkInvoicePaidRequest) =>
+    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/mark-paid`, data),
+  cancel: (invoiceId: string, data: CancelInvoiceRequest) =>
+    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/cancel`, data),
+  generateDue: () =>
+    api.post<{ message: string }>('/invoices/generate-due', {}),
+  initiatePayment: (invoiceId: string) =>
+    api.post<InitiateInvoicePaymentResponse>(`/invoices/detail/${invoiceId}/initiate-payment`, {}),
+  exportSaftJson: (condominiumId: string, year: number) =>
+    api.get(`/invoices/${condominiumId}/saft?year=${year}`),
+  saftXmlUrl: (condominiumId: string, year: number) =>
+    `/api/invoices/${condominiumId}/saft?year=${year}&format=xml`,
+};
+
+export const platformBillingSettingsApi = {
+  get: () => api.get<PlatformBillingSettingsDto>('/platform/billing-settings'),
+  update: (data: UpdatePlatformBillingSettingsRequest) =>
+    api.put<PlatformBillingSettingsDto>('/platform/billing-settings', data),
 };
 

@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import SelectCondominiumPage from './pages/SelectCondominiumPage';
+import ResidentRegisterPage from './pages/ResidentRegisterPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -21,6 +23,7 @@ import SuppliersPage from './pages/SuppliersPage';
 import PaymentsPage from './pages/PaymentsPage';
 import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import BillingPage from './pages/BillingPage';
 
 export default function App() {
   return (
@@ -28,7 +31,11 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          {/* Public registration flow: select condominium → resident registration */}
+          <Route path="/register" element={<SelectCondominiumPage />} />
+          <Route path="/user/register/:condominiumId/resident" element={<ResidentRegisterPage />} />
+          {/* Admin registration (internal, via manager invite link) */}
+          <Route path="/user/register/:condominiumId/admin" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route element={<ProtectedRoute />}>
@@ -44,6 +51,7 @@ export default function App() {
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/condominiums" element={<CondominiumsPage />} />
+            <Route path="/billing" element={<BillingPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/settings" element={<CondominiumSettingsPage />} />

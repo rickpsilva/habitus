@@ -17,7 +17,41 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phone: string;
+  unitId?: string;
+  condominiumId?: string;
+  role?: 'Manager' | 'Admin' | 'Resident';
+}
+
+export interface RegisterResidentRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
   unitId: string;
+}
+
+export interface CondominiumPublicDto {
+  id: string;
+  name: string;
+  address: string;
+}
+
+export interface UnitPublicDto {
+  id: string;
+  number: string;
+  floor: number;
+  apartmentNumber?: string;
+}
+
+export interface PendingUserDto {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  unitId?: string;
+  unitNumber?: string;
+  condominiumId?: string;
+  createdAt: string;
 }
 
 // Deprecated - use UserDto instead
@@ -72,6 +106,12 @@ export interface UpdateUserRequest {
   isActive: boolean;
 }
 
+export interface CondominiumActiveUsersDto {
+  condominiumId: string;
+  condominiumName: string;
+  activeUsersLastMonth: number;
+}
+
 export interface CondominiumDto {
   id: string;
   name: string;
@@ -86,6 +126,7 @@ export interface CreateCondominiumRequest {
   name: string;
   address: string;
   taxId: string;
+  email?: string;
 }
 
 export interface UpdateCondominiumRequest {
@@ -93,6 +134,7 @@ export interface UpdateCondominiumRequest {
   name: string;
   address: string;
   taxId: string;
+  email?: string;
   isActive: boolean;
 }
 
@@ -444,6 +486,27 @@ export interface UpdatePaymentSettingsRequest {
   cardMerchantId?: string;
 }
 
+export interface PlatformBillingSettingsDto {
+  id: string;
+  gatewayEnabled: boolean;
+  gatewayProvider: string;
+  publicKey?: string;
+  merchantDisplayName?: string;
+  hasSecretKey: boolean;
+  hasWebhookSecret: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePlatformBillingSettingsRequest {
+  gatewayEnabled: boolean;
+  gatewayProvider: string;
+  publicKey?: string;
+  secretKey?: string;
+  webhookSecret?: string;
+  merchantDisplayName?: string;
+}
+
 // Communication Settings
 export interface CommunicationSettingsDto {
   id: string;
@@ -623,5 +686,127 @@ export interface AnnouncementStatsDto {
 
 export interface AnnouncementSettingsDto {
   allowAnnouncementComments: boolean;
+}
+
+// Subscription / Billing
+export interface PlanFeatureDto {
+  featureKey: string;
+  featureLabel: string;
+  isEnabled: boolean;
+}
+
+export interface FeatureCatalogItemDto {
+  featureKey: string;
+  featureLabel: string;
+}
+
+export interface SubscriptionPlanDto {
+  id: string;
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
+  priceAnnual: number;
+  priceQuinquennial: number;
+  isActive: boolean;
+  features: PlanFeatureDto[];
+}
+
+export interface PlanFeatureToggleRequest {
+  featureKey: string;
+  isEnabled: boolean;
+}
+
+export interface CreateSubscriptionPlanRequest {
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
+  isActive: boolean;
+  features: PlanFeatureToggleRequest[];
+}
+
+export interface UpdateSubscriptionPlanRequest {
+  name: string;
+  tier: string;
+  description: string;
+  priceMonthly: number;
+  annualDiscountPercent: number;
+  quinquennialDiscountPercent: number;
+  isActive: boolean;
+  features: PlanFeatureToggleRequest[];
+}
+
+export interface CondominiumSubscriptionDto {
+  id: string;
+  condominiumId: string;
+  condominiumName: string;
+  plan: SubscriptionPlanDto;
+  billingCycle: string;
+  status: string;
+  startDate: string;
+  endDate?: string;
+  nextBillingDate: string;
+  priceAtPurchase: number;
+}
+
+export interface AssignSubscriptionRequest {
+  condominiumId: string;
+  planId: string;
+  billingCycle: string;
+}
+
+export interface SubscriptionStatsDto {
+  totalCondominiums: number;
+  activeSubscriptions: number;
+  monthlyBillingVolume: number;
+}
+
+// ============= Invoice / Billing =============
+
+export interface InvoiceDto {
+  id: string;
+  number: number;
+  series: string;
+  year: number;
+  invoiceRef: string;
+  type: string;
+  issuedDate: string;
+  dueDate: string;
+  paidDate?: string;
+  condominiumId: string;
+  condominiumName: string;
+  customerName: string;
+  planName: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  subtotalAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  vatRate: number;
+  status: 'Draft' | 'Emitted' | 'Paid' | 'Overdue' | 'Cancelled';
+  pdfUrl?: string;
+  isOverdue: boolean;
+  cancellationReason?: string;
+  notes?: string;
+}
+
+export interface MarkInvoicePaidRequest {
+  paidDate?: string;
+  notes?: string;
+}
+
+export interface CancelInvoiceRequest {
+  reason: string;
+  notes?: string;
+}
+
+export interface InitiateInvoicePaymentResponse {
+  paymentUrl: string;
+  sessionId: string;
 }
 

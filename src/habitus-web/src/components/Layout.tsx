@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { announcementsApi, notificationsApi } from '../api/services';
+import { announcementsApi, notificationsApi, subscriptionsApi } from '../api/services';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import {
   LayoutDashboard,
@@ -31,22 +31,26 @@ interface NavItem {
   managerOnly?: boolean;
   managerOrAdminOnly?: boolean;
   residentOnly?: boolean;
+  featureKey?: string;
 }
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/maintenance', label: 'Manutenção', icon: Wrench },
-  { to: '/financial', label: 'Financeiro', icon: DollarSign },
-  { to: '/payments', label: 'Pagamentos', icon: CreditCard, residentOnly: true },
+  { to: '/maintenance', label: 'Manutenção', icon: Wrench, featureKey: 'maintenance' },
+  { to: '/financial', label: 'Financeiro', icon: DollarSign, featureKey: 'financial' },
+  { to: '/payments', label: 'Pagamentos', icon: CreditCard, residentOnly: true, featureKey: 'financial' },
   { to: '/notifications', label: 'Notificações', icon: Bell },
-  { to: '/announcements', label: 'Comunicados', icon: Megaphone },
-  { to: '/reservations', label: 'Reservas', icon: Calendar },
-  { to: '/documents', label: 'Documentos', icon: FileText },
-  { to: '/assemblies', label: 'Assembleias', icon: ClipboardList },
-  { to: '/settings', label: 'Configuração Condomínio', icon: Settings, managerOrAdminOnly: true },
+  { to: '/announcements', label: 'Comunicados', icon: Megaphone, featureKey: 'announcements' },
+  { to: '/reservations', label: 'Reservas', icon: Calendar, featureKey: 'reservations' },
+  { to: '/documents', label: 'Documentos', icon: FileText, featureKey: 'documents' },
+  { to: '/assemblies', label: 'Assembleias', icon: ClipboardList, featureKey: 'assemblies' },
+  { to: '/settings', label: 'Configurações', icon: Settings, managerOrAdminOnly: true },
   { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
-  { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true },
+  { to: '/billing', label: 'Faturação', icon: CreditCard, managerOnly: true },
+  { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
 ];
+
+const fallbackFreeFeatures = new Set(['maintenance', 'announcements', 'documents']);
 
 const adminMenuOrder = [
   '/dashboard',
@@ -75,16 +79,10 @@ const residentMenuOrder = [
 
 const managerMenuOrder = [
   '/dashboard',
-  '/notifications',
-  '/announcements',
-  '/maintenance',
-  '/financial',
-  '/reservations',
-  '/documents',
-  '/assemblies',
+  '/condominiums',
+  '/billing',
   '/users',
   '/settings',
-  '/condominiums',
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -94,10 +92,44 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingAnnouncementsCount, setPendingAnnouncementsCount] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
+  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
+  const [featureAccessLoaded, setFeatureAccessLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadFeatureAccess = async () => {
+      if (isManager) {
+        setEnabledFeatures(new Set());
+        setFeatureAccessLoaded(true);
+        return;
+      }
+
+      try {
+        const subscription = await subscriptionsApi.getMy();
+        const featureSet = new Set(
+          subscription.data.plan.features
+            .filter((f) => f.isEnabled)
+            .map((f) => f.featureKey)
+        );
+        setEnabledFeatures(featureSet);
+      } catch {
+        setEnabledFeatures(new Set(fallbackFreeFeatures));
+      } finally {
+        setFeatureAccessLoaded(true);
+      }
+    };
+
+    loadFeatureAccess();
+  }, [isManager, user?.condominiumId]);
 
   useEffect(() => {
     const loadCounts = async () => {
       try {
+        if (isManager) {
+          setUnreadCount(0);
+          setPendingAnnouncementsCount(0);
+          return;
+        }
+
         const notificationsRes = await notificationsApi.getAll(1, 100);
         const unread = notificationsRes.data.items.filter((n) => !n.isRead).length;
         setUnreadCount(unread);
@@ -116,7 +148,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     loadCounts();
     const interval = setInterval(loadCounts, 30000); // Refresh every 30s
     return () => clearInterval(interval);
-  }, [isAdmin, user?.condominiumId]);
+  }, [isAdmin, isManager, user?.condominiumId]);
 
   useEffect(() => {
     return onThemeChanged(() => {
@@ -138,6 +170,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
     if (item.residentOnly && !isResident) return false;
+    if (!isManager && item.featureKey && featureAccessLoaded && !enabledFeatures.has(item.featureKey)) return false;
+    // Manager only sees items explicitly in the manager menu order
+    if (isManager && !managerMenuOrder.includes(item.to)) return false;
     return true;
   });
 

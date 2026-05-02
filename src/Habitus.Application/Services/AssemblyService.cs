@@ -22,9 +22,11 @@ public class AssemblyService
         _notificationDispatchService = notificationDispatchService;
     }
 
-    public async Task<IEnumerable<AssemblyDto>> GetAllAsync()
+    public async Task<IEnumerable<AssemblyDto>> GetAllAsync(Guid condominiumId, string userRole)
     {
-        var assemblies = (await _repository.GetAllAsync()).ToList();
+        var assemblies = (await _repository.GetAllAsync())
+            .Where(a => CanUserAccessAssembly(a, condominiumId, userRole))
+            .ToList();
         
         // Auto-update status for scheduled assemblies that should be in progress
         await UpdateScheduledAssembliesStatusAsync(assemblies);
@@ -32,9 +34,11 @@ public class AssemblyService
         return assemblies.Select(MapToDto);
     }
 
-    public async Task<PaginatedResponse<AssemblyDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    public async Task<PaginatedResponse<AssemblyDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole, string? search = null)
     {
-        var assemblies = (await _repository.GetAllAsync()).ToList();
+        var assemblies = (await _repository.GetAllAsync())
+            .Where(a => CanUserAccessAssembly(a, condominiumId, userRole))
+            .ToList();
         
         // Auto-update status for scheduled assemblies that should be in progress
         await UpdateScheduledAssembliesStatusAsync(assemblies);
@@ -54,10 +58,11 @@ public class AssemblyService
         return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
-    public async Task<AssemblyDto?> GetByIdAsync(Guid id)
+    public async Task<AssemblyDto?> GetByIdAsync(Guid id, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
         
         // Auto-update status if needed
         await UpdateStatusIfNeededAsync(assembly);
@@ -99,10 +104,11 @@ public class AssemblyService
         return MapToDto(assembly);
     }
 
-    public async Task<AssemblyDto?> UpdateAsync(Guid id, UpdateAssemblyRequest request)
+    public async Task<AssemblyDto?> UpdateAsync(Guid id, UpdateAssemblyRequest request, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
 
         if (request.Title != null) assembly.Title = request.Title;
         if (request.Description != null) assembly.Description = request.Description;
@@ -125,20 +131,22 @@ public class AssemblyService
         return MapToDto(assembly);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return false;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return false;
 
         _repository.Remove(assembly);
         await _repository.SaveChangesAsync();
         return true;
     }
 
-    public async Task<AssemblyDto?> UpdateMinutesAsync(Guid id, UpdateMinutesRequest request)
+    public async Task<AssemblyDto?> UpdateMinutesAsync(Guid id, UpdateMinutesRequest request, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
 
         assembly.Minutes = request.Minutes;
         assembly.Status = AssemblyStatus.Completed;
@@ -158,10 +166,11 @@ public class AssemblyService
         return MapToDto(assembly);
     }
 
-    public async Task<AssemblyDto?> UpdateMinutesDraftAsync(Guid id, UpdateMinutesRequest request)
+    public async Task<AssemblyDto?> UpdateMinutesDraftAsync(Guid id, UpdateMinutesRequest request, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
 
         // Apenas atualiza as atas sem mudar status ou enviar notificações
         assembly.Minutes = request.Minutes;
@@ -173,10 +182,11 @@ public class AssemblyService
         return MapToDto(assembly);
     }
 
-    public async Task<AssemblyDto?> UpdateNotesAsync(Guid id, UpdateNotesRequest request)
+    public async Task<AssemblyDto?> UpdateNotesAsync(Guid id, UpdateNotesRequest request, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
 
         assembly.Notes = request.Notes;
         assembly.UpdatedAt = DateTime.UtcNow;
@@ -187,10 +197,11 @@ public class AssemblyService
         return MapToDto(assembly);
     }
 
-    public async Task<AssemblyDto?> CancelAsync(Guid id, CancelAssemblyRequest request)
+    public async Task<AssemblyDto?> CancelAsync(Guid id, CancelAssemblyRequest request, Guid condominiumId, string userRole)
     {
         var assembly = await _repository.GetByIdAsync(id);
         if (assembly == null) return null;
+        if (!CanUserAccessAssembly(assembly, condominiumId, userRole)) return null;
 
         assembly.Status = AssemblyStatus.Cancelled;
         assembly.CancellationReason = request.CancellationReason;
@@ -208,6 +219,16 @@ public class AssemblyService
         );
 
         return MapToDto(assembly);
+    }
+
+    private static bool CanUserAccessAssembly(Assembly assembly, Guid condominiumId, string userRole)
+    {
+        if (!assembly.CondominiumId.Equals(condominiumId))
+            return false;
+
+        // Both Admin and Resident can see all assemblies within their condominium
+        return string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task CreateNotificationForCondominiumUsersAsync(Guid condominiumId, string title, string message, bool sendExternalChannels)

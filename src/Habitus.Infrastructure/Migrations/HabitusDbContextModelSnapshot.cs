@@ -404,6 +404,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -418,6 +421,9 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("PaymentIban")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentIbanEncrypted")
                         .HasColumnType("text");
 
                     b.Property<string>("PaymentInstructions")
@@ -435,11 +441,61 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("TaxId")
                         .HasColumnType("text");
 
+                    b.Property<string>("TaxIdEncrypted")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TaxId");
 
                     b.ToTable("Condominiums");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.CondominiumSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BillingCycle")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("NextBillingDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PriceAtPurchase")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("CondominiumSubscriptions");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
@@ -585,6 +641,143 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("SupplierId");
 
                     b.ToTable("Interventions");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Invoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CustomerAddress")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CustomerTaxId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CustomerTaxIdEncrypted")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("IssuedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("IssuedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("OriginalInvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PaidDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("PaymentSessionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PdfPath")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("PeriodEndDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("PeriodStartDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("PlanName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Series")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SubscriptionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("SubtotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("VatAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("VatRate")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("DueDate")
+                        .HasDatabaseName("IX_Invoice_DueDate");
+
+                    b.HasIndex("IssuedByUserId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Invoice_Status");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.HasIndex("CondominiumId", "IssuedDate")
+                        .HasDatabaseName("IX_Invoice_CondominiumIssued");
+
+                    b.HasIndex("CondominiumId", "Status")
+                        .HasDatabaseName("IX_Invoice_CondominiumStatus");
+
+                    b.HasIndex("CondominiumId", "Year", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Invoice_Unique_CondominiumYear");
+
+                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceConfirmation", b =>
@@ -884,6 +1077,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("BankTransferIban")
                         .HasColumnType("text");
 
+                    b.Property<string>("BankTransferIbanEncrypted")
+                        .HasColumnType("text");
+
                     b.Property<bool>("CardEnabled")
                         .HasColumnType("boolean");
 
@@ -897,6 +1093,9 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("CardSecretKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardSecretKeyEncrypted")
                         .HasColumnType("text");
 
                     b.Property<Guid>("CondominiumId")
@@ -931,6 +1130,234 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("CondominiumId");
 
                     b.ToTable("PaymentSettings");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.PlanFeature", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FeatureLabel")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId", "FeatureKey")
+                        .IsUnique();
+
+                    b.ToTable("PlanFeatures");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("f1000001-0000-0000-0000-000000000000"),
+                            FeatureKey = "maintenance",
+                            FeatureLabel = "Manutenção",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c001-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f1000002-0000-0000-0000-000000000000"),
+                            FeatureKey = "announcements",
+                            FeatureLabel = "Comunicados",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c001-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f1000003-0000-0000-0000-000000000000"),
+                            FeatureKey = "documents",
+                            FeatureLabel = "Documentos (até 10)",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c001-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000001-0000-0000-0000-000000000000"),
+                            FeatureKey = "maintenance",
+                            FeatureLabel = "Manutenção",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000002-0000-0000-0000-000000000000"),
+                            FeatureKey = "announcements",
+                            FeatureLabel = "Comunicados",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000003-0000-0000-0000-000000000000"),
+                            FeatureKey = "documents",
+                            FeatureLabel = "Documentos (ilimitados)",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000004-0000-0000-0000-000000000000"),
+                            FeatureKey = "reservations",
+                            FeatureLabel = "Reservas de Espaços",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000005-0000-0000-0000-000000000000"),
+                            FeatureKey = "financial",
+                            FeatureLabel = "Gestão Financeira",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000006-0000-0000-0000-000000000000"),
+                            FeatureKey = "assemblies",
+                            FeatureLabel = "Assembleias",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f2000007-0000-0000-0000-000000000000"),
+                            FeatureKey = "email_notifications",
+                            FeatureLabel = "Notificações por Email",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c002-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000001-0000-0000-0000-000000000000"),
+                            FeatureKey = "maintenance",
+                            FeatureLabel = "Manutenção",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000002-0000-0000-0000-000000000000"),
+                            FeatureKey = "announcements",
+                            FeatureLabel = "Comunicados",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000003-0000-0000-0000-000000000000"),
+                            FeatureKey = "documents",
+                            FeatureLabel = "Documentos (ilimitados)",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000004-0000-0000-0000-000000000000"),
+                            FeatureKey = "reservations",
+                            FeatureLabel = "Reservas de Espaços",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000005-0000-0000-0000-000000000000"),
+                            FeatureKey = "financial",
+                            FeatureLabel = "Gestão Financeira",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000006-0000-0000-0000-000000000000"),
+                            FeatureKey = "assemblies",
+                            FeatureLabel = "Assembleias",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000007-0000-0000-0000-000000000000"),
+                            FeatureKey = "email_notifications",
+                            FeatureLabel = "Notificações por Email",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000008-0000-0000-0000-000000000000"),
+                            FeatureKey = "analytics",
+                            FeatureLabel = "Analytics Avançado",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000009-0000-0000-0000-000000000000"),
+                            FeatureKey = "whatsapp_notifications",
+                            FeatureLabel = "Notificações WhatsApp",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        },
+                        new
+                        {
+                            Id = new Guid("f3000010-0000-0000-0000-000000000000"),
+                            FeatureKey = "api_access",
+                            FeatureLabel = "Acesso à API REST",
+                            IsEnabled = true,
+                            PlanId = new Guid("a0b0c003-0000-0000-0000-000000000000")
+                        });
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.PlatformBillingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("GatewayEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("GatewayProvider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MerchantDisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PublicKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecretKeyEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("WebhookSecretEncrypted")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlatformBillingSettings");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
@@ -1170,6 +1597,91 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("CondominiumId");
 
                     b.ToTable("SharedSpaces");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.SubscriptionPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AnnualDiscountPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("PriceAnnual")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PriceMonthly")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PriceQuinquennial")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("QuinquennialDiscountPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Tier");
+
+                    b.ToTable("SubscriptionPlans");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a0b0c001-0000-0000-0000-000000000000"),
+                            AnnualDiscountPercent = 0m,
+                            Description = "Base operacional com features essenciais.",
+                            IsActive = true,
+                            Name = "Free",
+                            PriceAnnual = 0m,
+                            PriceMonthly = 0m,
+                            PriceQuinquennial = 0m,
+                            QuinquennialDiscountPercent = 0m,
+                            Tier = 0
+                        },
+                        new
+                        {
+                            Id = new Guid("a0b0c002-0000-0000-0000-000000000000"),
+                            AnnualDiscountPercent = 17m,
+                            Description = "Automações e módulos avançados para condomínios em crescimento.",
+                            IsActive = true,
+                            Name = "Silver",
+                            PriceAnnual = 299.00m,
+                            PriceMonthly = 29.90m,
+                            PriceQuinquennial = 1299.00m,
+                            QuinquennialDiscountPercent = 30m,
+                            Tier = 1
+                        },
+                        new
+                        {
+                            Id = new Guid("a0b0c003-0000-0000-0000-000000000000"),
+                            AnnualDiscountPercent = 17m,
+                            Description = "Controlo total: analytics, WhatsApp e acesso à API REST.",
+                            IsActive = true,
+                            Name = "Gold",
+                            PriceAnnual = 599.00m,
+                            PriceMonthly = 59.90m,
+                            PriceQuinquennial = 2499.00m,
+                            QuinquennialDiscountPercent = 30m,
+                            Tier = 2
+                        });
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Supplier", b =>
@@ -1505,6 +2017,25 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Condominium");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.CondominiumSubscription", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany()
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.SubscriptionPlan", "Plan")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Plan");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Assembly", "Assembly")
@@ -1581,6 +2112,39 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("MaintenanceRequest");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.Invoice", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("Invoices")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Document", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.User", "IssuedByUser")
+                        .WithMany()
+                        .HasForeignKey("IssuedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Habitus.Domain.Entities.CondominiumSubscription", "Subscription")
+                        .WithMany("Invoices")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Document");
+
+                    b.Navigation("IssuedByUser");
+
+                    b.Navigation("Subscription");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceConfirmation", b =>
@@ -1704,6 +2268,17 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Condominium");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.PlanFeature", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.SubscriptionPlan", "Plan")
+                        .WithMany("Features")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.QuotaCalculation", b =>
@@ -1930,6 +2505,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Navigation("FinancialRecords");
 
+                    b.Navigation("Invoices");
+
                     b.Navigation("Notifications");
 
                     b.Navigation("Payments");
@@ -1949,6 +2526,11 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.CondominiumSubscription", b =>
+                {
+                    b.Navigation("Invoices");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceRequest", b =>
                 {
                     b.Navigation("Confirmations");
@@ -1966,6 +2548,13 @@ namespace Habitus.Infrastructure.Migrations
             modelBuilder.Entity("Habitus.Domain.Entities.SharedSpace", b =>
                 {
                     b.Navigation("Reservations");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.SubscriptionPlan", b =>
+                {
+                    b.Navigation("Features");
+
+                    b.Navigation("Subscriptions");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Supplier", b =>

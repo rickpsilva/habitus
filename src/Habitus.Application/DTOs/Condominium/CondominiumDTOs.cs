@@ -5,6 +5,7 @@ public class CreateCondominiumRequest
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string? TaxId { get; set; }
+    public string? Email { get; set; }
 }
 
 public class UpdateCondominiumRequest
@@ -13,7 +14,13 @@ public class UpdateCondominiumRequest
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string? TaxId { get; set; }
+    public string? Email { get; set; }
     public bool IsActive { get; set; }
+}
+
+public class UpdateCondominiumEmailRequest
+{
+    public string? Email { get; set; }
 }
 
 public class CondominiumResponse
@@ -22,6 +29,7 @@ public class CondominiumResponse
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string? TaxId { get; set; }
+    public string? Email { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
     public int TotalUnits { get; set; }

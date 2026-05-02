@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useParams } from 'react-router-dom';
 import { Building2, Mail, Lock, User, Phone, Home } from 'lucide-react';
 import { authApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import type { UnitDto } from '../types';
+import type { UnitDto, RegisterRequest } from '../types';
 
 export default function RegisterPage() {
+  const { condominiumId: routeCondominiumId } = useParams<{ condominiumId?: string }>();
+  const isAdminRegistration = Boolean(routeCondominiumId);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', unitId: '' });
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [error, setError] = useState('');
@@ -14,8 +16,12 @@ export default function RegisterPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (isAdminRegistration) {
+      setUnits([]);
+      return;
+    }
     unitsApi.getAll().then((r) => setUnits(r.data)).catch(() => {});
-  }, []);
+  }, [isAdminRegistration]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -26,7 +32,37 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authApi.register(form);
+      let request: RegisterRequest;
+
+      if (isAdminRegistration) {
+        request = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone,
+          condominiumId: routeCondominiumId,
+          role: 'Admin',
+        };
+      } else {
+        const selectedUnit = units.find((u) => u.id === form.unitId);
+        if (!selectedUnit) {
+          setError('Selecione uma fração válida para concluir o registo.');
+          setLoading(false);
+          return;
+        }
+
+        request = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone,
+          unitId: form.unitId,
+          condominiumId: selectedUnit.condominiumId,
+          role: 'Resident',
+        };
+      }
+
+      const { data } = await authApi.register(request);
       login(data);
       navigate('/dashboard');
     } catch {
@@ -48,7 +84,15 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Criar Conta</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            {isAdminRegistration ? 'Registo de Administrador' : 'Criar Conta'}
+          </h2>
+
+          {isAdminRegistration && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 text-amber-800 text-sm">
+              Está a efetuar o registo de um utilizador com perfil Administrador para o condomínio indicado pelo gestor.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>
@@ -78,26 +122,28 @@ export default function RegisterPage() {
               </div>
             ))}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Fração</label>
-              <div className="relative">
-                <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  name="unitId"
-                  value={form.unitId}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-white"
-                >
-                  <option value="">Selecionar fração</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.number} – Piso {u.floor}
-                    </option>
-                  ))}
-                </select>
+            {!isAdminRegistration && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Fração</label>
+                <div className="relative">
+                  <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select
+                    name="unitId"
+                    value={form.unitId}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-white"
+                  >
+                    <option value="">Selecionar fração</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.number} – Piso {u.floor}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
 
             <button
               type="submit"

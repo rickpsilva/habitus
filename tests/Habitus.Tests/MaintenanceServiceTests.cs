@@ -15,7 +15,10 @@ public class MaintenanceServiceTests
     public MaintenanceServiceTests()
     {
         _repositoryMock = new Mock<IRepository<MaintenanceRequest>>();
-        _service = new MaintenanceService(_repositoryMock.Object);
+        var notificationRepoMock = new Mock<IRepository<Notification>>();
+        var financialRepoMock = new Mock<IRepository<FinancialRecord>>();
+        var dispatchMock = new Mock<INotificationDispatchService>();
+        _service = new MaintenanceService(_repositoryMock.Object, notificationRepoMock.Object, financialRepoMock.Object, dispatchMock.Object);
     }
 
     [Fact]

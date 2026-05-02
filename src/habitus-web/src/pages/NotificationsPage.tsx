@@ -18,7 +18,7 @@ function parseNotificationMessage(message: string) {
 }
 
 export default function NotificationsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,6 +66,22 @@ export default function NotificationsPage() {
       load(page);
     }
   };
+
+  if (isManager) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Notificações</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            O perfil Gestor não recebe notificações operacionais de condóminos.
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-6 text-sm text-gray-600">
+          Use o Dashboard do Gestor para acompanhamento da plataforma, billing e gestão da carteira de condomínios.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

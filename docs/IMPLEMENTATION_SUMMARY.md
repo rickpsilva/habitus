@@ -4,6 +4,196 @@
 
 A plataforma Habitus foi atualizada com sucesso para suportar múltiplos condomínios com controlo de acesso hierárquico conforme solicitado.
 
+---
+
+## 🆕 Sessão de Abril 2026 — Sistema de Faturação Completo
+
+### Etapa 1 — Encriptação de NIF (RGPD)
+
+**Domain:**
+- `Invoice.CustomerTaxIdEncrypted` — campo AES-256-GCM; campo `CustomerTaxId` marcado `[Obsolete]`
+- Helpers na entidade: `SetCustomerTaxIdEncrypted()`, `GetCustomerTaxIdMasked()`
+
+**Infrastructure:**
+- `IEncryptionService` + `EncryptionService` (AES-256-GCM, chave de 32 bytes em `appsettings["EncryptionKey"]`)
+- Migração `AddEncryptionFieldsForSensitiveData` — adiciona `*Encrypted` em `Condominiums` e `Invoices`
+
+### Etapa 2 — Geração e Armazenamento de PDF
+
+**Application:**
+- `InvoicePdfService` (QuestPDF) — gera PDF com logótipo, dados do condomínio, NIF mascarado, linhas IVA
+- `InvoiceService.GenerateAndStorePdfAsync()` — gera bytes → `IBlobStorageService.UploadAsync()` → guarda URL em `Invoice.PdfPath`
+
+**API:**
+- `GET /api/invoices/detail/{id}/pdf` — redireciona para URL do blob; fallback 501 se PDF em falta
+
+### Etapa 3 — Email Automático + Campo `Condominium.Email`
+
+**Domain:**
+- `Condominium.Email` — novo campo `string?`
+- Migração `AddCondominiumEmail` aplicada
+
+**Application:**
+- `InvoiceService.SendInvoiceEmailAsync()` — fire-and-forget após emissão
+- `InvoiceService.BuildInvoiceEmailHtml()` — template HTML profissional PT com referência, valor, prazo e botão PDF
+
+### Etapa 4 — Exportação SAF-T PT
+
+**Application:**
+- `SaftXmlService.GenerateSaftXml()` — XML SAF-T PT v1.04_01 (Portaria 302/2016)
+  - Secção `Header`: empresa, NIF, ano fiscal, datas
+  - Secção `MasterFiles`: tabela de clientes + tabela de impostos (IVA 23%)
+  - Secção `SourceDocuments/SalesInvoices`: faturas com linhas, totais, estado
+- `CondominiumInfoDto` — DTO para cabeçalho SAF-T e PDF
+- `ExportSaftInvoicesAsync()` no `InvoiceService` → `List<SaftInvoiceDto>`
+
+**API:**
+- `GET /api/invoices/{condoId}/saft?year=2026` — JSON (painel)
+- `GET /api/invoices/{condoId}/saft?year=2026&format=xml` — download XML `SAFT-PT_*.xml`
+
+### Etapa 5 — Gateway de Pagamentos (Stripe)
+
+**Application:**
+- `IPaymentGatewayService` — interface com `CreatePaymentSessionAsync` + `HandleWebhookAsync`
+- DTOs: `PaymentSessionDto`, `PaymentWebhookResult`, `InitiateInvoicePaymentResponse`
+
+**Infrastructure:**
+- `MockPaymentGatewayService` — usado em desenvolvimento; retorna URL mock sem chamar Stripe
+- `StripePaymentGatewayService` — Stripe Checkout Sessions; verificação HMAC-SHA256 de webhooks
+- Pacote NuGet: `Stripe.net` v47.0.0
+
+**Domain:**
+- `Invoice.PaymentSessionId` — associa sessão Stripe à fatura
+- Migração `AddInvoicePaymentSessionId` aplicada
+
+**Application:**
+- `InvoiceService.InitiateInvoicePaymentAsync()` — cria sessão, persiste `PaymentSessionId`, devolve URL
+- `InvoiceService.HandlePaymentWebhookAsync()` — processa `checkout.session.completed`, chama `MarkInvoiceAsPaidAsync`
+
+**API:**
+
+| Endpoint | Acesso | Descrição |
+|---|---|---|
+| `POST /api/invoices/detail/{id}/initiate-payment` | Manager / Resident do condomínio | Cria sessão Stripe, devolve URL checkout |
+| `POST /api/invoices/webhooks/stripe` | `[AllowAnonymous]` + HMAC | Webhook Stripe → auto-marca fatura como paga |
+
+**Configuração (`appsettings.json`):**
+```json
+"Stripe": {
+  "SecretKey": "",       // sk_live_*** (variável de ambiente em produção)
+  "WebhookSecret": "",   // whsec_*** (Stripe Dashboard → Webhooks)
+  "PublicKey": ""        // pk_live_*** (frontend se necessário)
+}
+```
+
+### Etapa 6 — Dashboard de Faturas (Frontend)
+
+Integrado na `BillingPage` (Manager-only), abaixo das subscrições:
+
+**Funcionalidades:**
+- Seletor de condomínio, filtros por estado e ano
+- Mini-painel de stats: total emitido, cobrado, em dívida, count vencidas
+- Tabela com: referência SAF-T, data emissão, vencimento (vermelho se vencido), plano, total, estado
+- Ações por linha: download PDF, marcar paga ✓, pagar via Stripe ↗, cancelar ✗
+- Modal de detalhe: breakdown subtotal/IVA/total, todas as datas, botões de acção
+- Botão "Gerar Em Dívida" — trigger manual de `POST /invoices/generate-due`
+- Exportação SAF-T XML com seletor de ano
+
+**Ficheiros alterados:**
+```
+src/habitus-web/src/pages/BillingPage.tsx   — InvoicesDashboard + StatusBadge adicionados
+src/habitus-web/src/api/services.ts         — invoicesApi (list, get, markPaid, cancel, etc.)
+src/habitus-web/src/types/index.ts          — InvoiceDto, MarkInvoicePaidRequest,
+                                               CancelInvoiceRequest, InitiateInvoicePaymentResponse
+```
+
+---
+
+## Migrações EF aplicadas (cronológico)
+
+| Migração | Conteúdo |
+|---|---|
+| `AddEncryptionFieldsForSensitiveData` | Campos `*Encrypted` em Condominiums e Invoices |
+| `AddSubscriptionPlanDiscountsAndManagement` | Descontos anuais/quinquenais, campos gestão |
+| `SeedDefaultSubscriptionPlans` | Planos Free/Silver/Gold + features no DB |
+| `AddInvoiceEntity` | Entidade `Invoice` completa (SAF-T compatible) |
+| `AddInvoiceCustomerTaxIdEncrypted` | `Invoice.CustomerTaxIdEncrypted` |
+| `AddCondominiumEmail` | `Condominium.Email` |
+| `AddInvoicePaymentSessionId` | `Invoice.PaymentSessionId` |
+
+---
+
+## 🆕 Sessão de Abril 2026 — Manager Experience + Billing
+
+### Correção Swagger
+- ✅ `DocumentsController` refatorado: DTOs nested `UploadDocumentForm` / `UploadMultipleDocumentsForm` para corrigir HTTP 500 no Swagger ao gerar operações multipart
+- ✅ Teste de regressão adicionado em `tests/Habitus.Api.IntegrationTests/SwaggerIntegrationTests.cs`
+
+### Separação do Papel Manager
+
+**Backend:**
+- ✅ `NotificationService` — Manager só recebe notificações dirigidas ao role `Manager` ou a si próprio; notificações de condomínio não aparecem
+- ✅ `NotificationsController` — parsing null-safe do claim `CondominiumId` (Managers não têm condomínio no JWT)
+
+**Frontend:**
+- ✅ `Layout.tsx` — Manager tem menu próprio (`managerMenuOrder`): Dashboard, Condomínios, Faturação, Utilizadores. Manutenção, Financeiro, Comunicados, Reservas, Documentos, Assembleias e Configuração Condomínio são exclusivos de Admin/Resident
+- ✅ `DashboardPage.tsx` — Manager vê "Painel do Gestor" com estatísticas de plataforma (condomínios, utilizadores, MRR) e secção dos planos
+- ✅ `NotificationsPage.tsx` — Manager vê mensagem informativa; sem feed de notificações de condomínio
+- ✅ `ProfilePage.tsx` — Manager não vê secções de fração, condomínio nem documentos
+- ✅ `UsersPage.tsx` — Quando autenticado como Manager, a página mostra "Gestores do Portal" e apenas utilizadores com `role=Manager`; formulário sem campos de condomínio/fração
+
+### Sistema de Subscrições e Faturação
+
+**Domain (`src/Habitus.Domain/Entities/`):**
+```
+SubscriptionPlan.cs       — PlanTier (Free/Silver/Gold), preços mensais/anuais/quinquenais
+PlanFeature.cs            — Catálogo de features por plano (FeatureKey + FeatureLabel)
+CondominiumSubscription.cs — Subscrição ativa num condomínio (BillingCycle, SubscriptionStatus)
+```
+
+**Application (`src/Habitus.Application/`):**
+```
+DTOs/Subscriptions/SubscriptionDtos.cs   — SubscriptionPlanDto, CondominiumSubscriptionDto,
+                                           AssignSubscriptionRequest, SubscriptionStatsDto
+Services/SubscriptionService.cs          — GetAllPlans, AssignSubscription, CancelSubscription, GetStats
+```
+
+**Infrastructure:**
+- ✅ `HabitusDbContext` — 3 novos `DbSet`, fluent config com `HasData` que semeia os 3 planos e 20 features
+- ✅ Migração EF `AddSubscriptions` aplicada à base de dados
+- ✅ `DependencyInjection.cs` — `SubscriptionService` registado
+
+**API (`src/Habitus.Api/Controllers/SubscriptionsController.cs`):**
+| Endpoint | Acesso |
+|---|---|
+| `GET /api/subscriptions/plans` | Todos autenticados |
+| `GET /api/subscriptions/plans/{id}` | Todos autenticados |
+| `GET /api/subscriptions` | Manager |
+| `GET /api/subscriptions/stats` | Manager |
+| `GET /api/subscriptions/my` | Admin/Resident (condomínio do caller) |
+| `POST /api/subscriptions` | Manager |
+| `DELETE /api/subscriptions/{id}` | Manager |
+
+**Frontend (`src/habitus-web/src/`):**
+```
+pages/BillingPage.tsx           — Página Manager-only: cards dos planos, tabela de subscrições
+                                    por condomínio, modal de atribuição com selector de ciclo
+api/services.ts                 — subscriptionsApi (getPlans, getAll, getStats, getMy, assign, cancel)
+types/index.ts                  — SubscriptionPlanDto, CondominiumSubscriptionDto,
+                                    AssignSubscriptionRequest, SubscriptionStatsDto
+App.tsx + Layout.tsx            — Rota /billing adicionada; nav item "Faturação" no menu Manager
+```
+
+**Dados semeados automaticamente:**
+
+| Plano | Mensal | Anual | 5 Anos | Features |
+|---|---|---|---|---|
+| Free | 0 € | 0 € | 0 € | 3 (manutenção, comunicados, documentos até 10) |
+| Silver | 29,90 € | 299 € | 1 299 € | 7 (+ reservas, financeiro, assembleias, email) |
+| Gold | 59,90 € | 599 € | 2 499 € | 10 (+ analytics, WhatsApp, API REST) |
+
+---
+
 ## 🎯 Objetivos Alcançados
 
 ### 1. **Separação de Utilizadores e Residentes**

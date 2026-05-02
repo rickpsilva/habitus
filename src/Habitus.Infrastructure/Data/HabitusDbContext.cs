@@ -34,10 +34,15 @@ public class HabitusDbContext : DbContext
     public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();
     public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
+    public DbSet<CondominiumSubscription> CondominiumSubscriptions => Set<CondominiumSubscription>();
     public DbSet<AnnouncementAttachment> AnnouncementAttachments => Set<AnnouncementAttachment>();
     public DbSet<AnnouncementComment> AnnouncementComments => Set<AnnouncementComment>();
     public DbSet<AnnouncementReadStatus> AnnouncementReadStatuses => Set<AnnouncementReadStatus>();
     public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -255,6 +260,12 @@ public class HabitusDbContext : DbContext
             entity.HasIndex(p => p.CondominiumId);
         });
 
+        modelBuilder.Entity<PlatformBillingSettings>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.GatewayProvider).IsRequired();
+        });
+
         // Configure CommunicationSettings relationships
         modelBuilder.Entity<CommunicationSettings>(entity =>
         {
@@ -299,6 +310,145 @@ public class HabitusDbContext : DbContext
             
             entity.HasIndex(q => q.QuotaPlanId);
             entity.HasIndex(q => q.UnitId);
+        });
+
+        // ── Subscription Plans ────────────────────────────────────────────────
+        var freePlanId        = new Guid("a0b0c001-0000-0000-0000-000000000000");
+        var silverPlanId      = new Guid("a0b0c002-0000-0000-0000-000000000000");
+        var goldPlanId        = new Guid("a0b0c003-0000-0000-0000-000000000000");
+
+        modelBuilder.Entity<SubscriptionPlan>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(64);
+            entity.Property(p => p.Description).HasMaxLength(512);
+            entity.Property(p => p.PriceMonthly).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.AnnualDiscountPercent).HasColumnType("decimal(5,2)");
+            entity.Property(p => p.QuinquennialDiscountPercent).HasColumnType("decimal(5,2)");
+            entity.Property(p => p.PriceAnnual).HasColumnType("decimal(18,2)");
+            entity.Property(p => p.PriceQuinquennial).HasColumnType("decimal(18,2)");
+            entity.HasIndex(p => p.Tier);
+
+            entity.HasData(
+                new SubscriptionPlan { Id = freePlanId,   Name = "Free",   Tier = PlanTier.Free,   Description = "Base operacional com features essenciais.",                                 PriceMonthly = 0m,     AnnualDiscountPercent = 0m,  QuinquennialDiscountPercent = 0m,  PriceAnnual = 0m,      PriceQuinquennial = 0m,      IsActive = true },
+                new SubscriptionPlan { Id = silverPlanId, Name = "Silver", Tier = PlanTier.Silver, Description = "Automações e módulos avançados para condomínios em crescimento.",     PriceMonthly = 29.90m, AnnualDiscountPercent = 17m, QuinquennialDiscountPercent = 30m, PriceAnnual = 299.00m, PriceQuinquennial = 1299.00m, IsActive = true },
+                new SubscriptionPlan { Id = goldPlanId,   Name = "Gold",   Tier = PlanTier.Gold,   Description = "Controlo total: analytics, WhatsApp e acesso à API REST.", PriceMonthly = 59.90m, AnnualDiscountPercent = 17m, QuinquennialDiscountPercent = 30m, PriceAnnual = 599.00m, PriceQuinquennial = 2499.00m, IsActive = true }
+            );
+        });
+
+        // ── Plan Features ─────────────────────────────────────────────────────
+        modelBuilder.Entity<PlanFeature>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.Property(f => f.FeatureKey).IsRequired().HasMaxLength(64);
+            entity.Property(f => f.FeatureLabel).IsRequired().HasMaxLength(128);
+            entity.HasIndex(f => new { f.PlanId, f.FeatureKey }).IsUnique();
+
+            entity.HasOne(f => f.Plan)
+                .WithMany(p => p.Features)
+                .HasForeignKey(f => f.PlanId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasData(
+                // Free
+                new PlanFeature { Id = new Guid("f1000001-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
+                new PlanFeature { Id = new Guid("f1000002-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
+                new PlanFeature { Id = new Guid("f1000003-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "documents",              FeatureLabel = "Documentos (até 10)",       IsEnabled = true },
+                // Silver
+                new PlanFeature { Id = new Guid("f2000001-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000002-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000003-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "documents",              FeatureLabel = "Documentos (ilimitados)",   IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000004-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "reservations",           FeatureLabel = "Reservas de Espaços",       IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000005-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "financial",              FeatureLabel = "Gestão Financeira",         IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000006-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "assemblies",             FeatureLabel = "Assembleias",               IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000007-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "email_notifications",    FeatureLabel = "Notificações por Email",    IsEnabled = true },
+                // Gold
+                new PlanFeature { Id = new Guid("f3000001-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000002-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000003-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "documents",              FeatureLabel = "Documentos (ilimitados)",   IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000004-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "reservations",           FeatureLabel = "Reservas de Espaços",       IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000005-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "financial",              FeatureLabel = "Gestão Financeira",         IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000006-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "assemblies",             FeatureLabel = "Assembleias",               IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000007-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "email_notifications",    FeatureLabel = "Notificações por Email",    IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000008-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "analytics",              FeatureLabel = "Analytics Avançado",        IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000009-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "whatsapp_notifications", FeatureLabel = "Notificações WhatsApp",     IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000010-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "api_access",             FeatureLabel = "Acesso à API REST",         IsEnabled = true }
+            );
+        });
+
+        // ── Condominium Subscriptions ─────────────────────────────────────────
+        modelBuilder.Entity<CondominiumSubscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.PriceAtPurchase).HasColumnType("decimal(18,2)");
+            entity.HasIndex(s => s.CondominiumId);
+            entity.HasIndex(s => s.Status);
+
+            entity.HasOne(s => s.Condominium)
+                .WithMany()
+                .HasForeignKey(s => s.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.Plan)
+                .WithMany(p => p.Subscriptions)
+                .HasForeignKey(s => s.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Invoices (SAF-T Compatible) ───────────────────────────────────────
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Number).IsRequired();
+            entity.Property(i => i.Series).IsRequired().HasMaxLength(8);
+            entity.Property(i => i.Year).IsRequired();
+            entity.Property(i => i.Type).IsRequired();
+            entity.Property(i => i.CustomerName).IsRequired().HasMaxLength(256);
+            entity.Property(i => i.CustomerTaxIdEncrypted).HasMaxLength(255); // Encrypted NIF
+            entity.Property(i => i.CustomerAddress).HasMaxLength(512);
+            entity.Property(i => i.PlanName).IsRequired().HasMaxLength(128);
+            entity.Property(i => i.SubtotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.VatAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(i => i.VatRate).HasColumnType("decimal(5,2)");
+
+            // Relationships
+            entity.HasOne(i => i.Condominium)
+                .WithMany(c => c.Invoices)
+                .HasForeignKey(i => i.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(i => i.Subscription)
+                .WithMany(s => s.Invoices)
+                .HasForeignKey(i => i.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(i => i.IssuedByUser)
+                .WithMany()
+                .HasForeignKey(i => i.IssuedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(i => i.Document)
+                .WithMany()
+                .HasForeignKey(i => i.DocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Indexes for performance (SAF-T reporting queries)
+            entity.HasIndex(i => new { i.CondominiumId, i.Year, i.Number })
+                .IsUnique()
+                .HasDatabaseName("IX_Invoice_Unique_CondominiumYear");
+            
+            entity.HasIndex(i => new { i.CondominiumId, i.IssuedDate })
+                .HasDatabaseName("IX_Invoice_CondominiumIssued");
+            
+            entity.HasIndex(i => i.Status)
+                .HasDatabaseName("IX_Invoice_Status");
+            
+            entity.HasIndex(i => i.DueDate)
+                .HasDatabaseName("IX_Invoice_DueDate");
+            
+            entity.HasIndex(i => new { i.CondominiumId, i.Status })
+                .HasDatabaseName("IX_Invoice_CondominiumStatus");
         });
     }
 }

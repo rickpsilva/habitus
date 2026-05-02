@@ -13,17 +13,23 @@ public class AuthService
 {
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<UserCondominium> _userCondominiumRepository;
+    private readonly IRepository<Condominium> _condominiumRepository;
+    private readonly IRepository<Unit> _unitRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
 
     public AuthService(
         IRepository<User> userRepository,
         IRepository<UserCondominium> userCondominiumRepository,
+        IRepository<Condominium> condominiumRepository,
+        IRepository<Unit> unitRepository,
         IConfiguration configuration,
         IEmailService emailService)
     {
         _userRepository = userRepository;
         _userCondominiumRepository = userCondominiumRepository;
+        _condominiumRepository = condominiumRepository;
+        _unitRepository = unitRepository;
         _configuration = configuration;
         _emailService = emailService;
     }
@@ -36,6 +42,7 @@ public class AuthService
         
         var user = users.FirstOrDefault();
         if (user == null) return null;
+        if (!user.IsActive) return null;
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return null;
         
         // Update last login
@@ -120,6 +127,75 @@ public class AuthService
             UnitId = user.UnitId,
             AccessibleCondominiums = new List<Guid>()
         };
+    }
+
+    /// <summary>
+    /// Public self-registration for residents. Creates the user as inactive (pending approval).
+    /// The user will be activated by an Admin or by an existing resident of the same unit.
+    /// </summary>
+    public async Task<(RegisterResidentResponse? response, string? error)> RegisterResidentAsync(
+        Guid condominiumId, RegisterResidentRequest request)
+    {
+        // Validate condominium exists
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+        if (condominium == null)
+            return (null, "Condomínio não encontrado.");
+
+        // Email must be unique
+        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        if (existing.Any())
+            return (null, "Este email já está registado.");
+
+        // Unit must exist and belong to the condominium
+        var unit = await _unitRepository.GetByIdAsync(request.UnitId);
+        if (unit == null || unit.CondominiumId != condominiumId)
+            return (null, "Fração inválida para este condomínio.");
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = request.Name,
+            Email = request.Email,
+            Phone = request.Phone,
+            Role = UserRole.Resident,
+            CondominiumId = condominiumId,
+            UnitId = request.UnitId,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            IsActive = false, // Pending approval
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _userRepository.AddAsync(user);
+        await _userRepository.SaveChangesAsync();
+
+        // Create condominium association
+        var userCondominium = new UserCondominium
+        {
+            UserId = user.Id,
+            CondominiumId = condominiumId,
+            GrantedAt = DateTime.UtcNow,
+            CanManage = false
+        };
+        await _userCondominiumRepository.AddAsync(userCondominium);
+        await _userCondominiumRepository.SaveChangesAsync();
+
+        // Notify admins of the condominium
+        var admins = await _userRepository.FindAsync(
+            u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive);
+        foreach (var admin in admins)
+        {
+            await _emailService.SendAsync(
+                admin.Email,
+                "Novo pedido de registo pendente – Habitus",
+                $"Olá {admin.Name},\n\n" +
+                $"O utilizador {user.Name} ({user.Email}) submeteu um pedido de registo para a fração {unit.Number}.\n\n" +
+                $"Aceda à plataforma para aprovar ou recusar o pedido.\n\nEquipa Habitus");
+        }
+
+        return (new RegisterResidentResponse
+        {
+            Message = "Registo submetido com sucesso. Aguarda aprovação pelo administrador ou por um residente da mesma fração."
+        }, null);
     }
 
     public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)

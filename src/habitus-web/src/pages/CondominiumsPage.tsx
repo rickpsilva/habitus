@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
@@ -25,11 +25,14 @@ export default function CondominiumsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<CondominiumDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleLinkCondoId, setVisibleLinkCondoId] = useState<string | null>(null);
+  const [copiedLinkCondoId, setCopiedLinkCondoId] = useState<string | null>(null);
   const pageSize = 10;
   const [formData, setFormData] = useState<CreateCondominiumRequest>({
     name: '',
     address: '',
     taxId: '',
+    email: '',
   });
   const [isActive, setIsActive] = useState(true);
 
@@ -77,7 +80,7 @@ export default function CondominiumsPage() {
       }
       setShowModal(false);
       setEditingId(null);
-      setFormData({ name: '', address: '', taxId: '' });
+      setFormData({ name: '', address: '', taxId: '', email: '' });
       setIsActive(true);
       load();
     } catch (error) {
@@ -92,6 +95,7 @@ export default function CondominiumsPage() {
       name: condo.name,
       address: condo.address,
       taxId: condo.taxId,
+      email: condo.email || '',
     });
     setIsActive(condo.isActive);
     setShowModal(true);
@@ -110,9 +114,24 @@ export default function CondominiumsPage() {
 
   const handleNew = () => {
     setEditingId(null);
-    setFormData({ name: '', address: '', taxId: '' });
+    setFormData({ name: '', address: '', taxId: '', email: '' });
     setIsActive(true);
     setShowModal(true);
+  };
+
+  const getAdminRegisterPath = (condominiumId: string) => `/user/register/${condominiumId}/admin`;
+
+  const getAdminRegisterUrl = (condominiumId: string) => `${window.location.origin}${getAdminRegisterPath(condominiumId)}`;
+
+  const handleCopyAdminRegisterUrl = async (condominiumId: string) => {
+    try {
+      await navigator.clipboard.writeText(getAdminRegisterUrl(condominiumId));
+      setCopiedLinkCondoId(condominiumId);
+      setTimeout(() => setCopiedLinkCondoId((current) => (current === condominiumId ? null : current)), 2000);
+    } catch (error) {
+      console.error('Erro ao copiar link de registo de administrador:', error);
+      alert('Não foi possível copiar automaticamente. Copie o link manualmente.');
+    }
   };
 
   if (!isManager) {
@@ -179,6 +198,13 @@ export default function CondominiumsPage() {
                 </div>
                 <div className="flex gap-1">
                   <button
+                    onClick={() => setVisibleLinkCondoId((current) => (current === condo.id ? null : condo.id))}
+                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                    title="Gerar link de registo de administrador"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleEdit(condo)}
                     className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                   >
@@ -201,6 +227,30 @@ export default function CondominiumsPage() {
                 <div className="flex items-center gap-2 text-gray-600">
                   <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">NIF: {condo.taxId}</span>
                 </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Mail className="w-4 h-4 shrink-0" />
+                  <span className="text-sm">{condo.email || 'Sem email configurado'}</span>
+                </div>
+                {visibleLinkCondoId === condo.id && (
+                  <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5">
+                    <p className="text-xs font-medium text-emerald-800 mb-1">Link de registo para Admin</p>
+                    <a
+                      href={getAdminRegisterPath(condo.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-xs text-emerald-700 underline break-all"
+                    >
+                      {getAdminRegisterUrl(condo.id)}
+                    </a>
+                    <button
+                      onClick={() => handleCopyAdminRegisterUrl(condo.id)}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {copiedLinkCondoId === condo.id ? 'Copiado' : 'Copiar link'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -252,6 +302,24 @@ export default function CondominiumsPage() {
                   onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email do Condomínio {editingId ? '' : <span className="text-gray-400">(opcional)</span>}
+                </label>
+                <input
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  disabled={!!editingId}
+                  placeholder="geral@condominio.pt"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${editingId ? 'border-gray-200 bg-gray-50 text-gray-500' : 'border-gray-300'}`}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {editingId
+                    ? 'Depois de criado, o email é editado apenas pelo admin em Configurações.'
+                    : 'Pode definir já o email de contacto do condomínio no momento da criação.'}
+                </p>
               </div>
               {editingId && (
                 <div className="flex items-center gap-2">

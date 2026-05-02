@@ -9,7 +9,8 @@ public class PaymentSettings
     
     // Bank Transfer Configuration
     public bool BankTransferEnabled { get; set; } = true;
-    public string? BankTransferIban { get; set; }
+    public string? BankTransferIban { get; set; } // Will be deprecated, use BankTransferIbanEncrypted
+    public string? BankTransferIbanEncrypted { get; set; } // Encrypted IBAN (new field)
     public string? BankTransferAccountHolder { get; set; }
     
     // MB Reference Configuration
@@ -26,7 +27,8 @@ public class PaymentSettings
     public bool CardEnabled { get; set; } = false;
     public string? CardProvider { get; set; }  // stripe, easypay, sibs, paypal, ifthenpay
     public string? CardPublicKey { get; set; }
-    public string? CardSecretKey { get; set; }  // Should be encrypted in production
+    public string? CardSecretKey { get; set; }  // Will be deprecated, use CardSecretKeyEncrypted
+    public string? CardSecretKeyEncrypted { get; set; }  // Encrypted secret key (new field)
     public string? CardMerchantId { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

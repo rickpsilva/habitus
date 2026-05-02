@@ -1,5 +1,69 @@
 # Frontend Multi-Condominium Migration - Resumo Completo
 
+> **Última actualização:** Abril 2026
+
+## 🆕 Sessão de Abril 2026
+
+### Nova Página — BillingPage (`/billing`)
+**Acesso:** Apenas **Manager**
+
+**Funcionalidades:**
+- ✅ Estatísticas de plataforma: total de condomínios, subscrições ativas, MRR
+- ✅ Cards dos 3 planos (Free / Silver / Gold) com preços e lista de features
+- ✅ Tabela de todos os condomínios com plano atribuído, ciclo, valor e próxima cobrança
+- ✅ Modal de atribuição: selecionar condomínio + plano + ciclo (Mensal / Anual / 5 Anos com descontos)
+- ✅ Acção "Cancelar" subscrição existente por linha
+
+### UsersPage — Modo Manager
+- ✅ Título muda para "Gestores do Portal"
+- ✅ Lista filtra apenas utilizadores com `role=Manager`
+- ✅ Formulário sem campos de Condomínio / Fração
+- ✅ Role fixo "Gestor do Portal" no modal
+- ✅ Filtro de função oculto (só existe um role neste contexto)
+
+### Layout — Menu do Manager
+O Manager tem uma lista de rotas própria (`managerMenuOrder`). Qualquer item fora desta lista **não** é renderizado para o Manager:
+
+```
+/dashboard        Dashboard
+/condominiums     Condomínios
+/billing          Faturação       ← Novo
+/users            Utilizadores (aparece como "Gestores do Portal")
+```
+
+Itens **exclusivos de Admin / Resident** (ocultos ao Manager):
+- Manutenção, Financeiro, Comunicados, Reservas, Documentos, Assembleias, Configuração Condomínio, Pagamentos, Notificações
+
+### DashboardPage — Painel do Gestor
+- ✅ Manager vê painel separado com 4 stat cards: Condomínios, Utilizadores, Requests/min, Volume MRR
+- ✅ MRR calculado a partir de `GET /api/subscriptions/stats` (valor real)
+- ✅ Secção de planos com preços reais e link para `/billing`
+
+### ProfilePage
+- ✅ Manager não vê secções de Fração, Condomínio nem Documentos
+
+### NotificationsPage
+- ✅ Manager vê mensagem informativa; sem feed de notificações de condomínio
+
+### Novos tipos (`types/index.ts`)
+```typescript
+PlanFeatureDto, SubscriptionPlanDto, CondominiumSubscriptionDto,
+AssignSubscriptionRequest, SubscriptionStatsDto
+```
+
+### Novo serviço (`api/services.ts`)
+```typescript
+subscriptionsApi.getPlans()
+subscriptionsApi.getPlanById(id)
+subscriptionsApi.getAll()
+subscriptionsApi.getStats()
+subscriptionsApi.getMy()
+subscriptionsApi.assign(data)
+subscriptionsApi.cancel(id)
+```
+
+---
+
 ## ✅ Alterações Implementadas no Frontend (habitus-web)
 
 ### 1. **Tipos TypeScript Atualizados** ([src/types/index.ts](../src/habitus-web/src/types/index.ts))
@@ -137,49 +201,54 @@ const {
 
 ### 6. **Navegação e Layout** ([src/components/Layout.tsx](../src/habitus-web/src/components/Layout.tsx))
 
-#### Menu de Navegação Atualizado:
-```typescript
-// Todos os utilizadores
-✅ Dashboard
-✅ Manutenção
-✅ Financeiro
-✅ Notificações
-✅ Reservas
-✅ Documentos
-✅ Assembleias
+#### Menus por Role:
 
-// Manager e Admin
-✅ Frações
-
-// Manager e Admin
-✅ Utilizadores
-
-// Apenas Manager
-✅ Condomínios
-
-// Todos (novo!)
-✅ Meu Perfil
+**Manager** (`managerMenuOrder`):
+```
+/dashboard         Dashboard
+/condominiums      Condomínios
+/billing           Faturação
+/users             Gestores do Portal
 ```
 
-#### Indicador de Função:
-- **Gestor** (Manager)
-- **Administrador** (Admin)
-- **Morador** (Resident)
+**Admin** (`adminMenuOrder`):
+```
+/dashboard, /notifications, /announcements, /maintenance,
+/financial, /reservations, /documents, /assemblies, /users, /settings
+```
+
+**Resident** (`residentMenuOrder`):
+```
+/dashboard, /notifications, /announcements, /payments,
+/reservations, /maintenance, /documents, /assemblies, /financial
+```
+
+> Itens com `managerOnly`, `managerOrAdminOnly` ou `residentOnly` controlam visibilidade individual. Para o Manager, só são visíveis itens presentes em `managerMenuOrder`.
 
 ---
 
 ### 7. **Rotas da Aplicação** ([src/App.tsx](../src/habitus-web/src/App.tsx))
 
-#### Novas Rotas:
+#### Rotas disponíveis:
 ```typescript
+/dashboard        → DashboardPage
+/maintenance      → MaintenancePage
+/financial        → FinancialPage
+/notifications    → NotificationsPage
+/announcements    → AnnouncementsPage
+/reservations     → ReservationsPage
+/documents        → DocumentsPage
+/assemblies       → AssembliesPage
+/shared-spaces    → SharedSpacesPage
+/suppliers        → SuppliersPage
+/payments         → PaymentsPage
 /condominiums     → CondominiumsPage (Manager only)
+/billing          → BillingPage (Manager only)  ← Novo
 /users            → UsersPage (Manager & Admin)
-/profile          → ProfilePage (Todos)
-```
-
-#### Rota Redirect:
-```typescript
-/residents → /users (Backward compatibility)
+/units            → UnitsPage
+/settings         → CondominiumSettingsPage
+/profile          → ProfilePage
+/residents        → redirect /users
 ```
 
 ---
@@ -187,17 +256,21 @@ const {
 ## 🔐 Matriz de Permissões
 
 | Funcionalidade | Manager | Admin | Resident |
-|----------------|---------|-------|----------|
-| **Condominiums** | CRUD completo | - | - |
-| **Utilizadores** | CRUD completo (todos os roles) | CRUD Admin e Resident do seu condo | Ver apenas (se implementado) |
-| **Frações** | CRUD completo (todos os condos) | CRUD no seu condominium | - |
-| **Manutenção** | CRUD completo | CRUD no seu condo | CRUD próprias requisições |
-| **Financeiro** | CRUD completo | CRUD no seu condo | Ver apenas |
-| **Documentos** | CRUD completo | CRUD no seu condo | Ver apenas |
-| **Assembleias** | CRUD completo | CRUD no seu condo | Ver e participar |
-| **Reservas** | CRUD completo | CRUD no seu condo | CRUD próprias reservas |
-| **Notificações** | CRUD completo | CRUD no seu condo | Ver e marcar lidas |
-| **Meu Perfil** | Editar próprio + senha | Editar próprio + senha | Editar próprio + senha |
+|---|---|---|---|
+| **Dashboard** | Painel de plataforma (stats + MRR) | Painel do condomínio | Painel pessoal |
+| **Faturação** (`/billing`) | CRUD completo | — | — |
+| **Condomínios** | CRUD completo | — | — |
+| **Gestores do Portal** (`/users`) | Listar/criar/editar Managers | — | — |
+| **Utilizadores** (`/users`) | — | CRUD Admin e Resident do seu condo | — |
+| **Frações** | CRUD completo | CRUD no seu condo | — |
+| **Manutenção** | — | CRUD no seu condo | CRUD próprias requisições |
+| **Financeiro** | — | CRUD no seu condo | Ver apenas |
+| **Documentos** | — | CRUD no seu condo | Ver apenas |
+| **Assembleias** | — | CRUD no seu condo | Ver e participar |
+| **Reservas** | — | CRUD no seu condo | CRUD próprias reservas |
+| **Comunicados** | — | CRUD no seu condo | Publicar + comentar |
+| **Notificações** | Mensagem informativa | Feed do condomínio | Feed pessoal |
+| **Perfil** | Dados pessoais + senha (sem condo/fração) | Dados pessoais + senha | Dados pessoais + senha |
 
 ---
 

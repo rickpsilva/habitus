@@ -22,15 +22,15 @@ public class FinancialService
         _announcementRepository = announcementRepository;
     }
 
-    public async Task<IEnumerable<FinancialRecordDto>> GetAllAsync()
+    public async Task<IEnumerable<FinancialRecordDto>> GetAllAsync(Guid condominiumId)
     {
-        var records = await _repository.GetAllAsync();
+        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         return records.Select(MapToDto);
     }
 
-    public async Task<PaginatedResponse<FinancialRecordDto>> GetPagedAsync(int page, int pageSize, string? search = null)
+    public async Task<PaginatedResponse<FinancialRecordDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string? search = null)
     {
-        var records = await _repository.GetAllAsync();
+        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         var dtos = records.Select(MapToDto).OrderByDescending(r => r.Date);
         
         if (!string.IsNullOrWhiteSpace(search))
@@ -45,11 +45,22 @@ public class FinancialService
         return PaginationHelper.Paginate(dtos, page, pageSize);
     }
 
-    public async Task<FinancialRecordDto?> GetByIdAsync(Guid id)
+    public async Task<FinancialRecordDto?> GetByIdAsync(Guid id, Guid condominiumId)
     {
         var item = await _repository.GetByIdAsync(id);
-        return item == null ? null : MapToDto(item);
+        if (item == null || item.CondominiumId != condominiumId) return null;
+        return MapToDto(item);
     }
+
+    public async Task<bool> DeleteAsync(Guid id, Guid condominiumId)
+    {
+        var item = await _repository.GetByIdAsync(id);
+        if (item == null || item.CondominiumId != condominiumId) return false;
+        _repository.Remove(item);
+        await _repository.SaveChangesAsync();
+        return true;
+    }
+
 
     public async Task<FinancialRecordDto> CreateAsync(CreateFinancialRecordRequest request)
     {
@@ -94,15 +105,6 @@ public class FinancialService
             Balance = totalIncome - totalExpense,
             Records = dtos
         };
-    }
-
-    public async Task<bool> DeleteAsync(Guid id)
-    {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return false;
-        _repository.Remove(entity);
-        await _repository.SaveChangesAsync();
-        return true;
     }
 
     public async Task<FinancialDashboardDto> GetDashboardAsync(Guid condominiumId, int? fiscalYear = null)

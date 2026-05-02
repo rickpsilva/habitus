@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { paymentSettingsApi, communicationSettingsApi } from '../api/services';
-import type { CommunicationSettingsDto, UpdateCommunicationSettingsRequest } from '../types';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi } from '../api/services';
+import type {
+  CommunicationSettingsDto,
+  UpdateCommunicationSettingsRequest,
+  PlatformBillingSettingsDto,
+  UpdatePlatformBillingSettingsRequest,
+} from '../types';
 import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
 
-type TabKey = 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing';
 
 interface Tab {
   key: TabKey;
@@ -18,7 +23,8 @@ interface Tab {
   icon: any;
 }
 
-const tabs: Tab[] = [
+const adminTabs: Tab[] = [
+  { key: 'general', label: 'Geral', icon: Home },
   { key: 'spaces', label: 'Espaços Comuns', icon: Warehouse },
   { key: 'suppliers', label: 'Fornecedores', icon: Truck },
   { key: 'units', label: 'Frações', icon: Home },
@@ -27,28 +33,35 @@ const tabs: Tab[] = [
   { key: 'communication', label: 'Canais de Comunicação', icon: Mail },
 ];
 
+const managerTabs: Tab[] = [
+  { key: 'platform-billing', label: 'Gateway de Pagamento', icon: KeyRound },
+];
+
 export default function CondominiumSettingsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabKey>('spaces');
+  const visibleTabs = isManager ? managerTabs : adminTabs;
+  const [activeTab, setActiveTab] = useState<TabKey>(visibleTabs[0]?.key ?? 'spaces');
 
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams.get('tab') as TabKey;
-    if (tab && tabs.some(t => t.key === tab)) {
+    if (tab && visibleTabs.some(t => t.key === tab)) {
       setActiveTab(tab);
+    } else if (visibleTabs.length > 0) {
+      setActiveTab(visibleTabs[0].key);
     }
-  }, [searchParams]);
+  }, [searchParams, isManager]);
 
   const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
 
-  if (!isAdmin) {
+  if (!isAdmin && !isManager) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Acesso apenas para administradores</p>
+        <p className="text-gray-500">Acesso apenas para gestão</p>
       </div>
     );
   }
@@ -56,14 +69,16 @@ export default function CondominiumSettingsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configuração do Condomínio</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Gerir todas as configurações do condomínio</p>
+        <h1 className="text-2xl font-bold text-gray-900">{isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}</h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          {isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
+        </p>
       </div>
 
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-gray-200">
-          {tabs.map(({ key, label, icon: Icon }) => (
+          {visibleTabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => handleTabChange(key)}
@@ -84,9 +99,299 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'spaces' && <SharedSpacesContent />}
           {activeTab === 'suppliers' && <SuppliersContent />}
           {activeTab === 'units' && <UnitsContent />}
+          {activeTab === 'general' && <GeneralCondominiumContent />}
           {activeTab === 'receipts' && <ReceiptTemplateContent />}
           {activeTab === 'payments' && <PaymentMethodsContent />}
           {activeTab === 'communication' && <CommunicationChannelsContent />}
+          {activeTab === 'platform-billing' && <PlatformBillingContent />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GeneralCondominiumContent() {
+  const { condominiumId } = useAuth();
+  const [condominiumData, setCondominiumData] = useState<{ name: string; address: string; taxId: string; isActive: boolean } | null>(null);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [condominiumName, setCondominiumName] = useState('');
+
+  useEffect(() => {
+    const loadCondominium = async () => {
+      if (!condominiumId) return;
+      setLoading(true);
+      try {
+        const response = await condominiumsApi.getById(condominiumId);
+        setCondominiumName(response.data.name);
+        setEmail(response.data.email || '');
+        setCondominiumData({
+          name: response.data.name,
+          address: response.data.address,
+          taxId: response.data.taxId,
+          isActive: response.data.isActive,
+        });
+      } catch (error) {
+        console.error('Error loading condominium data:', error);
+        alert('Erro ao carregar dados do condomínio');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCondominium();
+  }, [condominiumId]);
+
+  const handleSave = async () => {
+    if (!condominiumId || !condominiumData) return;
+    setSaving(true);
+    try {
+      await condominiumsApi.update(condominiumId, {
+        id: condominiumId,
+        name: condominiumData.name,
+        address: condominiumData.address,
+        taxId: condominiumData.taxId,
+        email: email.trim() || '',
+        isActive: condominiumData.isActive,
+      });
+      alert('Email do condomínio guardado com sucesso!');
+    } catch (error) {
+      console.error('Error saving condominium email:', error);
+      alert('Erro ao guardar email do condomínio');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Gerais</h3>
+        <p className="text-sm text-gray-500">Gerir o email de contacto visível aos moradores e usado nas notificações de faturação</p>
+      </div>
+
+      <div className="space-y-4 max-w-2xl">
+        <div className="border border-gray-200 rounded-lg p-5 bg-white space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio</label>
+            <input
+              type="text"
+              value={condominiumName}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="geral@condominio.pt"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4 inline mr-2" />
+            {saving ? 'A guardar...' : 'Guardar Email'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlatformBillingContent() {
+  const [settings, setSettings] = useState<PlatformBillingSettingsDto | null>(null);
+  const [form, setForm] = useState<UpdatePlatformBillingSettingsRequest>({
+    gatewayEnabled: false,
+    gatewayProvider: 'stripe',
+    publicKey: '',
+    secretKey: '',
+    webhookSecret: '',
+    merchantDisplayName: '',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await platformBillingSettingsApi.get();
+        setSettings(response.data);
+        setForm({
+          gatewayEnabled: response.data.gatewayEnabled,
+          gatewayProvider: response.data.gatewayProvider || 'stripe',
+          publicKey: response.data.publicKey || '',
+          secretKey: '',
+          webhookSecret: '',
+          merchantDisplayName: response.data.merchantDisplayName || '',
+        });
+      } catch (error) {
+        console.error('Error loading platform billing settings:', error);
+        alert('Erro ao carregar configurações do gateway');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await platformBillingSettingsApi.update(form);
+      setSettings(response.data);
+      setForm((prev) => ({ ...prev, secretKey: '', webhookSecret: '' }));
+      alert('Configurações do gateway guardadas com sucesso!');
+    } catch (error) {
+      console.error('Error saving platform billing settings:', error);
+      alert('Erro ao guardar configurações do gateway');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Gateway de Pagamento</h3>
+        <p className="text-sm text-gray-500">Configure o provider e as credenciais do checkout global da plataforma</p>
+      </div>
+
+      <div className="space-y-4 max-w-3xl">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="p-4 bg-white">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-medium text-gray-900">Checkout da Plataforma</p>
+                  {form.gatewayEnabled && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">Usado no pagamento online das faturas de subscrição</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-4">
+                <input
+                  type="checkbox"
+                  checked={form.gatewayEnabled}
+                  onChange={(e) => setForm({ ...form, gatewayEnabled: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+              <p className="text-xs text-blue-900 font-medium mb-1">Configuração global</p>
+              <p className="text-xs text-blue-700">
+                Estas credenciais pertencem à plataforma Habitus e não às definições individuais de cada condomínio.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+              <select
+                value={form.gatewayProvider}
+                onChange={(e) => setForm({ ...form, gatewayProvider: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="stripe">Stripe</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Public Key</label>
+              <input
+                type="text"
+                value={form.publicKey || ''}
+                onChange={(e) => setForm({ ...form, publicKey: e.target.value })}
+                placeholder="pk_live_..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant Display Name</label>
+              <input
+                type="text"
+                value={form.merchantDisplayName || ''}
+                onChange={(e) => setForm({ ...form, merchantDisplayName: e.target.value })}
+                placeholder="Habitus Billing"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+              <input
+                type="password"
+                value={form.secretKey || ''}
+                onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
+                placeholder={settings?.hasSecretKey ? 'Já configurada. Preencha para substituir.' : 'sk_live_...'}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret</label>
+              <input
+                type="password"
+                value={form.webhookSecret || ''}
+                onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
+                placeholder={settings?.hasWebhookSecret ? 'Já configurado. Preencha para substituir.' : 'whsec_...'}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                <p className="text-gray-500">Secret Key</p>
+                <p className="font-medium text-gray-900">{settings?.hasSecretKey ? 'Configurada' : 'Em falta'}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                <p className="text-gray-500">Webhook Secret</p>
+                <p className="font-medium text-gray-900">{settings?.hasWebhookSecret ? 'Configurado' : 'Em falta'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4 inline mr-2" />
+            {saving ? 'A guardar...' : 'Guardar Configurações'}
+          </button>
         </div>
       </div>
     </div>

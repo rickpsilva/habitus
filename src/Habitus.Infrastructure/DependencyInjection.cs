@@ -63,6 +63,17 @@ public static class DependencyInjection
             services.AddScoped<ITranslationService, AzureTranslationService>();
         }
 
+        // Payment gateway: use Stripe in production when keys are configured
+        var stripeSecretKey = configuration["Stripe:SecretKey"];
+        if (isDevelopment || string.IsNullOrEmpty(stripeSecretKey))
+        {
+            services.AddScoped<IPaymentGatewayService, MockPaymentGatewayService>();
+        }
+        else
+        {
+            services.AddScoped<IPaymentGatewayService, StripePaymentGatewayService>();
+        }
+
         services.AddScoped<AuthService>();
         services.AddScoped<ResidentService>();
         services.AddScoped<MaintenanceService>();
@@ -78,6 +89,16 @@ public static class DependencyInjection
         // New multi-condominium services
         services.AddScoped<UserService>();
         services.AddScoped<CondominiumService>();
+        services.AddScoped<SubscriptionService>();
+        services.AddScoped<InvoiceService>();
+        services.AddScoped<InvoicePdfService>();
+        services.AddScoped<SaftXmlService>();
+
+        // Background services for daily tasks
+        services.AddHostedService<InvoiceGenerationBackgroundService>();
+
+        // Encryption service for sensitive data
+        services.AddScoped<IEncryptionService, EncryptionService>();
 
         return services;
     }
