@@ -6,6 +6,7 @@ Habitus is a modern condominium management platform built with **.NET 8** and a 
 
 - **Multi-Condominium Support** — platform now supports multiple condominiums with proper access control
 - **User Management** — separate User entity for authentication (Managers, Admins, Residents)
+- **Resident Self-Registration** — public resident signup flow per condominium/unit with pending approval
 - **Resident & Unit Management** — manage buildings, units, and resident profiles
 - **User Roles & Permissions**:
   - **Manager (HOI)** — Platform-level access; can create condominiums, manage users and units across all condominiums
@@ -15,11 +16,22 @@ Habitus is a modern condominium management platform built with **.NET 8** and a 
 - **Maintenance Requests** — photo attachments, location details, multi‑resident confirmation workflow
 - **Interventions & Suppliers** — scheduled interventions linked to supplier contacts
 - **Financial Tracking** — income/expense records, receipts, and summary reports
+- **Platform Billing & Subscriptions** — Free/Silver/Gold plans, assignments, stats, and invoicing workflows
+- **Invoice Operations** — PDF access, manual mark-paid/cancel, due generation, and SAF-T export
+- **Payment Gateway Ready** — Stripe integration endpoints (with webhook processing)
 - **Digital Assemblies** — attendance tracking and decision recording
 - **Shared‑Space Reservations** — booking with conflict detection
 - **Notifications & Alerts** — role‑targeted messages (Azure Communication Services)
 - **Useful Contacts** — emergency, service, and administrative contacts
+- **Feature Gating by Plan** — plan-aware endpoint access for selected modules
+- **Security Hardening** — IP rate limiting + encryption service for sensitive fields
 - **Optional Translation** — Azure AI Translator for multilingual residents
+
+## Recent Updates (Apr 2026)
+
+- Introduced public resident self-registration with admin/resident approval workflow.
+- Added platform subscriptions and billing capabilities (plans, assignments, and stats).
+- Added invoice lifecycle features, SAF-T export support, and payment gateway integration.
 
 ## Architecture
 
@@ -88,6 +100,10 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | `AzureStorage__ConnectionString` | Azure Blob Storage connection string |
 | `AzureCommunication__ConnectionString` | Azure Communication Services connection string |
 | `AzureTranslation__Key` | Azure Translator API key |
+| `EncryptionKey` | 32-byte key used for sensitive data encryption/decryption |
+| `Stripe__SecretKey` | Stripe secret key |
+| `Stripe__WebhookSecret` | Stripe webhook signing secret |
+| `Stripe__PublicKey` | Stripe public key for frontend usage |
 
 ## API Endpoints
 
@@ -107,6 +123,9 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | Shared Spaces | `/api/shared-spaces` |
 | Notifications | `/api/notifications` |
 | Useful Contacts | `/api/useful-contacts` |
+| User Registration | `/api/user` |
+| Subscriptions | `/api/subscriptions` |
+| Invoices | `/api/invoices` |
 
 Full interactive documentation is available via Swagger at `/swagger`.
 
