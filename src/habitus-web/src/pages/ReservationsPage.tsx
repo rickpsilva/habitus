@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, X, AlertCircle, MessageSquare } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,7 +42,13 @@ export default function ReservationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<ReservationDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [form, setForm] = useState({
     spaceId: '',
     userId: '',
@@ -62,7 +68,7 @@ export default function ReservationsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReservationId, setDeleteReservationId] = useState<string | null>(null);
 
-  const load = async (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
       // Get current user data
@@ -74,7 +80,7 @@ export default function ReservationsPage() {
       
       // Load reservations and spaces (always needed)
       const [reservationsRes, spacesRes, unitsRes] = await Promise.all([
-        reservationsApi.getPaged(page, pageSize, search),
+        reservationsApi.getPaged(page, pageSize, debouncedSearch),
         sharedSpacesApi.getAll(),
         unitsApi.getAll()
       ]);
@@ -112,19 +118,9 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, debouncedSearch]);
 
-  useEffect(() => { load(1); }, []);
-
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  useEffect(() => { load(1); }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,10 +177,21 @@ export default function ReservationsPage() {
         endTime: '' 
       });
       load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao guardar reserva:', err);
-      const msg = err?.response?.data?.message || err?.response?.data;
-      setError(msg ?? 'Conflito de horário. Tente outro período.');
+      const msg =
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err
+          ? (err as { response?: { data?: { message?: string } | string } }).response?.data
+          : undefined;
+      const normalizedMessage =
+        typeof msg === 'string'
+          ? msg
+          : typeof msg === 'object' && msg !== null && 'message' in msg
+            ? (msg as { message?: string }).message
+            : undefined;
+      setError(normalizedMessage ?? 'Conflito de horário. Tente outro período.');
     } finally {
       setSubmitting(false);
     }
@@ -234,7 +241,7 @@ export default function ReservationsPage() {
       setShowDeleteModal(false);
       setDeleteReservationId(null);
       load();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao eliminar reserva:', error);
       alert('Erro ao eliminar reserva');
     }
@@ -372,9 +379,18 @@ export default function ReservationsPage() {
       
       closeCommentModal();
       load();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : error instanceof Error
+            ? error.message
+            : 'Erro ao alterar estado';
       console.error('Erro ao alterar estado:', error);
-      alert(`Erro: ${error.response?.data?.message || error.message}`);
+      alert(`Erro: ${errorMessage}`);
     }
   };
 
@@ -384,9 +400,18 @@ export default function ReservationsPage() {
     try {
       await reservationsApi.requestCancellation(id);
       load();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : error instanceof Error
+            ? error.message
+            : 'Erro ao pedir cancelamento';
       console.error('Erro ao pedir cancelamento:', error);
-      alert(`Erro: ${error.response?.data?.message || error.message}`);
+      alert(`Erro: ${errorMessage}`);
     }
   };
 

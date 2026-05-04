@@ -11,6 +11,9 @@ public class HabitusDbContext : DbContext
     public DbSet<Condominium> Condominiums => Set<Condominium>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserCondominium> UserCondominiums => Set<UserCondominium>();
+    public DbSet<UserAuthProvider> UserAuthProviders => Set<UserAuthProvider>();
+    public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
+    public DbSet<AuthChallenge> AuthChallenges => Set<AuthChallenge>();
     
     // Existing entities (updated to use Condominium)
     public DbSet<Unit> Units => Set<Unit>();
@@ -62,6 +65,7 @@ public class HabitusDbContext : DbContext
             entity.Property(u => u.Email).IsRequired();
             entity.Property(u => u.Name).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.TwoFactorSecretEncrypted).HasMaxLength(2048);
             
             entity.HasOne(u => u.Condominium)
                 .WithMany(c => c.Users)
@@ -72,6 +76,46 @@ public class HabitusDbContext : DbContext
                 .WithMany(un => un.Users)
                 .HasForeignKey(u => u.UnitId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<UserAuthProvider>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.ProviderUserId).IsRequired().HasMaxLength(255);
+            entity.Property(p => p.ProviderEmail).HasMaxLength(255);
+            entity.HasIndex(p => new { p.ProviderType, p.ProviderUserId }).IsUnique();
+            entity.HasIndex(p => p.UserId);
+
+            entity.HasOne(p => p.User)
+                .WithMany(u => u.AuthProviders)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserRecoveryCode>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.CodeHash).IsRequired().HasMaxLength(255);
+            entity.HasIndex(r => r.UserId);
+
+            entity.HasOne(r => r.User)
+                .WithMany(u => u.RecoveryCodes)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuthChallenge>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.UserAgent).HasMaxLength(1024);
+            entity.Property(c => c.IpAddress).HasMaxLength(64);
+            entity.HasIndex(c => c.UserId);
+            entity.HasIndex(c => c.ExpiresAt);
+
+            entity.HasOne(c => c.User)
+                .WithMany(u => u.AuthChallenges)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Configure Condominium entity

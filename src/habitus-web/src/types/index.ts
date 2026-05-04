@@ -5,11 +5,65 @@ export interface AuthResponse {
   role: UserRole;
   condominiumId?: string;
   unitId?: string;
+  accessibleCondominiums?: string[];
+  requiresTwoFactor?: boolean;
+  challengeId?: string;
+  availableTwoFactorMethods?: string[];
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+export interface CompleteTwoFactorLoginRequest {
+  challengeId: string;
+  code: string;
+  useRecoveryCode: boolean;
+}
+
+export interface TwoFactorSetupResponse {
+  isEnabled: boolean;
+  manualEntryKey: string;
+  otpauthUri: string;
+}
+
+export interface VerifyTwoFactorSetupRequest {
+  code: string;
+}
+
+export interface TwoFactorSetupCompleteResponse {
+  twoFactorEnabled: boolean;
+  recoveryCodes: string[];
+}
+
+export interface DisableTwoFactorRequest {
+  currentPassword: string;
+  code: string;
+  useRecoveryCode: boolean;
+}
+
+export interface RegenerateRecoveryCodesRequest {
+  currentPassword: string;
+  code: string;
+  useRecoveryCode: boolean;
+}
+
+export interface RecoveryCodesResponse {
+  recoveryCodes: string[];
+}
+
+export interface LinkedAuthProviderDto {
+  provider: string;
+  providerEmail: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+export interface TwoFactorSecurityResponse {
+  twoFactorEnabled: boolean;
+  recoveryCodesRemaining: number;
+  linkedProviders: LinkedAuthProviderDto[];
 }
 
 export interface RegisterRequest {

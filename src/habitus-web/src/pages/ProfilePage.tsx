@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp, Moon, Sun } from 'lucide-react';
-import { usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
+import { useSearchParams } from 'react-router-dom';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck } from 'lucide-react';
+import QRCode from 'qrcode';
+import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import FileUpload from '../components/FileUpload';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto } from '../types';
+import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -26,6 +28,7 @@ const unitDocumentColors: Record<string, string> = {
 
 export default function ProfilePage() {
   const { user, isManager } = useAuth();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,12 +57,51 @@ export default function ProfilePage() {
   });
   const [uploading, setUploading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
+  const [securityData, setSecurityData] = useState<TwoFactorSecurityResponse | null>(null);
+  const [loadingSecurity, setLoadingSecurity] = useState(false);
+  const [processingSecurity, setProcessingSecurity] = useState(false);
+  const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetupResponse | null>(null);
+  const [twoFactorSetupCode, setTwoFactorSetupCode] = useState('');
+  const [twoFactorQrCode, setTwoFactorQrCode] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [showDisableTwoFactor, setShowDisableTwoFactor] = useState(false);
+  const [showRegenerateRecoveryCodes, setShowRegenerateRecoveryCodes] = useState(false);
+  const [disableTwoFactorData, setDisableTwoFactorData] = useState<DisableTwoFactorRequest>({
+    currentPassword: '',
+    code: '',
+    useRecoveryCode: false,
+  });
+  const [regenerateRecoveryCodesData, setRegenerateRecoveryCodesData] = useState<RegenerateRecoveryCodesRequest>({
+    currentPassword: '',
+    code: '',
+    useRecoveryCode: false,
+  });
 
   useEffect(() => {
     return onThemeChanged(() => {
       setIsDarkMode(getIsDarkMode());
     });
   }, []);
+
+  useEffect(() => {
+    const securityStatus = searchParams.get('securityStatus');
+    if (!securityStatus) return;
+
+    const messages: Record<string, string> = {
+      linked_google: 'Google account linked successfully.',
+      linked_microsoft: 'Microsoft account linked successfully.',
+      link_failed: 'Unable to link the selected provider.',
+    };
+
+    const message = messages[securityStatus];
+    if (message) {
+      if (securityStatus.startsWith('linked_')) {
+        setSuccess(message);
+      } else {
+        setError(message);
+      }
+    }
+  }, [searchParams]);
 
   const handleToggleTheme = () => {
     const nextIsDark = toggleTheme();
@@ -115,6 +157,116 @@ export default function ProfilePage() {
       loadUserData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadSecurityOverview();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!twoFactorSetup?.otpauthUri) {
+      setTwoFactorQrCode('');
+      return;
+    }
+
+    QRCode.toDataURL(twoFactorSetup.otpauthUri)
+      .then(setTwoFactorQrCode)
+      .catch(() => setTwoFactorQrCode(''));
+  }, [twoFactorSetup]);
+
+  const loadSecurityOverview = async () => {
+    setLoadingSecurity(true);
+    try {
+      const response = await authApi.getSecurityOverview();
+      setSecurityData(response.data);
+    } catch (err) {
+      console.error('Failed to load security data:', err);
+    } finally {
+      setLoadingSecurity(false);
+    }
+  };
+
+  const handleStartTwoFactorSetup = async () => {
+    setProcessingSecurity(true);
+    setError('');
+    try {
+      const response = await authApi.setupTwoFactor();
+      setTwoFactorSetup(response.data);
+      setTwoFactorSetupCode('');
+    } catch {
+      setError('Erro ao iniciar configuração da autenticação de dois fatores.');
+    } finally {
+      setProcessingSecurity(false);
+    }
+  };
+
+  const handleVerifyTwoFactorSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessingSecurity(true);
+    setError('');
+    try {
+      const response = await authApi.verifyTwoFactorSetup({ code: twoFactorSetupCode });
+      setRecoveryCodes(response.data.recoveryCodes);
+      setTwoFactorSetup(null);
+      setTwoFactorSetupCode('');
+      setSuccess('Autenticação de dois fatores ativada com sucesso.');
+      loadSecurityOverview();
+    } catch {
+      setError('Código inválido. Verifique a app autenticadora e tente novamente.');
+    } finally {
+      setProcessingSecurity(false);
+    }
+  };
+
+  const handleDisableTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessingSecurity(true);
+    setError('');
+    try {
+      await authApi.disableTwoFactor(disableTwoFactorData);
+      setSuccess('Autenticação de dois fatores desativada.');
+      setShowDisableTwoFactor(false);
+      setDisableTwoFactorData({ currentPassword: '', code: '', useRecoveryCode: false });
+      loadSecurityOverview();
+    } catch {
+      setError('Não foi possível desativar a autenticação de dois fatores.');
+    } finally {
+      setProcessingSecurity(false);
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessingSecurity(true);
+    setError('');
+    try {
+      const response = await authApi.regenerateRecoveryCodes(regenerateRecoveryCodesData);
+      setRecoveryCodes(response.data.recoveryCodes);
+      setSuccess('Códigos de recuperação gerados com sucesso.');
+      setShowRegenerateRecoveryCodes(false);
+      setRegenerateRecoveryCodesData({ currentPassword: '', code: '', useRecoveryCode: false });
+      loadSecurityOverview();
+    } catch {
+      setError('Não foi possível regenerar os códigos de recuperação.');
+    } finally {
+      setProcessingSecurity(false);
+    }
+  };
+
+  const handleStartProviderLink = (provider: 'google' | 'microsoft') => {
+    window.location.href = `/api/auth/external/${provider}/link`;
+  };
+
+  const handleUnlinkProvider = async (provider: 'google' | 'microsoft') => {
+    try {
+      await authApi.unlinkProvider(provider);
+      setSuccess('Conta externa removida com sucesso.');
+      loadSecurityOverview();
+    } catch {
+      setError('Não foi possível remover a conta externa.');
+    }
+  };
 
   const loadUnitDocuments = async (unitId: string) => {
     try {
@@ -517,64 +669,310 @@ export default function ProfilePage() {
 
       {/* Security Tab */}
       {activeTab === 'security' && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-700">
-              <Lock className="w-6 h-6" />
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 text-emerald-700">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
+                  <p className="text-sm text-gray-500">Add an extra layer of protection to your account.</p>
+                </div>
+              </div>
+              {securityData && (
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${securityData.twoFactorEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {securityData.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              )}
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Alterar Senha</h2>
-              <p className="text-sm text-gray-500">Atualize sua senha de acesso</p>
+
+            {loadingSecurity ? (
+              <p className="text-sm text-gray-500">Loading security settings...</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                  Recovery codes remaining: <span className="font-semibold text-gray-900">{securityData?.recoveryCodesRemaining ?? 0}</span>
+                </div>
+
+                {!securityData?.twoFactorEnabled && !twoFactorSetup && (
+                  <button
+                    onClick={handleStartTwoFactorSetup}
+                    disabled={processingSecurity}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                  >
+                    {processingSecurity ? 'Preparing...' : 'Set up 2FA'}
+                  </button>
+                )}
+
+                {twoFactorSetup && (
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Configure your authenticator app</h3>
+                      <p className="text-sm text-gray-600 mt-1">Scan the QR code or enter the setup key manually in Google Authenticator, Microsoft Authenticator, or a compatible app.</p>
+                    </div>
+
+                    {twoFactorQrCode && (
+                      <div className="flex justify-center">
+                        <img src={twoFactorQrCode} alt="2FA QR Code" className="w-44 h-44 rounded-lg border border-white shadow-sm bg-white p-3" />
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border border-indigo-200 bg-white px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Manual setup key</p>
+                      <p className="font-mono text-sm text-gray-900 break-all">{twoFactorSetup.manualEntryKey}</p>
+                    </div>
+
+                    <form onSubmit={handleVerifyTwoFactorSetup} className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Verification code</label>
+                        <input
+                          type="text"
+                          value={twoFactorSetupCode}
+                          onChange={(e) => setTwoFactorSetupCode(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="123456"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTwoFactorSetup(null);
+                            setTwoFactorSetupCode('');
+                          }}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={processingSecurity}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingSecurity ? 'Verifying...' : 'Verify and enable'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {securityData?.twoFactorEnabled && (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setShowRegenerateRecoveryCodes((value) => !value)}
+                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <RefreshCcw className="w-4 h-4" />
+                      Regenerate recovery codes
+                    </button>
+                    <button
+                      onClick={() => setShowDisableTwoFactor((value) => !value)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Disable 2FA
+                    </button>
+                  </div>
+                )}
+
+                {showDisableTwoFactor && (
+                  <form onSubmit={handleDisableTwoFactor} className="rounded-lg border border-red-100 bg-red-50 p-4 space-y-3">
+                    <h3 className="font-semibold text-gray-900">Disable two-factor authentication</h3>
+                    <input
+                      type="password"
+                      value={disableTwoFactorData.currentPassword}
+                      onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, currentPassword: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Current password"
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={disableTwoFactorData.code}
+                      onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, code: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder={disableTwoFactorData.useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                      required
+                    />
+                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={disableTwoFactorData.useRecoveryCode}
+                        onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, useRecoveryCode: e.target.checked })}
+                      />
+                      Use recovery code
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={processingSecurity}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      Confirm disable
+                    </button>
+                  </form>
+                )}
+
+                {showRegenerateRecoveryCodes && (
+                  <form onSubmit={handleRegenerateRecoveryCodes} className="rounded-lg border border-amber-100 bg-amber-50 p-4 space-y-3">
+                    <h3 className="font-semibold text-gray-900">Regenerate recovery codes</h3>
+                    <input
+                      type="password"
+                      value={regenerateRecoveryCodesData.currentPassword}
+                      onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, currentPassword: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="Current password"
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={regenerateRecoveryCodesData.code}
+                      onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, code: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder={regenerateRecoveryCodesData.useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                      required
+                    />
+                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={regenerateRecoveryCodesData.useRecoveryCode}
+                        onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, useRecoveryCode: e.target.checked })}
+                      />
+                      Use recovery code
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={processingSecurity}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                    >
+                      Generate new codes
+                    </button>
+                  </form>
+                )}
+
+                {recoveryCodes.length > 0 && (
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 space-y-2">
+                    <h3 className="font-semibold text-gray-900">Recovery codes</h3>
+                    <p className="text-sm text-gray-600">Save these codes in a secure place. Each code can only be used once.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {recoveryCodes.map((code) => (
+                        <div key={code} className="font-mono text-sm bg-white rounded border border-emerald-100 px-3 py-2 text-gray-900">
+                          {code}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700">
+                <Link2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Linked Accounts</h2>
+                <p className="text-sm text-gray-500">Connect Google or Microsoft to sign in without entering your password.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {(['Google', 'Microsoft'] as const).map((provider) => {
+                const linkedProvider = securityData?.linkedProviders.find((item) => item.provider === provider);
+                const providerKey = provider.toLowerCase() as 'google' | 'microsoft';
+
+                return (
+                  <div key={provider} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 px-4 py-3">
+                    <div>
+                      <p className="font-medium text-gray-900">{provider}</p>
+                      <p className="text-sm text-gray-500">
+                        {linkedProvider ? `Linked to ${linkedProvider.providerEmail}` : 'Not linked'}
+                      </p>
+                    </div>
+                    {linkedProvider ? (
+                      <button
+                        onClick={() => handleUnlinkProvider(providerKey)}
+                        className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        Unlink
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStartProviderLink(providerKey)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Link {provider}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <form onSubmit={handlePasswordUpdate} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
-              <input
-                type="password"
-                required
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-700">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Alterar Senha</h2>
+                <p className="text-sm text-gray-500">Atualize sua senha de acesso</p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={passwordData.newPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
-            </div>
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nova Senha</label>
-              <input
-                type="password"
-                required
-                value={passwordData.confirmPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
+              </div>
 
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Lock className="w-4 h-4" />
-                {saving ? 'A alterar...' : 'Alterar Senha'}
-              </button>
-            </div>
-          </form>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nova Senha</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Lock className="w-4 h-4" />
+                  {saving ? 'A alterar...' : 'Alterar Senha'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

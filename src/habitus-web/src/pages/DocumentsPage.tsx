@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FileText, Download, Trash2, Plus, X, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench } from 'lucide-react';
 import { documentsApi, assembliesApi, unitsApi, maintenanceApi } from '../api/services';
@@ -83,7 +83,13 @@ export default function DocumentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<DocumentDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>(searchParams.get('tab') || 'Condominium');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({
@@ -98,55 +104,41 @@ export default function DocumentsPage() {
   const [uploading, setUploading] = useState(false);
   const pageSize = 10;
 
-  const load = (page: number = 1, search: string = searchQuery, context: string = activeTab) => {
+  const load = useCallback((page: number = 1) => {
     setLoading(true);
-    documentsApi.getPaged(page, pageSize, search, context)
+    documentsApi.getPaged(page, pageSize, debouncedSearch, activeTab)
       .then((r) => {
         setPagination(r.data);
         setDocuments(r.data.items);
         setCurrentPage(page);
       })
       .finally(() => setLoading(false));
-  };
+  }, [activeTab, debouncedSearch, pageSize]);
 
-  const loadAssemblies = () => {
+  const loadAssemblies = useCallback(() => {
     assembliesApi.getPaged(1, 100)
       .then((r) => setAssemblies(r.data.items))
       .catch(() => setAssemblies([]));
-  };
+  }, []);
 
-  const loadUnits = () => {
+  const loadUnits = useCallback(() => {
     unitsApi.getPaged(1, 100)
       .then((r) => setUnits(r.data.items))
       .catch(() => setUnits([]));
-  };
+  }, []);
 
-  const loadMaintenanceRequests = () => {
+  const loadMaintenanceRequests = useCallback(() => {
     maintenanceApi.getPaged(1, 100)
       .then((r) => setMaintenanceRequests(r.data.items))
       .catch(() => setMaintenanceRequests([]));
-  };
+  }, []);
 
-  useEffect(() => { 
-    load(1, '', activeTab); 
-    if (activeTab === 'Assembly') {
-      loadAssemblies();
-    } else if (activeTab === 'Unit') {
-      loadUnits();
-    } else if (activeTab === 'Maintenance') {
-      loadMaintenanceRequests();
-    }
-  }, [activeTab]);
-
-  // Search with debounce
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery, activeTab);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    load(1);
+    if (activeTab === 'Assembly') loadAssemblies();
+    else if (activeTab === 'Unit') loadUnits();
+    else if (activeTab === 'Maintenance') loadMaintenanceRequests();
+  }, [load, activeTab, loadAssemblies, loadUnits, loadMaintenanceRequests]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminar este documento?')) return;
@@ -206,7 +198,7 @@ export default function DocumentsPage() {
         year: new Date().getFullYear().toString(),
       });
       load();
-    } catch (error) {
+    } catch {
       alert('Erro ao fazer upload do documento');
     } finally {
       setUploading(false);

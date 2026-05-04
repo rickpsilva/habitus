@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +6,21 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
 
 // Updated category mappings matching backend FinancialCategory enum
 const incomeCategoryLabels: Record<string, string> = {
@@ -61,7 +76,13 @@ export default function FinancialPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<FinancialRecordDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   // Form states
   const [showForm, setShowForm] = useState(false);
@@ -119,10 +140,10 @@ export default function FinancialPage() {
   }, [condominiumId, selectedYear]);
 
   // Load records with pagination
-  const loadRecords = (page: number = 1, search: string = searchQuery) => {
+  const loadRecords = useCallback((page: number = 1) => {
     if (!condominiumId) return;
     
-    financialApi.getByYear(condominiumId, selectedYear, page, pageSize, search)
+    financialApi.getByYear(condominiumId, selectedYear, page, pageSize, debouncedSearch)
       .then((r) => {
         setPagination(r.data);
         setRecords(r.data.items);
@@ -131,23 +152,13 @@ export default function FinancialPage() {
       .catch(error => {
         console.error('Erro ao carregar registos:', error);
       });
-  };
+  }, [condominiumId, selectedYear, pageSize, debouncedSearch]);
 
   useEffect(() => {
     if (condominiumId) {
       loadRecords(1);
     }
-  }, [condominiumId, selectedYear]);
-
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined && condominiumId) {
-        loadRecords(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [condominiumId, selectedYear, loadRecords]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,9 +211,9 @@ export default function FinancialPage() {
         setReserveFund(fundRes.data);
       }
       loadRecords();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao criar registo financeiro:', error);
-      alert(`Erro ao criar registo financeiro: ${error.response?.data?.message || error.message}`);
+      alert(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`);
     } finally {
       setSubmitting(false);
     }
@@ -278,9 +289,9 @@ export default function FinancialPage() {
       setShowFundModal(false);
       setFundAmount('');
       loadRecords();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro na operação do fundo:', error);
-      alert(error.response?.data?.message || 'Erro na operação do fundo de reserva');
+      alert(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'));
     } finally {
       setSubmitting(false);
     }
@@ -333,7 +344,7 @@ export default function FinancialPage() {
   };
 
   // Payment functions
-  const loadAllPayments = async () => {
+  const loadAllPayments = useCallback(async () => {
     if (!isAdmin || !condominiumId) return;
     try {
       // Load all payments (up to 500)
@@ -342,7 +353,7 @@ export default function FinancialPage() {
     } catch (error) {
       console.error('Error loading payments:', error);
     }
-  };
+  }, [isAdmin, condominiumId]);
 
   const handleApprovePayment = async (paymentId: string) => {
     if (!confirm('Tem certeza que deseja aprovar este pagamento?')) return;
@@ -350,9 +361,9 @@ export default function FinancialPage() {
       await paymentsApi.approve(paymentId);
       loadAllPayments();
       alert('Pagamento aprovado com sucesso!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error approving payment:', error);
-      alert(error.response?.data?.message || 'Erro ao aprovar pagamento');
+      alert(getApiErrorMessage(error, 'Erro ao aprovar pagamento'));
     }
   };
 
@@ -368,9 +379,9 @@ export default function FinancialPage() {
       setRejectionReason('');
       loadAllPayments();
       alert('Pagamento rejeitado');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error rejecting payment:', error);
-      alert(error.response?.data?.message || 'Erro ao rejeitar pagamento');
+      alert(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'));
     }
   };
 
@@ -380,9 +391,9 @@ export default function FinancialPage() {
       await paymentsApi.issueReceipt(paymentId);
       loadAllPayments();
       alert('Recibo emitido com sucesso!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error issuing receipt:', error);
-      alert(error.response?.data?.message || 'Erro ao emitir recibo');
+      alert(getApiErrorMessage(error, 'Erro ao emitir recibo'));
     }
   };
 
@@ -393,9 +404,9 @@ export default function FinancialPage() {
     }
     try {
       await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      alert(error.response?.data?.message || 'Erro ao baixar recibo');
+      alert(getApiErrorMessage(error, 'Erro ao baixar recibo'));
     }
   };
 
@@ -404,7 +415,7 @@ export default function FinancialPage() {
     if (activeTab === 'cashin' && isAdmin) {
       loadAllPayments();
     }
-  }, [activeTab, isAdmin, condominiumId]);
+  }, [activeTab, isAdmin, condominiumId, loadAllPayments]);
 
   // Filter and search payments
   const filteredPayments = allPayments.filter(payment => {
@@ -1042,7 +1053,7 @@ export default function FinancialPage() {
               <div className="min-w-[200px]">
                 <select
                   value={paymentStatusFilter}
-                  onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value as 'All' | 'Pending' | 'Approved' | 'Rejected')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="Pending">🟡 Pendentes</option>
@@ -1300,11 +1311,7 @@ function FinancialPlansContent() {
     extraordinaryQuota: 0
   });
 
-  useEffect(() => {
-    loadData();
-  }, [condominiumId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [unitsRes, plansRes] = await Promise.all([
         unitsApi.getAll(),
@@ -1323,7 +1330,15 @@ function FinancialPlansContent() {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  };
+  }, [condominiumId]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [condominiumId, loadData]);
 
   const handleCreatePlan = async () => {
     try {

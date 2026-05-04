@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
@@ -38,6 +38,12 @@ export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [filterRole, setFilterRole] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<UserDto> | null>(null);
@@ -56,15 +62,15 @@ export default function UsersPage() {
   const [pendingUsers, setPendingUsers] = useState<PendingUserDto[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
 
-  const load = async (page: number = 1, searchQuery: string = search) => {
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
       let usersResponse;
 
       if (isAdmin && condominiumId) {
-        usersResponse = await usersApi.getByCondominiumPaged(condominiumId, page, pageSize, searchQuery);
+        usersResponse = await usersApi.getByCondominiumPaged(condominiumId, page, pageSize, debouncedSearch);
       } else {
-        usersResponse = await usersApi.getPaged(page, pageSize, searchQuery);
+        usersResponse = await usersApi.getPaged(page, pageSize, debouncedSearch);
       }
 
       let usersData = usersResponse.data.items;
@@ -94,14 +100,9 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, isManager, condominiumId, pageSize, debouncedSearch]);
 
-  useEffect(() => {
-    load(1);
-    if (isAdmin) loadPending();
-  }, []);
-
-  const loadPending = async () => {
+  const loadPending = useCallback(async () => {
     setPendingLoading(true);
     try {
       const r = await userRegistrationApi.getPendingUsers();
@@ -109,7 +110,12 @@ export default function UsersPage() {
     } catch { /* silent */ } finally {
       setPendingLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    load(1);
+    if (isAdmin) loadPending();
+  }, [load, loadPending, isAdmin]);
 
   const handleApprove = async (userId: string) => {
     await userRegistrationApi.approveUser(userId);
@@ -123,15 +129,6 @@ export default function UsersPage() {
     await userRegistrationApi.rejectUser(userId);
     setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
   };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (search !== undefined) {
-        load(1, search);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

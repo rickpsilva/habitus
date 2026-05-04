@@ -2,8 +2,16 @@ import api from './client';
 import type {
   AuthResponse,
   LoginRequest,
+  CompleteTwoFactorLoginRequest,
   RegisterRequest,
   RegisterResidentRequest,
+  TwoFactorSecurityResponse,
+  TwoFactorSetupResponse,
+  VerifyTwoFactorSetupRequest,
+  TwoFactorSetupCompleteResponse,
+  DisableTwoFactorRequest,
+  RegenerateRecoveryCodesRequest,
+  RecoveryCodesResponse,
   CondominiumPublicDto,
   UnitPublicDto,
   PendingUserDto,
@@ -73,10 +81,19 @@ import type {
 
 export const authApi = {
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
+  completeTwoFactorLogin: (data: CompleteTwoFactorLoginRequest) => api.post<AuthResponse>('/auth/login/2fa', data),
   register: (data: RegisterRequest) => api.post<AuthResponse>('/auth/register', data),
   forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
   resetPassword: (data: { email: string; token: string; newPassword: string }) =>
     api.post('/auth/reset-password', data),
+  getSecurityOverview: () => api.get<TwoFactorSecurityResponse>('/auth/security'),
+  setupTwoFactor: () => api.post<TwoFactorSetupResponse>('/auth/2fa/setup'),
+  verifyTwoFactorSetup: (data: VerifyTwoFactorSetupRequest) =>
+    api.post<TwoFactorSetupCompleteResponse>('/auth/2fa/verify-setup', data),
+  disableTwoFactor: (data: DisableTwoFactorRequest) => api.post('/auth/2fa/disable', data),
+  regenerateRecoveryCodes: (data: RegenerateRecoveryCodesRequest) =>
+    api.post<RecoveryCodesResponse>('/auth/2fa/recovery-codes/regenerate', data),
+  unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/auth/providers/${provider}`),
 };
 
 // New users API

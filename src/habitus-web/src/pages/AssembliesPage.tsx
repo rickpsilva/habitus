@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
 import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,7 +45,13 @@ export default function AssembliesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<AssemblyDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Detail modal state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -88,9 +94,9 @@ export default function AssembliesPage() {
   const [quickUploadAssembly, setQuickUploadAssembly] = useState<AssemblyDto | null>(null);
   const [dragOverAssemblyId, setDragOverAssemblyId] = useState<string | null>(null);
 
-  const load = (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback((page: number = 1) => {
     setLoading(true);
-    assembliesApi.getPaged(page, pageSize, search)
+    assembliesApi.getPaged(page, pageSize, debouncedSearch)
       .then((r) => {
         // Defensive: only show assemblies belonging to the logged-in user's condominium
         const scoped = condominiumId
@@ -105,19 +111,9 @@ export default function AssembliesPage() {
         setCurrentPage(page);
       })
       .finally(() => setLoading(false));
-  };
+  }, [condominiumId, debouncedSearch]);
 
-  useEffect(() => { load(1); }, []);
-  
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  useEffect(() => { load(1); }, [load]);
   
   // Filter assemblies by status
   const filteredAssemblies = statusFilter === 'All' 
@@ -887,7 +883,12 @@ export default function AssembliesPage() {
                       <label className="block text-xs font-medium text-gray-700 mb-1">Tipo *</label>
                       <select
                         value={uploadForm.type}
-                        onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value as any })}
+                        onChange={(e) =>
+                          setUploadForm({
+                            ...uploadForm,
+                            type: e.target.value as 'AssemblyMinutes' | 'AssemblyConvocation' | 'AssemblyAttachment',
+                          })
+                        }
                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         required
                         disabled={uploadingDocument}

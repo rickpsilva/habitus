@@ -9,4 +9,7 @@ public class AuthResponse
     public Guid? CondominiumId { get; set; }
     public Guid? UnitId { get; set; }
     public List<Guid> AccessibleCondominiums { get; set; } = new();  // For Managers
+    public bool RequiresTwoFactor { get; set; }
+    public string? ChallengeId { get; set; }
+    public List<string> AvailableTwoFactorMethods { get; set; } = new();
 }

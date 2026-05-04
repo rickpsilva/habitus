@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Truck, Mail, Phone, MapPin, Building2, X, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
+
+type SupplierForm = CreateSupplierRequest & { isActive: boolean };
+
+const initialSupplierForm: SupplierForm = {
+  name: '',
+  contact: '',
+  email: '',
+  phone: '',
+  address: '',
+  specialty: '',
+  condominiumId: '',
+  isActive: true,
+};
 
 export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
@@ -17,17 +30,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<SupplierDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
-  const [form, setForm] = useState<CreateSupplierRequest | UpdateSupplierRequest>({
-    name: '',
-    contact: '',
-    email: '',
-    phone: '',
-    address: '',
-    specialty: '',
-    condominiumId: '',
-    isActive: true,
-  } as any);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  const [form, setForm] = useState<SupplierForm>(initialSupplierForm);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -42,10 +52,10 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     loadUserData();
   }, []);
 
-  const load = async (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const response = await suppliersApi.getPaged(page, pageSize, search);
+      const response = await suppliersApi.getPaged(page, pageSize, debouncedSearch);
       setPagination(response.data);
       setSuppliers(response.data.items);
       setCurrentPage(page);
@@ -54,19 +64,9 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch]);
 
-  useEffect(() => { load(1); }, []);
-
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  useEffect(() => { load(1); }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,23 +79,32 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     setSubmitting(true);
     try {
       if (editingId) {
-        await suppliersApi.update(editingId, form as UpdateSupplierRequest);
+        const updatePayload: UpdateSupplierRequest = {
+          name: form.name,
+          contact: form.contact,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          specialty: form.specialty,
+          isActive: form.isActive,
+        };
+        await suppliersApi.update(editingId, updatePayload);
       } else {
-        await suppliersApi.create({ ...form, condominiumId } as CreateSupplierRequest);
+        const createPayload: CreateSupplierRequest = {
+          name: form.name,
+          contact: form.contact,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          specialty: form.specialty,
+          condominiumId,
+        };
+        await suppliersApi.create(createPayload);
       }
       
       setShowForm(false);
       setEditingId(null);
-      setForm({
-        name: '',
-        contact: '',
-        email: '',
-        phone: '',
-        address: '',
-        specialty: '',
-        condominiumId: '',
-        isActive: true,
-      } as any);
+      setForm(initialSupplierForm);
       load();
     } catch (error) {
       console.error('Erro ao guardar fornecedor:', error);
@@ -114,8 +123,9 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       phone: supplier.phone,
       address: supplier.address,
       specialty: supplier.specialty,
+      condominiumId: supplier.condominiumId,
       isActive: supplier.isActive,
-    } as UpdateSupplierRequest);
+    });
     setShowForm(true);
   };
 
@@ -165,16 +175,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             <button
               onClick={() => {
                 setEditingId(null);
-                setForm({
-                  name: '',
-                  contact: '',
-                  email: '',
-                  phone: '',
-                  address: '',
-                  specialty: '',
-                  condominiumId: '',
-                  isActive: true,
-                } as any);
+                setForm(initialSupplierForm);
                 setShowForm(true);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

@@ -1,8 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const responseData = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response?.data;
+    if (responseData?.message) {
+      return responseData.message;
+    }
+
+    if (responseData?.errors) {
+      const errorMessages = Object.values(responseData.errors).flat();
+      if (errorMessages.length > 0) {
+        return `Erro de validação:\n${errorMessages.join('\n')}`;
+      }
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
 
 export default function PaymentsPage() {
   const { condominiumId, unitId } = useAuth();
@@ -20,13 +42,6 @@ export default function PaymentsPage() {
     description: '',
   });
 
-  useEffect(() => {
-    loadPayments();
-    if (condominiumId) {
-      loadPaymentMethods();
-    }
-  }, [condominiumId]);
-
   const loadPayments = async () => {
     try {
       console.log('Loading payments...');
@@ -40,7 +55,7 @@ export default function PaymentsPage() {
     }
   };
 
-  const loadPaymentMethods = async () => {
+  const loadPaymentMethods = useCallback(async () => {
     if (!condominiumId) return;
     try {
       const response = await paymentMethodsApi.get(condominiumId);
@@ -57,7 +72,14 @@ export default function PaymentsPage() {
     } catch (error) {
       console.error('Error loading payment methods:', error);
     }
-  };
+  }, [condominiumId]);
+
+  useEffect(() => {
+    loadPayments();
+    if (condominiumId) {
+      loadPaymentMethods();
+    }
+  }, [condominiumId, loadPaymentMethods]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,8 +132,10 @@ export default function PaymentsPage() {
           // Store the document ID instead of filePath
           const proofUrl = uploadResponse.data.id;
           await paymentsApi.uploadProof(paymentId, proofUrl);
-        } catch (uploadError: any) {
-          console.error('Upload error details:', uploadError.response?.data);
+        } catch (uploadError: unknown) {
+          if (typeof uploadError === 'object' && uploadError !== null && 'response' in uploadError) {
+            console.error('Upload error details:', (uploadError as { response?: { data?: unknown } }).response?.data);
+          }
           throw uploadError;
         }
       }
@@ -127,23 +151,9 @@ export default function PaymentsPage() {
       }, 500);
       
       alert('Pagamento criado com sucesso! Aguarde aprovação do administrador.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating payment:', error);
-      
-      // Show more specific error message
-      let errorMessage = 'Erro ao criar pagamento. Por favor, tente novamente.';
-      if (error.response?.data?.errors) {
-        // ModelState validation errors
-        const errors = error.response.data.errors;
-        const errorMessages = Object.values(errors).flat();
-        errorMessage = `Erro de validação:\n${errorMessages.join('\n')}`;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      alert(errorMessage);
+      alert(getApiErrorMessage(error, 'Erro ao criar pagamento. Por favor, tente novamente.'));
     } finally {
       setSubmitting(false);
     }
@@ -193,9 +203,9 @@ export default function PaymentsPage() {
     }
     try {
       await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      alert(error.response?.data?.message || 'Erro ao baixar recibo');
+      alert(getApiErrorMessage(error, 'Erro ao baixar recibo'));
     }
   };
 
@@ -332,7 +342,7 @@ export default function PaymentsPage() {
                 </label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value as any })}
+                  onChange={(e) => setForm({ ...form, type: e.target.value as CreatePaymentRequest['type'] })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   required
                 >
@@ -351,7 +361,7 @@ export default function PaymentsPage() {
                 <select
                   value={form.method}
                   onChange={(e) => {
-                    setForm({ ...form, method: e.target.value as any });
+                    setForm({ ...form, method: e.target.value as CreatePaymentRequest['method'] });
                     // Clear proof file if switching away from BankTransfer
                     if (e.target.value !== 'BankTransfer') {
                       setProofFile(null);

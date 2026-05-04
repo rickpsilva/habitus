@@ -16,6 +16,12 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public string? TwoFactorSecretEncrypted { get; set; }
+    public DateTime? TwoFactorConfirmedAt { get; set; }
+    public int FailedLoginCount { get; set; }
+    public DateTime? LockoutUntil { get; set; }
+    public DateTime? LastPasswordChangedAt { get; set; }
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -34,4 +40,7 @@ public class User
     
     // Many-to-many: Managers can have access to multiple condominiums
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+    public ICollection<UserAuthProvider> AuthProviders { get; set; } = new List<UserAuthProvider>();
+    public ICollection<UserRecoveryCode> RecoveryCodes { get; set; } = new List<UserRecoveryCode>();
+    public ICollection<AuthChallenge> AuthChallenges { get; set; } = new List<AuthChallenge>();
 }

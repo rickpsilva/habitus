@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
@@ -37,7 +37,13 @@ export default function MaintenancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<MaintenanceRequestDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [form, setForm] = useState<CreateMaintenanceRequest>({
     title: '',
     description: '',
@@ -103,9 +109,9 @@ export default function MaintenancePage() {
     }
   }, [condominiumId]);
 
-  const load = (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback((page: number = 1) => {
     setLoading(true);
-    maintenanceApi.getPaged(page, pageSize, search)
+    maintenanceApi.getPaged(page, pageSize, debouncedSearch)
       .then((r) => {
         const scopedItems = condominiumId
           ? r.data.items.filter((item) => item.condominiumId === condominiumId)
@@ -115,19 +121,9 @@ export default function MaintenancePage() {
         setCurrentPage(page);
       })
       .finally(() => setLoading(false));
-  };
+  }, [condominiumId, debouncedSearch]);
 
-  useEffect(() => { load(1); }, []);
-
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  useEffect(() => { load(1); }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

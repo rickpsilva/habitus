@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Megaphone,
@@ -161,7 +161,7 @@ export default function AnnouncementsPage() {
     [filteredAnnouncements]
   );
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!condominiumId) return;
     setLoading(true);
     try {
@@ -177,11 +177,11 @@ export default function AnnouncementsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId]);
 
   useEffect(() => {
     loadData();
-  }, [condominiumId]);
+  }, [condominiumId, loadData]);
 
   useEffect(() => {
     if (!condominiumId || announcements.length === 0) return;
@@ -210,7 +210,7 @@ export default function AnnouncementsPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, announcements, condominiumId, selected?.id]);
+  }, [searchParams, announcements, condominiumId, selected?.id, loadData]);
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
