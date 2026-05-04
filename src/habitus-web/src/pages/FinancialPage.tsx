@@ -2,10 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -56,6 +60,8 @@ const financialDocTypeLabels: Record<string, string> = {
 
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
+  const { showToast } = useToast();
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'quota-plans'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
@@ -134,7 +140,7 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar dados financeiros:', error);
-        alert('Erro ao carregar dados financeiros');
+        showToast('Erro ao carregar dados financeiros', 'error');
       })
       .finally(() => setLoading(false));
   }, [condominiumId, selectedYear]);
@@ -164,17 +170,17 @@ export default function FinancialPage() {
     e.preventDefault();
     
     if (!form.condominiumId) {
-      alert('Condomínio não identificado. Por favor, recarregue a página.');
+      showToast('Condomínio não identificado. Por favor, recarregue a página.', 'error');
       return;
     }
     
     if (!form.description || form.description.trim() === '') {
-      alert('Descrição é obrigatória.');
+      showToast('Descrição é obrigatória.', 'warning');
       return;
     }
     
     if (!form.amount || parseFloat(form.amount) <= 0) {
-      alert('Valor deve ser maior que zero.');
+      showToast('Valor deve ser maior que zero.', 'warning');
       return;
     }
     
@@ -213,30 +219,33 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro ao criar registo financeiro:', error);
-      alert(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`);
+      showToast(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`, 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este registo?')) return;
-    
-    try {
-      await financialApi.delete(id);
-      if (condominiumId) {
-        const [dashboardRes, fundRes] = await Promise.all([
-          financialApi.getDashboard(condominiumId, selectedYear),
-          financialApi.getCurrentReserveFund(condominiumId),
-        ]);
-        setDashboard(dashboardRes.data);
-        setReserveFund(fundRes.data);
-      }
-      loadRecords();
-    } catch (error) {
-      console.error('Erro ao eliminar registo:', error);
-      alert('Erro ao eliminar registo');
-    }
+    setConfirmState({
+      message: 'Eliminar este registo?',
+      onConfirm: async () => {
+        try {
+          await financialApi.delete(id);
+          if (condominiumId) {
+            const [dashboardRes, fundRes] = await Promise.all([
+              financialApi.getDashboard(condominiumId, selectedYear),
+              financialApi.getCurrentReserveFund(condominiumId),
+            ]);
+            setDashboard(dashboardRes.data);
+            setReserveFund(fundRes.data);
+          }
+          loadRecords();
+        } catch (error) {
+          console.error('Erro ao eliminar registo:', error);
+          showToast('Erro ao eliminar registo', 'error');
+        }
+      },
+    });
   };
 
   const handleDownloadProof = async (documentIdOrPath: string, description: string) => {
@@ -249,23 +258,21 @@ export default function FinancialPage() {
         await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
       } else if (documentIdOrPath.startsWith('/uploads/')) {
         // Old format: file path - show warning
-        alert('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
-        // Could open in new tab as fallback (though will fail without auth)
-        // window.open(documentIdOrPath, '_blank');
+        showToast('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.', 'warning');
       } else {
         // Unknown format
-        alert('Formato de comprovativo não reconhecido.');
+        showToast('Formato de comprovativo não reconhecido.', 'warning');
       }
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      alert('Erro ao fazer download do comprovativo');
+      showToast('Erro ao fazer download do comprovativo', 'error');
     }
   };
 
   const handleFundOperation = async () => {
     if (!condominiumId) return;
     if (!fundAmount || parseFloat(fundAmount) <= 0) {
-      alert('Valor inválido');
+      showToast('Valor inválido', 'warning');
       return;
     }
 
@@ -291,7 +298,7 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro na operação do fundo:', error);
-      alert(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'));
+      showToast(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -323,10 +330,10 @@ export default function FinancialPage() {
         description: '',
         year: new Date().getFullYear().toString(),
       });
-      alert('Documento carregado com sucesso!');
+      showToast('Documento carregado com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload do documento');
+      showToast('Erro ao fazer upload do documento', 'error');
     } finally {
       setUploading(false);
     }
@@ -356,20 +363,24 @@ export default function FinancialPage() {
   }, [isAdmin, condominiumId]);
 
   const handleApprovePayment = async (paymentId: string) => {
-    if (!confirm('Tem certeza que deseja aprovar este pagamento?')) return;
-    try {
-      await paymentsApi.approve(paymentId);
-      loadAllPayments();
-      alert('Pagamento aprovado com sucesso!');
-    } catch (error: unknown) {
-      console.error('Error approving payment:', error);
-      alert(getApiErrorMessage(error, 'Erro ao aprovar pagamento'));
-    }
+    setConfirmState({
+      message: 'Tem certeza que deseja aprovar este pagamento?',
+      onConfirm: async () => {
+        try {
+          await paymentsApi.approve(paymentId);
+          loadAllPayments();
+          showToast('Pagamento aprovado com sucesso!', 'success');
+        } catch (error: unknown) {
+          console.error('Error approving payment:', error);
+          showToast(getApiErrorMessage(error, 'Erro ao aprovar pagamento'), 'error');
+        }
+      },
+    });
   };
 
   const handleRejectPayment = async () => {
     if (!selectedPayment || !rejectionReason.trim()) {
-      alert('Por favor insira o motivo da rejeição');
+      showToast('Por favor insira o motivo da rejeição', 'warning');
       return;
     }
     try {
@@ -378,35 +389,39 @@ export default function FinancialPage() {
       setSelectedPayment(null);
       setRejectionReason('');
       loadAllPayments();
-      alert('Pagamento rejeitado');
+      showToast('Pagamento rejeitado', 'info');
     } catch (error: unknown) {
       console.error('Error rejecting payment:', error);
-      alert(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'));
+      showToast(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'), 'error');
     }
   };
 
   const handleIssueReceipt = async (paymentId: string) => {
-    if (!confirm('Emitir recibo para este pagamento?')) return;
-    try {
-      await paymentsApi.issueReceipt(paymentId);
-      loadAllPayments();
-      alert('Recibo emitido com sucesso!');
-    } catch (error: unknown) {
-      console.error('Error issuing receipt:', error);
-      alert(getApiErrorMessage(error, 'Erro ao emitir recibo'));
-    }
+    setConfirmState({
+      message: 'Emitir recibo para este pagamento?',
+      onConfirm: async () => {
+        try {
+          await paymentsApi.issueReceipt(paymentId);
+          loadAllPayments();
+          showToast('Recibo emitido com sucesso!', 'success');
+        } catch (error: unknown) {
+          console.error('Error issuing receipt:', error);
+          showToast(getApiErrorMessage(error, 'Erro ao emitir recibo'), 'error');
+        }
+      },
+    });
   };
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
     if (!payment.receiptNumber || !payment.receiptYear) {
-      alert('Este pagamento ainda não tem recibo emitido');
+      showToast('Este pagamento ainda não tem recibo emitido', 'warning');
       return;
     }
     try {
       await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      alert(getApiErrorMessage(error, 'Erro ao baixar recibo'));
+      showToast(getApiErrorMessage(error, 'Erro ao baixar recibo'), 'error');
     }
   };
 
@@ -1290,6 +1305,14 @@ export default function FinancialPage() {
 
       {/* Quota Plans Section (Admin Only) */}
       {activeTab === 'quota-plans' && isAdmin && <FinancialPlansContent />}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1297,12 +1320,14 @@ export default function FinancialPage() {
 // ========== Financial Plans Content Component ==========
 function FinancialPlansContent() {
   const { condominiumId } = useAuth();
+  const { showToast } = useToast();
   const currentYear = new Date().getFullYear();
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [quotaPlans, setQuotaPlans] = useState<QuotaPlanDto[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<QuotaPlanDto | null>(null);
   const [view, setView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
   const [isQuotasPanelExpanded, setIsQuotasPanelExpanded] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1356,7 +1381,7 @@ function FinancialPlansContent() {
       });
     } catch (error) {
       console.error('Error creating plan:', error);
-      alert('Erro ao criar plano');
+      showToast('Erro ao criar plano', 'error');
     }
   };
 
@@ -1372,35 +1397,39 @@ function FinancialPlansContent() {
       setSelectedPlan(null);
     } catch (error) {
       console.error('Error updating plan:', error);
-      alert('Erro ao atualizar plano');
+      showToast('Erro ao atualizar plano', 'error');
     }
   };
 
   const handleApplyPlan = async (planId: string) => {
-    if (!confirm('Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações.')) {
-      return;
-    }
-    try {
-      await quotaPlansApi.apply(condominiumId!, planId);
-      await loadData();
-      alert('Plano aplicado com sucesso!');
-    } catch (error) {
-      console.error('Error applying plan:', error);
-      alert('Erro ao aplicar plano');
-    }
+    setConfirmState({
+      message: 'Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações.',
+      onConfirm: async () => {
+        try {
+          await quotaPlansApi.apply(condominiumId!, planId);
+          await loadData();
+          showToast('Plano aplicado com sucesso!', 'success');
+        } catch (error) {
+          console.error('Error applying plan:', error);
+          showToast('Erro ao aplicar plano', 'error');
+        }
+      },
+    });
   };
 
   const handleDeletePlan = async (planId: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este plano?')) {
-      return;
-    }
-    try {
-      await quotaPlansApi.delete(condominiumId!, planId);
-      await loadData();
-    } catch (error) {
-      console.error('Error deleting plan:', error);
-      alert('Erro ao eliminar plano');
-    }
+    setConfirmState({
+      message: 'Tem a certeza que deseja eliminar este plano?',
+      onConfirm: async () => {
+        try {
+          await quotaPlansApi.delete(condominiumId!, planId);
+          await loadData();
+        } catch (error) {
+          console.error('Error deleting plan:', error);
+          showToast('Erro ao eliminar plano', 'error');
+        }
+      },
+    });
   };
 
   const handleViewPlan = async (plan: QuotaPlanDto) => {
@@ -1429,11 +1458,11 @@ function FinancialPlansContent() {
           })
         )
       );
-      alert('Quotas atualizadas com sucesso!');
+      showToast('Quotas atualizadas com sucesso!', 'success');
       setIsQuotasPanelExpanded(false);
     } catch (error) {
       console.error('Error saving quotas:', error);
-      alert('Erro ao guardar quotas');
+      showToast('Erro ao guardar quotas', 'error');
     }
   };
 
@@ -1613,6 +1642,15 @@ function FinancialPlansContent() {
             ))
           )}
         </div>
+
+        {confirmState && (
+          <ConfirmDialog
+            message={confirmState.message}
+            variant="warning"
+            onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+            onCancel={() => setConfirmState(null)}
+          />
+        )}
       </div>
     );
   }

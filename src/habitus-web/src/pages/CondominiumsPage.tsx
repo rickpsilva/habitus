@@ -3,13 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
 
+type ConfirmState = { message: string; onConfirm: () => void } | null;
+
 export default function CondominiumsPage() {
   const { isManager } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   
   // Guard: Only Manager can access
   useEffect(() => {
@@ -82,7 +88,7 @@ export default function CondominiumsPage() {
       load();
     } catch (error) {
       console.error('Erro ao salvar condomínio:', error);
-      alert('Erro ao salvar condomínio');
+      showToast('Erro ao salvar condomínio', 'error');
     }
   };
 
@@ -99,14 +105,18 @@ export default function CondominiumsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este condomínio?')) return;
-    try {
-      await condominiumsApi.delete(id);
-      load();
-    } catch (error) {
-      console.error('Erro ao remover condomínio:', error);
-      alert('Erro ao remover condomínio. Verifique se não há unidades ou utilizadores associados.');
-    }
+    setConfirmState({
+      message: 'Tem certeza que deseja remover este condomínio?',
+      onConfirm: async () => {
+        try {
+          await condominiumsApi.delete(id);
+          load();
+        } catch (error) {
+          console.error('Erro ao remover condomínio:', error);
+          showToast('Erro ao remover condomínio. Verifique se não há unidades ou utilizadores associados.', 'error');
+        }
+      },
+    });
   };
 
   const handleNew = () => {
@@ -127,7 +137,7 @@ export default function CondominiumsPage() {
       setTimeout(() => setCopiedLinkCondoId((current) => (current === condominiumId ? null : current)), 2000);
     } catch (error) {
       console.error('Erro ao copiar link de registo de administrador:', error);
-      alert('Não foi possível copiar automaticamente. Copie o link manualmente.');
+      showToast('Não foi possível copiar automaticamente. Copie o link manualmente.', 'warning');
     }
   };
 
@@ -353,6 +363,14 @@ export default function CondominiumsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

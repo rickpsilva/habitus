@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -23,6 +27,8 @@ const roleColors: Record<number, string> = {
 export default function UsersPage() {
   const { isManager, isAdmin, condominiumId } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   
   // Guard: Only Manager and Admin can access
   useEffect(() => {
@@ -125,9 +131,13 @@ export default function UsersPage() {
   };
 
   const handleReject = async (userId: string) => {
-    if (!confirm('Tem a certeza que deseja recusar e remover este utilizador?')) return;
-    await userRegistrationApi.rejectUser(userId);
-    setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+    setConfirmState({
+      message: 'Tem a certeza que deseja recusar e remover este utilizador?',
+      onConfirm: async () => {
+        await userRegistrationApi.rejectUser(userId);
+        setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+      },
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,18 +146,18 @@ export default function UsersPage() {
       // Validate based on role
       if (formData.role === 1 || formData.role === 2) {
         if (!formData.condominiumId) {
-          alert('Admin e Morador precisam de um condomínio');
+          showToast('Admin e Morador precisam de um condomínio', 'warning');
           return;
         }
       }
       if (formData.role === UserRole.Resident && !formData.unitId) {
-        alert('Morador precisa de uma fração');
+        showToast('Morador precisa de uma fração', 'warning');
         return;
       }
 
       // Admin cannot create Manager
       if (isAdmin && formData.role === UserRole.Manager) {
-        alert('Admin não pode criar Gestores');
+        showToast('Admin não pode criar Gestores', 'warning');
         return;
       }
 
@@ -175,7 +185,7 @@ export default function UsersPage() {
       load();
     } catch (error) {
       console.error('Erro ao salvar utilizador:', error);
-      alert('Erro ao salvar utilizador');
+      showToast('Erro ao salvar utilizador', 'error');
     }
   };
 
@@ -214,14 +224,18 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este utilizador?')) return;
-    try {
-      await usersApi.delete(id);
-      load();
-    } catch (error) {
-      console.error('Erro ao remover utilizador:', error);
-      alert('Erro ao remover utilizador');
-    }
+    setConfirmState({
+      message: 'Tem certeza que deseja remover este utilizador?',
+      onConfirm: async () => {
+        try {
+          await usersApi.delete(id);
+          load();
+        } catch (error) {
+          console.error('Erro ao remover utilizador:', error);
+          showToast('Erro ao remover utilizador', 'error');
+        }
+      },
+    });
   };
 
   const handleNew = () => {
@@ -592,6 +606,14 @@ export default function UsersPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

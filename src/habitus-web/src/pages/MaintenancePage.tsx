@@ -2,10 +2,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
@@ -30,6 +34,7 @@ const priorityLabels: Record<string, string> = {
 
 export default function MaintenancePage() {
   const { isAdmin, condominiumId, unitId } = useAuth();
+  const { showToast } = useToast();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +43,7 @@ export default function MaintenancePage() {
   const [pagination, setPagination] = useState<PaginatedResponse<MaintenanceRequestDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -129,7 +135,7 @@ export default function MaintenancePage() {
     e.preventDefault();
     
     if (!form.condominiumId || !form.unitId || !form.createdBy) {
-      alert('Dados de utilizador incompletos. Por favor, recarregue a página.');
+      showToast('Dados de utilizador incompletos. Por favor, recarregue a página.', 'error');
       return;
     }
     
@@ -151,7 +157,7 @@ export default function MaintenancePage() {
       load();
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
-      alert('Erro ao criar pedido de manutenção');
+      showToast('Erro ao criar pedido de manutenção', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -192,11 +198,11 @@ export default function MaintenancePage() {
     // Validate expense fields if status is Resolved and hasExpense is true
     if (statusForm.status === 'Resolved' && statusForm.hasExpense) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
-        alert('Por favor, indique o valor da despesa.');
+        showToast('Por favor, indique o valor da despesa.', 'warning');
         return;
       }
       if (!statusForm.invoiceDocumentId) {
-        alert('Por favor, anexe a fatura.');
+        showToast('Por favor, anexe a fatura.', 'warning');
         return;
       }
     }
@@ -215,7 +221,7 @@ export default function MaintenancePage() {
       load();
     } catch (error) {
       console.error('Erro ao atualizar estado:', error);
-      alert('Erro ao atualizar estado da manutenção');
+      showToast('Erro ao atualizar estado da manutenção', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -252,7 +258,7 @@ export default function MaintenancePage() {
       setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
       loadMaintenanceDocuments(selectedRequest.id);
     } catch (err) {
-      alert('Erro ao carregar documento');
+      showToast('Erro ao carregar documento', 'error');
       console.error(err);
     } finally {
       setUploading(false);
@@ -260,23 +266,26 @@ export default function MaintenancePage() {
   };
 
   const handleDocDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    if (!selectedRequest) return;
-
-    try {
-      await documentsApi.delete(id);
-      loadMaintenanceDocuments(selectedRequest.id);
-    } catch (err) {
-      alert('Erro ao excluir documento');
-      console.error(err);
-    }
+    setConfirmState({
+      message: 'Tem certeza que deseja excluir este documento?',
+      onConfirm: async () => {
+        if (!selectedRequest) return;
+        try {
+          await documentsApi.delete(id);
+          loadMaintenanceDocuments(selectedRequest.id);
+        } catch (err) {
+          showToast('Erro ao excluir documento', 'error');
+          console.error(err);
+        }
+      },
+    });
   };
 
   const handleDocDownload = async (id: string, fileName: string) => {
     try {
       await documentsApi.download(id, fileName);
     } catch (error) {
-      alert('Erro ao fazer download do documento');
+      showToast('Erro ao fazer download do documento', 'error');
       console.error(error);
     }
   };
@@ -308,66 +317,77 @@ export default function MaintenancePage() {
         </div>
       </div>
 
-      {/* New request form */}
+      {/* New request modal */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Novo Pedido de Manutenção</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Torneira avariada na cozinha"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                required
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
-              <input
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Fração 3A"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
-              <select
-                value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {Object.keys(priorityLabels).map((p) => (
-                  <option key={p} value={p}>{priorityLabels[p]}</option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-semibold text-gray-900 text-lg">Novo Pedido de Manutenção</h3>
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
-          </form>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Torneira avariada na cozinha"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
+                <input
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: Fração 3A"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {Object.keys(priorityLabels).map((p) => (
+                    <option key={p} value={p}>{priorityLabels[p]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2 flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {submitting ? 'A guardar...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -452,13 +472,12 @@ export default function MaintenancePage() {
         )}
       </div>
 
-      {/* Status Management Slide-in Panel */}
+      {/* Status Management Modal */}
       {showStatusPanel && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={handleCloseStatusPanel}></div>
-          <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">
                 {isAdmin ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
               </h2>
@@ -942,6 +961,14 @@ export default function MaintenancePage() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

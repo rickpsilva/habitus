@@ -16,9 +16,12 @@ import {
   Upload,
   Image as ImageIcon,
   FileText,
+  X,
 } from 'lucide-react';
 import { announcementsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import type {
@@ -28,6 +31,8 @@ import type {
   UpdateAnnouncementRequest,
   CreateAnnouncementCommentRequest,
 } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 const categoryLabels: Record<string, string> = {
   Works: 'Obras',
@@ -86,7 +91,9 @@ function attachmentUrl(condominiumId: string, announcementId: string, attachment
 
 export default function AnnouncementsPage() {
   const { condominiumId, isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
@@ -306,7 +313,7 @@ export default function AnnouncementsPage() {
       resetForm();
       await loadData();
     } catch {
-      alert('Não foi possível guardar o comunicado.');
+      showToast('Não foi possível guardar o comunicado.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -366,10 +373,14 @@ export default function AnnouncementsPage() {
 
   const remove = async (id: string) => {
     if (!condominiumId) return;
-    if (!confirm('Eliminar comunicado?')) return;
-    await announcementsApi.delete(condominiumId, id);
-    if (selected?.id === id) closeDetails();
-    await loadData();
+    setConfirmState({
+      message: 'Eliminar comunicado?',
+      onConfirm: async () => {
+        await announcementsApi.delete(condominiumId, id);
+        if (selected?.id === id) closeDetails();
+        await loadData();
+      },
+    });
   };
 
   const addComment = async () => {
@@ -759,6 +770,14 @@ export default function AnnouncementsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

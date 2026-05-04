@@ -2,9 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Truck, Mail, Phone, MapPin, Building2, X, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 type SupplierForm = CreateSupplierRequest & { isActive: boolean };
 
@@ -21,6 +25,7 @@ const initialSupplierForm: SupplierForm = {
 
 export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -31,6 +36,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const [pagination, setPagination] = useState<PaginatedResponse<SupplierDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -72,7 +78,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     e.preventDefault();
     
     if (!condominiumId) {
-      alert('Dados de utilizador incompletos. Por favor, recarregue a página.');
+      showToast('Dados de utilizador incompletos. Por favor, recarregue a página.', 'error');
       return;
     }
     
@@ -108,7 +114,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       load();
     } catch (error) {
       console.error('Erro ao guardar fornecedor:', error);
-      alert('Erro ao guardar fornecedor');
+      showToast('Erro ao guardar fornecedor', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -130,14 +136,18 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este fornecedor?')) return;
-    try {
-      await suppliersApi.delete(id);
-      load();
-    } catch (error) {
-      console.error('Erro ao eliminar fornecedor:', error);
-      alert('Erro ao eliminar fornecedor');
-    }
+    setConfirmState({
+      message: 'Eliminar este fornecedor?',
+      onConfirm: async () => {
+        try {
+          await suppliersApi.delete(id);
+          load();
+        } catch (error) {
+          console.error('Erro ao eliminar fornecedor:', error);
+          showToast('Erro ao eliminar fornecedor', 'error');
+        }
+      },
+    });
   };
 
   const filteredSuppliers = suppliers
@@ -435,6 +445,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             />
           )}
         </>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

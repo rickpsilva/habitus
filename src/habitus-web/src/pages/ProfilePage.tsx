@@ -4,9 +4,13 @@ import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Downl
 import QRCode from 'qrcode';
 import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import FileUpload from '../components/FileUpload';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -28,6 +32,7 @@ const unitDocumentColors: Record<string, string> = {
 
 export default function ProfilePage() {
   const { user, isManager } = useAuth();
+  const { showToast } = useToast();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
   const [loading, setLoading] = useState(true);
@@ -64,6 +69,7 @@ export default function ProfilePage() {
   const [twoFactorSetupCode, setTwoFactorSetupCode] = useState('');
   const [twoFactorQrCode, setTwoFactorQrCode] = useState('');
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [showDisableTwoFactor, setShowDisableTwoFactor] = useState(false);
   const [showRegenerateRecoveryCodes, setShowRegenerateRecoveryCodes] = useState(false);
   const [disableTwoFactorData, setDisableTwoFactorData] = useState<DisableTwoFactorRequest>({
@@ -311,18 +317,21 @@ export default function ProfilePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    if (!userData?.unitId) return;
-
-    try {
-      await documentsApi.delete(id);
-      setSuccess('Documento excluído com sucesso!');
-      setTimeout(() => setSuccess(''), 3000);
-      loadUnitDocuments(userData.unitId);
-    } catch (err) {
-      setError('Erro ao excluir documento');
-      console.error(err);
-    }
+    setConfirmState({
+      message: 'Tem certeza que deseja excluir este documento?',
+      onConfirm: async () => {
+        if (!userData?.unitId) return;
+        try {
+          await documentsApi.delete(id);
+          setSuccess('Documento excluído com sucesso!');
+          setTimeout(() => setSuccess(''), 3000);
+          loadUnitDocuments(userData.unitId);
+        } catch (err) {
+          setError('Erro ao excluir documento');
+          console.error(err);
+        }
+      },
+    });
   };
 
   const handleDownload = async (id: string, fileName: string) => {
@@ -1154,6 +1163,14 @@ export default function ProfilePage() {
             </form>
           </div>
         </div>
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );

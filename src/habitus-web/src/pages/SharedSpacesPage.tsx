@@ -2,12 +2,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import { sharedSpacesApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
+type ConfirmState = { message: string; onConfirm: () => void } | null;
+
 export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -16,6 +21,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const [pagination, setPagination] = useState<PaginatedResponse<SharedSpaceDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -62,17 +68,17 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     e.preventDefault();
     
     if (!form.condominiumId) {
-      alert('Condomínio não identificado. Por favor, recarregue a página.');
+      showToast('Condomínio não identificado. Por favor, recarregue a página.', 'error');
       return;
     }
     
     if (!form.name || form.name.trim() === '') {
-      alert('Nome é obrigatório.');
+      showToast('Nome é obrigatório.', 'warning');
       return;
     }
     
     if (!form.capacity || parseInt(form.capacity) <= 0) {
-      alert('Capacidade deve ser maior que zero.');
+      showToast('Capacidade deve ser maior que zero.', 'warning');
       return;
     }
     
@@ -118,7 +124,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             ? error.message
             : 'Erro ao guardar espaço';
       console.error('Erro ao guardar espaço:', error);
-      alert(`Erro ao guardar espaço: ${errorMessage}`);
+      showToast(`Erro ao guardar espaço: ${errorMessage}`, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -137,24 +143,27 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este espaço?')) return;
-    
-    try {
-      await sharedSpacesApi.delete(id);
-      load();
-    } catch (error: unknown) {
-      const errorMessage =
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-          : error instanceof Error
-            ? error.message
-            : 'Erro ao eliminar espaço';
-      console.error('Erro ao eliminar espaço:', error);
-      alert(`Erro ao eliminar espaço: ${errorMessage}`);
-    }
+    setConfirmState({
+      message: 'Tem a certeza que deseja eliminar este espaço?',
+      onConfirm: async () => {
+        try {
+          await sharedSpacesApi.delete(id);
+          load();
+        } catch (error: unknown) {
+          const errorMessage =
+            typeof error === 'object' &&
+            error !== null &&
+            'response' in error &&
+            typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+              ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+              : error instanceof Error
+                ? error.message
+                : 'Erro ao eliminar espaço';
+          console.error('Erro ao eliminar espaço:', error);
+          showToast(`Erro ao eliminar espaço: ${errorMessage}`, 'error');
+        }
+      },
+    });
   };
 
   const handleCancel = () => {
@@ -362,6 +371,14 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           )}
         </div>
       </div>
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

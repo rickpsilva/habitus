@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Users, Trash2, Mail, Phone, Home } from 'lucide-react';
 import { residentsApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { ResidentDto, UnitDto } from '../types';
+
+type ConfirmState = { message: string; onConfirm: () => void } | null;
 
 const roleLabels: Record<string, string> = {
   Admin: 'Administrador',
@@ -18,11 +22,13 @@ const roleColors: Record<string, string> = {
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [residents, setResidents] = useState<ResidentDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterUnitId, setFilterUnitId] = useState('');
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const load = () => {
     setLoading(true);
@@ -41,9 +47,13 @@ export default function ResidentsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Remover este morador?')) return;
-    await residentsApi.delete(id);
-    load();
+    setConfirmState({
+      message: 'Remover este morador?',
+      onConfirm: async () => {
+        await residentsApi.delete(id);
+        load();
+      },
+    });
   };
 
   const unitLabel = (unitId: string) => {
@@ -146,6 +156,14 @@ export default function ResidentsPage() {
           ))
         )}
       </div>
+
+      {confirmState && (
+        <ConfirmDialog
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }
