@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Users, Trash2, Mail, Phone, Home } from 'lucide-react';
 import { residentsApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import type { ResidentDto, UnitDto } from '../types';
 
 const roleLabels: Record<string, string> = {
@@ -18,11 +20,13 @@ const roleColors: Record<string, string> = {
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [residents, setResidents] = useState<ResidentDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterUnitId, setFilterUnitId] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -41,9 +45,19 @@ export default function ResidentsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Remover este morador?')) return;
-    await residentsApi.delete(id);
-    load();
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await residentsApi.delete(deleteId);
+      load();
+    } catch {
+      toastError('Erro ao remover morador.');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const unitLabel = (unitId: string) => {
@@ -70,6 +84,15 @@ export default function ResidentsPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Remover morador"
+        message="Tem a certeza que deseja remover este morador?"
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Moradores</h1>

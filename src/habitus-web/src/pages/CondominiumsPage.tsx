@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
@@ -10,6 +12,7 @@ import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest
 export default function CondominiumsPage() {
   const { isManager } = useAuth();
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
   
   // Guard: Only Manager can access
   useEffect(() => {
@@ -22,6 +25,7 @@ export default function CondominiumsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<CondominiumDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,13 +103,19 @@ export default function CondominiumsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este condomínio?')) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await condominiumsApi.delete(id);
+      await condominiumsApi.delete(deleteId);
       load();
     } catch (error) {
       console.error('Erro ao remover condomínio:', error);
-      alert('Erro ao remover condomínio. Verifique se não há unidades ou utilizadores associados.');
+      toastError('Erro ao remover condomínio. Verifique se não há unidades ou utilizadores associados.');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -142,6 +152,15 @@ export default function CondominiumsPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Remover condomínio"
+        message="Tem a certeza que deseja remover este condomínio? Esta ação não pode ser revertida."
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Condomínios</h1>

@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, X, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
@@ -30,6 +33,7 @@ const priorityLabels: Record<string, string> = {
 
 export default function MaintenancePage() {
   const { isAdmin, condominiumId, unitId } = useAuth();
+  const { success, error: toastError, warning } = useToast();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +42,7 @@ export default function MaintenancePage() {
   const [pagination, setPagination] = useState<PaginatedResponse<MaintenanceRequestDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -129,7 +134,7 @@ export default function MaintenancePage() {
     e.preventDefault();
     
     if (!form.condominiumId || !form.unitId || !form.createdBy) {
-      alert('Dados de utilizador incompletos. Por favor, recarregue a página.');
+      toastError('Dados de utilizador incompletos. Recarregue a página.');
       return;
     }
     
@@ -149,9 +154,10 @@ export default function MaintenancePage() {
         photos: [],
       });
       load();
+      success('Pedido de manutenção criado com sucesso.');
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
-      alert('Erro ao criar pedido de manutenção');
+      toastError('Erro ao criar pedido de manutenção. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -192,11 +198,11 @@ export default function MaintenancePage() {
     // Validate expense fields if status is Resolved and hasExpense is true
     if (statusForm.status === 'Resolved' && statusForm.hasExpense) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
-        alert('Por favor, indique o valor da despesa.');
+        warning('Por favor, indique o valor da despesa.');
         return;
       }
       if (!statusForm.invoiceDocumentId) {
-        alert('Por favor, anexe a fatura.');
+        warning('Por favor, anexe a fatura.');
         return;
       }
     }
@@ -213,9 +219,10 @@ export default function MaintenancePage() {
       });
       handleCloseStatusPanel();
       load();
+      success('Estado da manutenção atualizado.');
     } catch (error) {
       console.error('Erro ao atualizar estado:', error);
-      alert('Erro ao atualizar estado da manutenção');
+      toastError('Erro ao atualizar estado da manutenção. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -251,8 +258,9 @@ export default function MaintenancePage() {
       setUploadFile(null);
       setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
       loadMaintenanceDocuments(selectedRequest.id);
+      success('Documento carregado com sucesso.');
     } catch (err) {
-      alert('Erro ao carregar documento');
+      toastError('Erro ao carregar documento. Tente novamente.');
       console.error(err);
     } finally {
       setUploading(false);
@@ -260,15 +268,20 @@ export default function MaintenancePage() {
   };
 
   const handleDocDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    if (!selectedRequest) return;
+    setDeleteDocId(id);
+  };
 
+  const confirmDocDelete = async () => {
+    if (!deleteDocId || !selectedRequest) return;
     try {
-      await documentsApi.delete(id);
+      await documentsApi.delete(deleteDocId);
       loadMaintenanceDocuments(selectedRequest.id);
+      success('Documento eliminado.');
     } catch (err) {
-      alert('Erro ao excluir documento');
+      toastError('Erro ao eliminar documento. Tente novamente.');
       console.error(err);
+    } finally {
+      setDeleteDocId(null);
     }
   };
 
@@ -276,7 +289,7 @@ export default function MaintenancePage() {
     try {
       await documentsApi.download(id, fileName);
     } catch (error) {
-      alert('Erro ao fazer download do documento');
+      toastError('Erro ao descarregar o documento. Tente novamente.');
       console.error(error);
     }
   };
@@ -285,6 +298,15 @@ export default function MaintenancePage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteDocId !== null}
+        title="Eliminar documento"
+        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDocDelete}
+        onCancel={() => setDeleteDocId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
@@ -309,9 +331,12 @@ export default function MaintenancePage() {
       </div>
 
       {/* New request form */}
-      {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Novo Pedido de Manutenção</h3>
+      <ModalPopup
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title="Novo Pedido de Manutenção"
+        maxWidthClass="max-w-lg"
+      >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
@@ -368,8 +393,7 @@ export default function MaintenancePage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
@@ -406,7 +430,7 @@ export default function MaintenancePage() {
                       <Icon className="w-5 h-5 mt-0.5 shrink-0 text-gray-400" />
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900">{m.title}</p>
-                        <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>
+                        <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{m.description}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>{label}</span>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityMap[m.priority] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -435,7 +459,7 @@ export default function MaintenancePage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-2">
-                    {new Date(m.createdAt).toLocaleDateString('pt-PT')}
+                    Criado em: {new Date(m.createdAt).toLocaleDateString('pt-PT')}
                   </p>
                 </div>
               );
@@ -452,23 +476,16 @@ export default function MaintenancePage() {
         )}
       </div>
 
-      {/* Status Management Slide-in Panel */}
-      {showStatusPanel && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={handleCloseStatusPanel}></div>
-          <div className="absolute right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {isAdmin ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
-              </h2>
-              <button onClick={handleCloseStatusPanel} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+      {/* Status Management Modal */}
+      <ModalPopup
+        open={showStatusPanel && selectedRequest !== null}
+        onClose={handleCloseStatusPanel}
+        title={isAdmin ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
+        maxWidthClass="max-w-3xl"
+        bodyClassName="max-h-[75vh] overflow-y-auto px-6 py-4 space-y-5"
+      >
+        {selectedRequest && (
+          <>
               {/* Request Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="font-medium text-gray-900">{selectedRequest.title}</p>
@@ -838,35 +855,26 @@ export default function MaintenancePage() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalPopup>
 
       {/* Document Upload Modal */}
-      {showDocUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Adicionar Documento</h3>
-                  <p className="text-sm text-gray-500">Orçamento, fatura ou outro documento</p>
-                </div>
+      <ModalPopup
+        open={showDocUploadModal}
+        onClose={() => {
+          setShowDocUploadModal(false);
+          setUploadFile(null);
+          setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
+        }}
+        title="Adicionar Documento"
+        maxWidthClass="max-w-lg"
+      >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
+                <Upload className="w-5 h-5" />
               </div>
-              <button
-                onClick={() => {
-                  setShowDocUploadModal(false);
-                  setUploadFile(null);
-                  setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-sm text-gray-500">Orçamento, fatura ou outro documento</p>
             </div>
 
             <form onSubmit={handleDocUpload} className="space-y-4">
@@ -940,9 +948,7 @@ export default function MaintenancePage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
     </div>
   );
 }

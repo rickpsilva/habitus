@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download, RefreshCw, CreditCard } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -28,11 +30,13 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export default function PaymentsPage() {
   const { condominiumId, unitId } = useAuth();
+  const { success, error: toastError } = useToast();
   const [payments, setPayments] = useState<PaymentDto[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
+  const [cancelPaymentId, setCancelPaymentId] = useState<string | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<CreatePaymentRequest>({
@@ -86,20 +90,20 @@ export default function PaymentsPage() {
     
     // Validate amount
     if (!form.amount || form.amount <= 0) {
-      alert('Por favor, insira um valor válido maior que zero.');
+      toastError('Por favor, insira um valor válido maior que zero.');
       return;
     }
 
     // Validate description
     if (!form.description || form.description.trim() === '') {
-      alert('Por favor, insira uma descrição.');
+      toastError('Por favor, insira uma descrição.');
       return;
     }
 
     // Proof is required only for Bank Transfer
     const requiresProof = form.method === 'BankTransfer';
     if (requiresProof && !proofFile) {
-      alert('Por favor, anexe o comprovativo de pagamento para transferências bancárias');
+      toastError('Por favor, anexe o comprovativo de pagamento para transferências bancárias.');
       return;
     }
 
@@ -150,62 +154,55 @@ export default function PaymentsPage() {
         loadPayments();
       }, 500);
       
-      alert('Pagamento criado com sucesso! Aguarde aprovação do administrador.');
+      success('Pagamento criado com sucesso! Aguarde aprovação do administrador.');
     } catch (error: unknown) {
       console.error('Error creating payment:', error);
-      alert(getApiErrorMessage(error, 'Erro ao criar pagamento. Por favor, tente novamente.'));
+      toastError(getApiErrorMessage(error, 'Erro ao criar pagamento. Tente novamente.'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleCancel = async (paymentId: string) => {
-    if (!confirm('Tem certeza que deseja cancelar este pagamento?')) {
-      return;
-    }
-
     try {
       await paymentsApi.cancel(paymentId);
       loadPayments();
       setSelectedPayment(null);
-      alert('Pagamento cancelado com sucesso!');
+      setCancelPaymentId(null);
+      success('Pagamento cancelado com sucesso.');
     } catch (error) {
       console.error('Error cancelling payment:', error);
-      alert('Erro ao cancelar pagamento.');
+      toastError('Erro ao cancelar pagamento. Tente novamente.');
+      setCancelPaymentId(null);
     }
   };
 
   const handleDownloadProof = async (documentIdOrPath: string, description: string) => {
     try {
-      // Check if it's a GUID (new format) or a path (old format)
       const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
       if (guidRegex.test(documentIdOrPath)) {
-        // New format: document ID
         await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
       } else if (documentIdOrPath.startsWith('/uploads/')) {
-        // Old format: file path - show warning
-        alert('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
+        toastError('Este comprovativo usa formato antigo. Contacte o administrador.');
       } else {
-        // Unknown format
-        alert('Formato de comprovativo não reconhecido.');
+        toastError('Formato de comprovativo não reconhecido.');
       }
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      alert('Erro ao fazer download do comprovativo');
+      toastError('Erro ao descarregar o comprovativo. Tente novamente.');
     }
   };
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
     if (!payment.receiptNumber || !payment.receiptYear) {
-      alert('Este pagamento ainda não tem recibo emitido');
+      toastError('Este pagamento ainda não tem recibo emitido.');
       return;
     }
     try {
       await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      alert(getApiErrorMessage(error, 'Erro ao baixar recibo'));
+      toastError(getApiErrorMessage(error, 'Erro ao descarregar o recibo.'));
     }
   };
 
@@ -246,13 +243,28 @@ export default function PaymentsPage() {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Carregando...</div>;
+    return (
+      <div className="flex flex-col justify-center items-center h-64 gap-3 text-gray-400">
+        <RefreshCw className="w-8 h-8 animate-spin" aria-hidden="true" />
+        <p className="text-sm">A carregar pagamentos...</p>
+      </div>
+    );
   }
 
   console.log('Rendering payments list. Total payments:', payments.length);
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        open={cancelPaymentId !== null}
+        title="Cancelar pagamento"
+        message="Tem a certeza que deseja cancelar este pagamento? Esta ação não pode ser revertida."
+        confirmLabel="Cancelar pagamento"
+        variant="danger"
+        onConfirm={() => cancelPaymentId && handleCancel(cancelPaymentId)}
+        onCancel={() => setCancelPaymentId(null)}
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -273,16 +285,20 @@ export default function PaymentsPage() {
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Histórico de Pagamentos</h2>
           <button
+            type="button"
             onClick={() => loadPayments()}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
           >
-            🔄 Atualizar
+            <RefreshCw className="w-4 h-4" aria-hidden="true" />
+            Atualizar
           </button>
         </div>
         <div className="divide-y divide-gray-200">
           {payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              Nenhum pagamento registado
+            <div className="flex flex-col items-center gap-3 p-10 text-gray-400">
+              <CreditCard className="w-10 h-10 opacity-40" aria-hidden="true" />
+              <p className="text-sm font-medium">Nenhum pagamento registado</p>
+              <p className="text-xs text-gray-400">Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.</p>
             </div>
           ) : (
             payments.map((payment) => (
@@ -628,7 +644,8 @@ export default function PaymentsPage() {
             <div className="flex gap-2 mt-4">
               {selectedPayment.status === 'Pending' && (
                 <button
-                  onClick={() => handleCancel(selectedPayment.id)}
+                  type="button"
+                  onClick={() => { setCancelPaymentId(selectedPayment.id); setSelectedPayment(null); }}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Cancelar Pagamento

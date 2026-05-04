@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, X, AlertCircle, MessageSquare } from 'lucide-react';
+import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, MessageSquare } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
@@ -29,6 +32,7 @@ type SortDirection = 'asc' | 'desc';
 
 export default function ReservationsPage() {
   const { isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -67,6 +71,7 @@ export default function ReservationsPage() {
   const [overlappingReservations, setOverlappingReservations] = useState<ReservationDto[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReservationId, setDeleteReservationId] = useState<string | null>(null);
+  const [cancelId, setCancelId] = useState<string | null>(null);
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
@@ -126,12 +131,12 @@ export default function ReservationsPage() {
     e.preventDefault();
     
     if (!form.userId || !form.spaceId) {
-      alert('Dados incompletos. Por favor, recarregue a página.');
+      toastError('Dados incompletos. Por favor, recarregue a página.');
       return;
     }
     
     if (!form.startTime || !form.endTime) {
-      alert('Por favor, preencha as datas de início e fim.');
+      toastError('Por favor, preencha as datas de início e fim.');
       return;
     }
     
@@ -139,7 +144,7 @@ export default function ReservationsPage() {
     const startDate = new Date(form.startTime);
     const endDate = new Date(form.endTime);
     if (endDate <= startDate) {
-      alert('A data/hora de fim deve ser posterior à data/hora de início.');
+      toastError('A data/hora de fim deve ser posterior à data/hora de início.');
       return;
     }
     
@@ -243,7 +248,7 @@ export default function ReservationsPage() {
       load();
     } catch (error: unknown) {
       console.error('Erro ao eliminar reserva:', error);
-      alert('Erro ao eliminar reserva');
+      toastError('Erro ao eliminar reserva. Tente novamente.');
     }
   };
 
@@ -390,15 +395,18 @@ export default function ReservationsPage() {
             ? error.message
             : 'Erro ao alterar estado';
       console.error('Erro ao alterar estado:', error);
-      alert(`Erro: ${errorMessage}`);
+      toastError(`Erro: ${errorMessage}`);
     }
   };
 
   const handleRequestCancellation = async (id: string) => {
-    if (!confirm('Deseja pedir o cancelamento desta reserva?')) return;
-    
+    setCancelId(id);
+  };
+
+  const confirmCancellation = async () => {
+    if (!cancelId) return;
     try {
-      await reservationsApi.requestCancellation(id);
+      await reservationsApi.requestCancellation(cancelId);
       load();
     } catch (error: unknown) {
       const errorMessage =
@@ -411,7 +419,9 @@ export default function ReservationsPage() {
             ? error.message
             : 'Erro ao pedir cancelamento';
       console.error('Erro ao pedir cancelamento:', error);
-      alert(`Erro: ${errorMessage}`);
+      toastError(`Erro: ${errorMessage}`);
+    } finally {
+      setCancelId(null);
     }
   };
 
@@ -512,6 +522,15 @@ export default function ReservationsPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={cancelId !== null}
+        title="Pedir cancelamento"
+        message="Tem a certeza que deseja pedir o cancelamento desta reserva?"
+        confirmLabel="Pedir cancelamento"
+        variant="warning"
+        onConfirm={confirmCancellation}
+        onCancel={() => setCancelId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reservas</h1>
@@ -539,7 +558,7 @@ export default function ReservationsPage() {
             <option value="Completed">Terminado</option>
           </select>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -563,67 +582,67 @@ export default function ReservationsPage() {
         </div>
       )}
 
-      {/* New/Edit reservation form */}
-      {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">
-            {editingId ? 'Editar Reserva' : 'Nova Reserva'}
-          </h3>
-          {error && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Espaço</label>
-              <select
-                value={form.spaceId}
-                onChange={(e) => setForm({ ...form, spaceId: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Selecionar espaço</option>
-                {spaces.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} (máx. {s.capacity} pessoas)</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
-              <input
-                type="datetime-local"
-                value={form.startTime}
-                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fim</label>
-              <input
-                type="datetime-local"
-                value={form.endTime}
-                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button 
-                type="button" 
-                onClick={handleCancelForm} 
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                {submitting ? 'A guardar...' : editingId ? 'Atualizar' : 'Reservar'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* New/Edit reservation modal */}
+      <ModalPopup
+        open={showForm}
+        onClose={handleCancelForm}
+        title={editingId ? 'Editar Reserva' : 'Nova Reserva'}
+        maxWidthClass="max-w-2xl"
+      >
+        {error && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Espaço</label>
+            <select
+              value={form.spaceId}
+              onChange={(e) => setForm({ ...form, spaceId: e.target.value })}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Selecionar espaço</option>
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} (máx. {s.capacity} pessoas)</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
+            <input
+              type="datetime-local"
+              value={form.startTime}
+              onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fim</label>
+            <input
+              type="datetime-local"
+              value={form.endTime}
+              onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="sm:col-span-2 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCancelForm}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {submitting ? 'A guardar...' : editingId ? 'Atualizar' : 'Reservar'}
+            </button>
+          </div>
+        </form>
+      </ModalPopup>
 
       {/* Reservations table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -799,12 +818,12 @@ export default function ReservationsPage() {
       </div>
 
       {/* Comment Modal */}
-      {showCommentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Comentário do Admin (opcional)
-            </h3>
+      <ModalPopup
+        open={showCommentModal}
+        onClose={closeCommentModal}
+        title="Comentário do Admin (opcional)"
+        maxWidthClass="max-w-md"
+      >
             
             {/* Overlapping reservations warning */}
             {overlappingReservations.length > 0 && (
@@ -859,25 +878,17 @@ export default function ReservationsPage() {
                 Confirmar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Details Modal */}
-      {showDetailsModal && selectedReservation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <div className="flex justify-between items-start mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Detalhes da Reserva
-              </h3>
-              <button
-                onClick={closeDetailsModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <ModalPopup
+        open={showDetailsModal && selectedReservation !== null}
+        onClose={closeDetailsModal}
+        title="Detalhes da Reserva"
+        maxWidthClass="max-w-lg"
+      >
+        {selectedReservation && (
+          <>
             
             <div className="space-y-4">
               <div>
@@ -992,45 +1003,21 @@ export default function ReservationsPage() {
                 Fechar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalPopup>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Confirmar Eliminação
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Tem a certeza que pretende eliminar esta reserva? Esta ação não pode ser revertida.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Não, cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
-                Sim, eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={showDeleteModal}
+        title="Confirmar eliminação"
+        message="Tem a certeza que pretende eliminar esta reserva? Esta ação não pode ser revertida."
+        confirmLabel="Sim, eliminar"
+        cancelLabel="Não, cancelar"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 }

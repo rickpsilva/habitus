@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, X, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
 import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
@@ -28,12 +31,14 @@ const unitDocumentColors: Record<string, string> = {
 
 export default function ProfilePage() {
   const { user, isManager } = useAuth();
+  const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserDto | null>(null);
   const [condominium, setCondominium] = useState<CondominiumDto | null>(null);
   const [unit, setUnit] = useState<UnitDto | null>(null);
@@ -311,17 +316,21 @@ export default function ProfilePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
-    if (!userData?.unitId) return;
+    setDeleteDocId(id);
+  };
 
+  const confirmDeleteDoc = async () => {
+    if (!deleteDocId || !userData?.unitId) return;
     try {
-      await documentsApi.delete(id);
-      setSuccess('Documento excluído com sucesso!');
+      await documentsApi.delete(deleteDocId);
+      setSuccess('Documento eliminado com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
       loadUnitDocuments(userData.unitId);
     } catch (err) {
-      setError('Erro ao excluir documento');
+      toastError('Erro ao eliminar documento.');
       console.error(err);
+    } finally {
+      setDeleteDocId(null);
     }
   };
 
@@ -412,6 +421,15 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <ConfirmModal
+        open={deleteDocId !== null}
+        title="Eliminar documento"
+        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDeleteDoc}
+        onCancel={() => setDeleteDocId(null)}
+      />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
@@ -1056,29 +1074,23 @@ export default function ProfilePage() {
       )}
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Carregar Documento</h3>
-                  <p className="text-sm text-gray-500">Adicione um documento à sua fração</p>
-                </div>
+      <ModalPopup
+        open={showUploadModal}
+        onClose={() => {
+          setShowUploadModal(false);
+          setUploadFile(null);
+          setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
+        }}
+        title="Carregar Documento"
+        maxWidthClass="max-w-lg"
+      >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
+                <Upload className="w-5 h-5" />
               </div>
-              <button
-                onClick={() => {
-                  setShowUploadModal(false);
-                  setUploadFile(null);
-                  setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <p className="text-sm text-gray-500">Adicione um documento à sua fração</p>
+              </div>
             </div>
 
             <form onSubmit={handleUpload} className="space-y-4">
@@ -1152,9 +1164,7 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
     </div>
   );
 }

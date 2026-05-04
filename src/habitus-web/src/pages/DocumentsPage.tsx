@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileText, Download, Trash2, Plus, X, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench } from 'lucide-react';
 import { documentsApi, assembliesApi, unitsApi, maintenanceApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
@@ -70,8 +73,10 @@ const documentTypesByContext: Record<string, string[]> = {
 
 export default function DocumentsPage() {
   const { isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [assemblies, setAssemblies] = useState<AssemblyDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequestDto[]>([]);
@@ -141,9 +146,19 @@ export default function DocumentsPage() {
   }, [load, activeTab, loadAssemblies, loadUnits, loadMaintenanceRequests]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este documento?')) return;
-    await documentsApi.delete(id);
-    load();
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await documentsApi.delete(deleteId);
+      load();
+    } catch {
+      toastError('Erro ao eliminar documento.');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const handleDownload = async (id: string, fileName: string) => {
@@ -151,7 +166,7 @@ export default function DocumentsPage() {
       await documentsApi.download(id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      alert('Erro ao fazer download do documento');
+      toastError('Erro ao fazer download do documento.');
     }
   };
 
@@ -381,6 +396,15 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Eliminar documento"
+        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
@@ -950,20 +974,13 @@ export default function DocumentsPage() {
       )}
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Carregar Documento</h2>
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpload} className="p-6 space-y-4">
+      <ModalPopup
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        title="Carregar Documento"
+        maxWidthClass="max-w-2xl"
+      >
+            <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Arquivo
@@ -1135,9 +1152,7 @@ export default function DocumentsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
     </div>
   );
 }

@@ -2,16 +2,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import { sharedSpacesApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
 export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<SharedSpaceDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,10 +141,13 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este espaço?')) return;
-    
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await sharedSpacesApi.delete(id);
+      await sharedSpacesApi.delete(deleteId);
       load();
     } catch (error: unknown) {
       const errorMessage =
@@ -153,7 +160,9 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             ? error.message
             : 'Erro ao eliminar espaço';
       console.error('Erro ao eliminar espaço:', error);
-      alert(`Erro ao eliminar espaço: ${errorMessage}`);
+      toastError(`Erro ao eliminar espaço: ${errorMessage}`);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -179,6 +188,15 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
 
   return (
     <div className={embedded ? "" : "p-6 max-w-7xl mx-auto"}>
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Eliminar espaço"
+        message="Tem a certeza que deseja eliminar este espaço? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className={embedded ? "" : "bg-white rounded-xl shadow-sm border border-gray-200"}>
         <div className={embedded ? "" : "p-6 border-b border-gray-200"}>
           {!embedded && (

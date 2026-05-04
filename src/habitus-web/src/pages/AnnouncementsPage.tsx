@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import { announcementsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import type {
@@ -86,12 +89,14 @@ function attachmentUrl(condominiumId: string, announcementId: string, attachment
 
 export default function AnnouncementsPage() {
   const { condominiumId, isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
   const [stats, setStats] = useState<AnnouncementStatsDto | null>(null);
   const [allowComments, setAllowComments] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState<AnnouncementDto | null>(null);
@@ -365,11 +370,20 @@ export default function AnnouncementsPage() {
   };
 
   const remove = async (id: string) => {
-    if (!condominiumId) return;
-    if (!confirm('Eliminar comunicado?')) return;
-    await announcementsApi.delete(condominiumId, id);
-    if (selected?.id === id) closeDetails();
-    await loadData();
+    setDeleteId(id);
+  };
+
+  const confirmRemove = async () => {
+    if (!condominiumId || !deleteId) return;
+    try {
+      await announcementsApi.delete(condominiumId, deleteId);
+      if (selected?.id === deleteId) closeDetails();
+      await loadData();
+    } catch {
+      toastError('Erro ao eliminar comunicado.');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const addComment = async () => {
@@ -395,6 +409,15 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Eliminar comunicado"
+        message="Tem a certeza que deseja eliminar este comunicado? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmRemove}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Comunicados</h1>
@@ -548,10 +571,13 @@ export default function AnnouncementsPage() {
         )}
       </div>
 
-      {showEditor && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-4xl rounded-xl border border-gray-100 p-5 space-y-4 max-h-[92vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-gray-900">{editing ? 'Editar comunicado' : 'Novo comunicado'}</h2>
+      <ModalPopup
+        open={showEditor}
+        onClose={() => { setShowEditor(false); resetForm(); }}
+        title={editing ? 'Editar comunicado' : 'Novo comunicado'}
+        maxWidthClass="max-w-4xl"
+      >
+          <div className="space-y-4">
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
@@ -622,12 +648,16 @@ export default function AnnouncementsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalPopup>
 
-      {selected && condominiumId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={closeDetails}>
-          <div className="bg-white w-full max-w-5xl rounded-xl border border-gray-100 p-5 space-y-4 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <ModalPopup
+        open={selected !== null && !!condominiumId}
+        onClose={closeDetails}
+        maxWidthClass="max-w-5xl"
+        bodyClassName="p-5 space-y-4"
+      >
+        {selected && condominiumId && (
+          <>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{selected.title}</h2>
@@ -722,14 +752,20 @@ export default function AnnouncementsPage() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalPopup>
 
-      {showRejectModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-xl border border-gray-100 p-5 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Rejeitar comunicado</h3>
+      <ModalPopup
+        open={showRejectModal}
+        onClose={() => {
+          setShowRejectModal(false);
+          setRejectingId(null);
+          setRejectionReason('');
+        }}
+        title="Rejeitar comunicado"
+        maxWidthClass="max-w-md"
+      >
             <p className="text-sm text-gray-500">Indica o motivo da rejeição (obrigatório).</p>
             <textarea
               value={rejectionReason}
@@ -757,9 +793,7 @@ export default function AnnouncementsPage() {
                 {rejecting ? 'A rejeitar...' : 'Rejeitar'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
     </div>
   );
 }

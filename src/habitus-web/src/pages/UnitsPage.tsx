@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
 import { unitsApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, CondominiumDto, PaginatedResponse } from '../types';
@@ -16,6 +18,8 @@ const unitTypeLabels: Record<number, string> = {
 export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   
   // Guard: Only Manager and Admin can access
   useEffect(() => {
@@ -147,13 +151,19 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Remover esta fração?')) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await unitsApi.delete(id);
+      await unitsApi.delete(deleteId);
       load();
     } catch (error) {
       console.error('Erro ao remover fração:', error);
-      alert('Erro ao remover fração. Pode haver utilizadores associados.');
+      toastError('Erro ao remover fração. Pode haver utilizadores associados.');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -177,6 +187,15 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Remover fração"
+        message="Tem a certeza que deseja remover esta fração? Esta ação não pode ser revertida."
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         {!embedded && (
           <div>

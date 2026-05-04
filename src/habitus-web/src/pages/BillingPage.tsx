@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { subscriptionsApi, condominiumsApi, invoicesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import type {
   SubscriptionPlanDto,
   FeatureCatalogItemDto,
@@ -111,6 +113,8 @@ function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
 // ============= Invoices Dashboard Sub-component =============
 
 function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] }) {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [confirmGenerateDue, setConfirmGenerateDue] = useState(false);
   const [selectedCondoId, setSelectedCondoId] = useState<string>(condominiums[0]?.id ?? '');
   const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -202,14 +206,18 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
   };
 
   const handleGenerateDue = async () => {
-    if (!confirm('Gerar faturas para todas as subscrições com cobrança em atraso?')) return;
+    setConfirmGenerateDue(true);
+  };
+
+  const confirmGenerateDueAction = async () => {
+    setConfirmGenerateDue(false);
     setGeneratingInvoices(true);
     try {
       const res = await invoicesApi.generateDue();
-      alert(res.data.message);
+      toastSuccess(res.data.message);
       if (selectedCondoId) await loadInvoices(selectedCondoId);
     } catch {
-      alert('Erro ao gerar faturas.');
+      toastError('Erro ao gerar faturas.');
     } finally {
       setGeneratingInvoices(false);
     }
@@ -217,6 +225,15 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
 
   return (
     <section className="space-y-4">
+      <ConfirmModal
+        open={confirmGenerateDue}
+        title="Gerar faturas em dívida"
+        message="Gerar faturas para todas as subscrições com cobrança em atraso?"
+        confirmLabel="Gerar"
+        variant="warning"
+        onConfirm={confirmGenerateDueAction}
+        onCancel={() => setConfirmGenerateDue(false)}
+      />
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
           <FileText className="w-4 h-4 text-indigo-600" />
@@ -606,6 +623,9 @@ function PlanCard({
 export default function BillingPage() {
   const { isManager } = useAuth();
   const navigate = useNavigate();
+  const { error: toastError } = useToast();
+  const [confirmResetPlans, setConfirmResetPlans] = useState(false);
+  const [cancelSubId, setCancelSubId] = useState<string | null>(null);
 
   const [plans, setPlans] = useState<SubscriptionPlanDto[]>([]);
   const [featureCatalog, setFeatureCatalog] = useState<FeatureCatalogItemDto[]>([]);
@@ -750,9 +770,11 @@ export default function BillingPage() {
   };
 
   const handleResetDefaultPlans = async () => {
-    const confirmed = confirm('Isto irá repor os planos Free/Silver/Gold para os valores padrão. Pretendes continuar?');
-    if (!confirmed) return;
+    setConfirmResetPlans(true);
+  };
 
+  const confirmResetPlansAction = async () => {
+    setConfirmResetPlans(false);
     try {
       setResettingPlans(true);
       setPlansError('');
@@ -789,12 +811,18 @@ export default function BillingPage() {
   };
 
   const handleCancel = async (subId: string) => {
-    if (!confirm('Cancelar esta subscrição?')) return;
+    setCancelSubId(subId);
+  };
+
+  const confirmCancelSub = async () => {
+    if (!cancelSubId) return;
     try {
-      await subscriptionsApi.cancel(subId);
+      await subscriptionsApi.cancel(cancelSubId);
       await load();
     } catch {
-      alert('Erro ao cancelar subscrição.');
+      toastError('Erro ao cancelar subscrição.');
+    } finally {
+      setCancelSubId(null);
     }
   };
 
@@ -813,6 +841,24 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-8">
+      <ConfirmModal
+        open={confirmResetPlans}
+        title="Repor planos padrão"
+        message="Isto irá repor os planos Free/Silver/Gold para os valores padrão. Pretendes continuar?"
+        confirmLabel="Repor"
+        variant="warning"
+        onConfirm={confirmResetPlansAction}
+        onCancel={() => setConfirmResetPlans(false)}
+      />
+      <ConfirmModal
+        open={cancelSubId !== null}
+        title="Cancelar subscrição"
+        message="Tem a certeza que deseja cancelar esta subscrição?"
+        confirmLabel="Cancelar subscrição"
+        variant="danger"
+        onConfirm={confirmCancelSub}
+        onCancel={() => setCancelSubId(null)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
