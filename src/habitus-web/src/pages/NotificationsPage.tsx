@@ -34,7 +34,13 @@ export default function NotificationsPage() {
     }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      load(1);
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   const markRead = async (id: string) => {
     await notificationsApi.markRead(id);

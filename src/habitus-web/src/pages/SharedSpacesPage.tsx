@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import { sharedSpacesApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +15,13 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<SharedSpaceDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -25,13 +31,13 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
       const userData = await usersApi.getMe();
       const condominiumId = userData.data.condominiumId || '';
       
-      const response = await sharedSpacesApi.getPaged(page, pageSize, search);
+      const response = await sharedSpacesApi.getPaged(page, pageSize, debouncedSearch);
       // Filter by condominium if admin
       const filtered = isAdmin 
         ? response.data.items.filter(s => s.condominiumId === condominiumId)
@@ -46,21 +52,11 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, debouncedSearch]);
 
   useEffect(() => { 
     load(1); 
-  }, []);
-
-  // Search with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,9 +107,18 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         condominiumId: form.condominiumId 
       });
       load();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : error instanceof Error
+            ? error.message
+            : 'Erro ao guardar espaço';
       console.error('Erro ao guardar espaço:', error);
-      alert(`Erro ao guardar espaço: ${error.response?.data?.message || error.message}`);
+      alert(`Erro ao guardar espaço: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }
@@ -137,9 +142,18 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     try {
       await sharedSpacesApi.delete(id);
       load();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : error instanceof Error
+            ? error.message
+            : 'Erro ao eliminar espaço';
       console.error('Erro ao eliminar espaço:', error);
-      alert(`Erro ao eliminar espaço: ${error.response?.data?.message || error.message}`);
+      alert(`Erro ao eliminar espaço: ${errorMessage}`);
     }
   };
 

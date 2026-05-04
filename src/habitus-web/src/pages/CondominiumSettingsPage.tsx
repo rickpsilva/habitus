@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi } from '../api/services';
 import type {
@@ -20,7 +21,7 @@ type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payme
 interface Tab {
   key: TabKey;
   label: string;
-  icon: any;
+  icon: LucideIcon;
 }
 
 const adminTabs: Tab[] = [
@@ -41,20 +42,13 @@ export default function CondominiumSettingsPage() {
   const { isAdmin, isManager } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const visibleTabs = isManager ? managerTabs : adminTabs;
-  const [activeTab, setActiveTab] = useState<TabKey>(visibleTabs[0]?.key ?? 'spaces');
 
-  // Sync tab with URL
-  useEffect(() => {
-    const tab = searchParams.get('tab') as TabKey;
-    if (tab && visibleTabs.some(t => t.key === tab)) {
-      setActiveTab(tab);
-    } else if (visibleTabs.length > 0) {
-      setActiveTab(visibleTabs[0].key);
-    }
-  }, [searchParams, isManager]);
+  const tabParam = searchParams.get('tab') as TabKey | null;
+  const activeTab = tabParam && visibleTabs.some((tab) => tab.key === tabParam)
+    ? tabParam
+    : (visibleTabs[0]?.key ?? 'spaces');
 
   const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
     setSearchParams({ tab });
   };
 
@@ -546,13 +540,7 @@ function PaymentMethodsContent() {
     },
   });
 
-  useEffect(() => {
-    if (condominiumId) {
-      loadPaymentSettings();
-    }
-  }, [condominiumId]);
-
-  const loadPaymentSettings = async () => {
+  const loadPaymentSettings = useCallback(async () => {
     if (!condominiumId) return;
     setLoading(true);
     try {
@@ -583,13 +571,26 @@ function PaymentMethodsContent() {
           merchantId: data.cardMerchantId || '',
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : 'Erro ao carregar configurações';
       console.error('Error loading payment settings:', error);
-      alert(error.response?.data?.message || 'Erro ao carregar configurações');
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId]);
+
+  useEffect(() => {
+    if (condominiumId) {
+      loadPaymentSettings();
+    }
+  }, [condominiumId, loadPaymentSettings]);
 
   const handleSave = async () => {
     if (!condominiumId) return;
@@ -618,9 +619,16 @@ function PaymentMethodsContent() {
       
       // Reload to get updated values without secret key
       await loadPaymentSettings();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : 'Erro ao guardar configurações';
       console.error('Error saving payment settings:', error);
-      alert(error.response?.data?.message || 'Erro ao guardar configurações');
+      alert(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -982,13 +990,7 @@ function CommunicationChannelsContent() {
   const [emailPassword, setEmailPassword] = useState('');
   const [whatsAppApiKey, setWhatsAppApiKey] = useState('');
 
-  useEffect(() => {
-    if (condominiumId) {
-      loadSettings();
-    }
-  }, [condominiumId]);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     if (!condominiumId) return;
     try {
       setLoading(true);
@@ -999,7 +1001,13 @@ function CommunicationChannelsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId]);
+
+  useEffect(() => {
+    if (condominiumId) {
+      loadSettings();
+    }
+  }, [condominiumId, loadSettings]);
 
   const handleSave = async () => {
     if (!condominiumId || !settings) return;

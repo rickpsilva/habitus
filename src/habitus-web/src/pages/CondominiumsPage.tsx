@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
@@ -25,9 +25,15 @@ export default function CondominiumsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<CondominiumDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [visibleLinkCondoId, setVisibleLinkCondoId] = useState<string | null>(null);
   const [copiedLinkCondoId, setCopiedLinkCondoId] = useState<string | null>(null);
   const pageSize = 10;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [formData, setFormData] = useState<CreateCondominiumRequest>({
     name: '',
     address: '',
@@ -36,10 +42,10 @@ export default function CondominiumsPage() {
   });
   const [isActive, setIsActive] = useState(true);
 
-  const load = async (page: number = 1, search: string = searchQuery) => {
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const response = await condominiumsApi.getPaged(page, pageSize, search);
+      const response = await condominiumsApi.getPaged(page, pageSize, debouncedSearch);
       setPagination(response.data);
       setCondominiums(response.data.items);
       setCurrentPage(page);
@@ -48,20 +54,11 @@ export default function CondominiumsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch]);
 
   useEffect(() => {
     load(1);
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

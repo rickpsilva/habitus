@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import SelectCondominiumPage from './pages/SelectCondominiumPage';
 import ResidentRegisterPage from './pages/ResidentRegisterPage';
 import RegisterPage from './pages/RegisterPage';
@@ -31,6 +32,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           {/* Public registration flow: select condominium → resident registration */}
           <Route path="/register" element={<SelectCondominiumPage />} />
           <Route path="/user/register/:condominiumId/resident" element={<ResidentRegisterPage />} />

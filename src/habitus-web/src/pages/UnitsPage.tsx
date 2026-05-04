@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
 import { unitsApi, condominiumsApi } from '../api/services';
@@ -44,12 +44,18 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<UnitDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 10;
 
-  const load = async (page: number = 1, search: string = searchQuery) => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const unitsResponse = await unitsApi.getPaged(page, pageSize, search);
+      const unitsResponse = await unitsApi.getPaged(page, pageSize, debouncedSearch);
       let unitsData = unitsResponse.data.items;
       
       // Filter by condominium if user is Admin
@@ -71,20 +77,11 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId, isAdmin, isManager, debouncedSearch]);
 
   useEffect(() => {
     load(1);
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        load(1, searchQuery);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [load]);
 
   const openCreate = () => {
     setEditId(null);

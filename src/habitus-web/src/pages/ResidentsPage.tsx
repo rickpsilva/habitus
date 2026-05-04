@@ -32,7 +32,13 @@ export default function ResidentsPage() {
     ]).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      load();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Remover este morador?')) return;

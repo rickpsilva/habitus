@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PaginatedResponse } from '../types';
 
 interface PaginationProps {
-  pagination: PaginatedResponse<any>;
+  pagination: PaginatedResponse<unknown>;
   currentPage: number;
   onPageChange: (page: number) => void;
 }

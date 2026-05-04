@@ -23,11 +23,12 @@ import {
   Moon,
   Sun,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface NavItem {
   to: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   managerOnly?: boolean;
   managerOrAdminOnly?: boolean;
   residentOnly?: boolean;
