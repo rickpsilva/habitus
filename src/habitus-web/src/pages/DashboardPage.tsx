@@ -20,6 +20,7 @@ import {
   Layers,
   Wallet,
   ArrowRight,
+  Megaphone,
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,6 +33,7 @@ function StatCard({
   color,
   to,
   subtitle,
+  loading,
 }: {
   title: string;
   value: string | number;
@@ -39,20 +41,32 @@ function StatCard({
   color: string;
   to: string;
   subtitle?: string;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 animate-pulse">
+        <div className="w-12 h-12 rounded-xl bg-gray-100 shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-gray-100 rounded w-3/4" />
+          <div className="h-6 bg-gray-100 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
   return (
     <Link
       to={to}
       className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-4"
     >
       <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${color}`}>
-        <Icon className="w-6 h-6" />
+        <Icon className="w-6 h-6" aria-hidden="true" />
       </div>
-      <div>
-        <p className="text-sm text-gray-500">{title}</p>
+      <div className="min-w-0">
+        <p className="text-sm text-gray-500 leading-tight">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
         {subtitle && (
-          <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+          <p className="text-xs text-gray-400 mt-0.5 leading-tight">{subtitle}</p>
         )}
       </div>
     </Link>
@@ -100,6 +114,7 @@ export default function DashboardPage() {
   const [managerMrr, setManagerMrr] = useState<number | null>(null);
   const [activeByCondominium, setActiveByCondominium] = useState<CondominiumActiveUsersDto[]>([]);
   const [platformBillingSettings, setPlatformBillingSettings] = useState<PlatformBillingSettingsDto | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
   useEffect(() => {
     if (isManager) {
@@ -137,6 +152,10 @@ export default function DashboardPage() {
         setNoiseAnnouncementsPreviousYear(r.data.noiseAnnouncementsPreviousYear ?? 0);
       }).catch(() => {});
     }
+
+    // Mark dashboard as loaded after a short delay to allow parallel calls to settle
+    const t = setTimeout(() => setDashboardLoading(false), 800);
+    return () => clearTimeout(t);
   }, [condominiumId, isManager]);
 
   if (isManager) {
@@ -364,58 +383,66 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard
-          title="Pedidos de Manutenção"
-          value={pendingMaintenance.length + inProgressMaintenance.length}
+          loading={dashboardLoading}
+          title="Manutenção ativa"
+          value={dashboardLoading ? '—' : pendingMaintenance.length + inProgressMaintenance.length}
           icon={Wrench}
           color="bg-orange-100 text-orange-600"
           to="/maintenance"
         />
         <StatCard
-          title="Saldo Financeiro"
-          value={balance !== null ? `€${balance.toFixed(2)}` : '—'}
+          loading={dashboardLoading}
+          title="Saldo do ano"
+          value={dashboardLoading ? '—' : balance !== null ? `€${balance.toFixed(2)}` : '—'}
           icon={DollarSign}
           color="bg-green-100 text-green-600"
           to="/financial"
-          subtitle={reserveFundBalance !== null ? `Fundo de Reserva: €${reserveFundBalance.toFixed(2)}` : undefined}
+          subtitle={!dashboardLoading && reserveFundBalance !== null ? `Fundo de Reserva: €${reserveFundBalance.toFixed(2)}` : undefined}
         />
         <StatCard
+          loading={dashboardLoading}
           title="Notificações não lidas"
-          value={unreadNotifications.length}
+          value={dashboardLoading ? '—' : unreadNotifications.length}
           icon={Bell}
           color="bg-indigo-100 text-indigo-600"
           to="/notifications"
         />
         <StatCard
-          title="Reservas"
-          value={activeReservations.length}
+          loading={dashboardLoading}
+          title="Reservas ativas"
+          value={dashboardLoading ? '—' : activeReservations.length}
           icon={Calendar}
           color="bg-purple-100 text-purple-600"
           to="/reservations"
         />
         <StatCard
-          title="Comunicados Barulho/Perturbação"
-          value={noiseAnnouncementsCurrentYear}
+          loading={dashboardLoading}
+          title="Ocorrências de barulho"
+          value={dashboardLoading ? '—' : noiseAnnouncementsCurrentYear}
           icon={Volume2}
           color="bg-amber-100 text-amber-700"
           to="/announcements?category=Noise"
-          subtitle={`Ano homólogo (${dashboardYear - 1}): ${noiseAnnouncementsPreviousYear} • Variação: ${noiseYoYLabel}`}
+          subtitle={!dashboardLoading ? `Homólogo (${dashboardYear - 1}): ${noiseAnnouncementsPreviousYear} • ${noiseYoYLabel}` : undefined}
         />
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
+          { to: '/maintenance', label: 'Manutenção', icon: Wrench, bg: 'bg-orange-50 text-orange-600 hover:bg-orange-100' },
+          { to: '/announcements', label: 'Comunicados', icon: Megaphone, bg: 'bg-pink-50 text-pink-600 hover:bg-pink-100' },
+          { to: '/reservations', label: 'Reservas', icon: Calendar, bg: 'bg-purple-50 text-purple-600 hover:bg-purple-100' },
           { to: '/documents', label: 'Documentos', icon: FileText, bg: 'bg-blue-50 text-blue-600 hover:bg-blue-100' },
           { to: '/assemblies', label: 'Assembleias', icon: ClipboardList, bg: 'bg-teal-50 text-teal-600 hover:bg-teal-100' },
-          { to: '/financial', label: 'Relatório', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' },
+          { to: '/financial', label: 'Financeiro', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' },
         ].map(({ to, label, icon: Icon, bg }) => (
           <Link
             key={to}
             to={to}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${bg}`}
+            className={`flex flex-col items-center gap-2 px-3 py-4 rounded-xl transition-colors text-center ${bg}`}
           >
-            <Icon className="w-5 h-5" />
-            <span className="font-medium text-sm">{label}</span>
+            <Icon className="w-5 h-5" aria-hidden="true" />
+            <span className="font-medium text-xs leading-tight">{label}</span>
           </Link>
         ))}
       </div>
@@ -433,22 +460,25 @@ export default function DashboardPage() {
             <div key={m.id} className="flex items-start gap-3 px-5 py-3.5">
               <div className="mt-0.5">
                 {m.status === 'Resolved' ? (
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <CheckCircle2 className="w-4 h-4 text-green-500" aria-hidden="true" />
                 ) : m.status === 'InProgress' ? (
-                  <Clock className="w-4 h-4 text-blue-500" />
+                  <Clock className="w-4 h-4 text-blue-500" aria-hidden="true" />
                 ) : (
-                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                  <AlertCircle className="w-4 h-4 text-orange-500" aria-hidden="true" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                <p className="text-xs text-gray-500">{m.location}</p>
+                <p className="text-xs text-gray-500">{m.location || new Date(m.createdAt).toLocaleDateString('pt-PT')}</p>
               </div>
               {statusBadge(m.status)}
             </div>
           ))}
           {maintenance.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-6">Sem pedidos de manutenção</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
+              <Wrench className="w-8 h-8 opacity-40" aria-hidden="true" />
+              <p className="text-sm">Sem pedidos de manutenção ativos</p>
+            </div>
           )}
         </div>
       </div>
@@ -463,16 +493,27 @@ export default function DashboardPage() {
         </div>
         <div className="divide-y divide-gray-50">
           {notifications.slice(0, 4).map((n) => (
-            <div key={n.id} className={`flex gap-3 px-5 py-3.5 ${!n.isRead ? 'bg-indigo-50/40' : ''}`}>
-              <Bell className={`w-4 h-4 mt-0.5 shrink-0 ${!n.isRead ? 'text-indigo-500' : 'text-gray-400'}`} />
+            <div key={n.id} className={`flex items-start gap-3 px-5 py-3.5 ${!n.isRead ? 'bg-indigo-50/50' : ''}`}>
+              <div className="relative mt-0.5 shrink-0">
+                <Bell className={`w-4 h-4 ${!n.isRead ? 'text-indigo-500' : 'text-gray-400'}`} aria-hidden="true" />
+                {!n.isRead && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-500" aria-label="Não lida" />
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">{n.title}</p>
                 <p className="text-xs text-gray-500 truncate">{n.message}</p>
               </div>
+              <time className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+                {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </time>
             </div>
           ))}
           {notifications.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-6">Sem notificações</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
+              <Bell className="w-8 h-8 opacity-40" aria-hidden="true" />
+              <p className="text-sm">Sem notificações recentes</p>
+            </div>
           )}
         </div>
       </div>

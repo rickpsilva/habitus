@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
@@ -23,7 +26,7 @@ const roleColors: Record<number, string> = {
 export default function UsersPage() {
   const { isManager, isAdmin, condominiumId } = useAuth();
   const navigate = useNavigate();
-  
+  const { error: toastError } = useToast();
   // Guard: Only Manager and Admin can access
   useEffect(() => {
     if (!isManager && !isAdmin) {
@@ -37,6 +40,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -125,9 +130,19 @@ export default function UsersPage() {
   };
 
   const handleReject = async (userId: string) => {
-    if (!confirm('Tem a certeza que deseja recusar e remover este utilizador?')) return;
-    await userRegistrationApi.rejectUser(userId);
-    setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+    setRejectId(userId);
+  };
+
+  const confirmReject = async () => {
+    if (!rejectId) return;
+    try {
+      await userRegistrationApi.rejectUser(rejectId);
+      setPendingUsers((prev) => prev.filter((u) => u.id !== rejectId));
+    } catch {
+      toastError('Erro ao recusar utilizador.');
+    } finally {
+      setRejectId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,18 +151,18 @@ export default function UsersPage() {
       // Validate based on role
       if (formData.role === 1 || formData.role === 2) {
         if (!formData.condominiumId) {
-          alert('Admin e Morador precisam de um condomínio');
+          toastError('Admin e Morador precisam de um condomínio');
           return;
         }
       }
       if (formData.role === UserRole.Resident && !formData.unitId) {
-        alert('Morador precisa de uma fração');
+        toastError('Morador precisa de uma fração');
         return;
       }
 
       // Admin cannot create Manager
       if (isAdmin && formData.role === UserRole.Manager) {
-        alert('Admin não pode criar Gestores');
+        toastError('Admin não pode criar Gestores');
         return;
       }
 
@@ -175,7 +190,7 @@ export default function UsersPage() {
       load();
     } catch (error) {
       console.error('Erro ao salvar utilizador:', error);
-      alert('Erro ao salvar utilizador');
+      toastError('Erro ao guardar utilizador. Tente novamente.');
     }
   };
 
@@ -214,13 +229,19 @@ export default function UsersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este utilizador?')) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await usersApi.delete(id);
+      await usersApi.delete(deleteId);
       load();
     } catch (error) {
       console.error('Erro ao remover utilizador:', error);
-      alert('Erro ao remover utilizador');
+      toastError('Erro ao remover utilizador. Tente novamente.');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -267,6 +288,24 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Remover utilizador"
+        message="Tem a certeza que deseja remover este utilizador? Esta ação não pode ser revertida."
+        confirmLabel="Remover"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
+      <ConfirmModal
+        open={rejectId !== null}
+        title="Recusar utilizador"
+        message="Tem a certeza que deseja recusar e remover este utilizador?"
+        confirmLabel="Recusar"
+        variant="danger"
+        onConfirm={confirmReject}
+        onCancel={() => setRejectId(null)}
+      />
       {/* ── Pending approvals (Admin only) ─────────────────────────────────── */}
       {isAdmin && (
         <div className="bg-white rounded-xl border border-amber-200 shadow-sm">
@@ -423,12 +462,15 @@ export default function UsersPage() {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 my-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              {editingId ? 'Editar Utilizador' : 'Novo Utilizador'}
-            </h2>
+      <ModalPopup
+        open={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingId(null);
+        }}
+        title={editingId ? 'Editar Utilizador' : 'Novo Utilizador'}
+        maxWidthClass="max-w-lg"
+      >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
@@ -590,9 +632,7 @@ export default function UsersPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
     </div>
   );
 }

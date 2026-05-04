@@ -2,6 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
 import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import RichTextEditor from '../components/RichTextEditor';
@@ -25,9 +28,13 @@ const statusColors: Record<string, string> = {
 
 export default function AssembliesPage() {
   const { isAdmin, condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [assemblies, setAssemblies] = useState<AssemblyDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [deleteAssemblyId, setDeleteAssemblyId] = useState<string | null>(null);
+  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
+  const [deleteDocumentId, setDeleteDocumentId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CreateAssemblyRequest>({
     title: '',
@@ -173,16 +180,27 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar assembleia:', error);
-      alert('Erro ao guardar assembleia');
+      toastError('Erro ao guardar assembleia.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar esta assembleia?')) return;
-    await assembliesApi.delete(id);
-    load();
+    setDeleteAssemblyId(id);
+  };
+
+  const confirmDeleteAssembly = async () => {
+    if (!deleteAssemblyId) return;
+    try {
+      await assembliesApi.delete(deleteAssemblyId);
+      load();
+    } catch (error) {
+      console.error('Erro ao eliminar assembleia:', error);
+      toastError('Erro ao eliminar assembleia.');
+    } finally {
+      setDeleteAssemblyId(null);
+    }
   };
 
   const openDetails = (assembly: AssemblyDto) => {
@@ -229,7 +247,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar notas:', error);
-      alert('Erro ao guardar notas');
+      toastError('Erro ao guardar notas.');
     } finally {
       setSubmitting(false);
     }
@@ -271,10 +289,10 @@ export default function AssembliesPage() {
     try {
       await assembliesApi.updateMinutesDraft(selectedAssembly.id, minutes);
       setMinutesLastSaved(new Date());
-      alert('Draft das atas guardado com sucesso!');
+      toastSuccess('Draft das atas guardado com sucesso!');
     } catch (error) {
       console.error('Erro ao guardar draft das atas:', error);
-      alert('Erro ao guardar draft das atas');
+      toastError('Erro ao guardar draft das atas.');
     } finally {
       setSubmitting(false);
     }
@@ -283,28 +301,24 @@ export default function AssembliesPage() {
   const handleCompleteAssembly = async () => {
     if (!selectedAssembly) return;
     if (!minutes.trim()) {
-      alert('Por favor insira as atas da assembleia antes de concluir.');
+      toastError('Por favor insira as atas da assembleia antes de concluir.');
       return;
     }
-    
-    const confirmed = window.confirm(
-      'Tem certeza que deseja concluir esta assembleia?\n\nIsso irá:\n' +
-      '- Marcar a assembleia como Concluída\n' +
-      '- Enviar notificações a todos os utilizadores\n' +
-      '- As atas ficarão disponíveis publicamente'
-    );
-    
-    if (!confirmed) return;
-    
+    setConfirmCompleteOpen(true);
+  };
+
+  const doCompleteAssembly = async () => {
+    if (!selectedAssembly) return;
+    setConfirmCompleteOpen(false);
     setSubmitting(true);
     try {
       await assembliesApi.updateMinutes(selectedAssembly.id, minutes);
       setShowMinutesModal(false);
       load();
-      alert('Assembleia concluída! As atas foram publicadas e notificações enviadas.');
+      toastSuccess('Assembleia concluída! As atas foram publicadas e notificações enviadas.');
     } catch (error) {
       console.error('Erro ao concluir assembleia:', error);
-      alert('Erro ao concluir assembleia');
+      toastError('Erro ao concluir assembleia.');
     } finally {
       setSubmitting(false);
     }
@@ -319,7 +333,7 @@ export default function AssembliesPage() {
   const handleCancel = async () => {
     if (!selectedAssembly) return;
     if (!cancellationReason.trim()) {
-      alert('Por favor insira o motivo do cancelamento');
+      toastError('Por favor insira o motivo do cancelamento.');
       return;
     }
     setSubmitting(true);
@@ -329,7 +343,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao cancelar assembleia:', error);
-      alert('Erro ao cancelar assembleia');
+      toastError('Erro ao cancelar assembleia.');
     } finally {
       setSubmitting(false);
     }
@@ -383,22 +397,28 @@ export default function AssembliesPage() {
       await loadAssemblyDocuments(selectedAssembly.id);
     } catch (error) {
       console.error('Erro ao fazer upload do documento:', error);
-      alert('Erro ao fazer upload do documento');
+      toastError('Erro ao fazer upload do documento.');
     } finally {
       setUploadingDocument(false);
     }
   };
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (!confirm('Eliminar este documento?')) return;
+    setDeleteDocumentId(documentId);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!deleteDocumentId) return;
     try {
-      await documentsApi.delete(documentId);
+      await documentsApi.delete(deleteDocumentId);
       if (selectedAssembly) {
         await loadAssemblyDocuments(selectedAssembly.id);
       }
     } catch (error) {
       console.error('Erro ao eliminar documento:', error);
-      alert('Erro ao eliminar documento');
+      toastError('Erro ao eliminar documento.');
+    } finally {
+      setDeleteDocumentId(null);
     }
   };
 
@@ -407,7 +427,7 @@ export default function AssembliesPage() {
       await documentsApi.download(id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      alert('Erro ao fazer download do documento');
+      toastError('Erro ao fazer download do documento.');
     }
   };
 
@@ -465,9 +485,9 @@ export default function AssembliesPage() {
       });
 
       if (response.data.failed > 0) {
-        alert(`${response.data.success} ficheiro(s) carregado(s) com sucesso!\n${response.data.failed} falhou(aram):\n${response.data.errors.join('\n')}`);
+        toastWarning(`${response.data.success} ficheiro(s) carregado(s) com sucesso! ${response.data.failed} falhou(aram).`);
       } else {
-        alert(`${response.data.success} ficheiro(s) adicionado(s) com sucesso!`);
+        toastSuccess(`${response.data.success} ficheiro(s) adicionado(s) com sucesso!`);
       }
 
       // Reload documents if in detail modal
@@ -476,7 +496,7 @@ export default function AssembliesPage() {
       }
     } catch (error) {
       console.error('Erro ao fazer upload dos documentos:', error);
-      alert('Erro ao fazer upload dos documentos');
+      toastError('Erro ao fazer upload dos documentos.');
     } finally {
       setUploadingDocument(false);
     }
@@ -509,7 +529,7 @@ export default function AssembliesPage() {
     // Validate each file size (100MB max)
     const validFiles = files.filter(file => {
       if (file.size > 100 * 1024 * 1024) {
-        alert(`Ficheiro "${file.name}" demasiado grande. Máximo: 100MB`);
+        toastError(`Ficheiro "${file.name}" demasiado grande. Máximo: 100MB`);
         return false;
       }
       return true;
@@ -519,7 +539,7 @@ export default function AssembliesPage() {
 
     // Limit to 10 files
     if (validFiles.length > 10) {
-      alert('Máximo de 10 ficheiros por vez');
+      toastError('Máximo de 10 ficheiros por vez.');
       return;
     }
 
@@ -535,6 +555,33 @@ export default function AssembliesPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteAssemblyId !== null}
+        title="Eliminar assembleia"
+        message="Tem a certeza que deseja eliminar esta assembleia? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDeleteAssembly}
+        onCancel={() => setDeleteAssemblyId(null)}
+      />
+      <ConfirmModal
+        open={confirmCompleteOpen}
+        title="Concluir assembleia"
+        message={"Tem a certeza que deseja concluir esta assembleia?\n\nIsso irá:\n• Marcar a assembleia como Concluída\n• Enviar notificações a todos os utilizadores\n• As atas ficarão disponíveis publicamente"}
+        confirmLabel="Concluir"
+        variant="warning"
+        onConfirm={doCompleteAssembly}
+        onCancel={() => setConfirmCompleteOpen(false)}
+      />
+      <ConfirmModal
+        open={deleteDocumentId !== null}
+        title="Eliminar documento"
+        message="Tem a certeza que deseja eliminar este documento?"
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDeleteDocument}
+        onCancel={() => setDeleteDocumentId(null)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Assembleias</h1>
@@ -561,11 +608,12 @@ export default function AssembliesPage() {
       </div>
 
       {/* Form */}
-      {showForm && isAdmin && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">
-            {editId ? 'Editar Assembleia' : 'Nova Assembleia'}
-          </h3>
+      <ModalPopup
+        open={showForm && isAdmin}
+        onClose={() => setShowForm(false)}
+        title={editId ? 'Editar Assembleia' : 'Nova Assembleia'}
+        maxWidthClass="max-w-2xl"
+      >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
@@ -609,7 +657,7 @@ export default function AssembliesPage() {
               />
             </div>
             <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
               <button
@@ -621,8 +669,7 @@ export default function AssembliesPage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
@@ -775,16 +822,15 @@ export default function AssembliesPage() {
       </div>
 
       {/* Detail Modal */}
-      {showDetailModal && selectedAssembly && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowDetailModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Detalhes da Assembleia</h2>
-              <button onClick={() => setShowDetailModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-4">
+      <ModalPopup
+        open={showDetailModal && selectedAssembly !== null}
+        onClose={() => setShowDetailModal(false)}
+        title="Detalhes da Assembleia"
+        maxWidthClass="max-w-2xl"
+        bodyClassName="space-y-4 p-6"
+      >
+            {selectedAssembly && (
+              <>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase">Título</label>
                 <p className="text-gray-900 mt-1">{selectedAssembly.title}</p>
@@ -986,8 +1032,7 @@ export default function AssembliesPage() {
                   )}
                 </div>
               </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <div className="border-t border-gray-200 pt-4 flex justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
@@ -995,16 +1040,19 @@ export default function AssembliesPage() {
                 Fechar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+      </ModalPopup>
 
       {/* Notes Modal */}
-      {showNotesModal && selectedAssembly && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowNotesModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
+      <ModalPopup
+        open={showNotesModal && selectedAssembly !== null && isAdmin}
+        onClose={() => setShowNotesModal(false)}
+        maxWidthClass="max-w-2xl"
+        bodyClassName="p-0"
+        header={
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
                   Notas da Assembleia
@@ -1016,10 +1064,14 @@ export default function AssembliesPage() {
                   <span className="text-xs text-green-600">✓ Guardado</span>
                 )}
               </div>
-              <button onClick={() => setShowNotesModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={() => setShowNotesModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
-            </div>
+          </div>
+        }
+      >
+            {selectedAssembly && isAdmin && (
+              <>
             <div className="px-6 py-4">
               <p className="text-sm text-gray-500 mb-3">Utilize este espaço para tirar notas durante a assembleia em curso.</p>
               <RichTextEditor
@@ -1044,16 +1096,19 @@ export default function AssembliesPage() {
                 {submitting ? 'A guardar...' : 'Guardar Notas'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+      </ModalPopup>
 
       {/* Minutes Modal */}
-      {showMinutesModal && selectedAssembly && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowMinutesModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center gap-3">
+      <ModalPopup
+        open={showMinutesModal && selectedAssembly !== null && isAdmin}
+        onClose={() => setShowMinutesModal(false)}
+        maxWidthClass="max-w-2xl"
+        bodyClassName="p-0"
+        header={
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                   Atas da Assembleia
@@ -1065,10 +1120,14 @@ export default function AssembliesPage() {
                   <span className="text-xs text-green-600">✓ Guardado</span>
                 )}
               </div>
-              <button onClick={() => setShowMinutesModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={() => setShowMinutesModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
-            </div>
+          </div>
+        }
+      >
+            {selectedAssembly && isAdmin && (
+              <>
             <div className="px-6 py-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                 <p className="text-sm text-blue-800">
@@ -1107,23 +1166,30 @@ export default function AssembliesPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+      </ModalPopup>
 
       {/* Cancel Modal */}
-      {showCancelModal && selectedAssembly && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowCancelModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <ModalPopup
+        open={showCancelModal && selectedAssembly !== null && isAdmin}
+        onClose={() => setShowCancelModal(false)}
+        maxWidthClass="max-w-md"
+        bodyClassName="p-0"
+        header={
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Ban className="w-5 h-5 text-red-600" />
                 Cancelar Assembleia
               </h2>
-              <button onClick={() => setShowCancelModal(false)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
-            </div>
+          </div>
+        }
+      >
+            {selectedAssembly && isAdmin && (
+              <>
             <div className="px-6 py-4">
               <p className="text-sm text-gray-600 mb-3">
                 Por favor indique o motivo do cancelamento desta assembleia.
@@ -1151,31 +1217,39 @@ export default function AssembliesPage() {
                 {submitting ? 'A cancelar...' : 'Cancelar Assembleia'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+      </ModalPopup>
 
       {/* Quick Upload Modal */}
-      {showQuickUploadModal && quickUploadAssembly && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowQuickUploadModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <ModalPopup
+        open={showQuickUploadModal && quickUploadAssembly !== null && isAdmin}
+        onClose={() => setShowQuickUploadModal(false)}
+        maxWidthClass="max-w-2xl"
+        bodyClassName="p-0"
+        header={
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Upload className="w-5 h-5 text-indigo-600" />
                   Adicionar Documento
                 </h2>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {quickUploadAssembly.title}
+                  {quickUploadAssembly?.title ?? ''}
                 </p>
               </div>
               <button 
                 onClick={() => setShowQuickUploadModal(false)} 
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                type="button"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
-            </div>
+          </div>
+        }
+      >
+            {quickUploadAssembly && isAdmin && (
+              <>
 
             <form onSubmit={handleQuickUpload} className="px-6 py-4 space-y-4">
               <div>
@@ -1220,9 +1294,9 @@ export default function AssembliesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+      </ModalPopup>
     </div>
   );
 }

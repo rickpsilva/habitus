@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ModalPopup from '../components/ModalPopup';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
@@ -106,6 +108,7 @@ export default function CondominiumSettingsPage() {
 
 function GeneralCondominiumContent() {
   const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [condominiumData, setCondominiumData] = useState<{ name: string; address: string; taxId: string; isActive: boolean } | null>(null);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -128,14 +131,14 @@ function GeneralCondominiumContent() {
         });
       } catch (error) {
         console.error('Error loading condominium data:', error);
-        alert('Erro ao carregar dados do condomínio');
+        toastError('Erro ao carregar dados do condomínio.');
       } finally {
         setLoading(false);
       }
     };
 
     loadCondominium();
-  }, [condominiumId]);
+  }, [condominiumId, toastError]);
 
   const handleSave = async () => {
     if (!condominiumId || !condominiumData) return;
@@ -149,10 +152,10 @@ function GeneralCondominiumContent() {
         email: email.trim() || '',
         isActive: condominiumData.isActive,
       });
-      alert('Email do condomínio guardado com sucesso!');
+      toastSuccess('Email do condomínio guardado com sucesso!');
     } catch (error) {
       console.error('Error saving condominium email:', error);
-      alert('Erro ao guardar email do condomínio');
+      toastError('Erro ao guardar email do condomínio.');
     } finally {
       setSaving(false);
     }
@@ -209,6 +212,7 @@ function GeneralCondominiumContent() {
 }
 
 function PlatformBillingContent() {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [settings, setSettings] = useState<PlatformBillingSettingsDto | null>(null);
   const [form, setForm] = useState<UpdatePlatformBillingSettingsRequest>({
     gatewayEnabled: false,
@@ -237,14 +241,14 @@ function PlatformBillingContent() {
         });
       } catch (error) {
         console.error('Error loading platform billing settings:', error);
-        alert('Erro ao carregar configurações do gateway');
+        toastError('Erro ao carregar configurações do gateway.');
       } finally {
         setLoading(false);
       }
     };
 
     loadSettings();
-  }, []);
+  }, [toastError]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -252,10 +256,10 @@ function PlatformBillingContent() {
       const response = await platformBillingSettingsApi.update(form);
       setSettings(response.data);
       setForm((prev) => ({ ...prev, secretKey: '', webhookSecret: '' }));
-      alert('Configurações do gateway guardadas com sucesso!');
+      toastSuccess('Configurações do gateway guardadas com sucesso!');
     } catch (error) {
       console.error('Error saving platform billing settings:', error);
-      alert('Erro ao guardar configurações do gateway');
+      toastError('Erro ao guardar configurações do gateway.');
     } finally {
       setSaving(false);
     }
@@ -513,6 +517,8 @@ function ReceiptTemplateContent() {
 
 function PaymentMethodsContent() {
   const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [activeMethodModal, setActiveMethodModal] = useState<'bankTransfer' | 'mbReference' | 'mbWay' | 'card' | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [methods, setMethods] = useState({
@@ -577,14 +583,14 @@ function PaymentMethodsContent() {
         error !== null &&
         'response' in error &&
         typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar configurações'
           : 'Erro ao carregar configurações';
       console.error('Error loading payment settings:', error);
-      alert(errorMessage);
+      toastError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [condominiumId]);
+  }, [condominiumId, toastError]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -592,8 +598,8 @@ function PaymentMethodsContent() {
     }
   }, [condominiumId, loadPaymentSettings]);
 
-  const handleSave = async () => {
-    if (!condominiumId) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!condominiumId) return false;
     
     setSaving(true);
     try {
@@ -615,22 +621,47 @@ function PaymentMethodsContent() {
       };
 
       await paymentSettingsApi.update(condominiumId, requestData);
-      alert('Configurações guardadas com sucesso!');
+      toastSuccess('Configurações guardadas com sucesso!');
       
       // Reload to get updated values without secret key
       await loadPaymentSettings();
+      return true;
     } catch (error: unknown) {
       const errorMessage =
         typeof error === 'object' &&
         error !== null &&
         'response' in error &&
         typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao guardar configurações'
           : 'Erro ao guardar configurações';
       console.error('Error saving payment settings:', error);
-      alert(errorMessage);
+      toastError(errorMessage);
+      return false;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleMethod = (method: 'bankTransfer' | 'mbReference' | 'mbWay' | 'card', enabled: boolean) => {
+    setMethods((prev) => ({
+      ...prev,
+      [method]: {
+        ...prev[method],
+        enabled,
+      },
+    }));
+
+    if (enabled) {
+      setActiveMethodModal(method);
+    } else if (activeMethodModal === method) {
+      setActiveMethodModal(null);
+    }
+  };
+
+  const saveAndCloseMethodModal = async () => {
+    const saved = await handleSave();
+    if (saved) {
+      setActiveMethodModal(null);
     }
   };
 
@@ -663,49 +694,26 @@ function PaymentMethodsContent() {
                 <input
                   type="checkbox"
                   checked={methods.bankTransfer.enabled}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    bankTransfer: { ...methods.bankTransfer, enabled: e.target.checked }
-                  })}
+                  onChange={(e) => toggleMethod('bankTransfer', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
               </label>
             </div>
           </div>
-          
           {methods.bankTransfer.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
+            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  IBAN <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={methods.bankTransfer.iban}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    bankTransfer: { ...methods.bankTransfer, iban: e.target.value }
-                  })}
-                  placeholder="PT50 0000 0000 0000 0000 0000 0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                <p className="text-sm text-gray-700">IBAN: {methods.bankTransfer.iban || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Titular: {methods.bankTransfer.accountHolder || 'Não configurado'}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Titular da Conta <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={methods.bankTransfer.accountHolder}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value }
-                  })}
-                  placeholder="Nome do condomínio"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveMethodModal('bankTransfer')}
+                className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              >
+                Configurar
+              </button>
             </div>
           )}
         </div>
@@ -727,10 +735,7 @@ function PaymentMethodsContent() {
                 <input
                   type="checkbox"
                   checked={methods.mbReference.enabled}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    mbReference: { ...methods.mbReference, enabled: e.target.checked }
-                  })}
+                  onChange={(e) => toggleMethod('mbReference', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -739,50 +744,12 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.mbReference.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                <p className="text-xs text-blue-900 font-medium mb-1">💡 Como obter Entidade e Referência?</p>
-                <p className="text-xs text-blue-700">
-                  Necessita de contrato com instituição de pagamentos (ex: Easypay, SIBS, IfiPay, Eupago).
-                  Estas entidades fornecem a Entidade e geram Referências dinâmicas por pagamento.
-                </p>
+            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-gray-700">Entidade: {methods.mbReference.entity || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Referência base: {methods.mbReference.reference || 'Não configurada'}</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Entidade <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={methods.mbReference.entity}
-                    onChange={(e) => setMethods({ 
-                      ...methods, 
-                      mbReference: { ...methods.mbReference, entity: e.target.value }
-                    })}
-                    placeholder="12345"
-                    maxLength={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">5 dígitos</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Referência Base <span className="text-gray-400">(opcional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={methods.mbReference.reference}
-                    onChange={(e) => setMethods({ 
-                      ...methods, 
-                      mbReference: { ...methods.mbReference, reference: e.target.value }
-                    })}
-                    placeholder="999 999 999"
-                    maxLength={9}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">9 dígitos</p>
-                </div>
-              </div>
+              <button type="button" onClick={() => setActiveMethodModal('mbReference')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
           )}
         </div>
@@ -804,10 +771,7 @@ function PaymentMethodsContent() {
                 <input
                   type="checkbox"
                   checked={methods.mbWay.enabled}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    mbWay: { ...methods.mbWay, enabled: e.target.checked }
-                  })}
+                  onChange={(e) => toggleMethod('mbWay', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -816,45 +780,12 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.mbWay.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                <p className="text-xs text-blue-900 font-medium mb-1">💡 Requisitos MB Way</p>
-                <p className="text-xs text-blue-700">
-                  Necessita de integração com gateway de pagamentos (ex: Easypay, SIBS, IfiPay).
-                  O gateway gera pedidos de pagamento MB Way e encaminha o dinheiro para o IBAN configurado.
-                </p>
-              </div>
+            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número de Telefone do Condomínio <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={methods.mbWay.phoneNumber}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    mbWay: { ...methods.mbWay, phoneNumber: e.target.value }
-                  })}
-                  placeholder="+351 912 345 678"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Telefone associado à conta MB Way mercante</p>
+                <p className="text-sm text-gray-700">Telefone: {methods.mbWay.phoneNumber || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Merchant ID: {methods.mbWay.merchantId || 'Não configurado'}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Merchant ID / API Key <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={methods.mbWay.merchantId}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    mbWay: { ...methods.mbWay, merchantId: e.target.value }
-                  })}
-                  placeholder="Fornecido pelo gateway de pagamentos"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              <button type="button" onClick={() => setActiveMethodModal('mbWay')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
           )}
         </div>
@@ -876,10 +807,7 @@ function PaymentMethodsContent() {
                 <input
                   type="checkbox"
                   checked={methods.card.enabled}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    card: { ...methods.card, enabled: e.target.checked }
-                  })}
+                  onChange={(e) => toggleMethod('card', e.target.checked)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -888,79 +816,12 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.card.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                <p className="text-xs text-blue-900 font-medium mb-1">💡 Requisitos Pagamento por Cartão</p>
-                <p className="text-xs text-blue-700">
-                  Necessita de conta em gateway de pagamentos internacional (ex: Stripe, PayPal, Easypay).
-                  Os cartões são processados pelo gateway e o valor transferido para o IBAN do condomínio.
-                </p>
-              </div>
+            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gateway de Pagamentos <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={methods.card.provider}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    card: { ...methods.card, provider: e.target.value }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="stripe">Stripe</option>
-                  <option value="easypay">Easypay</option>
-                  <option value="sibs">SIBS</option>
-                  <option value="paypal">PayPal</option>
-                  <option value="ifthenpay">IfthenPay</option>
-                </select>
+                <p className="text-sm text-gray-700">Gateway: {methods.card.provider || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Merchant ID: {methods.card.merchantId || 'Não configurado'}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Public/Publishable Key <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={methods.card.publicKey}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    card: { ...methods.card, publicKey: e.target.value }
-                  })}
-                  placeholder="pk_live_..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Secret/API Key <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={methods.card.secretKey}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    card: { ...methods.card, secretKey: e.target.value }
-                  })}
-                  placeholder="sk_live_... (deixe em branco para manter o atual)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">⚠️ Nunca partilhe esta chave. Será guardada de forma segura.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Merchant ID
-                </label>
-                <input
-                  type="text"
-                  value={methods.card.merchantId}
-                  onChange={(e) => setMethods({ 
-                    ...methods, 
-                    card: { ...methods.card, merchantId: e.target.value }
-                  })}
-                  placeholder="ID da conta comerciante (opcional)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              <button type="button" onClick={() => setActiveMethodModal('card')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
           )}
         </div>
@@ -976,12 +837,114 @@ function PaymentMethodsContent() {
           </button>
         </div>
       </div>
+
+      <ModalPopup
+        open={activeMethodModal !== null}
+        onClose={() => setActiveMethodModal(null)}
+        title={
+          activeMethodModal === 'bankTransfer'
+            ? 'Configurar Transferência Bancária'
+            : activeMethodModal === 'mbReference'
+              ? 'Configurar Referência Multibanco'
+              : activeMethodModal === 'mbWay'
+                ? 'Configurar MB Way'
+                : 'Configurar Cartão'
+        }
+        maxWidthClass="max-w-2xl"
+      >
+        {activeMethodModal === 'bankTransfer' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">IBAN <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.bankTransfer.iban} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, iban: e.target.value } })} placeholder="PT50 0000 0000 0000 0000 0000 0" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Titular da Conta <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.bankTransfer.accountHolder} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value } })} placeholder="Nome do condomínio" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+        )}
+
+        {activeMethodModal === 'mbReference' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-900 font-medium mb-1">Como obter Entidade e Referência?</p>
+              <p className="text-xs text-blue-700">Necessita de contrato com instituição de pagamentos (ex: Easypay, SIBS, IfiPay, Eupago). Estas entidades fornecem a Entidade e geram Referências dinâmicas por pagamento.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Entidade <span className="text-red-500">*</span></label>
+                <input type="text" value={methods.mbReference.entity} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, entity: e.target.value } })} placeholder="12345" maxLength={5} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-xs text-gray-500 mt-1">5 dígitos</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Referência Base <span className="text-gray-400">(opcional)</span></label>
+                <input type="text" value={methods.mbReference.reference} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, reference: e.target.value } })} placeholder="999 999 999" maxLength={9} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-xs text-gray-500 mt-1">9 dígitos</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeMethodModal === 'mbWay' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-900 font-medium mb-1">Requisitos MB Way</p>
+              <p className="text-xs text-blue-700">Necessita de integração com gateway de pagamentos (ex: Easypay, SIBS, IfiPay). O gateway gera pedidos de pagamento MB Way e encaminha o dinheiro para o IBAN configurado.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Número de Telefone do Condomínio <span className="text-red-500">*</span></label>
+              <input type="tel" value={methods.mbWay.phoneNumber} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, phoneNumber: e.target.value } })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-gray-500 mt-1">Telefone associado à conta MB Way mercante</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant ID / API Key <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.mbWay.merchantId} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, merchantId: e.target.value } })} placeholder="Fornecido pelo gateway de pagamentos" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+        )}
+
+        {activeMethodModal === 'card' && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-900 font-medium mb-1">Requisitos Pagamento por Cartão</p>
+              <p className="text-xs text-blue-700">Necessita de conta em gateway de pagamentos internacional (ex: Stripe, PayPal, Easypay). Os cartões são processados pelo gateway e o valor transferido para o IBAN do condomínio.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gateway de Pagamentos <span className="text-red-500">*</span></label>
+              <select value={methods.card.provider} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, provider: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="stripe">Stripe</option><option value="easypay">Easypay</option><option value="sibs">SIBS</option><option value="paypal">PayPal</option><option value="ifthenpay">IfthenPay</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Public/Publishable Key <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.card.publicKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, publicKey: e.target.value } })} placeholder="pk_live_..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Secret/API Key <span className="text-red-500">*</span></label>
+              <input type="password" value={methods.card.secretKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, secretKey: e.target.value } })} placeholder="sk_live_... (deixe em branco para manter o atual)" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-gray-500 mt-1">Nunca partilhe esta chave. Será guardada de forma segura.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant ID</label>
+              <input type="text" value={methods.card.merchantId} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, merchantId: e.target.value } })} placeholder="ID da conta comerciante (opcional)" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+          <button type="button" onClick={() => setActiveMethodModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
+          <button type="button" onClick={saveAndCloseMethodModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        </div>
+      </ModalPopup>
     </div>
   );
 }
 
 function CommunicationChannelsContent() {
   const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'whatsApp' | null>(null);
   const [settings, setSettings] = useState<CommunicationSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1009,8 +972,8 @@ function CommunicationChannelsContent() {
     }
   }, [condominiumId, loadSettings]);
 
-  const handleSave = async () => {
-    if (!condominiumId || !settings) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!condominiumId || !settings) return false;
     
     try {
       setSaving(true);
@@ -1036,12 +999,39 @@ function CommunicationChannelsContent() {
       };
       
       await communicationSettingsApi.update(condominiumId, request);
-      alert('Configurações guardadas com sucesso!');
+      toastSuccess('Configurações guardadas com sucesso!');
+      return true;
     } catch (error) {
       console.error('Error saving communication settings:', error);
-      alert('Erro ao guardar configurações');
+      toastError('Erro ao guardar configurações.');
+      return false;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleChannel = (channel: 'email' | 'whatsApp', enabled: boolean) => {
+    setSettings((prev) => {
+      if (!prev) return prev;
+
+      if (channel === 'email') {
+        return { ...prev, emailEnabled: enabled };
+      }
+
+      return { ...prev, whatsAppEnabled: enabled };
+    });
+
+    if (enabled) {
+      setActiveChannelModal(channel);
+    } else if (activeChannelModal === channel) {
+      setActiveChannelModal(null);
+    }
+  };
+
+  const saveAndCloseChannelModal = async () => {
+    const saved = await handleSave();
+    if (saved) {
+      setActiveChannelModal(null);
     }
   };
 
@@ -1092,7 +1082,7 @@ function CommunicationChannelsContent() {
               <input
                 type="checkbox"
                 checked={settings.emailEnabled}
-                onChange={(e) => setSettings({ ...settings, emailEnabled: e.target.checked })}
+                onChange={(e) => toggleChannel('email', e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -1100,107 +1090,12 @@ function CommunicationChannelsContent() {
           </div>
 
           {settings.emailEnabled && (
-            <div className="space-y-4 pt-3 border-t border-gray-200">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Servidor SMTP
-                    <span className="text-gray-500 font-normal ml-1">(ex: smtp.gmail.com)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.emailSmtpHost || ''}
-                    onChange={(e) => setSettings({ ...settings, emailSmtpHost: e.target.value })}
-                    placeholder="smtp.gmail.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Porta
-                    <span className="text-gray-500 font-normal ml-1">(geralmente 587)</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={settings.emailSmtpPort || 587}
-                    onChange={(e) => setSettings({ ...settings, emailSmtpPort: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+            <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-gray-700">SMTP: {settings.emailSmtpHost || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Remetente: {settings.emailFromAddress || 'Não configurado'}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
-                  <input
-                    type="text"
-                    value={settings.emailUsername || ''}
-                    onChange={(e) => setSettings({ ...settings, emailUsername: e.target.value })}
-                    placeholder="condominio@gmail.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password / App Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showEmailPassword ? 'text' : 'password'}
-                      value={emailPassword}
-                      placeholder="(manter existente se vazio)"
-                      onChange={(e) => setEmailPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowEmailPassword(!showEmailPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs"
-                    >
-                      {showEmailPassword ? 'Ocultar' : 'Mostrar'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Gmail: use App Password (não a senha normal)
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Remetente</label>
-                  <input
-                    type="email"
-                    value={settings.emailFromAddress || ''}
-                    onChange={(e) => setSettings({ ...settings, emailFromAddress: e.target.value })}
-                    placeholder="noreply@condominio.pt"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome Remetente</label>
-                  <input
-                    type="text"
-                    value={settings.emailFromName || ''}
-                    onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
-                    placeholder="Condomínio XYZ"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="emailUseSsl"
-                  checked={settings.emailUseSsl}
-                  onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                />
-                <label htmlFor="emailUseSsl" className="text-sm text-gray-700">
-                  Usar SSL/TLS (recomendado)
-                </label>
-              </div>
+              <button type="button" onClick={() => setActiveChannelModal('email')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
           )}
         </div>
@@ -1216,7 +1111,7 @@ function CommunicationChannelsContent() {
               <input
                 type="checkbox"
                 checked={settings.whatsAppEnabled}
-                onChange={(e) => setSettings({ ...settings, whatsAppEnabled: e.target.checked })}
+                onChange={(e) => toggleChannel('whatsApp', e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -1224,70 +1119,12 @@ function CommunicationChannelsContent() {
           </div>
 
           {settings.whatsAppEnabled && (
-            <div className="space-y-4 pt-3 border-t border-gray-200">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Número WhatsApp Business</label>
-                  <input
-                    type="tel"
-                    value={settings.whatsAppPhoneNumber || ''}
-                    onChange={(e) => setSettings({ ...settings, whatsAppPhoneNumber: e.target.value })}
-                    placeholder="+351 912 345 678"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Provedor API</label>
-                  <select
-                    value={settings.whatsAppApiProvider || ''}
-                    onChange={(e) => setSettings({ ...settings, whatsAppApiProvider: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="twilio">Twilio</option>
-                    <option value="whatsapp-business-api">WhatsApp Business API</option>
-                    <option value="360dialog">360dialog</option>
-                    <option value="other">Outro</option>
-                  </select>
-                </div>
-              </div>
-
+            <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
-                <div className="relative">
-                  <input
-                    type={showWhatsAppKey ? 'text' : 'password'}
-                    value={whatsAppApiKey}
-                    placeholder="(manter existente se vazio)"
-                    onChange={(e) => setWhatsAppApiKey(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowWhatsAppKey(!showWhatsAppKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs"
-                  >
-                    {showWhatsAppKey ? 'Ocultar' : 'Mostrar'}
-                  </button>
-                </div>
+                <p className="text-sm text-gray-700">Número: {settings.whatsAppPhoneNumber || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Provedor: {settings.whatsAppApiProvider || 'Não configurado'}</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID do Grupo WhatsApp
-                  <span className="text-gray-500 font-normal ml-1">(opcional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={settings.whatsAppGroupId || ''}
-                  onChange={(e) => setSettings({ ...settings, whatsAppGroupId: e.target.value })}
-                  placeholder="120363xxxxx@g.us"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Para enviar mensagens para um grupo específico
-                </p>
-              </div>
+              <button type="button" onClick={() => setActiveChannelModal('whatsApp')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
           )}
         </div>
@@ -1332,6 +1169,94 @@ function CommunicationChannelsContent() {
           </button>
         </div>
       </div>
+
+      <ModalPopup
+        open={activeChannelModal !== null}
+        onClose={() => setActiveChannelModal(null)}
+        title={activeChannelModal === 'email' ? 'Configurar Email (SMTP)' : 'Configurar WhatsApp Business'}
+        maxWidthClass="max-w-3xl"
+      >
+        {activeChannelModal === 'email' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Servidor SMTP <span className="text-gray-500 font-normal ml-1">(ex: smtp.gmail.com)</span></label>
+                <input type="text" value={settings.emailSmtpHost || ''} onChange={(e) => setSettings({ ...settings, emailSmtpHost: e.target.value })} placeholder="smtp.gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Porta <span className="text-gray-500 font-normal ml-1">(geralmente 587)</span></label>
+                <input type="number" value={settings.emailSmtpPort || 587} onChange={(e) => setSettings({ ...settings, emailSmtpPort: parseInt(e.target.value, 10) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
+                <input type="text" value={settings.emailUsername || ''} onChange={(e) => setSettings({ ...settings, emailUsername: e.target.value })} placeholder="condominio@gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password / App Password</label>
+                <div className="relative">
+                  <input type={showEmailPassword ? 'text' : 'password'} value={emailPassword} placeholder="(manter existente se vazio)" onChange={(e) => setEmailPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs">{showEmailPassword ? 'Ocultar' : 'Mostrar'}</button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Gmail: use App Password (não a senha normal)</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Remetente</label>
+                <input type="email" value={settings.emailFromAddress || ''} onChange={(e) => setSettings({ ...settings, emailFromAddress: e.target.value })} placeholder="noreply@condominio.pt" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Remetente</label>
+                <input type="text" value={settings.emailFromName || ''} onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })} placeholder="Condomínio XYZ" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="emailUseSslModal" checked={settings.emailUseSsl} onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })} className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+              <label htmlFor="emailUseSslModal" className="text-sm text-gray-700">Usar SSL/TLS (recomendado)</label>
+            </div>
+          </div>
+        )}
+
+        {activeChannelModal === 'whatsApp' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número WhatsApp Business</label>
+                <input type="tel" value={settings.whatsAppPhoneNumber || ''} onChange={(e) => setSettings({ ...settings, whatsAppPhoneNumber: e.target.value })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Provedor API</label>
+                <select value={settings.whatsAppApiProvider || ''} onChange={(e) => setSettings({ ...settings, whatsAppApiProvider: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Selecione...</option>
+                  <option value="twilio">Twilio</option>
+                  <option value="whatsapp-business-api">WhatsApp Business API</option>
+                  <option value="360dialog">360dialog</option>
+                  <option value="other">Outro</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
+              <div className="relative">
+                <input type={showWhatsAppKey ? 'text' : 'password'} value={whatsAppApiKey} placeholder="(manter existente se vazio)" onChange={(e) => setWhatsAppApiKey(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button type="button" onClick={() => setShowWhatsAppKey(!showWhatsAppKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs">{showWhatsAppKey ? 'Ocultar' : 'Mostrar'}</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ID do Grupo WhatsApp <span className="text-gray-500 font-normal ml-1">(opcional)</span></label>
+              <input type="text" value={settings.whatsAppGroupId || ''} onChange={(e) => setSettings({ ...settings, whatsAppGroupId: e.target.value })} placeholder="120363xxxxx@g.us" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-gray-500 mt-1">Para enviar mensagens para um grupo específico</p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+          <button type="button" onClick={() => setActiveChannelModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
+          <button type="button" onClick={saveAndCloseChannelModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        </div>
+      </ModalPopup>
     </div>
   );
 }

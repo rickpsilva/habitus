@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, X, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
@@ -56,12 +59,18 @@ const financialDocTypeLabels: Record<string, string> = {
 
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'quota-plans'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
   const [reserveFund, setReserveFund] = useState<ReserveFundDto | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  
+  // Confirm modals state
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
+  const [approvePaymentId, setApprovePaymentId] = useState<string | null>(null);
+  const [issueReceiptId, setIssueReceiptId] = useState<string | null>(null);
   
   // Cash In - All payments (Admin only)
   const [allPayments, setAllPayments] = useState<PaymentDto[]>([]);
@@ -134,10 +143,10 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar dados financeiros:', error);
-        alert('Erro ao carregar dados financeiros');
+        toastError('Erro ao carregar dados financeiros.');
       })
       .finally(() => setLoading(false));
-  }, [condominiumId, selectedYear]);
+  }, [condominiumId, selectedYear, toastError]);
 
   // Load records with pagination
   const loadRecords = useCallback((page: number = 1) => {
@@ -164,17 +173,17 @@ export default function FinancialPage() {
     e.preventDefault();
     
     if (!form.condominiumId) {
-      alert('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
       return;
     }
     
     if (!form.description || form.description.trim() === '') {
-      alert('Descrição é obrigatória.');
+      toastError('Descrição é obrigatória.');
       return;
     }
     
     if (!form.amount || parseFloat(form.amount) <= 0) {
-      alert('Valor deve ser maior que zero.');
+      toastError('Valor deve ser maior que zero.');
       return;
     }
     
@@ -213,17 +222,20 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro ao criar registo financeiro:', error);
-      alert(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`);
+      toastError(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este registo?')) return;
-    
+    setDeleteRecordId(id);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!deleteRecordId) return;
     try {
-      await financialApi.delete(id);
+      await financialApi.delete(deleteRecordId);
       if (condominiumId) {
         const [dashboardRes, fundRes] = await Promise.all([
           financialApi.getDashboard(condominiumId, selectedYear),
@@ -235,7 +247,9 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error) {
       console.error('Erro ao eliminar registo:', error);
-      alert('Erro ao eliminar registo');
+      toastError('Erro ao eliminar registo.');
+    } finally {
+      setDeleteRecordId(null);
     }
   };
 
@@ -249,23 +263,21 @@ export default function FinancialPage() {
         await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
       } else if (documentIdOrPath.startsWith('/uploads/')) {
         // Old format: file path - show warning
-        alert('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
-        // Could open in new tab as fallback (though will fail without auth)
-        // window.open(documentIdOrPath, '_blank');
+        toastWarning('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
       } else {
         // Unknown format
-        alert('Formato de comprovativo não reconhecido.');
+        toastError('Formato de comprovativo não reconhecido.');
       }
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      alert('Erro ao fazer download do comprovativo');
+      toastError('Erro ao fazer download do comprovativo.');
     }
   };
 
   const handleFundOperation = async () => {
     if (!condominiumId) return;
     if (!fundAmount || parseFloat(fundAmount) <= 0) {
-      alert('Valor inválido');
+      toastError('Valor inválido.');
       return;
     }
 
@@ -291,7 +303,7 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro na operação do fundo:', error);
-      alert(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'));
+      toastError(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'));
     } finally {
       setSubmitting(false);
     }
@@ -323,10 +335,10 @@ export default function FinancialPage() {
         description: '',
         year: new Date().getFullYear().toString(),
       });
-      alert('Documento carregado com sucesso!');
+      toastSuccess('Documento carregado com sucesso!');
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      alert('Erro ao fazer upload do documento');
+      toastError('Erro ao fazer upload do documento.');
     } finally {
       setUploading(false);
     }
@@ -356,20 +368,26 @@ export default function FinancialPage() {
   }, [isAdmin, condominiumId]);
 
   const handleApprovePayment = async (paymentId: string) => {
-    if (!confirm('Tem certeza que deseja aprovar este pagamento?')) return;
+    setApprovePaymentId(paymentId);
+  };
+
+  const confirmApprovePayment = async () => {
+    if (!approvePaymentId) return;
     try {
-      await paymentsApi.approve(paymentId);
+      await paymentsApi.approve(approvePaymentId);
       loadAllPayments();
-      alert('Pagamento aprovado com sucesso!');
+      toastSuccess('Pagamento aprovado com sucesso!');
     } catch (error: unknown) {
       console.error('Error approving payment:', error);
-      alert(getApiErrorMessage(error, 'Erro ao aprovar pagamento'));
+      toastError(getApiErrorMessage(error, 'Erro ao aprovar pagamento'));
+    } finally {
+      setApprovePaymentId(null);
     }
   };
 
   const handleRejectPayment = async () => {
     if (!selectedPayment || !rejectionReason.trim()) {
-      alert('Por favor insira o motivo da rejeição');
+      toastError('Por favor insira o motivo da rejeição.');
       return;
     }
     try {
@@ -378,35 +396,41 @@ export default function FinancialPage() {
       setSelectedPayment(null);
       setRejectionReason('');
       loadAllPayments();
-      alert('Pagamento rejeitado');
+      toastSuccess('Pagamento rejeitado.');
     } catch (error: unknown) {
       console.error('Error rejecting payment:', error);
-      alert(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'));
+      toastError(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'));
     }
   };
 
   const handleIssueReceipt = async (paymentId: string) => {
-    if (!confirm('Emitir recibo para este pagamento?')) return;
+    setIssueReceiptId(paymentId);
+  };
+
+  const confirmIssueReceipt = async () => {
+    if (!issueReceiptId) return;
     try {
-      await paymentsApi.issueReceipt(paymentId);
+      await paymentsApi.issueReceipt(issueReceiptId);
       loadAllPayments();
-      alert('Recibo emitido com sucesso!');
+      toastSuccess('Recibo emitido com sucesso!');
     } catch (error: unknown) {
       console.error('Error issuing receipt:', error);
-      alert(getApiErrorMessage(error, 'Erro ao emitir recibo'));
+      toastError(getApiErrorMessage(error, 'Erro ao emitir recibo'));
+    } finally {
+      setIssueReceiptId(null);
     }
   };
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
     if (!payment.receiptNumber || !payment.receiptYear) {
-      alert('Este pagamento ainda não tem recibo emitido');
+      toastError('Este pagamento ainda não tem recibo emitido.');
       return;
     }
     try {
       await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      alert(getApiErrorMessage(error, 'Erro ao baixar recibo'));
+      toastError(getApiErrorMessage(error, 'Erro ao baixar recibo'));
     }
   };
 
@@ -450,6 +474,33 @@ export default function FinancialPage() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteRecordId !== null}
+        title="Eliminar registo"
+        message="Tem a certeza que deseja eliminar este registo financeiro? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDeleteRecord}
+        onCancel={() => setDeleteRecordId(null)}
+      />
+      <ConfirmModal
+        open={approvePaymentId !== null}
+        title="Aprovar pagamento"
+        message="Tem a certeza que deseja aprovar este pagamento?"
+        confirmLabel="Aprovar"
+        variant="default"
+        onConfirm={confirmApprovePayment}
+        onCancel={() => setApprovePaymentId(null)}
+      />
+      <ConfirmModal
+        open={issueReceiptId !== null}
+        title="Emitir recibo"
+        message="Emitir recibo para este pagamento?"
+        confirmLabel="Emitir"
+        variant="default"
+        onConfirm={confirmIssueReceipt}
+        onCancel={() => setIssueReceiptId(null)}
+      />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -732,20 +783,13 @@ export default function FinancialPage() {
       ) : null}
 
       {/* New Record Modal */}
-      {showForm && isAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Novo Registo Financeiro</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <ModalPopup
+        open={showForm && isAdmin}
+        onClose={() => setShowForm(false)}
+        title="Novo Registo Financeiro"
+        maxWidthClass="max-w-2xl"
+      >
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
@@ -834,18 +878,16 @@ export default function FinancialPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Fund Management Modal */}
-      {showFundModal && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowFundModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Gestão do Fundo de Reserva</h2>
-            </div>
-            <div className="px-6 py-4 space-y-4">
+      <ModalPopup
+        open={showFundModal && isAdmin}
+        onClose={() => setShowFundModal(false)}
+        title="Gestão do Fundo de Reserva"
+        maxWidthClass="max-w-md"
+      >
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Operação</label>
                 <div className="flex gap-2">
@@ -893,7 +935,7 @@ export default function FinancialPage() {
                 )}
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setShowFundModal(false)}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
@@ -912,25 +954,16 @@ export default function FinancialPage() {
                 {submitting ? 'A processar...' : fundOperation === 'deposit' ? 'Transferir para Fundo' : 'Levantar do Fundo'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Document Upload Modal */}
-      {showDocumentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Adicionar Documento Financeiro</h2>
-              <button
-                onClick={() => setShowDocumentModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <form onSubmit={handleDocumentUpload} className="p-6 space-y-4">
+      <ModalPopup
+        open={showDocumentModal}
+        onClose={() => setShowDocumentModal(false)}
+        title="Adicionar Documento Financeiro"
+        maxWidthClass="max-w-2xl"
+      >
+            <form onSubmit={handleDocumentUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Arquivo
@@ -1016,9 +1049,7 @@ export default function FinancialPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalPopup>
 
       {/* Cash In Tab - Unified Payments Management */}
       {activeTab === 'cashin' && isAdmin && (
@@ -1245,10 +1276,18 @@ export default function FinancialPage() {
       )}
 
       {/* Reject Payment Modal */}
-      {showRejectModal && selectedPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Rejeitar Pagamento</h2>
+      <ModalPopup
+        open={showRejectModal && selectedPayment !== null}
+        onClose={() => {
+          setShowRejectModal(false);
+          setSelectedPayment(null);
+          setRejectionReason('');
+        }}
+        title="Rejeitar Pagamento"
+        maxWidthClass="max-w-md"
+      >
+        {selectedPayment && (
+          <>
             <p className="text-sm text-gray-600 mb-4">
               Pagamento de <strong>{selectedPayment.residentName}</strong> no valor de{' '}
               <strong>€{selectedPayment.amount.toFixed(2)}</strong>
@@ -1284,9 +1323,9 @@ export default function FinancialPage() {
                 Rejeitar Pagamento
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalPopup>
 
       {/* Quota Plans Section (Admin Only) */}
       {activeTab === 'quota-plans' && isAdmin && <FinancialPlansContent />}
@@ -1297,12 +1336,15 @@ export default function FinancialPage() {
 // ========== Financial Plans Content Component ==========
 function FinancialPlansContent() {
   const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const currentYear = new Date().getFullYear();
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [quotaPlans, setQuotaPlans] = useState<QuotaPlanDto[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<QuotaPlanDto | null>(null);
   const [view, setView] = useState<'list' | 'create' | 'edit' | 'view'>('list');
   const [isQuotasPanelExpanded, setIsQuotasPanelExpanded] = useState(false);
+  const [applyPlanId, setApplyPlanId] = useState<string | null>(null);
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1356,7 +1398,7 @@ function FinancialPlansContent() {
       });
     } catch (error) {
       console.error('Error creating plan:', error);
-      alert('Erro ao criar plano');
+      toastError('Erro ao criar plano.');
     }
   };
 
@@ -1372,34 +1414,42 @@ function FinancialPlansContent() {
       setSelectedPlan(null);
     } catch (error) {
       console.error('Error updating plan:', error);
-      alert('Erro ao atualizar plano');
+      toastError('Erro ao atualizar plano.');
     }
   };
 
   const handleApplyPlan = async (planId: string) => {
-    if (!confirm('Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações.')) {
-      return;
-    }
+    setApplyPlanId(planId);
+  };
+
+  const confirmApplyPlan = async () => {
+    if (!applyPlanId) return;
     try {
-      await quotaPlansApi.apply(condominiumId!, planId);
+      await quotaPlansApi.apply(condominiumId!, applyPlanId);
       await loadData();
-      alert('Plano aplicado com sucesso!');
+      toastSuccess('Plano aplicado com sucesso!');
     } catch (error) {
       console.error('Error applying plan:', error);
-      alert('Erro ao aplicar plano');
+      toastError('Erro ao aplicar plano.');
+    } finally {
+      setApplyPlanId(null);
     }
   };
 
   const handleDeletePlan = async (planId: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este plano?')) {
-      return;
-    }
+    setDeletePlanId(planId);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!deletePlanId) return;
     try {
-      await quotaPlansApi.delete(condominiumId!, planId);
+      await quotaPlansApi.delete(condominiumId!, deletePlanId);
       await loadData();
     } catch (error) {
       console.error('Error deleting plan:', error);
-      alert('Erro ao eliminar plano');
+      toastError('Erro ao eliminar plano.');
+    } finally {
+      setDeletePlanId(null);
     }
   };
 
@@ -1429,11 +1479,11 @@ function FinancialPlansContent() {
           })
         )
       );
-      alert('Quotas atualizadas com sucesso!');
+      toastSuccess('Quotas atualizadas com sucesso!');
       setIsQuotasPanelExpanded(false);
     } catch (error) {
       console.error('Error saving quotas:', error);
-      alert('Erro ao guardar quotas');
+      toastError('Erro ao guardar quotas.');
     }
   };
 
@@ -1458,8 +1508,9 @@ function FinancialPlansContent() {
   };
 
   // ========== LIST VIEW ==========
-  if (view === 'list') {
+  if (view === 'list' || view === 'create' || view === 'edit') {
     return (
+      <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -1614,96 +1665,117 @@ function FinancialPlansContent() {
           )}
         </div>
       </div>
-    );
-  }
+      <ModalPopup
+        open={view === 'create' || view === 'edit'}
+        onClose={() => {
+          setView('list');
+          setSelectedPlan(null);
+          setFormData({
+            year: currentYear,
+            inflationRate: 0,
+            extraordinaryQuota: 0
+          });
+        }}
+        title={view === 'create' ? 'Criar Novo Plano' : 'Editar Plano'}
+        maxWidthClass="max-w-2xl"
+      >
 
-  // ========== CREATE/EDIT FORM ==========
-  if (view === 'create' || view === 'edit') {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {view === 'create' ? 'Criar Novo Plano' : 'Editar Plano'}
-          </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ano *
+                </label>
+                <input
+                  type="number"
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  min={currentYear}
+                  required
+                  disabled={view === 'edit'}
+                />
+                {view === 'edit' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    O ano não pode ser alterado após a criação do plano
+                  </p>
+                )}
+              </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ano *
-              </label>
-              <input
-                type="number"
-                value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                min={currentYear}
-                required
-                disabled={view === 'edit'}
-              />
-              {view === 'edit' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Percentagem de Inflação (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.inflationRate}
+                  onChange={(e) => setFormData({ ...formData, inflationRate: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
                 <p className="text-xs text-gray-500 mt-1">
-                  O ano não pode ser alterado após a criação do plano
+                  Este valor será aplicado sobre a quota mensal base de cada fração
                 </p>
-              )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quota Extraordinária (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.extraordinaryQuota}
+                  onChange={(e) => setFormData({ ...formData, extraordinaryQuota: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Valor adicional que será dividido igualmente por todas as frações
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Percentagem de Inflação (%)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.inflationRate}
-                onChange={(e) => setFormData({ ...formData, inflationRate: parseFloat(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Este valor será aplicado sobre a quota mensal base de cada fração
-              </p>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setView('list');
+                  setSelectedPlan(null);
+                  setFormData({
+                    year: currentYear,
+                    inflationRate: 0,
+                    extraordinaryQuota: 0
+                  });
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={view === 'create' ? handleCreatePlan : handleUpdatePlan}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                {view === 'create' ? 'Criar Plano' : 'Guardar Alterações'}
+              </button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quota Extraordinária (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.extraordinaryQuota}
-                onChange={(e) => setFormData({ ...formData, extraordinaryQuota: parseFloat(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Valor adicional que será dividido igualmente por todas as frações
-              </p>
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => {
-                setView('list');
-                setSelectedPlan(null);
-                setFormData({
-                  year: currentYear,
-                  inflationRate: 0,
-                  extraordinaryQuota: 0
-                });
-              }}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={view === 'create' ? handleCreatePlan : handleUpdatePlan}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              {view === 'create' ? 'Criar Plano' : 'Guardar Alterações'}
-            </button>
-          </div>
-        </div>
-      </div>
+      </ModalPopup>
+      <ConfirmModal
+        open={applyPlanId !== null}
+        title="Aplicar plano de quotas"
+        message="Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações."
+        confirmLabel="Aplicar"
+        variant="warning"
+        onConfirm={confirmApplyPlan}
+        onCancel={() => setApplyPlanId(null)}
+      />
+      <ConfirmModal
+        open={deletePlanId !== null}
+        title="Eliminar plano"
+        message="Tem a certeza que deseja eliminar este plano?"
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDeletePlan}
+        onCancel={() => setDeletePlanId(null)}
+      />
+    </>
     );
   }
 

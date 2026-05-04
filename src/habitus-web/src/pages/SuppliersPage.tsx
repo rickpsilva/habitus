@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Truck, Mail, Phone, MapPin, Building2, X, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi, usersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
@@ -21,10 +23,12 @@ const initialSupplierForm: SupplierForm = {
 
 export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin } = useAuth();
+  const { error: toastError } = useToast();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterActive, setFilterActive] = useState<string>('all');
   const [condominiumId, setCondominiumId] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,7 +76,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     e.preventDefault();
     
     if (!condominiumId) {
-      alert('Dados de utilizador incompletos. Por favor, recarregue a página.');
+      toastError('Dados de utilizador incompletos. Por favor, recarregue a página.');
       return;
     }
     
@@ -108,7 +112,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       load();
     } catch (error) {
       console.error('Erro ao guardar fornecedor:', error);
-      alert('Erro ao guardar fornecedor');
+      toastError('Erro ao guardar fornecedor. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -130,13 +134,19 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Eliminar este fornecedor?')) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await suppliersApi.delete(id);
+      await suppliersApi.delete(deleteId);
       load();
     } catch (error) {
       console.error('Erro ao eliminar fornecedor:', error);
-      alert('Erro ao eliminar fornecedor');
+      toastError('Erro ao eliminar fornecedor. Tente novamente.');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -150,6 +160,15 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        open={deleteId !== null}
+        title="Eliminar fornecedor"
+        message="Tem a certeza que deseja eliminar este fornecedor? Esta ação não pode ser revertida."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         {!embedded && (
