@@ -398,26 +398,16 @@ function PlatformBillingContent() {
 
 // Wrapper components to render existing pages without layout
 function SharedSpacesContent() {
-  return (
-    <div className="-m-6">
-      <SharedSpacesPage embedded />
-    </div>
-  );
+  return <SharedSpacesPage embedded />;
 }
 
 function SuppliersContent() {
-  return (
-    <div className="-m-6">
-      <SuppliersPage embedded />
-    </div>
-  );
+  return <SuppliersPage embedded />;
 }
 
 function UnitsContent() {
   return (
-    <div className="-m-6">
-      <UnitsPage embedded />
-    </div>
+    <UnitsPage embedded />
   );
 }
 

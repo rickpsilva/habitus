@@ -4,6 +4,7 @@ import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
+import ModalPopup from '../components/ModalPopup';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -346,12 +347,14 @@ export default function PaymentsPage() {
       </div>
 
       {/* Create Payment Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Novo Pagamento</h2>
-            
-            <form onSubmit={handleCreate} className="space-y-4">
+      <ModalPopup
+        open={showCreateModal}
+        onClose={() => { setShowCreateModal(false); setProofFile(null); }}
+        title="Novo Pagamento"
+        maxWidthClass="max-w-lg"
+      >
+        <div className="p-6">
+          <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tipo de Pagamento
@@ -537,130 +540,133 @@ export default function PaymentsPage() {
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </ModalPopup>
 
       {/* Payment Details Modal */}
-      {selectedPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">Detalhes do Pagamento</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Estado:</span>
-                {getStatusBadge(selectedPayment.status)}
+      <ModalPopup
+        open={selectedPayment !== null}
+        onClose={() => setSelectedPayment(null)}
+        title="Detalhes do Pagamento"
+        maxWidthClass="max-w-lg"
+      >
+        {selectedPayment && (
+        <div className="p-6">
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Estado:</span>
+              {getStatusBadge(selectedPayment.status)}
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Tipo:</span>
-                <span className="font-medium">{getTypeName(selectedPayment.type)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Método:</span>
-                <span className="font-medium">{getMethodName(selectedPayment.method)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Valor:</span>
-                <span className="font-bold text-lg">€{selectedPayment.amount.toFixed(2)}</span>
-              </div>
-              <div>
-                <span className="text-gray-600 block mb-1">Descrição:</span>
-                <p className="text-sm">{selectedPayment.description}</p>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Data de Criação:</span>
-                <span>{new Date(selectedPayment.createdDate).toLocaleString('pt-PT')}</span>
-              </div>
-              {selectedPayment.processedDate && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Data de Processamento:</span>
-                  <span>{new Date(selectedPayment.processedDate).toLocaleString('pt-PT')}</span>
-                </div>
-              )}
-              {selectedPayment.processedByUserName && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Processado por:</span>
-                  <span>{selectedPayment.processedByUserName}</span>
-                </div>
-              )}
-              {selectedPayment.rejectionReason && (
-                <div className="bg-red-50 border border-red-200 rounded p-3">
-                  <span className="text-red-900 font-semibold block mb-1">Motivo da Rejeição:</span>
-                  <p className="text-sm text-red-800">{selectedPayment.rejectionReason}</p>
-                </div>
-              )}
-              
-              {/* Receipt Information */}
-              {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
-                <div className="bg-green-50 border border-green-200 rounded p-3">
-                  <span className="text-green-900 font-semibold block mb-1 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Recibo Emitido
-                  </span>
-                  <p className="text-sm text-green-800">
-                    Recibo Nº {selectedPayment.receiptNumber}/{selectedPayment.receiptYear}
-                  </p>
-                  {selectedPayment.receiptIssuedDate && (
-                    <p className="text-xs text-green-700 mt-1">
-                      Emitido em: {new Date(selectedPayment.receiptIssuedDate).toLocaleDateString('pt-PT')}
-                    </p>
-                  )}
-                  {selectedPayment.receiptIssuedByUserName && (
-                    <p className="text-xs text-green-700">
-                      Por: {selectedPayment.receiptIssuedByUserName}
-                    </p>
-                  )}
-                </div>
-              )}
+              <span className="text-gray-600">Tipo:</span>
+              <span className="font-medium">{getTypeName(selectedPayment.type)}</span>
             </div>
-            
-            {/* Document Actions */}
-            {(selectedPayment.proofOfPaymentUrl || (selectedPayment.status === 'Approved' && selectedPayment.hasReceipt)) && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Documentos</h3>
-                <div className="flex flex-col gap-2">
-                  {selectedPayment.proofOfPaymentUrl && (
-                    <button
-                      onClick={() => handleDownloadProof(selectedPayment.proofOfPaymentUrl!, selectedPayment.description)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      Descarregar Comprovativo de Pagamento
-                    </button>
-                  )}
-                  {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
-                    <button
-                      onClick={() => handleDownloadReceipt(selectedPayment)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Descarregar Recibo
-                    </button>
-                  )}
-                </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Método:</span>
+              <span className="font-medium">{getMethodName(selectedPayment.method)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Valor:</span>
+              <span className="font-bold text-lg">€{selectedPayment.amount.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-gray-600 block mb-1">Descrição:</span>
+              <p className="text-sm">{selectedPayment.description}</p>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Data de Criação:</span>
+              <span>{new Date(selectedPayment.createdDate).toLocaleString('pt-PT')}</span>
+            </div>
+            {selectedPayment.processedDate && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Data de Processamento:</span>
+                <span>{new Date(selectedPayment.processedDate).toLocaleString('pt-PT')}</span>
+              </div>
+            )}
+            {selectedPayment.processedByUserName && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Processado por:</span>
+                <span>{selectedPayment.processedByUserName}</span>
+              </div>
+            )}
+            {selectedPayment.rejectionReason && (
+              <div className="bg-red-50 border border-red-200 rounded p-3">
+                <span className="text-red-900 font-semibold block mb-1">Motivo da Rejeição:</span>
+                <p className="text-sm text-red-800">{selectedPayment.rejectionReason}</p>
               </div>
             )}
             
-            <div className="flex gap-2 mt-4">
-              {selectedPayment.status === 'Pending' && (
-                <button
-                  type="button"
-                  onClick={() => { setCancelPaymentId(selectedPayment.id); setSelectedPayment(null); }}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Cancelar Pagamento
-                </button>
-              )}
-              <button
-                onClick={() => setSelectedPayment(null)}
-                className={`${selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300`}
-              >
-                Fechar
-              </button>
+            {/* Receipt Information */}
+            {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
+              <div className="bg-green-50 border border-green-200 rounded p-3">
+                <span className="text-green-900 font-semibold block mb-1 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Recibo Emitido
+                </span>
+                <p className="text-sm text-green-800">
+                  Recibo Nº {selectedPayment.receiptNumber}/{selectedPayment.receiptYear}
+                </p>
+                {selectedPayment.receiptIssuedDate && (
+                  <p className="text-xs text-green-700 mt-1">
+                    Emitido em: {new Date(selectedPayment.receiptIssuedDate).toLocaleDateString('pt-PT')}
+                  </p>
+                )}
+                {selectedPayment.receiptIssuedByUserName && (
+                  <p className="text-xs text-green-700">
+                    Por: {selectedPayment.receiptIssuedByUserName}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Document Actions */}
+          {(selectedPayment.proofOfPaymentUrl || (selectedPayment.status === 'Approved' && selectedPayment.hasReceipt)) && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Documentos</h3>
+              <div className="flex flex-col gap-2">
+                {selectedPayment.proofOfPaymentUrl && (
+                  <button
+                    onClick={() => handleDownloadProof(selectedPayment.proofOfPaymentUrl!, selectedPayment.description)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Descarregar Comprovativo de Pagamento
+                  </button>
+                )}
+                {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
+                  <button
+                    onClick={() => handleDownloadReceipt(selectedPayment)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Descarregar Recibo
+                  </button>
+                )}
+              </div>
             </div>
+          )}
+          
+          <div className="flex gap-2 mt-4">
+            {selectedPayment.status === 'Pending' && (
+              <button
+                type="button"
+                onClick={() => { setCancelPaymentId(selectedPayment.id); setSelectedPayment(null); }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Cancelar Pagamento
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedPayment(null)}
+              className={`${selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300`}
+            >
+              Fechar
+            </button>
           </div>
         </div>
-      )}
+        )}
+      </ModalPopup>
     </div>
   );
 }

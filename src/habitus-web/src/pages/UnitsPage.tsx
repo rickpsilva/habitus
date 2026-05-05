@@ -196,34 +196,17 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
-          </div>
-        )}
-        <div className="flex items-center gap-3 ml-auto">
-          <div className="w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar frações..."
-            />
-          </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Fração
-          </button>
+      {/* Header — standalone only */}
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
         </div>
-      </div>
+      )}
 
-      {/* Filter by condominium (Manager only) */}
-      {isManager && condominiums.length > 0 && (
-        <div className="flex gap-3">
+      {/* Toolbar: condominium filter (manager) + search + action button in one row */}
+      <div className="flex flex-wrap items-center gap-2">
+        {isManager && condominiums.length > 0 && (
           <select
             value={filterCondominiumId}
             onChange={(e) => setFilterCondominiumId(e.target.value)}
@@ -234,8 +217,24 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+        )}
+
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar frações..."
+          />
         </div>
-      )}
+
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4" />
+          Nova Fração
+        </button>
+      </div>
 
       {/* Form modal */}
       {showForm && (
