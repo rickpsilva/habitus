@@ -19,9 +19,16 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var result = await _authService.RegisterAsync(request);
-        if (result == null) return Conflict("Email already registered.");
-        return Ok(result);
+        try
+        {
+            var result = await _authService.RegisterAsync(request);
+            if (result == null) return Conflict("Email already registered.");
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("login")]

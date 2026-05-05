@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "prefix": {
+      "value": "habitus"
+    },
+    "environmentName": {
+      "value": "prod"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "appServicePlanName": {
+      "value": "asp-habitus-prod"
+    },
+    "apiAppName": {
+      "value": "app-habitus-prod-api-xxxxxx"
+    },
+    "storageAccountName": {
+      "value": "sthabitusprodxxxxxx"
+    },
+    "keyVaultName": {
+      "value": "kv-habitus-prod-xxxxxx"
+    },
+    "postgresServerName": {
+      "value": "psql-habitus-prod-xxxxxx"
+    },
+    "postgresAdminLogin": {
+      "value": "habitusadmin"
+    },
+    "postgresAdminPassword": {
+      "value": "replace-me"
+    },
+    "postgresDatabaseName": {
+      "value": "habitus"
+    },
+    "docsContainerName": {
+      "value": "habitus-docs"
+    }
+  }
+}

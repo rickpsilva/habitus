@@ -11,6 +11,14 @@ using OtpNet;
 
 namespace Habitus.Application.Services;
 
+public enum InitialManagerBootstrapStatus
+{
+    MissingConfiguration,
+    ManagerAlreadyExists,
+    EmailAlreadyExists,
+    Created,
+}
+
 public class AuthService
 {
     private const int MaxFailedLoginAttempts = 5;
@@ -397,6 +405,11 @@ public class AuthService
             return null;
         }
 
+        if (userRole == UserRole.Manager)
+        {
+            throw new InvalidOperationException("Public registration for Manager accounts is not allowed.");
+        }
+
         if (userRole == UserRole.Admin || userRole == UserRole.Resident)
         {
             if (!request.CondominiumId.HasValue)
@@ -441,6 +454,49 @@ public class AuthService
         }
 
         return await CreateAuthenticatedResponseAsync(user);
+    }
+
+    public async Task<InitialManagerBootstrapStatus> EnsureInitialManagerAsync()
+    {
+        var name = _configuration["InitialManager:Name"]?.Trim();
+        var email = _configuration["InitialManager:Email"]?.Trim();
+        var password = _configuration["InitialManager:Password"];
+        var phone = _configuration["InitialManager:Phone"]?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            return InitialManagerBootstrapStatus.MissingConfiguration;
+        }
+
+        var existingManagers = await _userRepository.FindAsync(u => u.Role == UserRole.Manager);
+        if (existingManagers.Any())
+        {
+            return InitialManagerBootstrapStatus.ManagerAlreadyExists;
+        }
+
+        var existingEmail = await _userRepository.FindAsync(u => u.Email == email);
+        if (existingEmail.Any())
+        {
+            return InitialManagerBootstrapStatus.EmailAlreadyExists;
+        }
+
+        var manager = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Email = email,
+            Phone = phone,
+            Role = UserRole.Manager,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            LastPasswordChangedAt = DateTime.UtcNow,
+        };
+
+        await _userRepository.AddAsync(manager);
+        await _userRepository.SaveChangesAsync();
+
+        return InitialManagerBootstrapStatus.Created;
     }
 
     public async Task<(RegisterResidentResponse? response, string? error)> RegisterResidentAsync(Guid condominiumId, RegisterResidentRequest request)
