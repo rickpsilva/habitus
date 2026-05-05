@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<SaftXmlService>();
 
         // Background services for daily tasks
+        services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
 
         // Encryption service for sensitive data

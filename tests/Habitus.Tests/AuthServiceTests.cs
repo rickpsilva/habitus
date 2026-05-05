@@ -285,6 +285,81 @@ public class AuthServiceTests
         result.LinkedProviders.Select(p => p.Provider).Should().ContainInOrder("Google", "Microsoft");
     }
 
+    [Fact]
+    public async Task EnsureInitialManagerAsync_ShouldCreateManager_WhenNoneExistsAndConfigurationIsPresent()
+    {
+        User? createdUser = null;
+
+        var service = BuildService(new Dictionary<string, string?>
+        {
+            ["InitialManager:Name"] = "Ricardo Silva",
+            ["InitialManager:Email"] = "ricardopsilva@hotmail.com",
+            ["InitialManager:Password"] = "StrongPassword!123",
+            ["InitialManager:Phone"] = "+351910000000",
+        });
+
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => Array.Empty<User>().Where(predicate.Compile()).ToList());
+
+        _userRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(user => createdUser = user)
+            .Returns(Task.CompletedTask);
+
+        var result = await service.EnsureInitialManagerAsync();
+
+        result.Should().Be(InitialManagerBootstrapStatus.Created);
+        createdUser.Should().NotBeNull();
+        createdUser!.Role.Should().Be(UserRole.Manager);
+        createdUser.Email.Should().Be("ricardopsilva@hotmail.com");
+        BCrypt.Net.BCrypt.Verify("StrongPassword!123", createdUser.PasswordHash).Should().BeTrue();
+
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
+        _userRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnsureInitialManagerAsync_ShouldSkip_WhenManagerAlreadyExists()
+    {
+        var existingManager = BuildUser();
+        var service = BuildService(new Dictionary<string, string?>
+        {
+            ["InitialManager:Name"] = "Ricardo Silva",
+            ["InitialManager:Email"] = "ricardopsilva@hotmail.com",
+            ["InitialManager:Password"] = "StrongPassword!123",
+        });
+
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { existingManager }.Where(predicate.Compile()).ToList());
+
+        var result = await service.EnsureInitialManagerAsync();
+
+        result.Should().Be(InitialManagerBootstrapStatus.ManagerAlreadyExists);
+        _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ShouldRejectPublicManagerRegistration()
+    {
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync(Array.Empty<User>());
+
+        var action = () => _service.RegisterAsync(new RegisterRequest
+        {
+            Name = "Manager",
+            Email = "manager@example.com",
+            Password = "StrongPassword!123",
+            Phone = "910000000",
+            Role = "Manager",
+        });
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Manager accounts is not allowed*");
+    }
+
     private static IConfiguration BuildConfiguration()
     {
         return new ConfigurationBuilder()
@@ -297,6 +372,21 @@ public class AuthServiceTests
                 ["Frontend:BaseUrl"] = "http://localhost:5173"
             })
             .Build();
+    }
+
+    private AuthService BuildService(IDictionary<string, string?> settings)
+    {
+        return new AuthService(
+            _userRepositoryMock.Object,
+            _userCondominiumRepositoryMock.Object,
+            _condominiumRepositoryMock.Object,
+            _unitRepositoryMock.Object,
+            _userAuthProviderRepositoryMock.Object,
+            _userRecoveryCodeRepositoryMock.Object,
+            _authChallengeRepositoryMock.Object,
+            new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),
+            _emailServiceMock.Object,
+            _encryptionServiceMock.Object);
     }
 
     private static User BuildUser()

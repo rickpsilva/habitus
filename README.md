@@ -152,3 +152,12 @@ dotnet test src/Habitus.slnx
 
 The application is ready to deploy to **Azure App Service** or **Azure Container Apps**.  
 Use Azure Key Vault and managed identities to secure secrets in production.
+
+For the production-ready Azure flow (infra + API + frontend + Front Door), use:
+
+- `docs/AZURE_DEPLOYMENT.md`
+
+Current public frontend domain policy in production:
+
+- `https://www.habituscond.pt` only
+- `app.habituscond.pt` is deprecated and should not be attached to Front Door routes
