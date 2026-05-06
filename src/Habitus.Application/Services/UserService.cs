@@ -217,6 +217,31 @@ public class UserService
         return MapToResponse(user);
     }
 
+    public async Task<bool> UpdateUserPasswordAsync(Guid userId, UpdateUserPasswordRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return false;
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+        {
+            return false;
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiry = null;
+        user.LockoutUntil = null;
+        user.FailedLoginCount = 0;
+        user.LastPasswordChangedAt = DateTime.UtcNow;
+
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<bool> DeleteUserAsync(Guid id)
     {
         var user = await _userRepository.GetByIdAsync(id);

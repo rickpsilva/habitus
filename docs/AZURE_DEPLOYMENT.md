@@ -31,6 +31,13 @@ The current defaults are intentionally conservative for a small first production
 
 This keeps the platform lean while still supporting HTTPS, Blob Storage, Key Vault, and repeatable deployments.
 
+For a stricter budget target (around 50 EUR/month), use single-host mode:
+
+- Keep one API App Service (`B1`) and serve the frontend from the same app.
+- Keep PostgreSQL at `Standard_B1ms`.
+- Keep Storage only for private document blobs.
+- Do not use Front Door unless you need global edge features.
+
 ## Prerequisites
 
 - Azure CLI authenticated with `az login`
@@ -74,6 +81,7 @@ chmod +x ./scripts/deploy-azure.sh
 - `--skip-deploy`: provisions infrastructure without publishing code.
 - `--skip-api`: provisions infrastructure and publishes only the frontend.
 - `--skip-frontend`: provisions infrastructure and publishes only the API.
+- `--frontend-on-api`: builds the React app and deploys it inside the API Web App (`wwwroot`) so frontend and API share the same host.
 - `--run-migrations`: runs `dotnet ef database update` against Azure PostgreSQL.
 
 Example with Front Door and a custom frontend domain (`www`):
@@ -97,6 +105,17 @@ Shortcut version with domain root:
   --environment prod \
   --enable-front-door \
   --domain-root habituscond.pt \
+  --run-migrations
+```
+
+Example for minimum-cost single-host deployment (no Front Door):
+
+```bash
+./scripts/deploy-azure.sh \
+  --subscription "HabitusCond" \
+  --prefix habitus \
+  --environment prod \
+  --frontend-on-api \
   --run-migrations
 ```
 
@@ -205,6 +224,12 @@ If you pass `--enable-front-door`, the static website is placed behind Azure Fro
 - Managed TLS certificates for the frontend custom domain
 - Better performance and caching options later
 
+If you pass `--frontend-on-api`, the frontend is built with `VITE_API_BASE_URL=/api` and embedded into the API Web App (`wwwroot`). In this mode:
+
+- `https://<api-app>.azurewebsites.net` serves both frontend and API.
+- API calls stay same-origin (`/api`).
+- You can bind `www.habituscond.pt` directly to App Service and remove Front Door.
+
 ## HTTPS and certificates
 
 - The API already runs on `https://<app-name>.azurewebsites.net` with Azure-managed HTTPS.
@@ -273,6 +298,32 @@ DNS on amen.pt (after the script prints the Front Door hostname):
 - Public frontend domain: `https://www.habituscond.pt`
 - `app.habituscond.pt` is no longer used and should not be reattached to Front Door routes.
 - Use `--frontend-domain www.habituscond.pt` in release deploys to keep the configuration aligned.
+
+## Migration path to minimum cost (keep https://www.habituscond.pt)
+
+Target architecture:
+
+- One App Service (`B1`) serving frontend and API.
+- PostgreSQL + Key Vault + Blob storage.
+- Front Door removed.
+
+1. Deploy in single-host mode:
+
+```bash
+./scripts/deploy-azure.sh \
+  --subscription "HabitusCond" \
+  --prefix habitus \
+  --environment prod \
+  --frontend-on-api \
+  --run-migrations
+```
+
+2. Bind `www.habituscond.pt` to the API App Service and issue App Service Managed Certificate.
+3. In DNS (amen.pt), point `www` CNAME to `<api-app>.azurewebsites.net`.
+4. Validate HTTPS on `https://www.habituscond.pt`.
+5. After HTTPS is green on App Service, remove Front Door resources.
+
+Safety note: do step 5 only after step 4 succeeds.
 
 Quick checks:
 

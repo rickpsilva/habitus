@@ -19,6 +19,7 @@ RUN_MIGRATIONS="false"
 SKIP_DEPLOY="false"
 SKIP_FRONTEND="false"
 SKIP_API="false"
+FRONTEND_ON_API="false"
 ENABLE_FRONT_DOOR="false"
 FRONTEND_DOMAIN="${FRONTEND_DOMAIN:-}"
 DOMAIN_ROOT="${DOMAIN_ROOT:-}"
@@ -110,6 +111,7 @@ Options:
   --run-migrations              Run dotnet ef database update against Azure PostgreSQL
   --skip-api                    Provision resources and deploy only the frontend
   --skip-frontend               Provision resources and deploy only the API
+    --frontend-on-api             Build frontend and deploy it inside API Web App (single host/domain)
   --skip-deploy                 Provision resources but do not publish application artifacts
   --help                        Show this help
 
@@ -343,6 +345,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_FRONTEND="true"
             shift
             ;;
+        --frontend-on-api)
+            FRONTEND_ON_API="true"
+            shift
+            ;;
         --skip-deploy)
             SKIP_DEPLOY="true"
             shift
@@ -381,6 +387,14 @@ if [[ -n "$DOMAIN_ROOT" && -z "$FRONTEND_DOMAIN" ]]; then
     FRONTEND_DOMAIN="app.${DOMAIN_ROOT}"
 fi
 
+if [[ "$FRONTEND_ON_API" == "true" && "$ENABLE_FRONT_DOOR" == "true" ]]; then
+    fail "--frontend-on-api cannot be combined with --enable-front-door."
+fi
+
+if [[ "$FRONTEND_ON_API" == "true" && "$SKIP_API" == "true" && "$SKIP_FRONTEND" == "false" ]]; then
+    fail "--frontend-on-api requires API deployment. Remove --skip-api or also pass --skip-frontend."
+fi
+
 ensure_provider_registered "Microsoft.Storage"
 ensure_provider_registered "Microsoft.KeyVault"
 ensure_provider_registered "Microsoft.DBforPostgreSQL"
@@ -415,6 +429,7 @@ printf '  PostgreSQL     : %s\n' "$POSTGRES_SERVER"
 printf '  Storage        : %s\n' "$STORAGE_ACCOUNT"
 printf '  Key Vault      : %s\n' "$KEY_VAULT_NAME"
 printf '  Front Door     : %s\n' "$ENABLE_FRONT_DOOR"
+printf '  Frontend on API: %s\n' "$FRONTEND_ON_API"
 if [[ -n "$FRONTEND_DOMAIN" ]]; then
     printf '  Frontend domain: %s\n' "$FRONTEND_DOMAIN"
 fi
@@ -603,6 +618,11 @@ az keyvault set-policy \
 frontend_url="$storage_web_endpoint"
 api_url="https://${API_APP_NAME}.azurewebsites.net"
 allowed_origins="$frontend_url"
+
+if [[ "$FRONTEND_ON_API" == "true" ]]; then
+    frontend_url="$api_url"
+    allowed_origins="$frontend_url"
+fi
 
 if [[ "$ENABLE_FRONT_DOOR" == "true" ]]; then
     if ! afd_profile_exists "$FRONTDOOR_PROFILE"; then
@@ -871,8 +891,24 @@ if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_API" == "false" ]]; then
     temp_dir="$(mktemp -d)"
     trap 'rm -rf "$temp_dir"' EXIT
 
+    if [[ "$FRONTEND_ON_API" == "true" && "$SKIP_FRONTEND" == "false" ]]; then
+        log "Building frontend to be served by API Web App"
+        (
+            cd "$WEB_DIR"
+            npm ci
+            VITE_API_BASE_URL="/api" npm run build
+        )
+    fi
+
     log "Publishing API"
     dotnet publish "$API_PROJECT" -c Release -o "$temp_dir/api-publish"
+
+    if [[ "$FRONTEND_ON_API" == "true" && "$SKIP_FRONTEND" == "false" ]]; then
+        log "Embedding frontend artifacts into API publish output"
+        rm -rf "$temp_dir/api-publish/wwwroot"
+        mkdir -p "$temp_dir/api-publish/wwwroot"
+        cp -R "$WEB_DIR/dist/." "$temp_dir/api-publish/wwwroot/"
+    fi
 
     (
         cd "$temp_dir/api-publish"
@@ -884,29 +920,34 @@ if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_API" == "false" ]]; then
         --name "$API_APP_NAME" \
         --src-path "$temp_dir/api.zip" \
         --type zip \
+        --clean true \
         --output none
 
     success "API deployed"
 fi
 
 if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_FRONTEND" == "false" ]]; then
-    log "Building frontend with Azure API URL"
-    (
-        cd "$WEB_DIR"
-        npm ci
-        VITE_API_BASE_URL="${api_url}/api" npm run build
-    )
+    if [[ "$FRONTEND_ON_API" == "true" ]]; then
+        success "Frontend deployed inside API Web App"
+    else
+        log "Building frontend with Azure API URL"
+        (
+            cd "$WEB_DIR"
+            npm ci
+            VITE_API_BASE_URL="${api_url}/api" npm run build
+        )
 
-    log "Uploading frontend to Azure Storage static website"
-    az storage blob upload-batch \
-        --account-name "$STORAGE_ACCOUNT" \
-        --account-key "$storage_key" \
-        --destination '$web' \
-        --source "$WEB_DIR/dist" \
-        --overwrite true \
-        --output none
+        log "Uploading frontend to Azure Storage static website"
+        az storage blob upload-batch \
+            --account-name "$STORAGE_ACCOUNT" \
+            --account-key "$storage_key" \
+            --destination '$web' \
+            --source "$WEB_DIR/dist" \
+            --overwrite true \
+            --output none
 
-    success "Frontend deployed"
+        success "Frontend deployed"
+    fi
 fi
 
 printf '\n'

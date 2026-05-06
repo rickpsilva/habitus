@@ -23,6 +23,12 @@ public class UpdateUserRequest
     public bool IsActive { get; set; } = true;
 }
 
+public class UpdateUserPasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
 public class UserResponse
 {
     public Guid Id { get; set; }
