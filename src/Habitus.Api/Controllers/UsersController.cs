@@ -212,6 +212,34 @@ public class UsersController : ControllerBase
         }
     }
 
+    [HttpPut("{id}/password")]
+    public async Task<IActionResult> UpdateUserPassword(Guid id, [FromBody] UpdateUserPasswordRequest request)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var authenticatedUserId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        if (authenticatedUserId != id)
+        {
+            return Forbid("You can only update your own password.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new { error = "Current password and new password are required." });
+        }
+
+        var updated = await _userService.UpdateUserPasswordAsync(id, request);
+        if (!updated)
+        {
+            return BadRequest(new { error = "Current password is invalid or the user is unavailable." });
+        }
+
+        return Ok(new { message = "Password updated successfully." });
+    }
+
     /// <summary>
     /// Delete user (Manager can delete any, Admin can delete from their condominium)
     /// </summary>

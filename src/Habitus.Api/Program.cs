@@ -130,6 +130,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+var hasWebRoot = Directory.Exists(app.Environment.WebRootPath);
+var hasSpaEntryPoint = hasWebRoot && File.Exists(Path.Combine(app.Environment.WebRootPath, "index.html"));
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -139,6 +141,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (hasWebRoot)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.UseCors();
 app.UseHttpsRedirection();
 app.UseIpRateLimiting();  // ⬅️ Rate limiting middleware (antes de auth)
@@ -146,6 +154,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+if (hasSpaEntryPoint)
+{
+    app.MapFallbackToFile("{*path:nonfile}", "index.html");
+}
 
 app.Run();
 
