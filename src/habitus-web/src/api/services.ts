@@ -77,6 +77,9 @@ import type {
   MarkInvoicePaidRequest,
   CancelInvoiceRequest,
   InitiateInvoicePaymentResponse,
+  SystemEmailSettingsDto,
+  UpdateSystemEmailSettingsRequest,
+  CsvImportResult,
 } from '../types';
 
 export const authApi = {
@@ -162,6 +165,13 @@ export const unitsApi = {
   create: (data: CreateUnitRequest) => api.post<UnitDto>('/units', data),
   update: (id: string, data: Partial<CreateUnitRequest>) => api.put<UnitDto>(`/units/${id}`, data),
   delete: (id: string) => api.delete(`/units/${id}`),
+  importCsv: (condominiumId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<CsvImportResult>(`/units/import-csv?condominiumId=${condominiumId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const maintenanceApi = {
@@ -245,9 +255,9 @@ export const sharedSpacesApi = {
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
     api.get<PaginatedResponse<SharedSpaceDto>>(`/shared-spaces/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getById: (id: string) => api.get<SharedSpaceDto>(`/shared-spaces/${id}`),
-  create: (data: { name: string; description: string; capacity: number; condominiumId: string; rules: string }) => 
+  create: (data: { name: string; description: string; capacity: number; condominiumId: string; rules: string; reservationFee?: number }) => 
     api.post<SharedSpaceDto>('/shared-spaces', data),
-  update: (id: string, data: { name: string; description: string; capacity: number; rules: string }) => 
+  update: (id: string, data: { name: string; description: string; capacity: number; rules: string; reservationFee?: number }) => 
     api.put<SharedSpaceDto>(`/shared-spaces/${id}`, data),
   delete: (id: string) => api.delete(`/shared-spaces/${id}`),
 };
@@ -459,3 +469,11 @@ export const platformBillingSettingsApi = {
     api.put<PlatformBillingSettingsDto>('/platform/billing-settings', data),
 };
 
+
+
+export const systemEmailSettingsApi = {
+  get: () => api.get<SystemEmailSettingsDto>('/platform/system-email-settings'),
+  update: (data: UpdateSystemEmailSettingsRequest) =>
+    api.put<SystemEmailSettingsDto>('/platform/system-email-settings', data),
+  test: () => api.post<{ message: string }>('/platform/system-email-settings/test', {}),
+};

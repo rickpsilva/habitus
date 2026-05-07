@@ -51,16 +51,16 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         var result = await _authService.ForgotPasswordAsync(request);
-        if (!result) return BadRequest("Email not found.");
-        return Ok(new { message = "Password reset email sent. Check your email for instructions." });
+        if (!result) return BadRequest("Email não encontrado.");
+        return Ok(new { message = "Email de recuperação de senha enviado. Verifique o seu email." });
     }
 
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         var result = await _authService.ResetPasswordAsync(request);
-        if (!result) return BadRequest("Invalid or expired reset token.");
-        return Ok(new { message = "Password reset successfully." });
+        if (!result) return BadRequest("Token de recuperação inválido ou expirado.");
+        return Ok(new { message = "Senha redefinida com sucesso." });
     }
 
     [HttpGet("security")]
@@ -101,7 +101,7 @@ public class AuthController : ControllerBase
         }
 
         var result = await _authService.VerifyTwoFactorSetupAsync(userId, request);
-        if (result == null) return BadRequest("Invalid verification code.");
+        if (result == null) return BadRequest("Código de verificação inválido.");
         return Ok(result);
     }
 
@@ -115,8 +115,8 @@ public class AuthController : ControllerBase
         }
 
         var result = await _authService.DisableTwoFactorAsync(userId, request);
-        if (!result) return BadRequest("Unable to disable two-factor authentication.");
-        return Ok(new { message = "Two-factor authentication disabled." });
+        if (!result) return BadRequest("Não foi possível desativar a autenticação de dois fatores.");
+        return Ok(new { message = "Autenticação de dois fatores desativada." });
     }
 
     [HttpPost("2fa/recovery-codes/regenerate")]

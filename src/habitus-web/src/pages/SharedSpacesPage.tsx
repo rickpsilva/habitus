@@ -33,6 +33,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     capacity: '',
     rules: '',
     condominiumId: '',
+    reservationFee: '0',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -89,6 +90,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         capacity: parseInt(form.capacity),
         rules: form.rules,
         condominiumId: form.condominiumId,
+        reservationFee: parseFloat(form.reservationFee) || 0,
       };
       
       if (editingId) {
@@ -97,6 +99,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           description: data.description,
           capacity: data.capacity,
           rules: data.rules,
+          reservationFee: data.reservationFee,
         });
       } else {
         await sharedSpacesApi.create(data);
@@ -109,7 +112,8 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         description: '', 
         capacity: '', 
         rules: '', 
-        condominiumId: form.condominiumId 
+        condominiumId: form.condominiumId,
+        reservationFee: '0',
       });
       load();
     } catch (error: unknown) {
@@ -137,6 +141,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       capacity: space.capacity.toString(),
       rules: space.rules,
       condominiumId: space.condominiumId,
+      reservationFee: (space.reservationFee ?? 0).toString(),
     });
     setShowForm(true);
   };
@@ -175,7 +180,8 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       description: '', 
       capacity: '', 
       rules: '', 
-      condominiumId: form.condominiumId 
+      condominiumId: form.condominiumId,
+      reservationFee: '0',
     });
   };
 
@@ -255,6 +261,27 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                 rows={4}
                 placeholder="Ex: Horário: 8h-22h. Proibido fumar. Respeitar limites de ruído."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Taxa de Reserva (€)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.reservationFee}
+                  onChange={(e) => setForm({ ...form, reservationFee: e.target.value })}
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Taxa cobrada ao residente por cada reserva. Deixe 0 para reservas gratuitas.
+              </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

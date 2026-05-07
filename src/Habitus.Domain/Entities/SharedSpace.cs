@@ -8,6 +8,7 @@ public class SharedSpace
     public int Capacity { get; set; }
     public Guid CondominiumId { get; set; }
     public string Rules { get; set; } = string.Empty;
+    public decimal ReservationFee { get; set; } = 0;
     public Condominium Condominium { get; set; } = null!;
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }

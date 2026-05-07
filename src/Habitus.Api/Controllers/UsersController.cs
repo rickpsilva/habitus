@@ -234,10 +234,10 @@ public class UsersController : ControllerBase
         var updated = await _userService.UpdateUserPasswordAsync(id, request);
         if (!updated)
         {
-            return BadRequest(new { error = "Current password is invalid or the user is unavailable." });
+            return BadRequest(new { error = "Senha atual inválida ou utilizador indisponível." });
         }
 
-        return Ok(new { message = "Password updated successfully." });
+        return Ok(new { message = "Senha atualizada com sucesso." });
     }
 
     /// <summary>
@@ -284,7 +284,7 @@ public class UsersController : ControllerBase
         try
         {
             await _userService.AssignUserToCondominiumAsync(request);
-            return Ok(new { message = "User assigned to condominium successfully." });
+            return Ok(new { message = "Utilizador associado ao condomínio com sucesso." });
         }
         catch (Exception ex)
         {

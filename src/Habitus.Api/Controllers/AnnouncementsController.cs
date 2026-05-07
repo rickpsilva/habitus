@@ -292,7 +292,7 @@ public class AnnouncementsController : ControllerBase
         await _context.SaveChangesAsync();
         await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
 
-        return Ok(new { message = "Announcement submitted for approval" });
+        return Ok(new { message = "Comunicado submetido para aprovação." });
     }
 
     // POST: api/condominiums/{condominiumId}/announcements/{id}/approve
@@ -313,7 +313,7 @@ public class AnnouncementsController : ControllerBase
         if (announcement == null) return NotFound();
 
         if (announcement.Status != AnnouncementStatus.PendingApproval)
-            return BadRequest("Only pending announcements can be approved/rejected");
+            return BadRequest("Apenas comunicados pendentes podem ser aprovados/rejeitados.");
 
         if (request.IsApproved)
         {
@@ -350,7 +350,7 @@ public class AnnouncementsController : ControllerBase
 
             await _context.SaveChangesAsync();
             await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
-            return Ok(new { message = request.IsApproved ? "Announcement published" : "Announcement rejected" });
+            return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
         }
         else
         {
@@ -360,7 +360,7 @@ public class AnnouncementsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = request.IsApproved ? "Announcement published" : "Announcement rejected" });
+        return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
     }
 
     // POST: api/condominiums/{condominiumId}/announcements/{id}/pin

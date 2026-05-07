@@ -344,6 +344,7 @@ export interface SharedSpaceDto {
   capacity: number;
   condominiumId: string;
   rules: string;
+  reservationFee: number;
 }
 
 export interface CreateSharedSpaceRequest {
@@ -352,6 +353,7 @@ export interface CreateSharedSpaceRequest {
   capacity: number;
   condominiumId: string;
   rules: string;
+  reservationFee?: number;
 }
 
 export interface DocumentDto {
@@ -864,3 +866,38 @@ export interface InitiateInvoicePaymentResponse {
   sessionId: string;
 }
 
+// ============= System Email Settings =============
+
+export interface SystemEmailSettingsDto {
+  id: string;
+  emailEnabled: boolean;
+  smtpHost?: string;
+  smtpPort: number;
+  username?: string;
+  hasPassword: boolean;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSystemEmailSettingsRequest {
+  emailEnabled: boolean;
+  smtpHost?: string;
+  smtpPort: number;
+  username?: string;
+  password?: string;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+}
+
+// ============= CSV Import =============
+
+export interface CsvImportResult {
+  message: string;
+  created: number;
+  skipped: number;
+  errors: string[];
+}

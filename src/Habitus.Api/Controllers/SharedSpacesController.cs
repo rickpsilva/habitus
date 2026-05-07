@@ -27,7 +27,8 @@ public class SharedSpacesController : ControllerBase
             Description = s.Description,
             Capacity = s.Capacity,
             CondominiumId = s.CondominiumId,
-            Rules = s.Rules
+            Rules = s.Rules,
+            ReservationFee = s.ReservationFee
         });
         return Ok(dtos);
     }
@@ -46,7 +47,8 @@ public class SharedSpacesController : ControllerBase
             Description = s.Description,
             Capacity = s.Capacity,
             CondominiumId = s.CondominiumId,
-            Rules = s.Rules
+            Rules = s.Rules,
+            ReservationFee = s.ReservationFee
         }).OrderBy(s => s.Name);
         
         if (!string.IsNullOrWhiteSpace(search))
@@ -74,7 +76,8 @@ public class SharedSpacesController : ControllerBase
             Description = space.Description,
             Capacity = space.Capacity,
             CondominiumId = space.CondominiumId,
-            Rules = space.Rules
+            Rules = space.Rules,
+            ReservationFee = space.ReservationFee
         };
         return Ok(dto);
     }
@@ -90,7 +93,8 @@ public class SharedSpacesController : ControllerBase
             Description = request.Description,
             Capacity = request.Capacity,
             CondominiumId = request.CondominiumId,
-            Rules = request.Rules
+            Rules = request.Rules,
+            ReservationFee = request.ReservationFee
         };
         
         await _repository.AddAsync(space);
@@ -103,7 +107,8 @@ public class SharedSpacesController : ControllerBase
             Description = space.Description,
             Capacity = space.Capacity,
             CondominiumId = space.CondominiumId,
-            Rules = space.Rules
+            Rules = space.Rules,
+            ReservationFee = space.ReservationFee
         };
         
         return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
@@ -120,6 +125,7 @@ public class SharedSpacesController : ControllerBase
         existing.Description = request.Description;
         existing.Capacity = request.Capacity;
         existing.Rules = request.Rules;
+        existing.ReservationFee = request.ReservationFee;
         
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
@@ -131,7 +137,8 @@ public class SharedSpacesController : ControllerBase
             Description = existing.Description,
             Capacity = existing.Capacity,
             CondominiumId = existing.CondominiumId,
-            Rules = existing.Rules
+            Rules = existing.Rules,
+            ReservationFee = existing.ReservationFee
         };
         
         return Ok(dto);

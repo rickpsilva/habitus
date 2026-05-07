@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
+import { Building2, Trash2, Pencil, Plus, X, Upload, FileText } from 'lucide-react';
 import { unitsApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -18,8 +18,10 @@ const unitTypeLabels: Record<number, string> = {
 export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
-  const { error: toastError } = useToast();
+  const { error: toastError, success: toastSuccess } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
   
   // Guard: Only Manager and Admin can access
   useEffect(() => {
@@ -167,6 +169,37 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     }
   };
 
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const activeCondominiumId = condominiumId || '';
+    if (!activeCondominiumId) {
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      return;
+    }
+
+    setCsvImporting(true);
+    try {
+      const response = await unitsApi.importCsv(activeCondominiumId, file);
+      const result = response.data;
+      if (result.errors && result.errors.length > 0) {
+        toastError(`Importação concluída com erros: ${result.message}`);
+      } else {
+        toastSuccess(result.message);
+      }
+      load();
+    } catch (err: unknown) {
+      const msg = typeof err === 'object' && err !== null && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined;
+      toastError(msg ?? 'Erro ao importar CSV. Verifique o formato do ficheiro.');
+    } finally {
+      setCsvImporting(false);
+      if (csvInputRef.current) csvInputRef.current.value = '';
+    }
+  };
+
   const condominiumLabel = (condoId: string) => {
     const c = condominiums.find(c => c.id === condoId);
     return c ? c.name : condoId.slice(0, 8) + '…';
@@ -234,6 +267,31 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           <Plus className="w-4 h-4" />
           Nova Fração
         </button>
+
+        <button
+          onClick={() => csvInputRef.current?.click()}
+          disabled={csvImporting}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+          title="Importar frações a partir de ficheiro CSV"
+        >
+          <Upload className="w-4 h-4" />
+          {csvImporting ? 'A importar...' : 'Importar CSV'}
+        </button>
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleCsvImport}
+        />
+      </div>
+
+      {/* CSV format info */}
+      <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+        <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>
+          <strong>Formato CSV:</strong> piso, número, tipo (Apartment/Commercial/Parking), apartmentNumber, permilagem, quotaMensal — linha de cabeçalho obrigatória. Frações com o mesmo piso e número serão ignoradas.
+        </span>
       </div>
 
       {/* Form modal */}

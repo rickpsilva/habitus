@@ -194,7 +194,7 @@ public class PaymentsController : ControllerBase
             var result = await _service.CancelAsync(id, userId);
             
             if (result == null)
-                return NotFound(new { message = "Payment not found" });
+                return NotFound(new { message = "Pagamento não encontrado." });
 
             return Ok(result);
         }
@@ -222,15 +222,15 @@ public class PaymentsController : ControllerBase
         try
         {
             if (string.IsNullOrWhiteSpace(request.ProofUrl))
-                return BadRequest(new { message = "Proof URL is required" });
+                return BadRequest(new { message = "O comprovativo de pagamento é obrigatório." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var success = await _service.UpdateProofOfPaymentAsync(id, request.ProofUrl, userId);
             
             if (!success)
-                return NotFound(new { message = "Payment not found or cannot be updated" });
+                return NotFound(new { message = "Pagamento não encontrado ou não pode ser atualizado." });
 
-            return Ok(new { message = "Proof of payment uploaded successfully" });
+            return Ok(new { message = "Comprovativo de pagamento enviado com sucesso." });
         }
         catch (Exception ex)
         {
@@ -252,7 +252,7 @@ public class PaymentsController : ControllerBase
             
             // Refresh payment to get updated receipt info
             var payment = await _service.GetByIdAsync(id);
-            return Ok(new { message = "Receipt issued successfully", receipt = new { 
+            return Ok(new { message = "Recibo emitido com sucesso.", receipt = new { 
                 number = payment?.ReceiptNumber, 
                 year = payment?.ReceiptYear,
                 issuedDate = payment?.ReceiptIssuedDate,
@@ -279,7 +279,7 @@ public class PaymentsController : ControllerBase
         {
             var payment = await _service.GetByIdAsync(id);
             if (payment == null)
-                return NotFound(new { message = "Payment not found" });
+                return NotFound(new { message = "Pagamento não encontrado." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var isAdmin = User.IsInRole("Admin");
@@ -289,12 +289,12 @@ public class PaymentsController : ControllerBase
                 return Forbid();
 
             if (string.IsNullOrEmpty(payment.ReceiptPdfPath) || !payment.ReceiptNumber.HasValue)
-                return NotFound(new { message = "Receipt not yet issued for this payment" });
+                return NotFound(new { message = "Recibo ainda não emitido para este pagamento." });
 
             var filePath = Path.Combine(Directory.GetCurrentDirectory(), payment.ReceiptPdfPath.TrimStart('/'));
             
             if (!System.IO.File.Exists(filePath))
-                return NotFound(new { message = "Receipt file not found" });
+                return NotFound(new { message = "Ficheiro de recibo não encontrado." });
 
             var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
             var fileName = $"Recibo_{payment.ReceiptNumber}_{payment.ReceiptYear}.pdf";

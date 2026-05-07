@@ -10,11 +10,19 @@ public class ReservationService
 {
     private readonly IRepository<Reservation> _repository;
     private readonly IRepository<SharedSpace> _spaceRepository;
+    private readonly IRepository<User> _userRepository;
+    private readonly IRepository<FinancialRecord> _financialRepository;
 
-    public ReservationService(IRepository<Reservation> repository, IRepository<SharedSpace> spaceRepository)
+    public ReservationService(
+        IRepository<Reservation> repository,
+        IRepository<SharedSpace> spaceRepository,
+        IRepository<User> userRepository,
+        IRepository<FinancialRecord> financialRepository)
     {
         _repository = repository;
         _spaceRepository = spaceRepository;
+        _userRepository = userRepository;
+        _financialRepository = financialRepository;
     }
 
     public async Task<IEnumerable<ReservationDto>> GetAllAsync(Guid condominiumId)
@@ -60,16 +68,24 @@ public class ReservationService
         // Get SharedSpace to obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
         if (space == null)
-            return (null, "Shared space not found.");
+            return (null, "Espaço comum não encontrado.");
+
+        // Check that the user has an associated unit (fração)
+        var user = await _userRepository.GetByIdAsync(request.UserId);
+        if (user == null)
+            return (null, "Utilizador não encontrado.");
+        if (!user.UnitId.HasValue)
+            return (null, "Apenas utilizadores com uma fração associada podem efetuar reservas.");
 
         var existing = await _repository.FindAsync(r =>
             r.SpaceId == request.SpaceId &&
             r.Status != ReservationStatus.Cancelled &&
+            r.Status != ReservationStatus.Rejected &&
             r.StartTime < request.EndTime &&
             r.EndTime > request.StartTime);
 
         if (existing.Any())
-            return (null, "The space is already reserved for the requested time slot.");
+            return (null, "O espaço já se encontra reservado para o período solicitado.");
 
         var entity = new Reservation
         {
@@ -84,6 +100,25 @@ public class ReservationService
         };
         await _repository.AddAsync(entity);
         await _repository.SaveChangesAsync();
+
+        // Create financial record for the reservation fee (income/pending debt)
+        if (space.ReservationFee > 0)
+        {
+            var financialRecord = new FinancialRecord
+            {
+                Id = Guid.NewGuid(),
+                Type = FinancialType.Income,
+                Amount = space.ReservationFee,
+                Description = $"Reserva (pendente): {space.Name} - {request.StartTime:dd/MM/yyyy HH:mm}",
+                Date = DateTime.UtcNow,
+                FiscalYear = DateTime.UtcNow.Year,
+                Category = FinancialCategory.OtherIncome,
+                CondominiumId = space.CondominiumId
+            };
+            await _financialRepository.AddAsync(financialRecord);
+            await _financialRepository.SaveChangesAsync();
+        }
+
         return (MapToDto(entity), null);
     }
 
@@ -91,23 +126,24 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         // Get SharedSpace to validate and obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
         if (space == null)
-            return (null, "Shared space not found.");
+            return (null, "Espaço comum não encontrado.");
 
         // Check for conflicts with other reservations (excluding current one)
         var existing = await _repository.FindAsync(r =>
             r.Id != id &&
             r.SpaceId == request.SpaceId &&
             r.Status != ReservationStatus.Cancelled &&
+            r.Status != ReservationStatus.Rejected &&
             r.StartTime < request.EndTime &&
             r.EndTime > request.StartTime);
 
         if (existing.Any())
-            return (null, "The space is already reserved for the requested time slot.");
+            return (null, "O espaço já se encontra reservado para o período solicitado.");
 
         // Update entity
         entity.SpaceId = request.SpaceId;
@@ -124,12 +160,12 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
         if (entity.CondominiumId != condominiumId)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         if (entity.Status != ReservationStatus.Pending)
-            return (null, "Only pending reservations can be approved.");
+            return (null, "Apenas reservas pendentes podem ser aprovadas.");
 
         entity.Status = ReservationStatus.Approved;
         if (!string.IsNullOrWhiteSpace(request.AdminComments))
@@ -144,12 +180,12 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
         if (entity.CondominiumId != condominiumId)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         if (entity.Status != ReservationStatus.Pending)
-            return (null, "Only pending reservations can be rejected.");
+            return (null, "Apenas reservas pendentes podem ser rejeitadas.");
 
         entity.Status = ReservationStatus.Rejected;
         if (!string.IsNullOrWhiteSpace(request.AdminComments))
@@ -164,12 +200,12 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
         if (entity.CondominiumId != condominiumId)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         if (entity.Status != ReservationStatus.Approved)
-            return (null, "Only approved reservations can be cancelled.");
+            return (null, "Apenas reservas aprovadas podem ser canceladas.");
 
         entity.Status = ReservationStatus.CancellationRequested;
 
@@ -182,12 +218,12 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
         if (entity.CondominiumId != condominiumId)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         if (entity.Status != ReservationStatus.CancellationRequested)
-            return (null, "Only reservations with cancellation request can be cancelled.");
+            return (null, "Apenas reservas com pedido de cancelamento podem ser canceladas.");
 
         entity.Status = ReservationStatus.Cancelled;
         if (!string.IsNullOrWhiteSpace(request.AdminComments))
@@ -202,12 +238,12 @@ public class ReservationService
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
         if (entity.CondominiumId != condominiumId)
-            return (null, "Reservation not found.");
+            return (null, "Reserva não encontrada.");
 
         if (entity.Status != ReservationStatus.CancellationRequested)
-            return (null, "Only reservations with cancellation request can be rejected.");
+            return (null, "Apenas reservas com pedido de cancelamento podem ser rejeitadas.");
 
         entity.Status = ReservationStatus.Approved;
         if (!string.IsNullOrWhiteSpace(request.AdminComments))
