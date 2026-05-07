@@ -19,7 +19,15 @@ public class ReservationServiceTests
         var spaceRepoMock = new Mock<IRepository<SharedSpace>>();
         var userRepoMock = new Mock<IRepository<User>>();
         var financialRepoMock = new Mock<IRepository<FinancialRecord>>();
-        _service = new ReservationService(_repositoryMock.Object, spaceRepoMock.Object, userRepoMock.Object, financialRepoMock.Object);
+        var notificationRepoMock = new Mock<IRepository<Notification>>();
+        var dispatchServiceMock = new Mock<INotificationDispatchService>();
+        _service = new ReservationService(
+            _repositoryMock.Object,
+            spaceRepoMock.Object,
+            userRepoMock.Object,
+            financialRepoMock.Object,
+            notificationRepoMock.Object,
+            dispatchServiceMock.Object);
     }
 
     [Fact(Skip = "Legacy test - DTO fields updated. See ReservationServiceIsolationTests.")]
