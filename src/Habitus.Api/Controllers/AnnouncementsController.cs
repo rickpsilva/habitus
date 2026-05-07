@@ -266,7 +266,7 @@ public class AnnouncementsController : ControllerBase
 
         // Notify all active admins in the same condominium that a new approval is pending.
         var admins = await _context.Users
-            .Where(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive && u.Id != userId)
+            .Where(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive)
             .ToListAsync();
 
         var openUrl = $"/announcements?open={announcement.Id}";
@@ -290,7 +290,7 @@ public class AnnouncementsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
+        await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: true);
 
         return Ok(new { message = "Comunicado submetido para aprovação." });
     }

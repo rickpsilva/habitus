@@ -14,6 +14,7 @@ public class NotificationDispatchService : INotificationDispatchService
     private static readonly TimeSpan RetryCooldown = TimeSpan.FromMinutes(1);
 
     private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<CommunicationSettings> _settingsRepository;
     private readonly IRepository<NotificationDispatchDelivery> _dispatchDeliveryRepository;
     private readonly IEmailService _emailService;
@@ -21,12 +22,14 @@ public class NotificationDispatchService : INotificationDispatchService
 
     public NotificationDispatchService(
         IRepository<User> userRepository,
+        IRepository<Condominium> condominiumRepository,
         IRepository<CommunicationSettings> settingsRepository,
         IRepository<NotificationDispatchDelivery> dispatchDeliveryRepository,
         IEmailService emailService,
         IWhatsAppService whatsAppService)
     {
         _userRepository = userRepository;
+        _condominiumRepository = condominiumRepository;
         _settingsRepository = settingsRepository;
         _dispatchDeliveryRepository = dispatchDeliveryRepository;
         _emailService = emailService;
@@ -48,12 +51,24 @@ public class NotificationDispatchService : INotificationDispatchService
         var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, batch);
 
         var recipients = await ResolveRecipientsAsync(batch, condominiumId);
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
 
         if (settings.EmailEnabled)
         {
+            var recipientEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var user in recipients.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
             {
-                var email = user.Email.Trim().ToLowerInvariant();
+                recipientEmails.Add(user.Email!.Trim().ToLowerInvariant());
+            }
+
+            if (!string.IsNullOrWhiteSpace(condominium?.Email))
+            {
+                recipientEmails.Add(condominium.Email.Trim().ToLowerInvariant());
+            }
+
+            foreach (var email in recipientEmails)
+            {
                 var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, email);
                 if (delivery == null) continue;
 
@@ -62,7 +77,7 @@ public class NotificationDispatchService : INotificationDispatchService
 
                 try
                 {
-                    await _emailService.SendAsync(user.Email, subject, body);
+                    await _emailService.SendAsync(email, subject, body);
                     await MarkDeliverySentAsync(delivery);
                 }
                 catch (Exception ex)

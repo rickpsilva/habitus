@@ -12,17 +12,23 @@ public class ReservationService
     private readonly IRepository<SharedSpace> _spaceRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<FinancialRecord> _financialRepository;
+    private readonly IRepository<Notification> _notificationRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public ReservationService(
         IRepository<Reservation> repository,
         IRepository<SharedSpace> spaceRepository,
         IRepository<User> userRepository,
-        IRepository<FinancialRecord> financialRepository)
+        IRepository<FinancialRecord> financialRepository,
+        IRepository<Notification> notificationRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _repository = repository;
         _spaceRepository = spaceRepository;
         _userRepository = userRepository;
         _financialRepository = financialRepository;
+        _notificationRepository = notificationRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<IEnumerable<ReservationDto>> GetAllAsync(Guid condominiumId)
@@ -119,6 +125,21 @@ public class ReservationService
             await _financialRepository.SaveChangesAsync();
         }
 
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            Title = "Reserva pendente de aprovação",
+            Message = $"Nova reserva para '{space.Name}' em {request.StartTime:dd/MM/yyyy HH:mm} aguarda aprovação.",
+            Type = NotificationType.Alert,
+            TargetRole = UserRole.Admin.ToString(),
+            CondominiumId = space.CondominiumId,
+            SentAt = DateTime.UtcNow,
+            IsRead = false
+        };
+        await _notificationRepository.AddAsync(notification);
+        await _notificationRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
+
         return (MapToDto(entity), null);
     }
 
@@ -211,6 +232,23 @@ public class ReservationService
 
         _repository.Update(entity);
         await _repository.SaveChangesAsync();
+
+        var space = await _spaceRepository.GetByIdAsync(entity.SpaceId);
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            Title = "Pedido de cancelamento de reserva",
+            Message = $"A reserva de '{space?.Name ?? "espaço comum"}' para {entity.StartTime:dd/MM/yyyy HH:mm} aguarda decisão do admin.",
+            Type = NotificationType.Alert,
+            TargetRole = UserRole.Admin.ToString(),
+            CondominiumId = condominiumId,
+            SentAt = DateTime.UtcNow,
+            IsRead = false
+        };
+        await _notificationRepository.AddAsync(notification);
+        await _notificationRepository.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
+
         return (MapToDto(entity), null);
     }
 
