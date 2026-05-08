@@ -45,39 +45,37 @@ public class NotificationDispatchService : INotificationDispatchService
         if (batch.Any(n => n.CondominiumId != condominiumId))
             throw new InvalidOperationException("All notifications in a dispatch batch must belong to the same condominium.");
 
+        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+
         var settings = (await _settingsRepository.FindAsync(s => s.CondominiumId == condominiumId)).FirstOrDefault();
         if (settings == null) return;
 
-        var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, batch);
-
-        var recipients = await ResolveRecipientsAsync(batch, condominiumId);
-        var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
-
         if (settings.EmailEnabled)
         {
-            var recipientEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var activeUsersById = await GetActiveUsersByIdAsync(condominiumId);
+            var notificationsByEmail = ResolveEmailNotifications(batch, condominium, activeUsersById);
 
-            foreach (var user in recipients.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
+            foreach (var item in notificationsByEmail)
             {
-                recipientEmails.Add(user.Email!.Trim().ToLowerInvariant());
-            }
-
-            if (!string.IsNullOrWhiteSpace(condominium?.Email))
-            {
-                recipientEmails.Add(condominium.Email.Trim().ToLowerInvariant());
-            }
-
-            foreach (var email in recipientEmails)
-            {
-                var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, email);
+                var recipientEmail = item.Key;
+                var recipientNotifications = item.Value;
+                var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, recipientNotifications);
+                var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, recipientEmail);
                 if (delivery == null) continue;
 
-                var subject = batch.Count == 1 ? batch[0].Title : $"{batch.Count} novas notificacoes";
-                var body = BuildEmailBody(batch);
+                var subject = recipientNotifications.Count == 1
+                    ? recipientNotifications[0].Title
+                    : $"{recipientNotifications.Count} novas notificacoes";
+                var body = BuildEmailBody(recipientNotifications);
 
                 try
                 {
-                    await _emailService.SendAsync(email, subject, body);
+                    await _emailService.SendAsync(
+                        recipientEmail,
+                        subject,
+                        body,
+                        EmailSenderType.Condominium,
+                        condominiumId);
                     await MarkDeliverySentAsync(delivery);
                 }
                 catch (Exception ex)
@@ -90,6 +88,7 @@ public class NotificationDispatchService : INotificationDispatchService
         if (settings.WhatsAppEnabled && !string.IsNullOrWhiteSpace(settings.WhatsAppGroupId))
         {
             var groupId = settings.WhatsAppGroupId!.Trim();
+            var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, batch);
             var delivery = await TryReserveDeliveryAsync(condominiumId, "whatsapp", dispatchKeyPrefix, groupId);
             if (delivery != null)
             {
@@ -183,39 +182,116 @@ public class NotificationDispatchService : INotificationDispatchService
         await _dispatchDeliveryRepository.SaveChangesAsync();
     }
 
-    private async Task<List<User>> ResolveRecipientsAsync(List<Notification> notifications, Guid condominiumId)
+    private async Task<Dictionary<Guid, User>> GetActiveUsersByIdAsync(Guid condominiumId)
     {
-        var users = (await _userRepository.FindAsync(u => u.CondominiumId == condominiumId && u.IsActive)).ToList();
-        var targetUserIds = new HashSet<Guid>();
+        var users = (await _userRepository.FindAsync(u => u.CondominiumId == condominiumId && u.IsActive))
+            .GroupBy(u => u.Id)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        return users;
+    }
+
+    private static Dictionary<string, List<Notification>> ResolveEmailNotifications(
+        List<Notification> notifications,
+        Condominium? condominium,
+        IReadOnlyDictionary<Guid, User> activeUsersById)
+    {
+        var notificationsByEmail = new Dictionary<string, List<Notification>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var notification in notifications)
         {
-            if (notification.TargetUserId.HasValue)
+            var targetRole = ParseRole(notification.TargetRole);
+
+            if (targetRole == UserRole.Admin)
             {
-                targetUserIds.Add(notification.TargetUserId.Value);
+                AddNotificationForRecipient(notificationsByEmail, condominium?.Email, notification);
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(notification.TargetRole))
+            if (!targetRole.HasValue && !notification.TargetUserId.HasValue)
             {
-                foreach (var user in users)
-                {
-                    targetUserIds.Add(user.Id);
-                }
-
+                AddNotificationForAllCondominiumUsersExceptManagers(
+                    notificationsByEmail,
+                    activeUsersById.Values,
+                    notification);
                 continue;
             }
 
-            if (Enum.TryParse<UserRole>(notification.TargetRole, out var role))
+            if (!notification.TargetUserId.HasValue)
             {
-                foreach (var user in users.Where(u => u.Role == role))
-                {
-                    targetUserIds.Add(user.Id);
-                }
+                continue;
             }
+
+            if (!activeUsersById.TryGetValue(notification.TargetUserId.Value, out var targetUser))
+            {
+                continue;
+            }
+
+            if (targetUser.Role != UserRole.Resident)
+            {
+                continue;
+            }
+
+            if (targetRole.HasValue && targetRole != UserRole.Resident)
+            {
+                continue;
+            }
+
+            AddNotificationForRecipient(notificationsByEmail, targetUser.Email, notification);
         }
 
-        return users.Where(u => targetUserIds.Contains(u.Id)).ToList();
+        return notificationsByEmail;
+    }
+
+    private static UserRole? ParseRole(string? rawRole)
+    {
+        if (string.IsNullOrWhiteSpace(rawRole))
+        {
+            return null;
+        }
+
+        if (!Enum.TryParse<UserRole>(rawRole, true, out var role))
+        {
+            return null;
+        }
+
+        return role;
+    }
+
+    private static void AddNotificationForRecipient(
+        Dictionary<string, List<Notification>> notificationsByEmail,
+        string? recipientEmail,
+        Notification notification)
+    {
+        if (string.IsNullOrWhiteSpace(recipientEmail))
+        {
+            return;
+        }
+
+        var normalizedEmail = recipientEmail.Trim().ToLowerInvariant();
+        if (!notificationsByEmail.TryGetValue(normalizedEmail, out var recipientNotifications))
+        {
+            recipientNotifications = new List<Notification>();
+            notificationsByEmail[normalizedEmail] = recipientNotifications;
+        }
+
+        recipientNotifications.Add(notification);
+    }
+
+    private static void AddNotificationForAllCondominiumUsersExceptManagers(
+        Dictionary<string, List<Notification>> notificationsByEmail,
+        IEnumerable<User> activeUsers,
+        Notification notification)
+    {
+        foreach (var user in activeUsers)
+        {
+            if (user.Role == UserRole.Manager)
+            {
+                continue;
+            }
+
+            AddNotificationForRecipient(notificationsByEmail, user.Email, notification);
+        }
     }
 
     private static string BuildDispatchKeyPrefix(Guid condominiumId, List<Notification> notifications)

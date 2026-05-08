@@ -17,7 +17,12 @@ public class AzureCommunicationEmailService : IEmailService
         _senderEmail = configuration["AzureCommunication:SenderEmail"] ?? "noreply@habitus.com";
     }
 
-    public async Task SendAsync(string to, string subject, string body)
+    public async Task SendAsync(
+        string to,
+        string subject,
+        string body,
+        EmailSenderType senderType = EmailSenderType.System,
+        Guid? condominiumId = null)
     {
         var message = new EmailMessage(
             senderAddress: _senderEmail,

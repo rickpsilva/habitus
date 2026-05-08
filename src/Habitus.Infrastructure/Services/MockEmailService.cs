@@ -16,18 +16,25 @@ public class MockEmailService : IEmailService
         _logger = logger;
     }
 
-    public Task SendAsync(string to, string subject, string body)
+    public Task SendAsync(
+        string to,
+        string subject,
+        string body,
+        EmailSenderType senderType = EmailSenderType.System,
+        Guid? condominiumId = null)
     {
         _logger.LogInformation("""
             ═══════════════════════════════════════════════════════
             📧 MOCK EMAIL SERVICE (Development Only)
             ═══════════════════════════════════════════════════════
+            Sender:  {SenderType}
+            CondoId: {CondominiumId}
             To:      {To}
             Subject: {Subject}
             ───────────────────────────────────────────────────────
             {Body}
             ═══════════════════════════════════════════════════════
-            """, to, subject, body);
+            """, senderType, condominiumId, to, subject, body);
         
         return Task.CompletedTask;
     }

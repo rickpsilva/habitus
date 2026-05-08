@@ -43,13 +43,32 @@ public static class DependencyInjection
             services.AddScoped<IBlobStorageService, AzureBlobStorageService>();
         }
 
-        if (isDevelopment || string.IsNullOrEmpty(azureConnectionString))
+        var emailProvider = configuration["Email:Provider"]?.Trim().ToLowerInvariant();
+        switch (emailProvider)
         {
-            services.AddScoped<IEmailService, MockEmailService>();
-        }
-        else
-        {
-            services.AddScoped<IEmailService, AzureCommunicationEmailService>();
+            case "mock":
+                services.AddScoped<IEmailService, MockEmailService>();
+                break;
+            case "azure":
+                services.AddScoped<IEmailService, AzureCommunicationEmailService>();
+                break;
+            case "smtp":
+                services.AddScoped<IEmailService, SmtpCommunicationEmailService>();
+                break;
+            default:
+                if (isDevelopment && string.IsNullOrEmpty(azureConnectionString))
+                {
+                    services.AddScoped<IEmailService, MockEmailService>();
+                }
+                else if (!string.IsNullOrEmpty(azureConnectionString))
+                {
+                    services.AddScoped<IEmailService, AzureCommunicationEmailService>();
+                }
+                else
+                {
+                    services.AddScoped<IEmailService, SmtpCommunicationEmailService>();
+                }
+                break;
         }
 
         services.AddScoped<IWhatsAppService, MockWhatsAppService>();
