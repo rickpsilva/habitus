@@ -581,20 +581,32 @@ export default function UsersPage() {
                   {(formData.role === UserRole.Resident || (formData.role === UserRole.Admin && isInternalAdmin)) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Fração *</label>
-                      <select
-                        required={formData.role === 2}
-                        value={formData.unitId || ''}
-                        onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
-                        disabled={!formData.condominiumId}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
-                      >
-                        <option value="">Selecione...</option>
-                        {availableUnits.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            Fração {u.number} – Piso {u.floor}
-                          </option>
-                        ))}
-                      </select>
+                      {availableUnits.length === 0 ? (
+                        <div className="w-full px-3 py-2 border border-amber-300 bg-amber-50 rounded-lg text-sm text-amber-700 flex items-center justify-between">
+                          <span>Nenhuma fração registada</span>
+                          <a
+                            href="/units"
+                            className="ml-2 font-semibold text-amber-900 hover:text-amber-600 underline transition-colors"
+                          >
+                            Registar fração
+                          </a>
+                        </div>
+                      ) : (
+                        <select
+                          required={formData.role === 2}
+                          value={formData.unitId || ''}
+                          onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
+                          disabled={!formData.condominiumId}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                        >
+                          <option value="">Selecione...</option>
+                          {availableUnits.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              Fração {u.number} – Piso {u.floor}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   )}
                 </>

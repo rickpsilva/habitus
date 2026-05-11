@@ -134,7 +134,7 @@ export default function MaintenancePage() {
     e.preventDefault();
     
     if (!form.condominiumId || !form.unitId || !form.createdBy) {
-      toastError('Dados de utilizador incompletos. Recarregue a página.');
+      toastError('O utlizador necessita de estar associado a uma fração para registo de manutenção.');
       return;
     }
     

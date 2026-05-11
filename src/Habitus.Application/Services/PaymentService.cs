@@ -146,12 +146,15 @@ public class PaymentService
             throw new InvalidOperationException("Payment is not pending");
 
         // Create financial record
+        var resident = await _userRepository.GetByIdAsync(payment.ResidentId);
+        var unit = await _unitRepository.GetByIdAsync(payment.UnitId);
+        
         var financialRecord = new FinancialRecord
         {
             Id = Guid.NewGuid(),
             Type = FinancialType.Income,
             Amount = payment.Amount,
-            Description = $"Pagamento de {payment.Type} - {payment.Description}",
+            Description = $"Pagamento de {payment.Type} - {resident?.Name ?? "Residente"}, Fração {unit?.Number ?? "N/A"} - {payment.Description}",
             Date = DateTime.UtcNow,
             FiscalYear = DateTime.UtcNow.Year,
             Category = payment.Type == PaymentType.MonthlyFee ? FinancialCategory.MonthlyFees :

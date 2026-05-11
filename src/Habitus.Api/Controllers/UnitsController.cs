@@ -17,11 +17,11 @@ public class UnitsController : ControllerBase
     public UnitsController(IRepository<Unit> repository) => _repository = repository;
 
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Resident")]
     public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
 
     [HttpGet("paged")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
         if (page < 1) page = 1;
@@ -43,7 +43,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Resident")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _repository.GetByIdAsync(id);
@@ -51,7 +51,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateUnitRequest request)
     {
         var unit = new Unit
@@ -59,6 +59,7 @@ public class UnitsController : ControllerBase
             Id = Guid.NewGuid(),
             CondominiumId = request.CondominiumId,
             Number = request.Number,
+            Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim(),
             Floor = request.Floor,
             Type = request.Type,
             ApartmentNumber = request.ApartmentNumber,
@@ -72,7 +73,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPost("import-csv")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ImportCsv([FromQuery] Guid condominiumId, IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -85,7 +86,7 @@ public class UnitsController : ControllerBase
         var condominiumUnits = existingUnits.Where(u => u.CondominiumId == condominiumId).ToList();
 
         var created = 0;
-        var skipped = 0;
+        var updated = 0;
         var errors = new List<string>();
 
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
@@ -120,16 +121,10 @@ public class UnitsController : ControllerBase
                 continue;
             }
 
-            // Check if fraction already exists (same floor + number + condominium)
-            var alreadyExists = condominiumUnits.Any(u =>
+            // Upsert key: same floor + number + condominium
+            var existingUnit = condominiumUnits.FirstOrDefault(u =>
                 u.Floor == floor &&
                 string.Equals(u.Number, number, StringComparison.OrdinalIgnoreCase));
-
-            if (alreadyExists)
-            {
-                skipped++;
-                continue;
-            }
 
             // Parse optional columns
             var unitType = UnitType.Apartment;
@@ -151,12 +146,27 @@ public class UnitsController : ControllerBase
                 decimal.TryParse(columns[5].Trim(), System.Globalization.NumberStyles.Any,
                     System.Globalization.CultureInfo.InvariantCulture, out monthlyQuota);
 
+            var building = columns.Length > 6 ? columns[6].Trim() : null;
+
+            if (existingUnit != null)
+            {
+                existingUnit.Type = unitType;
+                existingUnit.ApartmentNumber = string.IsNullOrWhiteSpace(apartmentNumber) ? null : apartmentNumber;
+                existingUnit.Permillage = permillage;
+                existingUnit.MonthlyQuota = monthlyQuota;
+                existingUnit.Building = string.IsNullOrWhiteSpace(building) ? null : building;
+                _repository.Update(existingUnit);
+                updated++;
+                continue;
+            }
+
             var unit = new Unit
             {
                 Id = Guid.NewGuid(),
                 CondominiumId = condominiumId,
                 Floor = floor,
                 Number = number,
+                Building = string.IsNullOrWhiteSpace(building) ? null : building,
                 Type = unitType,
                 ApartmentNumber = string.IsNullOrWhiteSpace(apartmentNumber) ? null : apartmentNumber,
                 Permillage = permillage,
@@ -168,20 +178,20 @@ public class UnitsController : ControllerBase
             created++;
         }
 
-        if (created > 0)
+        if (created > 0 || updated > 0)
             await _repository.SaveChangesAsync();
 
         return Ok(new
         {
-            message = $"{created} fração(ões) importada(s), {skipped} ignorada(s) por já existirem.",
+            message = $"{created} fração(ões) criada(s), {updated} atualizada(s).",
             created,
-            skipped,
+            updated,
             errors
         });
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateUnitRequest request)
     {
         var existing = await _repository.GetByIdAsync(id);
@@ -189,6 +199,7 @@ public class UnitsController : ControllerBase
         
         existing.CondominiumId = request.CondominiumId;
         existing.Number = request.Number;
+        existing.Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim();
         existing.Floor = request.Floor;
         existing.Type = request.Type;
         existing.ApartmentNumber = request.ApartmentNumber;
@@ -201,7 +212,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var entity = await _repository.GetByIdAsync(id);

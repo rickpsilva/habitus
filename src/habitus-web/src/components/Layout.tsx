@@ -170,7 +170,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const visibleNavItems = navItems.filter((item) => {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
-    if (item.residentOnly && !isResident) return false;
+      // Allow residents OR admins with a unit assigned (internal admins)
+      if (item.residentOnly && !isResident && !(isAdmin && user?.unitId)) return false;
     if (!isManager && item.featureKey && featureAccessLoaded && !enabledFeatures.has(item.featureKey)) return false;
     // Manager only sees items explicitly in the manager menu order
     if (isManager && !managerMenuOrder.includes(item.to)) return false;

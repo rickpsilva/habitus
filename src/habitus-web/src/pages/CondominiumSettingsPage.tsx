@@ -7,7 +7,8 @@ import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi } from '../api/services';
+import RichTextEditor from '../components/RichTextEditor';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
@@ -416,14 +417,102 @@ function UnitsContent() {
 }
 
 function ReceiptTemplateContent() {
+  const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [template, setTemplate] = useState({
-    companyName: 'Condomínio Exemplo',
-    address: 'Rua Exemplo, 123',
-    taxId: '123456789',
-    email: 'admin@condominio.pt',
-    phone: '+351 912 345 678',
-    footerText: 'Obrigado pelo seu pagamento.',
+    companyName: '',
+    address: '',
+    taxId: '',
+    email: '',
+    phone: '',
+    template: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadTemplate = async () => {
+      if (!condominiumId) return;
+      setLoading(true);
+      try {
+        const response = await receiptTemplateSettingsApi.get(condominiumId);
+        setTemplate({
+          companyName: response.data.companyName || '',
+          address: response.data.address || '',
+          taxId: response.data.taxId || '',
+          email: response.data.email || '',
+          phone: response.data.phone || '',
+          template: response.data.template || '',
+        });
+      } catch (error) {
+        console.error('Error loading receipt template settings:', error);
+        const isNotFound =
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          typeof (error as { response?: { status?: number } }).response?.status === 'number' &&
+          (error as { response?: { status?: number } }).response?.status === 404;
+
+        // When no template exists yet (or backend route is not available), keep defaults without showing an error toast.
+        if (isNotFound) {
+          return;
+        }
+
+        const errorMessage =
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar template de recibos.'
+            : 'Erro ao carregar template de recibos.';
+        toastError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplate();
+  }, [condominiumId, toastError]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!condominiumId) return;
+
+    setSaving(true);
+    try {
+      await receiptTemplateSettingsApi.update(condominiumId, {
+        companyName: template.companyName || undefined,
+        address: template.address || undefined,
+        taxId: template.taxId || undefined,
+        email: template.email || undefined,
+        phone: template.phone || undefined,
+        template: template.template || undefined,
+      });
+      toastSuccess('Template de recibos guardado com sucesso!');
+    } catch (error) {
+      console.error('Error saving receipt template settings:', error);
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 'number' &&
+        (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 404
+          ? 'Endpoint de template de recibos não encontrado na API. Reinicie/atualize o backend.'
+          : typeof error === 'object' &&
+              error !== null &&
+              'response' in error &&
+              typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao guardar template de recibos.'
+            : 'Erro ao guardar template de recibos.';
+      toastError(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -432,7 +521,7 @@ function ReceiptTemplateContent() {
         <p className="text-sm text-gray-500">Configure as informações que aparecem nos recibos gerados</p>
       </div>
 
-      <form className="space-y-4 max-w-2xl">
+      <form className="space-y-4 max-w-2xl" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Empresa</label>
@@ -440,6 +529,7 @@ function ReceiptTemplateContent() {
               type="text"
               value={template.companyName}
               onChange={(e) => setTemplate({ ...template, companyName: e.target.value })}
+              placeholder="Condominio Jardins do Sol"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -449,6 +539,7 @@ function ReceiptTemplateContent() {
               type="text"
               value={template.taxId}
               onChange={(e) => setTemplate({ ...template, taxId: e.target.value })}
+              placeholder="509876543"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -460,6 +551,7 @@ function ReceiptTemplateContent() {
             type="text"
             value={template.address}
             onChange={(e) => setTemplate({ ...template, address: e.target.value })}
+            placeholder="Rua das Flores, 120, 4000-123 Porto"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
@@ -471,6 +563,7 @@ function ReceiptTemplateContent() {
               type="email"
               value={template.email}
               onChange={(e) => setTemplate({ ...template, email: e.target.value })}
+              placeholder="geral@jardinsdosol.pt"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -480,28 +573,30 @@ function ReceiptTemplateContent() {
               type="tel"
               value={template.phone}
               onChange={(e) => setTemplate({ ...template, phone: e.target.value })}
+              placeholder="+351 220 000 000"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Texto de Rodapé</label>
-          <textarea
-            value={template.footerText}
-            onChange={(e) => setTemplate({ ...template, footerText: e.target.value })}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+          <RichTextEditor 
+            value={template.template}
+            onChange={(v) => setTemplate({ ...template, template: v })}
+            placeholder="Escreve o conteúdo que aparecerá nos recibo."
+            height="240px"
           />
         </div>
 
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Save className="w-4 h-4 inline mr-2" />
-            Guardar Template
+            {saving ? 'A guardar...' : 'Guardar Template'}
           </button>
         </div>
       </form>
@@ -510,8 +605,18 @@ function ReceiptTemplateContent() {
 }
 
 function PaymentMethodsContent() {
-  const { condominiumId } = useAuth();
+  const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  
+  // Only admins (regular or internal) can access payment methods
+  if (!isAdmin) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p>Acesso apenas para Administrador</p>
+      </div>
+    );
+  }
+  
   const [activeMethodModal, setActiveMethodModal] = useState<'bankTransfer' | 'mbReference' | 'mbWay' | 'card' | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

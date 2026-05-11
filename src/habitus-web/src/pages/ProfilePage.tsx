@@ -93,9 +93,9 @@ export default function ProfilePage() {
     if (!securityStatus) return;
 
     const messages: Record<string, string> = {
-      linked_google: 'Google account linked successfully.',
-      linked_microsoft: 'Microsoft account linked successfully.',
-      link_failed: 'Unable to link the selected provider.',
+      linked_google: 'Conta Google associada com sucesso.',
+      linked_microsoft: 'Conta Microsoft associada com sucesso.',
+      link_failed: 'Não foi possível associar o fornecedor selecionado.',
     };
 
     const message = messages[securityStatus];
@@ -695,23 +695,23 @@ export default function ProfilePage() {
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
-                  <p className="text-sm text-gray-500">Add an extra layer of protection to your account.</p>
+                  <h2 className="text-lg font-semibold text-gray-900">Autenticação de Dois Fatores</h2>
+                  <p className="text-sm text-gray-500">Adicione uma camada extra de proteção à sua conta.</p>
                 </div>
               </div>
               {securityData && (
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${securityData.twoFactorEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {securityData.twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                  {securityData.twoFactorEnabled ? 'Ativada' : 'Desativada'}
                 </span>
               )}
             </div>
 
             {loadingSecurity ? (
-              <p className="text-sm text-gray-500">Loading security settings...</p>
+              <p className="text-sm text-gray-500">A carregar definições de segurança...</p>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                  Recovery codes remaining: <span className="font-semibold text-gray-900">{securityData?.recoveryCodesRemaining ?? 0}</span>
+                  Códigos de recuperação restantes: <span className="font-semibold text-gray-900">{securityData?.recoveryCodesRemaining ?? 0}</span>
                 </div>
 
                 {!securityData?.twoFactorEnabled && !twoFactorSetup && (
@@ -720,15 +720,15 @@ export default function ProfilePage() {
                     disabled={processingSecurity}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                   >
-                    {processingSecurity ? 'Preparing...' : 'Set up 2FA'}
+                    {processingSecurity ? 'A preparar...' : 'Configurar 2FA'}
                   </button>
                 )}
 
                 {twoFactorSetup && (
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5 space-y-4">
                     <div>
-                      <h3 className="font-semibold text-gray-900">Configure your authenticator app</h3>
-                      <p className="text-sm text-gray-600 mt-1">Scan the QR code or enter the setup key manually in Google Authenticator, Microsoft Authenticator, or a compatible app.</p>
+                      <h3 className="font-semibold text-gray-900">Configure a sua aplicação autenticadora</h3>
+                      <p className="text-sm text-gray-600 mt-1">Leia o código QR ou introduza a chave de configuração manualmente no Google Authenticator, Microsoft Authenticator, ou numa aplicação compatível.</p>
                     </div>
 
                     {twoFactorQrCode && (
@@ -738,13 +738,13 @@ export default function ProfilePage() {
                     )}
 
                     <div className="rounded-lg border border-indigo-200 bg-white px-4 py-3">
-                      <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Manual setup key</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Chave de configuração manual</p>
                       <p className="font-mono text-sm text-gray-900 break-all">{twoFactorSetup.manualEntryKey}</p>
                     </div>
 
                     <form onSubmit={handleVerifyTwoFactorSetup} className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Verification code</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Código de verificação</label>
                         <input
                           type="text"
                           value={twoFactorSetupCode}
@@ -764,14 +764,14 @@ export default function ProfilePage() {
                           }}
                           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          Cancel
+                          Cancelar
                         </button>
                         <button
                           type="submit"
                           disabled={processingSecurity}
                           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                         >
-                          {processingSecurity ? 'Verifying...' : 'Verify and enable'}
+                          {processingSecurity ? 'A verificar...' : 'Verificar e ativar'}
                         </button>
                       </div>
                     </form>
@@ -785,26 +785,26 @@ export default function ProfilePage() {
                       className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <RefreshCcw className="w-4 h-4" />
-                      Regenerate recovery codes
+                      Regenerar códigos de recuperação
                     </button>
                     <button
                       onClick={() => setShowDisableTwoFactor((value) => !value)}
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                     >
-                      Disable 2FA
+                      Desativar 2FA
                     </button>
                   </div>
                 )}
 
                 {showDisableTwoFactor && (
                   <form onSubmit={handleDisableTwoFactor} className="rounded-lg border border-red-100 bg-red-50 p-4 space-y-3">
-                    <h3 className="font-semibold text-gray-900">Disable two-factor authentication</h3>
+                    <h3 className="font-semibold text-gray-900">Desativar autenticação de dois fatores</h3>
                     <input
                       type="password"
                       value={disableTwoFactorData.currentPassword}
                       onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, currentPassword: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Current password"
+                      placeholder="Palavra-passe atual"
                       required
                     />
                     <input
@@ -812,7 +812,7 @@ export default function ProfilePage() {
                       value={disableTwoFactorData.code}
                       onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, code: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder={disableTwoFactorData.useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                      placeholder={disableTwoFactorData.useRecoveryCode ? 'Código de recuperação' : 'Código de autenticação'}
                       required
                     />
                     <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -821,27 +821,27 @@ export default function ProfilePage() {
                         checked={disableTwoFactorData.useRecoveryCode}
                         onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, useRecoveryCode: e.target.checked })}
                       />
-                      Use recovery code
+                      Usar código de recuperação
                     </label>
                     <button
                       type="submit"
                       disabled={processingSecurity}
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                     >
-                      Confirm disable
+                      Confirmar desativação
                     </button>
                   </form>
                 )}
 
                 {showRegenerateRecoveryCodes && (
                   <form onSubmit={handleRegenerateRecoveryCodes} className="rounded-lg border border-amber-100 bg-amber-50 p-4 space-y-3">
-                    <h3 className="font-semibold text-gray-900">Regenerate recovery codes</h3>
+                    <h3 className="font-semibold text-gray-900">Regenerar códigos de recuperação</h3>
                     <input
                       type="password"
                       value={regenerateRecoveryCodesData.currentPassword}
                       onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, currentPassword: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="Current password"
+                      placeholder="Palavra-passe atual"
                       required
                     />
                     <input
@@ -849,7 +849,7 @@ export default function ProfilePage() {
                       value={regenerateRecoveryCodesData.code}
                       onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, code: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder={regenerateRecoveryCodesData.useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                      placeholder={regenerateRecoveryCodesData.useRecoveryCode ? 'Código de recuperação' : 'Código de autenticação'}
                       required
                     />
                     <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -858,22 +858,22 @@ export default function ProfilePage() {
                         checked={regenerateRecoveryCodesData.useRecoveryCode}
                         onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, useRecoveryCode: e.target.checked })}
                       />
-                      Use recovery code
+                      Usar código de recuperação
                     </label>
                     <button
                       type="submit"
                       disabled={processingSecurity}
                       className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
                     >
-                      Generate new codes
+                      Gerar novos códigos
                     </button>
                   </form>
                 )}
 
                 {recoveryCodes.length > 0 && (
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 space-y-2">
-                    <h3 className="font-semibold text-gray-900">Recovery codes</h3>
-                    <p className="text-sm text-gray-600">Save these codes in a secure place. Each code can only be used once.</p>
+                    <h3 className="font-semibold text-gray-900">Códigos de recuperação</h3>
+                    <p className="text-sm text-gray-600">Guarde estes códigos num local seguro. Cada código só pode ser utilizado uma vez.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {recoveryCodes.map((code) => (
                         <div key={code} className="font-mono text-sm bg-white rounded border border-emerald-100 px-3 py-2 text-gray-900">
@@ -893,8 +893,8 @@ export default function ProfilePage() {
                 <Link2 className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Linked Accounts</h2>
-                <p className="text-sm text-gray-500">Connect Google or Microsoft to sign in without entering your password.</p>
+                <h2 className="text-lg font-semibold text-gray-900">Contas Associadas</h2>
+                <p className="text-sm text-gray-500">Associe Google ou Microsoft para iniciar sessão sem introduzir a palavra-passe.</p>
               </div>
             </div>
 
@@ -908,7 +908,7 @@ export default function ProfilePage() {
                     <div>
                       <p className="font-medium text-gray-900">{provider}</p>
                       <p className="text-sm text-gray-500">
-                        {linkedProvider ? `Linked to ${linkedProvider.providerEmail}` : 'Not linked'}
+                        {linkedProvider ? `Associada a ${linkedProvider.providerEmail}` : 'Não associada'}
                       </p>
                     </div>
                     {linkedProvider ? (
@@ -916,14 +916,14 @@ export default function ProfilePage() {
                         onClick={() => handleUnlinkProvider(providerKey)}
                         className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
                       >
-                        Unlink
+                        Desassociar
                       </button>
                     ) : (
                       <button
                         onClick={() => handleStartProviderLink(providerKey)}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                       >
-                        Link {provider}
+                        Associar {provider}
                       </button>
                     )}
                   </div>

@@ -195,6 +195,7 @@ export interface UpdateCondominiumRequest {
 export interface UnitDto {
   id: string;
   number: string;
+  building?: string;
   floor: number;
   type: number;
   apartmentNumber?: string;
@@ -206,6 +207,7 @@ export interface UnitDto {
 export interface CreateUnitRequest {
   condominiumId: string;
   number: string;
+  building?: string;
   floor: number;
   type: number;
   apartmentNumber?: string;
@@ -540,6 +542,29 @@ export interface UpdatePaymentSettingsRequest {
   cardPublicKey?: string;
   cardSecretKey?: string;
   cardMerchantId?: string;
+}
+
+// Receipt Template Settings
+export interface ReceiptTemplateSettingsDto {
+  id: string;
+  condominiumId: string;
+  companyName?: string;
+  address?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  template?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateReceiptTemplateSettingsRequest {
+  companyName?: string;
+  address?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  template?: string;
 }
 
 export interface PlatformBillingSettingsDto {
@@ -898,6 +923,6 @@ export interface UpdateSystemEmailSettingsRequest {
 export interface CsvImportResult {
   message: string;
   created: number;
-  skipped: number;
+  updated: number;
   errors: string[];
 }

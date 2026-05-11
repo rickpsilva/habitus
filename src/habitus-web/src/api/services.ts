@@ -49,6 +49,8 @@ import type {
   PaymentMethodsDto,
   PaymentSettingsDto,
   UpdatePaymentSettingsRequest,
+  ReceiptTemplateSettingsDto,
+  UpdateReceiptTemplateSettingsRequest,
   PlatformBillingSettingsDto,
   UpdatePlatformBillingSettingsRequest,
   CommunicationSettingsDto,
@@ -368,6 +370,12 @@ export const paymentSettingsApi = {
   get: (condominiumId: string) => api.get<PaymentSettingsDto>(`/condominiums/${condominiumId}/payment-settings`),
   update: (condominiumId: string, data: UpdatePaymentSettingsRequest) => 
     api.put<PaymentSettingsDto>(`/condominiums/${condominiumId}/payment-settings`, data),
+};
+
+export const receiptTemplateSettingsApi = {
+  get: (condominiumId: string) => api.get<ReceiptTemplateSettingsDto>(`/condominiums/${condominiumId}/receipt-template-settings`),
+  update: (condominiumId: string, data: UpdateReceiptTemplateSettingsRequest) => 
+    api.put<ReceiptTemplateSettingsDto>(`/condominiums/${condominiumId}/receipt-template-settings`, data),
 };
 
 export const communicationSettingsApi = {
