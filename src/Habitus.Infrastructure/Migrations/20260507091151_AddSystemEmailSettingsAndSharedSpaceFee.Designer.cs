@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507091151_AddSystemEmailSettingsAndSharedSpaceFee")]
+    partial class AddSystemEmailSettingsAndSharedSpaceFee
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1473,46 +1476,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("QuotaPlans");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.ReceiptTemplateSettings", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CompanyName")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("CondominiumId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Phone")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TaxId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Template")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CondominiumId");
-
-                    b.ToTable("ReceiptTemplateSettings");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.Reservation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1863,9 +1826,6 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("ApartmentNumber")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Building")
                         .HasColumnType("text");
 
                     b.Property<Guid?>("BuildingId")
@@ -2523,17 +2483,6 @@ namespace Habitus.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.QuotaPlan", b =>
-                {
-                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
-                        .WithMany()
-                        .HasForeignKey("CondominiumId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Condominium");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.ReceiptTemplateSettings", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
                         .WithMany()

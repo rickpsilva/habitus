@@ -33,6 +33,7 @@ public class HabitusDbContext : DbContext
     public DbSet<UsefulContact> UsefulContacts => Set<UsefulContact>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentSettings> PaymentSettings => Set<PaymentSettings>();
+    public DbSet<ReceiptTemplateSettings> ReceiptTemplateSettings => Set<ReceiptTemplateSettings>();
     public DbSet<CommunicationSettings> CommunicationSettings => Set<CommunicationSettings>();
     public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();
     public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
@@ -46,6 +47,7 @@ public class HabitusDbContext : DbContext
     public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
+    public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]

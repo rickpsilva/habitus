@@ -178,27 +178,44 @@ public class MaintenanceService
                 : $"{entity.AdminComments}\n{newComment}";
         }
         
-        // Handle expense information
-        entity.HasExpense = request.HasExpense;
-        if (request.HasExpense)
+        // Handle expense information - always required when resolving
+        if (entity.Status == MaintenanceStatus.Resolved)
         {
-            // Validate required fields
             if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
             {
-                throw new InvalidOperationException("Expense amount is required and must be greater than 0 when maintenance has expense.");
-            }
-            if (string.IsNullOrWhiteSpace(request.InvoiceDocumentId))
-            {
-                throw new InvalidOperationException("Invoice document is required when maintenance has expense.");
+                throw new InvalidOperationException("O custo da manutenção é obrigatório quando o estado é alterado para Resolvido.");
             }
             
+            entity.HasExpense = true;
             entity.ExpenseAmount = request.ExpenseAmount;
-            entity.InvoiceDocumentId = Guid.Parse(request.InvoiceDocumentId);
+            
+            if (!string.IsNullOrWhiteSpace(request.InvoiceDocumentId))
+            {
+                entity.InvoiceDocumentId = Guid.Parse(request.InvoiceDocumentId);
+            }
         }
         else
         {
-            entity.ExpenseAmount = null;
-            entity.InvoiceDocumentId = null;
+            entity.HasExpense = request.HasExpense;
+            if (request.HasExpense)
+            {
+                if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
+                {
+                    throw new InvalidOperationException("O valor da despesa é obrigatório e deve ser superior a 0.");
+                }
+                if (string.IsNullOrWhiteSpace(request.InvoiceDocumentId))
+                {
+                    throw new InvalidOperationException("A fatura é obrigatória quando existe despesa.");
+                }
+
+                entity.ExpenseAmount = request.ExpenseAmount;
+                entity.InvoiceDocumentId = Guid.Parse(request.InvoiceDocumentId);
+            }
+            else
+            {
+                entity.ExpenseAmount = null;
+                entity.InvoiceDocumentId = null;
+            }
         }
         
         if (entity.Status == MaintenanceStatus.Resolved)

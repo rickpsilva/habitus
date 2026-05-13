@@ -195,6 +195,7 @@ export interface UpdateCondominiumRequest {
 export interface UnitDto {
   id: string;
   number: string;
+  building?: string;
   floor: number;
   type: number;
   apartmentNumber?: string;
@@ -206,6 +207,7 @@ export interface UnitDto {
 export interface CreateUnitRequest {
   condominiumId: string;
   number: string;
+  building?: string;
   floor: number;
   type: number;
   apartmentNumber?: string;
@@ -344,6 +346,7 @@ export interface SharedSpaceDto {
   capacity: number;
   condominiumId: string;
   rules: string;
+  reservationFee: number;
 }
 
 export interface CreateSharedSpaceRequest {
@@ -352,6 +355,7 @@ export interface CreateSharedSpaceRequest {
   capacity: number;
   condominiumId: string;
   rules: string;
+  reservationFee?: number;
 }
 
 export interface DocumentDto {
@@ -538,6 +542,29 @@ export interface UpdatePaymentSettingsRequest {
   cardPublicKey?: string;
   cardSecretKey?: string;
   cardMerchantId?: string;
+}
+
+// Receipt Template Settings
+export interface ReceiptTemplateSettingsDto {
+  id: string;
+  condominiumId: string;
+  companyName?: string;
+  address?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  template?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateReceiptTemplateSettingsRequest {
+  companyName?: string;
+  address?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  template?: string;
 }
 
 export interface PlatformBillingSettingsDto {
@@ -864,3 +891,38 @@ export interface InitiateInvoicePaymentResponse {
   sessionId: string;
 }
 
+// ============= System Email Settings =============
+
+export interface SystemEmailSettingsDto {
+  id: string;
+  emailEnabled: boolean;
+  smtpHost?: string;
+  smtpPort: number;
+  username?: string;
+  hasPassword: boolean;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSystemEmailSettingsRequest {
+  emailEnabled: boolean;
+  smtpHost?: string;
+  smtpPort: number;
+  username?: string;
+  password?: string;
+  fromAddress: string;
+  fromName: string;
+  useSsl: boolean;
+}
+
+// ============= CSV Import =============
+
+export interface CsvImportResult {
+  message: string;
+  created: number;
+  updated: number;
+  errors: string[];
+}

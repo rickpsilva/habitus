@@ -1,24 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi } from '../api/services';
+import RichTextEditor from '../components/RichTextEditor';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
   PlatformBillingSettingsDto,
   UpdatePlatformBillingSettingsRequest,
+  SystemEmailSettingsDto,
+  UpdateSystemEmailSettingsRequest,
 } from '../types';
 import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
 
-type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'system-email';
 
 interface Tab {
   key: TabKey;
@@ -38,6 +41,7 @@ const adminTabs: Tab[] = [
 
 const managerTabs: Tab[] = [
   { key: 'platform-billing', label: 'Gateway de Pagamento', icon: KeyRound },
+  { key: 'system-email', label: 'Email de Sistema', icon: Server },
 ];
 
 export default function CondominiumSettingsPage() {
@@ -100,6 +104,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'payments' && <PaymentMethodsContent />}
           {activeTab === 'communication' && <CommunicationChannelsContent />}
           {activeTab === 'platform-billing' && <PlatformBillingContent />}
+          {activeTab === 'system-email' && <SystemEmailContent />}
         </div>
       </div>
     </div>
@@ -412,14 +417,102 @@ function UnitsContent() {
 }
 
 function ReceiptTemplateContent() {
+  const { condominiumId } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [template, setTemplate] = useState({
-    companyName: 'Condomínio Exemplo',
-    address: 'Rua Exemplo, 123',
-    taxId: '123456789',
-    email: 'admin@condominio.pt',
-    phone: '+351 912 345 678',
-    footerText: 'Obrigado pelo seu pagamento.',
+    companyName: '',
+    address: '',
+    taxId: '',
+    email: '',
+    phone: '',
+    template: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadTemplate = async () => {
+      if (!condominiumId) return;
+      setLoading(true);
+      try {
+        const response = await receiptTemplateSettingsApi.get(condominiumId);
+        setTemplate({
+          companyName: response.data.companyName || '',
+          address: response.data.address || '',
+          taxId: response.data.taxId || '',
+          email: response.data.email || '',
+          phone: response.data.phone || '',
+          template: response.data.template || '',
+        });
+      } catch (error) {
+        console.error('Error loading receipt template settings:', error);
+        const isNotFound =
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          typeof (error as { response?: { status?: number } }).response?.status === 'number' &&
+          (error as { response?: { status?: number } }).response?.status === 404;
+
+        // When no template exists yet (or backend route is not available), keep defaults without showing an error toast.
+        if (isNotFound) {
+          return;
+        }
+
+        const errorMessage =
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar template de recibos.'
+            : 'Erro ao carregar template de recibos.';
+        toastError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplate();
+  }, [condominiumId, toastError]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!condominiumId) return;
+
+    setSaving(true);
+    try {
+      await receiptTemplateSettingsApi.update(condominiumId, {
+        companyName: template.companyName || undefined,
+        address: template.address || undefined,
+        taxId: template.taxId || undefined,
+        email: template.email || undefined,
+        phone: template.phone || undefined,
+        template: template.template || undefined,
+      });
+      toastSuccess('Template de recibos guardado com sucesso!');
+    } catch (error) {
+      console.error('Error saving receipt template settings:', error);
+      const errorMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 'number' &&
+        (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 404
+          ? 'Endpoint de template de recibos não encontrado na API. Reinicie/atualize o backend.'
+          : typeof error === 'object' &&
+              error !== null &&
+              'response' in error &&
+              typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao guardar template de recibos.'
+            : 'Erro ao guardar template de recibos.';
+      toastError(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -428,7 +521,7 @@ function ReceiptTemplateContent() {
         <p className="text-sm text-gray-500">Configure as informações que aparecem nos recibos gerados</p>
       </div>
 
-      <form className="space-y-4 max-w-2xl">
+      <form className="space-y-4 max-w-2xl" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Empresa</label>
@@ -436,6 +529,7 @@ function ReceiptTemplateContent() {
               type="text"
               value={template.companyName}
               onChange={(e) => setTemplate({ ...template, companyName: e.target.value })}
+              placeholder="Condominio Jardins do Sol"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -445,6 +539,7 @@ function ReceiptTemplateContent() {
               type="text"
               value={template.taxId}
               onChange={(e) => setTemplate({ ...template, taxId: e.target.value })}
+              placeholder="509876543"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -456,6 +551,7 @@ function ReceiptTemplateContent() {
             type="text"
             value={template.address}
             onChange={(e) => setTemplate({ ...template, address: e.target.value })}
+            placeholder="Rua das Flores, 120, 4000-123 Porto"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
@@ -467,6 +563,7 @@ function ReceiptTemplateContent() {
               type="email"
               value={template.email}
               onChange={(e) => setTemplate({ ...template, email: e.target.value })}
+              placeholder="geral@jardinsdosol.pt"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -476,28 +573,30 @@ function ReceiptTemplateContent() {
               type="tel"
               value={template.phone}
               onChange={(e) => setTemplate({ ...template, phone: e.target.value })}
+              placeholder="+351 220 000 000"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Texto de Rodapé</label>
-          <textarea
-            value={template.footerText}
-            onChange={(e) => setTemplate({ ...template, footerText: e.target.value })}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+          <RichTextEditor 
+            value={template.template}
+            onChange={(v) => setTemplate({ ...template, template: v })}
+            placeholder="Escreve o conteúdo que aparecerá nos recibo."
+            height="240px"
           />
         </div>
 
         <div className="flex gap-3 pt-4">
           <button
             type="submit"
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Save className="w-4 h-4 inline mr-2" />
-            Guardar Template
+            {saving ? 'A guardar...' : 'Guardar Template'}
           </button>
         </div>
       </form>
@@ -506,8 +605,18 @@ function ReceiptTemplateContent() {
 }
 
 function PaymentMethodsContent() {
-  const { condominiumId } = useAuth();
+  const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  
+  // Only admins (regular or internal) can access payment methods
+  if (!isAdmin) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p>Acesso apenas para Administrador</p>
+      </div>
+    );
+  }
+  
   const [activeMethodModal, setActiveMethodModal] = useState<'bankTransfer' | 'mbReference' | 'mbWay' | 'card' | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1251,3 +1360,235 @@ function CommunicationChannelsContent() {
   );
 }
 
+
+function SystemEmailContent() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [settings, setSettings] = useState<SystemEmailSettingsDto | null>(null);
+  const [form, setForm] = useState<UpdateSystemEmailSettingsRequest>({
+    emailEnabled: false,
+    smtpHost: '',
+    smtpPort: 587,
+    username: '',
+    password: '',
+    fromAddress: 'no-reply@habituscond.pt',
+    fromName: 'Habitus',
+    useSsl: true,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await systemEmailSettingsApi.get();
+        setSettings(response.data);
+        setForm({
+          emailEnabled: response.data.emailEnabled,
+          smtpHost: response.data.smtpHost || '',
+          smtpPort: response.data.smtpPort || 587,
+          username: response.data.username || '',
+          password: '',
+          fromAddress: response.data.fromAddress || 'no-reply@habituscond.pt',
+          fromName: response.data.fromName || 'Habitus',
+          useSsl: response.data.useSsl,
+        });
+      } catch (error) {
+        console.error('Erro ao carregar configurações de email do sistema:', error);
+        toastError('Erro ao carregar configurações de email do sistema.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, [toastError]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await systemEmailSettingsApi.update(form);
+      setSettings(response.data);
+      setForm((prev) => ({ ...prev, password: '' }));
+      toastSuccess('Configurações de email do sistema guardadas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao guardar configurações de email do sistema:', error);
+      toastError('Erro ao guardar configurações de email do sistema.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const response = await systemEmailSettingsApi.test();
+      toastSuccess(response.data.message);
+    } catch (error) {
+      console.error('Erro ao testar configurações de email:', error);
+      toastError('Erro ao testar a ligação de email. Verifique as configurações.');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Email de Sistema</h3>
+        <p className="text-sm text-gray-500">
+          Configure o servidor de email para envio de notificações automáticas da plataforma para os condomínios (ex: novas notificações, pedidos de aprovação).
+        </p>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <p className="text-xs text-blue-900 font-medium mb-1">Email de sistema vs. Email do condomínio</p>
+        <p className="text-xs text-blue-700">
+          Este email é enviado pelo sistema (no-reply) para os administradores dos condomínios a alertar sobre novas notificações e pedidos de aprovação.
+          É diferente do email de cada condomínio, que é usado para comunicar com os residentes.
+        </p>
+      </div>
+
+      <div className="space-y-4 max-w-3xl">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="p-4 bg-white">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-medium text-gray-900">Email de Sistema Ativo</p>
+                  {form.emailEnabled && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">Enviar emails automáticos de sistema para os condomínios</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-4">
+                <input
+                  type="checkbox"
+                  checked={form.emailEnabled}
+                  onChange={(e) => setForm({ ...form, emailEnabled: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Servidor SMTP</label>
+                <input
+                  type="text"
+                  value={form.smtpHost || ''}
+                  onChange={(e) => setForm({ ...form, smtpHost: e.target.value })}
+                  placeholder="smtp.exemplo.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Porta</label>
+                <input
+                  type="number"
+                  value={form.smtpPort}
+                  onChange={(e) => setForm({ ...form, smtpPort: parseInt(e.target.value) || 587 })}
+                  placeholder="587"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Utilizador</label>
+              <input
+                type="text"
+                value={form.username || ''}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="no-reply@habituscond.pt"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Palavra-passe</label>
+              <input
+                type="password"
+                value={form.password || ''}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={settings?.hasPassword ? 'Já configurada. Preencha para substituir.' : 'Palavra-passe do servidor SMTP'}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email de Origem</label>
+                <input
+                  type="email"
+                  value={form.fromAddress}
+                  onChange={(e) => setForm({ ...form, fromAddress: e.target.value })}
+                  placeholder="no-reply@habituscond.pt"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome de Origem</label>
+                <input
+                  type="text"
+                  value={form.fromName}
+                  onChange={(e) => setForm({ ...form, fromName: e.target.value })}
+                  placeholder="Habitus"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="useSsl"
+                checked={form.useSsl}
+                onChange={(e) => setForm({ ...form, useSsl: e.target.checked })}
+                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="useSsl" className="text-sm text-gray-700">Usar SSL/TLS (recomendado)</label>
+            </div>
+
+            {settings && (
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                <p className="text-gray-500">Palavra-passe</p>
+                <p className="font-medium text-gray-900">{settings.hasPassword ? 'Configurada' : 'Não configurada'}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4 inline mr-2" />
+            {saving ? 'A guardar...' : 'Guardar Configurações'}
+          </button>
+          <button
+            onClick={handleTest}
+            disabled={testing || !form.emailEnabled}
+            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-colors"
+          >
+            {testing ? 'A verificar...' : 'Verificar Configuração'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -17,11 +17,11 @@ public class UnitsController : ControllerBase
     public UnitsController(IRepository<Unit> repository) => _repository = repository;
 
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Resident")]
     public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
 
     [HttpGet("paged")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
         if (page < 1) page = 1;
@@ -43,7 +43,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin,Resident")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _repository.GetByIdAsync(id);
@@ -51,7 +51,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateUnitRequest request)
     {
         var unit = new Unit
@@ -59,6 +59,7 @@ public class UnitsController : ControllerBase
             Id = Guid.NewGuid(),
             CondominiumId = request.CondominiumId,
             Number = request.Number,
+            Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim(),
             Floor = request.Floor,
             Type = request.Type,
             ApartmentNumber = request.ApartmentNumber,
@@ -71,8 +72,126 @@ public class UnitsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = unit.Id }, unit);
     }
 
+    [HttpPost("import-csv")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ImportCsv([FromQuery] Guid condominiumId, IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Ficheiro CSV não fornecido." });
+
+        if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Apenas ficheiros CSV são aceites." });
+
+        var existingUnits = await _repository.GetAllAsync();
+        var condominiumUnits = existingUnits.Where(u => u.CondominiumId == condominiumId).ToList();
+
+        var created = 0;
+        var updated = 0;
+        var errors = new List<string>();
+
+        using var reader = new System.IO.StreamReader(file.OpenReadStream());
+        var lineNumber = 0;
+
+        while (!reader.EndOfStream)
+        {
+            var line = await reader.ReadLineAsync();
+            lineNumber++;
+
+            // Skip header line
+            if (lineNumber == 1) continue;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var columns = line.Split(',');
+            if (columns.Length < 2)
+            {
+                errors.Add($"Linha {lineNumber}: formato inválido (são necessários pelo menos 'piso' e 'fração').");
+                continue;
+            }
+
+            if (!int.TryParse(columns[0].Trim(), out var floor))
+            {
+                errors.Add($"Linha {lineNumber}: piso inválido '{columns[0].Trim()}'.");
+                continue;
+            }
+
+            var number = columns[1].Trim();
+            if (string.IsNullOrWhiteSpace(number))
+            {
+                errors.Add($"Linha {lineNumber}: número de fração vazio.");
+                continue;
+            }
+
+            // Upsert key: same floor + number + condominium
+            var existingUnit = condominiumUnits.FirstOrDefault(u =>
+                u.Floor == floor &&
+                string.Equals(u.Number, number, StringComparison.OrdinalIgnoreCase));
+
+            // Parse optional columns
+            var unitType = UnitType.Apartment;
+            if (columns.Length > 2 && !string.IsNullOrWhiteSpace(columns[2]))
+            {
+                if (Enum.TryParse<UnitType>(columns[2].Trim(), true, out var parsedType))
+                    unitType = parsedType;
+            }
+
+            var apartmentNumber = columns.Length > 3 ? columns[3].Trim() : null;
+
+            decimal permillage = 0;
+            if (columns.Length > 4 && !string.IsNullOrWhiteSpace(columns[4]))
+                decimal.TryParse(columns[4].Trim(), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out permillage);
+
+            decimal monthlyQuota = 0;
+            if (columns.Length > 5 && !string.IsNullOrWhiteSpace(columns[5]))
+                decimal.TryParse(columns[5].Trim(), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out monthlyQuota);
+
+            var building = columns.Length > 6 ? columns[6].Trim() : null;
+
+            if (existingUnit != null)
+            {
+                existingUnit.Type = unitType;
+                existingUnit.ApartmentNumber = string.IsNullOrWhiteSpace(apartmentNumber) ? null : apartmentNumber;
+                existingUnit.Permillage = permillage;
+                existingUnit.MonthlyQuota = monthlyQuota;
+                existingUnit.Building = string.IsNullOrWhiteSpace(building) ? null : building;
+                _repository.Update(existingUnit);
+                updated++;
+                continue;
+            }
+
+            var unit = new Unit
+            {
+                Id = Guid.NewGuid(),
+                CondominiumId = condominiumId,
+                Floor = floor,
+                Number = number,
+                Building = string.IsNullOrWhiteSpace(building) ? null : building,
+                Type = unitType,
+                ApartmentNumber = string.IsNullOrWhiteSpace(apartmentNumber) ? null : apartmentNumber,
+                Permillage = permillage,
+                MonthlyQuota = monthlyQuota
+            };
+
+            await _repository.AddAsync(unit);
+            condominiumUnits.Add(unit);
+            created++;
+        }
+
+        if (created > 0 || updated > 0)
+            await _repository.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = $"{created} fração(ões) criada(s), {updated} atualizada(s).",
+            created,
+            updated,
+            errors
+        });
+    }
+
     [HttpPut("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateUnitRequest request)
     {
         var existing = await _repository.GetByIdAsync(id);
@@ -80,6 +199,7 @@ public class UnitsController : ControllerBase
         
         existing.CondominiumId = request.CondominiumId;
         existing.Number = request.Number;
+        existing.Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim();
         existing.Floor = request.Floor;
         existing.Type = request.Type;
         existing.ApartmentNumber = request.ApartmentNumber;
@@ -92,7 +212,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var entity = await _repository.GetByIdAsync(id);

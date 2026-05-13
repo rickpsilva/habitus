@@ -209,7 +209,7 @@ public class InvoicesController : ControllerBase
             var generatedCount = await _invoiceService.GenerateDueInvoicesAsync(
                 userId != null ? Guid.Parse(userId) : null);
 
-            return Ok(new { message = $"Generated {generatedCount} invoices" });
+            return Ok(new { message = $"Geradas {generatedCount} faturas." });
         }
         catch (Exception ex)
         {

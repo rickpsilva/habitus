@@ -449,7 +449,11 @@ public class InvoiceService
             var subject     = $"Nova Fatura HABITUS - {invoiceRef}";
             var htmlBody    = BuildInvoiceEmailHtml(invoice, condominium, invoiceRef);
 
-            await _emailService.SendAsync(condominium.Email, subject, htmlBody);
+            await _emailService.SendAsync(
+                condominium.Email,
+                subject,
+                htmlBody,
+                EmailSenderType.System);
 
             _logger.LogInformation("Invoice email sent to {Email} for invoice {InvoiceRef}",
                 condominium.Email, invoiceRef);

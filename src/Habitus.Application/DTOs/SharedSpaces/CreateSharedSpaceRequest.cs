@@ -7,4 +7,5 @@ public class CreateSharedSpaceRequest
     public int Capacity { get; set; }
     public Guid CondominiumId { get; set; }
     public string Rules { get; set; } = string.Empty;
+    public decimal ReservationFee { get; set; }
 }

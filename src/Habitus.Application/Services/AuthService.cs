@@ -587,7 +587,11 @@ If you didn't request this, please ignore this email.
 Best regards,
 Habitus Team
 ";
-        await _emailService.SendAsync(user.Email, "Password Reset Request", emailBody);
+        await _emailService.SendAsync(
+            user.Email,
+            "Password Reset Request",
+            emailBody,
+            EmailSenderType.System);
         return true;
     }
 

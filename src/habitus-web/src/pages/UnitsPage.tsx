@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X } from 'lucide-react';
-import { unitsApi, condominiumsApi } from '../api/services';
+import { Building2, Trash2, Pencil, Plus, X, Upload, Download } from 'lucide-react';
+import { unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import type { UnitDto, CreateUnitRequest, CondominiumDto, PaginatedResponse } from '../types';
+import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
 
 const unitTypeLabels: Record<number, string> = {
   0: 'Apartamento',
@@ -16,26 +16,28 @@ const unitTypeLabels: Record<number, string> = {
 };
 
 export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
-  const { isAdmin, isManager, condominiumId } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const navigate = useNavigate();
-  const { error: toastError } = useToast();
+  const { error: toastError, success: toastSuccess } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
   
-  // Guard: Only Manager and Admin can access
+  // Guard: Only Admin can access
   useEffect(() => {
-    if (!isManager && !isAdmin) {
+    if (!isAdmin) {
       navigate('/dashboard');
     }
-  }, [isManager, isAdmin, navigate]);
+  }, [isAdmin, navigate]);
   
   const [units, setUnits] = useState<UnitDto[]>([]);
-  const [condominiums, setCondominiums] = useState<CondominiumDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CreateUnitRequest>({
     condominiumId: condominiumId || '',
     number: '',
+    building: '',
     floor: 0,
     type: 0,
     apartmentNumber: '',
@@ -44,7 +46,6 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [filterCondominiumId, setFilterCondominiumId] = useState(condominiumId || '');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<UnitDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,18 +71,12 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       setPagination(unitsResponse.data);
       setUnits(unitsData);
       setCurrentPage(page);
-      
-      // Load condominiums for Manager
-      if (isManager) {
-        const condosResponse = await condominiumsApi.getAll();
-        setCondominiums(condosResponse.data);
-      }
     } catch (error) {
       console.error('Erro ao carregar frações:', error);
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, isAdmin, isManager, debouncedSearch]);
+  }, [condominiumId, isAdmin, debouncedSearch]);
 
   useEffect(() => {
     load(1);
@@ -90,8 +85,9 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const openCreate = () => {
     setEditId(null);
     setForm({
-      condominiumId: isAdmin ? condominiumId || '' : '',
+      condominiumId: condominiumId || '',
       number: '',
+      building: '',
       floor: 0,
       type: 0,
       apartmentNumber: '',
@@ -107,6 +103,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     setForm({
       condominiumId: u.condominiumId,
       number: u.number,
+      building: u.building || '',
       floor: u.floor,
       type: u.type,
       apartmentNumber: u.apartmentNumber || '',
@@ -123,6 +120,65 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       ...prev,
       [name]: name === 'floor' || name === 'permillage' || name === 'type' || name === 'monthlyQuota' ? Number(value) : value,
     }));
+  };
+
+  const escapeCsvField = (value: string | number | null | undefined) => {
+    const text = value == null ? '' : String(value);
+    if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const unitTypeToCsv = (type: number) => {
+    if (type === 1) return 'Commercial';
+    if (type === 2) return 'Parking';
+    return 'Apartment';
+  };
+
+  const handleCsvDownload = async () => {
+    if (!condominiumId) {
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      return;
+    }
+
+    try {
+      const response = await unitsApi.getAll();
+      const condominiumUnits = response.data.filter((u) => u.condominiumId === condominiumId);
+
+      const header = 'floor,number,type,apartmentNumber,permillage,monthlyQuota,building';
+      let rows: string[];
+      let filename: string;
+
+      if (condominiumUnits.length === 0) {
+        rows = ['1,101,Apartment,A,85.5,45.00,Bloco A'];
+        filename = 'template-fracoes.csv';
+      } else {
+        rows = condominiumUnits.map((u) => [
+          escapeCsvField(u.floor),
+          escapeCsvField(u.number),
+          escapeCsvField(unitTypeToCsv(u.type)),
+          escapeCsvField(u.apartmentNumber || ''),
+          escapeCsvField(u.permillage),
+          escapeCsvField(u.monthlyQuota),
+          escapeCsvField(u.building || ''),
+        ].join(','));
+        filename = 'fracoes-export.csv';
+      }
+
+      const content = [header, ...rows].join('\n');
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toastError('Não foi possível descarregar o CSV. Tente novamente.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,20 +223,44 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     }
   };
 
-  const condominiumLabel = (condoId: string) => {
-    const c = condominiums.find(c => c.id === condoId);
-    return c ? c.name : condoId.slice(0, 8) + '…';
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const activeCondominiumId = condominiumId || '';
+    if (!activeCondominiumId) {
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      return;
+    }
+
+    setCsvImporting(true);
+    try {
+      const response = await unitsApi.importCsv(activeCondominiumId, file);
+      const result = response.data;
+      if (result.errors && result.errors.length > 0) {
+        toastError(`Importação concluída com erros: ${result.message}`);
+      } else {
+        toastSuccess(result.message);
+      }
+      load();
+    } catch (err: unknown) {
+      const msg = typeof err === 'object' && err !== null && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined;
+      toastError(msg ?? 'Erro ao importar CSV. Verifique o formato do ficheiro.');
+    } finally {
+      setCsvImporting(false);
+      if (csvInputRef.current) csvInputRef.current.value = '';
+    }
   };
 
-  const filteredUnits = filterCondominiumId 
-    ? units.filter(u => u.condominiumId === filterCondominiumId)
-    : units;
+  const filteredUnits = units;
 
-  if (!isManager && !isAdmin) {
+  if (!isAdmin) {
     return (
       <div className="text-center py-20 text-gray-400">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a gestores e administradores</p>
+        <p>Acesso restrito a administradores</p>
       </div>
     );
   }
@@ -204,21 +284,8 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
         </div>
       )}
 
-      {/* Toolbar: condominium filter (manager) + search + action button in one row */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        {isManager && condominiums.length > 0 && (
-          <select
-            value={filterCondominiumId}
-            onChange={(e) => setFilterCondominiumId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-          >
-            <option value="">Todos os condomínios</option>
-            {condominiums.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        )}
-
         <div className="flex-1 min-w-48">
           <SearchBar
             value={searchQuery}
@@ -228,12 +295,38 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
         </div>
 
         <button
+          onClick={handleCsvDownload}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+          title="Descarregar CSV (template ou exportação)"
+        >
+          <Download className="w-4 h-4" />
+          Descarregar CSV
+        </button>
+
+        <button
           onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Nova Fração
         </button>
+
+        <button
+          onClick={() => csvInputRef.current?.click()}
+          disabled={csvImporting}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+          title="Importar frações a partir de ficheiro CSV"
+        >
+          <Upload className="w-4 h-4" />
+          {csvImporting ? 'A importar...' : 'Importar CSV'}
+        </button>
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleCsvImport}
+        />
       </div>
 
       {/* Form modal */}
@@ -254,23 +347,6 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {isManager && !editId && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio *</label>
-                  <select
-                    name="condominiumId"
-                    value={form.condominiumId}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    <option value="">Selecione...</option>
-                    {condominiums.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Número da Fração *</label>
                 <input
@@ -280,6 +356,17 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   onChange={handleChange}
                   required
                   placeholder="Ex: 101"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prédio</label>
+                <input
+                  type="text"
+                  name="building"
+                  value={form.building || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: Bloco A"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -406,12 +493,10 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                 </div>
               </div>
               <div className="mt-3 space-y-1.5 text-sm text-gray-500">
-                {isManager && (
-                  <div className="flex items-center justify-between">
-                    <span>Condomínio</span>
-                    <span className="font-medium text-gray-700">{condominiumLabel(u.condominiumId)}</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span>Prédio</span>
+                  <span className="font-medium text-gray-700">{u.building || '-'}</span>
+                </div>
                 <div className="flex items-center justify-between">
                   <span>Tipo</span>
                   <span className="font-medium text-gray-700">{unitTypeLabels[u.type] ?? u.type}</span>

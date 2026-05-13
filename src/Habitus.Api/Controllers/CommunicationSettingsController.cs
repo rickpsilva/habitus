@@ -12,13 +12,16 @@ namespace Habitus.Api.Controllers;
 public class CommunicationSettingsController : ControllerBase
 {
     private readonly IRepository<CommunicationSettings> _repository;
+    private readonly IEncryptionService _encryptionService;
     private readonly ILogger<CommunicationSettingsController> _logger;
 
     public CommunicationSettingsController(
         IRepository<CommunicationSettings> repository,
+        IEncryptionService encryptionService,
         ILogger<CommunicationSettingsController> logger)
     {
         _repository = repository;
+        _encryptionService = encryptionService;
         _logger = logger;
     }
 
@@ -131,8 +134,7 @@ public class CommunicationSettingsController : ControllerBase
             // Only update password if provided
             if (!string.IsNullOrWhiteSpace(request.EmailPassword))
             {
-                // TODO: Encrypt the password before storing in production
-                communicationSettings.EmailPassword = request.EmailPassword;
+                communicationSettings.EmailPassword = _encryptionService.Encrypt(request.EmailPassword.Trim());
             }
             
             // Update WhatsApp fields

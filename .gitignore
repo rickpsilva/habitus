@@ -42,5 +42,6 @@ tools/
 
 .github/
 .vscode/
+.continue/
 
 *.lscache

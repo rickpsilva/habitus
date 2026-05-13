@@ -48,7 +48,7 @@ public class PlatformBillingSettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving platform billing settings");
-            return StatusCode(500, new { message = "Error retrieving platform billing settings" });
+            return StatusCode(500, new { message = "Erro ao obter configurações de faturação da plataforma." });
         }
     }
 
@@ -102,7 +102,7 @@ public class PlatformBillingSettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating platform billing settings");
-            return StatusCode(500, new { message = "Error updating platform billing settings" });
+            return StatusCode(500, new { message = "Erro ao atualizar configurações de faturação da plataforma." });
         }
     }
 

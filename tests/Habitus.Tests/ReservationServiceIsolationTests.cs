@@ -12,6 +12,10 @@ public class ReservationServiceIsolationTests
 {
     private readonly Mock<IRepository<Reservation>> _repositoryMock;
     private readonly Mock<IRepository<SharedSpace>> _spaceRepositoryMock;
+    private readonly Mock<IRepository<User>> _userRepositoryMock;
+    private readonly Mock<IRepository<FinancialRecord>> _financialRepositoryMock;
+    private readonly Mock<IRepository<Notification>> _notificationRepositoryMock;
+    private readonly Mock<INotificationDispatchService> _notificationDispatchServiceMock;
     private readonly ReservationService _service;
 
     private readonly Guid _condominiumA = Guid.NewGuid();
@@ -21,7 +25,17 @@ public class ReservationServiceIsolationTests
     {
         _repositoryMock = new Mock<IRepository<Reservation>>();
         _spaceRepositoryMock = new Mock<IRepository<SharedSpace>>();
-        _service = new ReservationService(_repositoryMock.Object, _spaceRepositoryMock.Object);
+        _userRepositoryMock = new Mock<IRepository<User>>();
+        _financialRepositoryMock = new Mock<IRepository<FinancialRecord>>();
+        _notificationRepositoryMock = new Mock<IRepository<Notification>>();
+        _notificationDispatchServiceMock = new Mock<INotificationDispatchService>();
+        _service = new ReservationService(
+            _repositoryMock.Object,
+            _spaceRepositoryMock.Object,
+            _userRepositoryMock.Object,
+            _financialRepositoryMock.Object,
+            _notificationRepositoryMock.Object,
+            _notificationDispatchServiceMock.Object);
     }
 
     [Fact]

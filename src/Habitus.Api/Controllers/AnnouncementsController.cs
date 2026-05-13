@@ -211,6 +211,11 @@ public class AnnouncementsController : ControllerBase
         _context.Announcements.Add(announcement);
         await _context.SaveChangesAsync();
 
+        if (status == AnnouncementStatus.PendingApproval)
+        {
+            await NotifyAdminsPendingApprovalAsync(condominiumId, announcement);
+        }
+
         return CreatedAtAction(nameof(GetById), new { condominiumId, id = announcement.Id }, MapToDto(announcement, userId));
     }
 
@@ -264,35 +269,9 @@ public class AnnouncementsController : ControllerBase
         announcement.Status = AnnouncementStatus.PendingApproval;
         announcement.UpdatedAt = DateTime.UtcNow;
 
-        // Notify all active admins in the same condominium that a new approval is pending.
-        var admins = await _context.Users
-            .Where(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive && u.Id != userId)
-            .ToListAsync();
+        await NotifyAdminsPendingApprovalAsync(condominiumId, announcement);
 
-        var openUrl = $"/announcements?open={announcement.Id}";
-        var notifications = new List<Notification>();
-        foreach (var admin in admins)
-        {
-            var notification = new Notification
-            {
-                Id = Guid.NewGuid(),
-                Title = "Comunicado pendente de aprovação",
-                Message = $"📝 {announcement.Title}\nVer: {openUrl}",
-                Type = NotificationType.Alert,
-                TargetRole = UserRole.Admin.ToString(),
-                TargetUserId = admin.Id,
-                CondominiumId = condominiumId,
-                SentAt = DateTime.UtcNow,
-                IsRead = false
-            };
-            _context.Notifications.Add(notification);
-            notifications.Add(notification);
-        }
-
-        await _context.SaveChangesAsync();
-        await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
-
-        return Ok(new { message = "Announcement submitted for approval" });
+        return Ok(new { message = "Comunicado submetido para aprovação." });
     }
 
     // POST: api/condominiums/{condominiumId}/announcements/{id}/approve
@@ -313,7 +292,7 @@ public class AnnouncementsController : ControllerBase
         if (announcement == null) return NotFound();
 
         if (announcement.Status != AnnouncementStatus.PendingApproval)
-            return BadRequest("Only pending announcements can be approved/rejected");
+            return BadRequest("Apenas comunicados pendentes podem ser aprovados/rejeitados.");
 
         if (request.IsApproved)
         {
@@ -350,7 +329,7 @@ public class AnnouncementsController : ControllerBase
 
             await _context.SaveChangesAsync();
             await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
-            return Ok(new { message = request.IsApproved ? "Announcement published" : "Announcement rejected" });
+            return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
         }
         else
         {
@@ -360,7 +339,7 @@ public class AnnouncementsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = request.IsApproved ? "Announcement published" : "Announcement rejected" });
+        return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
     }
 
     // POST: api/condominiums/{condominiumId}/announcements/{id}/pin
@@ -616,6 +595,42 @@ public class AnnouncementsController : ControllerBase
 
         var contentType = attachment.ContentType ?? "application/octet-stream";
         return PhysicalFile(filePath, contentType, attachment.FileName);
+    }
+
+    private async Task NotifyAdminsPendingApprovalAsync(Guid condominiumId, Announcement announcement)
+    {
+        // Notify all active admins in the same condominium that a new approval is pending.
+        var admins = await _context.Users
+            .Where(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive)
+            .ToListAsync();
+
+        if (admins.Count == 0)
+        {
+            return;
+        }
+
+        var openUrl = $"/announcements?open={announcement.Id}";
+        var notifications = new List<Notification>(admins.Count);
+
+        foreach (var admin in admins)
+        {
+            notifications.Add(new Notification
+            {
+                Id = Guid.NewGuid(),
+                Title = "Comunicado pendente de aprovação",
+                Message = $"📝 {announcement.Title}\nVer: {openUrl}",
+                Type = NotificationType.Alert,
+                TargetRole = UserRole.Admin.ToString(),
+                TargetUserId = admin.Id,
+                CondominiumId = condominiumId,
+                SentAt = DateTime.UtcNow,
+                IsRead = false
+            });
+        }
+
+        _context.Notifications.AddRange(notifications);
+        await _context.SaveChangesAsync();
+        await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: true);
     }
 
     // Helper methods

@@ -6,4 +6,5 @@ public class UpdateSharedSpaceRequest
     public string Description { get; set; } = string.Empty;
     public int Capacity { get; set; }
     public string Rules { get; set; } = string.Empty;
+    public decimal ReservationFee { get; set; }
 }
