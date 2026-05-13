@@ -43,7 +43,6 @@ tools/
 .github/*
 !.github/copilot-instructions.md
 !.github/instructions/
-!.github/instructions/habitus-web.instructions.md
 .vscode/
 
 *.lscache
