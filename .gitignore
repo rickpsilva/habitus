@@ -40,7 +40,10 @@ announcements/
 #tools
 tools/
 
-.github/
+.github/*
+!.github/copilot-instructions.md
+!.github/instructions/
+!.github/instructions/habitus-web.instructions.md
 .vscode/
 
 *.lscache
