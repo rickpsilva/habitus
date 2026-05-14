@@ -1,6 +1,6 @@
 namespace Habitus.Domain.Entities;
 
-public enum MaintenanceStatus { Open, InProgress, Resolved, Closed }
+public enum MaintenanceStatus { Open, InProgress, Completed, Closed }
 public enum MaintenancePriority { Low, Medium, High, Critical }
 
 public class MaintenanceRequest

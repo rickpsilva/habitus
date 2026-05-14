@@ -10,15 +10,16 @@ namespace Habitus.Tests;
 public class MaintenanceServiceTests
 {
     private readonly Mock<IRepository<MaintenanceRequest>> _repositoryMock;
+    private readonly Mock<IRepository<FinancialRecord>> _financialRepositoryMock;
     private readonly MaintenanceService _service;
 
     public MaintenanceServiceTests()
     {
         _repositoryMock = new Mock<IRepository<MaintenanceRequest>>();
         var notificationRepoMock = new Mock<IRepository<Notification>>();
-        var financialRepoMock = new Mock<IRepository<FinancialRecord>>();
+        _financialRepositoryMock = new Mock<IRepository<FinancialRecord>>();
         var dispatchMock = new Mock<INotificationDispatchService>();
-        _service = new MaintenanceService(_repositoryMock.Object, notificationRepoMock.Object, financialRepoMock.Object, dispatchMock.Object);
+        _service = new MaintenanceService(_repositoryMock.Object, notificationRepoMock.Object, _financialRepositoryMock.Object, dispatchMock.Object);
     }
 
     [Fact]
@@ -29,6 +30,7 @@ public class MaintenanceServiceTests
             Title = "Broken pipe",
             Description = "Leak in bathroom",
             Priority = "High",
+            CondominiumId = Guid.NewGuid(),
             UnitId = Guid.NewGuid(),
             CreatedBy = Guid.NewGuid(),
             Location = "Bathroom"
@@ -45,7 +47,22 @@ public class MaintenanceServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_WhenResolved_SetsResolvedAt()
+    public async Task UpdateAsync_WhenCompleted_SetsResolvedAt()
+    {
+        var id = Guid.NewGuid();
+        var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open };
+        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
+        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Completed" });
+
+        result.Should().NotBeNull();
+        result!.Status.Should().Be("Completed");
+        entity.ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenUsingLegacyResolvedStatus_NormalizesToCompleted()
     {
         var id = Guid.NewGuid();
         var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open };
@@ -55,8 +72,110 @@ public class MaintenanceServiceTests
         var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Resolved" });
 
         result.Should().NotBeNull();
-        result!.Status.Should().Be("Resolved");
-        entity.ResolvedAt.Should().NotBeNull();
+        result!.Status.Should().Be("Completed");
+        entity.Status.Should().Be(MaintenanceStatus.Completed);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenCompletedWithoutInvoice_AllowsStatusUpdate()
+    {
+        var id = Guid.NewGuid();
+        var condominiumId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var entity = new MaintenanceRequest
+        {
+            Id = id,
+            Status = MaintenanceStatus.InProgress,
+            Title = "Leak",
+            CondominiumId = condominiumId,
+            UnitId = unitId,
+            CreatedBy = userId
+        };
+
+        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
+        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _financialRepositoryMock.Setup(r => r.AddAsync(It.IsAny<FinancialRecord>())).Returns(Task.CompletedTask);
+        _financialRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var result = await _service.UpdateStatusAsync(
+            id,
+            new UpdateMaintenanceStatusRequest
+            {
+                Status = "Completed",
+                ExpenseAmount = 120.50m
+            },
+            condominiumId,
+            "Admin",
+            userId,
+            unitId);
+
+        result.Should().NotBeNull();
+        result!.Status.Should().Be("Completed");
+        entity.Status.Should().Be(MaintenanceStatus.Completed);
+        entity.InvoiceDocumentId.Should().BeNull();
+        entity.HasExpense.Should().BeTrue();
+        entity.ExpenseAmount.Should().Be(120.50m);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenInProgressToOpen_Throws()
+    {
+        var id = Guid.NewGuid();
+        var condominiumId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var entity = new MaintenanceRequest
+        {
+            Id = id,
+            Status = MaintenanceStatus.InProgress,
+            CondominiumId = condominiumId,
+            UnitId = unitId,
+            CreatedBy = userId
+        };
+
+        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
+
+        var act = () => _service.UpdateStatusAsync(
+            id,
+            new UpdateMaintenanceStatusRequest { Status = "Open" },
+            condominiumId,
+            "Admin",
+            userId,
+            unitId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*não pode voltar ao estado Aberto*");
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenCompletedToInProgress_Throws()
+    {
+        var id = Guid.NewGuid();
+        var condominiumId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var entity = new MaintenanceRequest
+        {
+            Id = id,
+            Status = MaintenanceStatus.Completed,
+            CondominiumId = condominiumId,
+            UnitId = unitId,
+            CreatedBy = userId
+        };
+
+        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
+
+        var act = () => _service.UpdateStatusAsync(
+            id,
+            new UpdateMaintenanceStatusRequest { Status = "InProgress" },
+            condominiumId,
+            "Admin",
+            userId,
+            unitId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*concluída não pode voltar a outros estados*");
     }
 
     [Fact]

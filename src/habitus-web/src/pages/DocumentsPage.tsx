@@ -355,23 +355,23 @@ export default function DocumentsPage() {
   };
 
   const getMaintenanceStatusColor = (status: string) => {
+    const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
     const colors: Record<string, string> = {
       Open: 'bg-yellow-100 text-yellow-700',
       InProgress: 'bg-blue-100 text-blue-700',
-      Resolved: 'bg-green-100 text-green-700',
-      Closed: 'bg-gray-100 text-gray-500',
+      Completed: 'bg-green-100 text-green-700',
     };
-    return colors[status] || 'bg-gray-100 text-gray-600';
+    return colors[normalizedStatus] || 'bg-gray-100 text-gray-600';
   };
 
   const getMaintenanceStatusLabel = (status: string) => {
+    const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
     const labels: Record<string, string> = {
       Open: 'Aberto',
       InProgress: 'Em Curso',
-      Resolved: 'Resolvido',
-      Closed: 'Fechado',
+      Completed: 'Concluído',
     };
-    return labels[status] || status;
+    return labels[normalizedStatus] || normalizedStatus;
   };
 
   const getStatusColor = (status: string) => {
