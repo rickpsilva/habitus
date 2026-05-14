@@ -56,6 +56,20 @@ public class LocalFileStorageService : IBlobStorageService
         }
     }
 
+    public Task<(Stream Stream, string? ContentType)> DownloadAsync(string pathOrUrl)
+    {
+        var relativePath = pathOrUrl.TrimStart('/');
+        var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
+
+        if (!File.Exists(absolutePath))
+        {
+            throw new FileNotFoundException("File not found", absolutePath);
+        }
+
+        var fileStream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult<(Stream, string?)>((fileStream, null));
+    }
+
     public Task DeleteAsync(string filePath)
     {
         try

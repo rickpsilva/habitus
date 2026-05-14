@@ -1,5 +1,7 @@
 using Habitus.Application.DTOs.Payments;
+using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
+using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -13,11 +15,19 @@ public class PaymentsController : ControllerBase
 {
     private readonly PaymentService _service;
     private readonly ReceiptService _receiptService;
+    private readonly IRepository<Document> _documentRepository;
+    private readonly IBlobStorageService _blobStorage;
 
-    public PaymentsController(PaymentService service, ReceiptService receiptService)
+    public PaymentsController(
+        PaymentService service,
+        ReceiptService receiptService,
+        IRepository<Document> documentRepository,
+        IBlobStorageService blobStorage)
     {
         _service = service;
         _receiptService = receiptService;
+        _documentRepository = documentRepository;
+        _blobStorage = blobStorage;
     }
 
     /// <summary>
@@ -243,6 +253,66 @@ public class PaymentsController : ControllerBase
                 return NotFound(new { message = "Pagamento não encontrado ou não pode ser atualizado." });
 
             return Ok(new { message = "Comprovativo de pagamento enviado com sucesso." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Download proof of payment for a payment
+    /// </summary>
+    [HttpGet("{id}/proof/download")]
+    [Authorize(Roles = "Resident,Admin")]
+    public async Task<IActionResult> DownloadProof(Guid id)
+    {
+        try
+        {
+            if (IsAdminWithoutAssignedUnit())
+                return Forbid();
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null)
+                return NotFound(new { message = "Pagamento não encontrado." });
+
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isAdmin = User.IsInRole("Admin");
+
+            if (!isAdmin && payment.ResidentId != userId)
+                return Forbid();
+
+            if (isAdmin)
+            {
+                var condominiumIdClaim = User.FindFirstValue("CondominiumId");
+                if (!Guid.TryParse(condominiumIdClaim, out var adminCondominiumId) || payment.CondominiumId != adminCondominiumId)
+                    return Forbid();
+            }
+
+            if (string.IsNullOrWhiteSpace(payment.ProofOfPaymentUrl))
+                return NotFound(new { message = "Comprovativo não encontrado para este pagamento." });
+
+            var storagePath = payment.ProofOfPaymentUrl;
+            var fallbackFileName = $"Comprovativo_{payment.Id}";
+            string? fallbackContentType = null;
+
+            if (Guid.TryParse(payment.ProofOfPaymentUrl, out var documentId))
+            {
+                var document = await _documentRepository.GetByIdAsync(documentId);
+                if (document != null)
+                {
+                    storagePath = document.FilePath;
+                    fallbackFileName = document.Name;
+                    fallbackContentType = document.MimeType;
+                }
+            }
+
+            var (stream, contentType) = await _blobStorage.DownloadAsync(storagePath);
+            return File(stream, contentType ?? fallbackContentType ?? "application/octet-stream", fallbackFileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { message = "Ficheiro de comprovativo não encontrado." });
         }
         catch (Exception ex)
         {

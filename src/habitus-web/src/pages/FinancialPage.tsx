@@ -59,7 +59,7 @@ const financialDocTypeLabels: Record<string, string> = {
 
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
-  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'quota-plans'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
@@ -253,21 +253,9 @@ export default function FinancialPage() {
     }
   };
 
-  const handleDownloadProof = async (documentIdOrPath: string, description: string) => {
+  const handleDownloadProof = async (paymentId: string, description: string) => {
     try {
-      // Check if it's a GUID (new format) or a path (old format)
-      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (guidRegex.test(documentIdOrPath)) {
-        // New format: document ID
-        await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
-      } else if (documentIdOrPath.startsWith('/uploads/')) {
-        // Old format: file path - show warning
-        toastWarning('Este comprovativo usa formato antigo. Por favor, contacte o administrador para atualizar o sistema.');
-      } else {
-        // Unknown format
-        toastError('Formato de comprovativo não reconhecido.');
-      }
+      await paymentsApi.downloadProof(paymentId, description);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao fazer download do comprovativo.');
@@ -1210,7 +1198,7 @@ export default function FinancialPage() {
                     {payment.proofOfPaymentUrl && (
                       <div className="mb-3">
                         <button
-                          onClick={() => handleDownloadProof(payment.proofOfPaymentUrl!, payment.description)}
+                          onClick={() => handleDownloadProof(payment.id, payment.description)}
                           className="text-sm text-indigo-600 hover:underline cursor-pointer"
                         >
                           📎 Ver comprovativo de pagamento

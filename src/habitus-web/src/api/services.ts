@@ -339,6 +339,32 @@ export const paymentsApi = {
   getMyPayments: () => api.get<PaymentDto[]>('/payments'),
   getById: (id: string) => api.get<PaymentDto>(`/payments/${id}`),
   uploadProof: (id: string, proofUrl: string) => api.post(`/payments/${id}/proof`, { proofUrl }),
+  downloadProof: async (id: string, description: string) => {
+    const response = await api.get(`/payments/${id}/proof/download`, {
+      responseType: 'blob',
+    });
+
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const contentDisposition = response.headers['content-disposition'];
+    let fileName = `Comprovativo - ${description}.pdf`;
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        fileName = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
   cancel: (id: string) => api.put<PaymentDto>(`/payments/${id}/cancel`),
   
   // Admin endpoints

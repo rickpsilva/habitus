@@ -42,17 +42,20 @@ public class DocumentsController : ControllerBase
     private readonly IRepository<Document> _repository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<MaintenanceRequest> _maintenanceRepository;
+    private readonly IRepository<Payment> _paymentRepository;
     private readonly IBlobStorageService _blobStorage;
 
     public DocumentsController(
         IRepository<Document> repository,
         IRepository<User> userRepository,
         IRepository<MaintenanceRequest> maintenanceRepository,
+        IRepository<Payment> paymentRepository,
         IBlobStorageService blobStorage)
     {
         _repository = repository;
         _userRepository = userRepository;
         _maintenanceRepository = maintenanceRepository;
+        _paymentRepository = paymentRepository;
         _blobStorage = blobStorage;
     }
 
@@ -811,13 +814,59 @@ public class DocumentsController : ControllerBase
     [HttpGet("{id}/download")]
     public async Task<IActionResult> Download(Guid id)
     {
-        var document = await _repository.GetByIdAsync(id);
-        if (document == null) return NotFound();
-
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null) return Unauthorized();
+
+        var document = await _repository.GetByIdAsync(id);
+        if (document == null)
+        {
+            var legacyProof = (await _paymentRepository.FindAsync(p => p.ProofOfPaymentUrl == id.ToString()))
+                .FirstOrDefault(p => p.CondominiumId == user.CondominiumId);
+
+            var paymentById = await _paymentRepository.GetByIdAsync(id);
+            if (legacyProof == null && paymentById?.ProofOfPaymentUrl != null && paymentById.CondominiumId == user.CondominiumId)
+            {
+                legacyProof = paymentById;
+            }
+
+            if (legacyProof == null)
+            {
+                return NotFound();
+            }
+
+            if (user.Role != UserRole.Admin && legacyProof.ResidentId != userId)
+            {
+                return Forbid();
+            }
+
+            try
+            {
+                var legacyProofReference = legacyProof.ProofOfPaymentUrl!;
+
+                if (Guid.TryParse(legacyProofReference, out var legacyDocumentId))
+                {
+                    var legacyDocument = await _repository.GetByIdAsync(legacyDocumentId);
+                    if (legacyDocument != null)
+                    {
+                        var (documentStream, documentContentType) = await _blobStorage.DownloadAsync(legacyDocument.FilePath);
+                        return File(documentStream, documentContentType ?? legacyDocument.MimeType ?? "application/octet-stream", legacyDocument.Name);
+                    }
+                }
+
+                var (legacyStream, legacyContentType) = await _blobStorage.DownloadAsync(legacyProofReference);
+                return File(legacyStream, legacyContentType ?? "application/octet-stream", $"Comprovativo_{legacyProof.Id}");
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound("File not found in storage");
+            }
+            catch
+            {
+                return StatusCode(500, "Error downloading document");
+            }
+        }
 
         // Check permissions
         if (user.Role != UserRole.Admin)
@@ -849,22 +898,19 @@ public class DocumentsController : ControllerBase
             }
         }
 
-        // For development with local files
-        if (document.FilePath.StartsWith("/uploads/"))
+        try
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), document.FilePath.TrimStart('/'));
-
-            if (!System.IO.File.Exists(filePath))
-            {
-                return NotFound("File not found on disk");
-            }
-
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-            return File(fileBytes, document.MimeType ?? "application/octet-stream", document.Name);
+            var (stream, contentType) = await _blobStorage.DownloadAsync(document.FilePath);
+            return File(stream, contentType ?? document.MimeType ?? "application/octet-stream", document.Name);
         }
-
-        // For production with Azure Blob Storage URLs
-        return Redirect(document.FilePath);
+        catch (FileNotFoundException)
+        {
+            return NotFound("File not found in storage");
+        }
+        catch
+        {
+            return StatusCode(500, "Error downloading document");
+        }
     }
 }
 
