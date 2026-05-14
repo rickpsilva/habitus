@@ -257,9 +257,9 @@ export const sharedSpacesApi = {
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
     api.get<PaginatedResponse<SharedSpaceDto>>(`/shared-spaces/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   getById: (id: string) => api.get<SharedSpaceDto>(`/shared-spaces/${id}`),
-  create: (data: { name: string; description: string; capacity: number; condominiumId: string; rules: string; reservationFee?: number }) => 
+  create: (data: { name: string; description: string; capacity?: number; condominiumId: string; rules: string; reservationFee?: number; color?: string }) => 
     api.post<SharedSpaceDto>('/shared-spaces', data),
-  update: (id: string, data: { name: string; description: string; capacity: number; rules: string; reservationFee?: number }) => 
+  update: (id: string, data: { name: string; description: string; capacity?: number; rules: string; reservationFee?: number; color?: string }) => 
     api.put<SharedSpaceDto>(`/shared-spaces/${id}`, data),
   delete: (id: string) => api.delete(`/shared-spaces/${id}`),
 };

@@ -343,19 +343,21 @@ export interface SharedSpaceDto {
   id: string;
   name: string;
   description: string;
-  capacity: number;
+  capacity?: number;
   condominiumId: string;
   rules: string;
   reservationFee: number;
+  color: string;
 }
 
 export interface CreateSharedSpaceRequest {
   name: string;
   description: string;
-  capacity: number;
+  capacity?: number;
   condominiumId: string;
   rules: string;
   reservationFee?: number;
+  color?: string;
 }
 
 export interface DocumentDto {

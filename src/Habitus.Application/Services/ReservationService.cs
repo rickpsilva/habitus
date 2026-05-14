@@ -83,6 +83,10 @@ public class ReservationService
         if (!user.UnitId.HasValue)
             return (null, "Apenas utilizadores com uma fração associada podem efetuar reservas.");
 
+        // Validate that start time is not in the past
+        if (request.StartTime < DateTime.UtcNow)
+            return (null, "Não é possível criar reservas para datas passadas.");
+
         var existing = await _repository.FindAsync(r =>
             r.SpaceId == request.SpaceId &&
             r.Status != ReservationStatus.Cancelled &&
@@ -153,6 +157,10 @@ public class ReservationService
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
         if (space == null)
             return (null, "Espaço comum não encontrado.");
+
+        // Validate that start time is not in the past
+        if (request.StartTime < DateTime.UtcNow)
+            return (null, "Não é possível editar reservas para datas passadas.");
 
         // Check for conflicts with other reservations (excluding current one)
         var existing = await _repository.FindAsync(r =>

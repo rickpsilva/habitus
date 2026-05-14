@@ -34,6 +34,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     rules: '',
     condominiumId: '',
     reservationFee: '0',
+    color: '#4F46E5',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,20 +78,19 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       return;
     }
     
-    if (!form.capacity || parseInt(form.capacity) <= 0) {
-      alert('Capacidade deve ser maior que zero.');
-      return;
-    }
+    // Capacity is now optional - allow empty or 0
+    // No validation needed here
     
     setSubmitting(true);
     try {
       const data = {
         name: form.name,
         description: form.description,
-        capacity: parseInt(form.capacity),
+        capacity: form.capacity ? parseInt(form.capacity) : undefined,
         rules: form.rules,
         condominiumId: form.condominiumId,
         reservationFee: parseFloat(form.reservationFee) || 0,
+        color: form.color,
       };
       
       if (editingId) {
@@ -100,6 +100,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           capacity: data.capacity,
           rules: data.rules,
           reservationFee: data.reservationFee,
+          color: data.color,
         });
       } else {
         await sharedSpacesApi.create(data);
@@ -114,6 +115,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         rules: '', 
         condominiumId: form.condominiumId,
         reservationFee: '0',
+        color: '#4F46E5',
       });
       load();
     } catch (error: unknown) {
@@ -138,10 +140,11 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     setForm({
       name: space.name,
       description: space.description,
-      capacity: space.capacity.toString(),
+      capacity: space.capacity ? space.capacity.toString() : '',
       rules: space.rules,
       condominiumId: space.condominiumId,
       reservationFee: (space.reservationFee ?? 0).toString(),
+      color: space.color || '#4F46E5',
     });
     setShowForm(true);
   };
@@ -182,6 +185,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       rules: '', 
       condominiumId: form.condominiumId,
       reservationFee: '0',
+      color: '#4F46E5',
     });
   };
 
@@ -223,16 +227,28 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Capacidade *
+                  Capacidade
                 </label>
                 <input
                   type="number"
                   value={form.capacity}
                   onChange={(e) => setForm({ ...form, capacity: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ex: 50"
-                  min="1"
-                  required
+                  placeholder="Ex: 50 (deixe vazio para ilimitado)"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cor no Calendário
+                </label>
+                <input
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  className="w-full h-10 px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
+                  title="Escolha a cor para este espaço no calendário"
                 />
               </div>
             </div>
@@ -354,9 +370,11 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{space.name}</h3>
-                    <p className="text-sm text-indigo-600 mt-0.5">
-                      Capacidade: {space.capacity} pessoas
-                    </p>
+                    {space.capacity && space.capacity > 0 && (
+                      <p className="text-sm text-indigo-600 mt-0.5">
+                        Capacidade: {space.capacity} pessoas
+                      </p>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="flex gap-1 ml-2 shrink-0">

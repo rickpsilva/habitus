@@ -1,0 +1,244 @@
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { ReservationDto, SharedSpaceDto } from '../types';
+
+interface MonthlyCalendarProps {
+  reservations: ReservationDto[];
+  spaces: SharedSpaceDto[];
+  onSelectDay: (date: Date) => void;
+  onSelectReservation: (reservation: ReservationDto) => void;
+}
+
+const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+export default function MonthlyCalendar({
+  reservations,
+  spaces,
+  onSelectDay,
+  onSelectReservation,
+}: MonthlyCalendarProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
+  // Get first day of month
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+  
+  // Get starting day (Sunday = 0, Saturday = 6)
+  const startingDayOfWeek = firstDayOfMonth.getDay();
+  const daysInMonth = lastDayOfMonth.getDate();
+
+  // Filter only Pending and Approved reservations
+  const visibleReservations = reservations.filter(
+    (r) => r.status === 'Pending' || r.status === 'Approved'
+  );
+
+  // Get reservations for a specific day
+  const getReservationsForDay = (day: number): ReservationDto[] => {
+    const date = new Date(currentYear, currentMonth, day);
+    return visibleReservations.filter((r) => {
+      const startDate = new Date(r.startTime);
+      return (
+        startDate.getFullYear() === date.getFullYear() &&
+        startDate.getMonth() === date.getMonth() &&
+        startDate.getDate() === date.getDate()
+      );
+    });
+  };
+
+  // Get space color
+  const getSpaceColor = (spaceId: string): string => {
+    const space = spaces.find((s) => s.id === spaceId);
+    return space?.color || '#4F46E5';
+  };
+
+  // Check if it's today
+  const isToday = (day: number): boolean => {
+    const today = new Date();
+    return (
+      day === today.getDate() &&
+      currentMonth === today.getMonth() &&
+      currentYear === today.getFullYear()
+    );
+  };
+
+  // Navigate month
+  const changeMonth = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentYear, currentMonth + (direction === 'next' ? 1 : -1), 1);
+    setCurrentDate(newDate);
+  };
+
+  // Change to specific month and year
+  const handleMonthChange = (month: number) => {
+    setCurrentDate(new Date(currentYear, month, 1));
+  };
+
+  const handleYearChange = (year: number) => {
+    setCurrentDate(new Date(year, currentMonth, 1));
+  };
+
+  // Generate calendar days (including empty cells for alignment)
+  const calendarDays: (number | null)[] = [];
+  
+  // Add empty cells for days before the first day of the month
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarDays.push(null);
+  }
+  
+  // Add all days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(day);
+  }
+
+  // Generate year options (current year ± 2 years)
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Header with month/year selector */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+        <button
+          onClick={() => changeMonth('prev')}
+          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        
+        <div className="flex items-center gap-3">
+          <select
+            value={currentMonth}
+            onChange={(e) => handleMonthChange(parseInt(e.target.value))}
+            className="px-3 py-1.5 text-sm font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {MONTHS.map((month, index) => (
+              <option key={index} value={index}>
+                {month}
+              </option>
+            ))}
+          </select>
+          
+          <select
+            value={currentYear}
+            onChange={(e) => handleYearChange(parseInt(e.target.value))}
+            className="px-3 py-1.5 text-sm font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <button
+          onClick={() => changeMonth('next')}
+          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Calendar grid */}
+      <div className="p-4">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {DAYS.map((day) => (
+            <div key={day} className="text-center text-xs font-semibold text-gray-500 py-2">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar days */}
+        <div className="grid grid-cols-7 gap-2">
+          {calendarDays.map((day, index) => {
+            if (day === null) {
+              return <div key={`empty-${index}`} className="aspect-square" />;
+            }
+
+            const dayReservations = getReservationsForDay(day);
+            const hasReservations = dayReservations.length > 0;
+
+            return (
+              <div
+                key={day}
+                className={`aspect-square border rounded-lg p-2 cursor-pointer transition-all hover:shadow-md ${
+                  isToday(day)
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 hover:border-indigo-300'
+                }`}
+                onClick={() => onSelectDay(new Date(currentYear, currentMonth, day))}
+              >
+                <div className="flex flex-col h-full">
+                  {/* Day number */}
+                  <div
+                    className={`text-sm font-semibold mb-1 ${
+                      isToday(day) ? 'text-indigo-600' : 'text-gray-900'
+                    }`}
+                  >
+                    {day}
+                  </div>
+
+                  {/* Reservation indicators */}
+                  {hasReservations && (
+                    <div className="flex-1 flex flex-col gap-1 overflow-hidden">
+                      {dayReservations.slice(0, 3).map((reservation) => {
+                        const color = getSpaceColor(reservation.spaceId);
+                        const borderStyle = reservation.status === 'Pending' ? 'dashed' : 'solid';
+                        
+                        return (
+                          <div
+                            key={reservation.id}
+                            className="text-xs px-1 py-0.5 rounded border truncate"
+                            style={{
+                              backgroundColor: color + '20',
+                              borderColor: color,
+                              borderStyle: borderStyle,
+                              borderWidth: '1px',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectReservation(reservation);
+                            }}
+                          >
+                            {new Date(reservation.startTime).toLocaleTimeString('pt-PT', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                        );
+                      })}
+                      {dayReservations.length > 3 && (
+                        <div className="text-xs text-gray-500 font-medium">
+                          +{dayReservations.length - 3} mais
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-6 text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-4 border-2 border-gray-400 border-dashed rounded"></div>
+          <span className="text-gray-600">Pendente</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-4 border-2 border-gray-400 border-solid rounded"></div>
+          <span className="text-gray-600">Aprovada</span>
+        </div>
+      </div>
+    </div>
+  );
+}

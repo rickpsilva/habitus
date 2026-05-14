@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, MessageSquare } from 'lucide-react';
+import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, MessageSquare, Table as TableIcon, CalendarDays } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -7,6 +7,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import WeeklyCalendar from '../components/WeeklyCalendar';
+import MonthlyCalendar from '../components/MonthlyCalendar';
 import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
 
 const statusLabels: Record<string, string> = {
@@ -72,6 +74,15 @@ export default function ReservationsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReservationId, setDeleteReservationId] = useState<string | null>(null);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'week' | 'month'>('table');
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day; // Go back to Sunday
+    const sunday = new Date(today.setDate(diff));
+    sunday.setHours(0, 0, 0, 0);
+    return sunday;
+  });
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
@@ -145,6 +156,13 @@ export default function ReservationsPage() {
     const endDate = new Date(form.endTime);
     if (endDate <= startDate) {
       toastError('A data/hora de fim deve ser posterior à data/hora de início.');
+      return;
+    }
+    
+    // Validate that start time is not in the past
+    const now = new Date();
+    if (startDate < now) {
+      toastError('A data de início deve ser igual ou posterior à data atual.');
       return;
     }
     
@@ -520,6 +538,50 @@ export default function ReservationsPage() {
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
+  // Calendar handlers
+  const handleWeekChange = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentWeekStart);
+    const daysToAdd = direction === 'next' ? 7 : -7;
+    newDate.setDate(newDate.getDate() + daysToAdd);
+    setCurrentWeekStart(newDate);
+  };
+
+  const handleSelectSlot = (date: Date, hour: number) => {
+    // Create new reservation at selected time
+    const startTime = new Date(date);
+    startTime.setHours(hour, 0, 0, 0);
+    
+    const endTime = new Date(startTime);
+    endTime.setHours(hour + 1, 0, 0, 0); // Default 1 hour duration
+    
+    setForm({
+      spaceId: spaces.length > 0 ? spaces[0].id : '',
+      userId: currentUserId,
+      condominiumId: form.condominiumId,
+      startTime: startTime.toISOString().slice(0, 16),
+      endTime: endTime.toISOString().slice(0, 16),
+    });
+    setEditingId(null);
+    setShowForm(true);
+  };
+
+  const handleSelectReservation = (reservation: ReservationDto) => {
+    // Open details or edit based on permissions
+    setSelectedReservation(reservation);
+    setShowDetailsModal(true);
+  };
+
+  const handleSelectDay = (date: Date) => {
+    // When clicking a day in monthly view, switch to weekly view for that week
+    const day = date.getDay();
+    const diff = date.getDate() - day; // Go back to Sunday
+    const sunday = new Date(date);
+    sunday.setDate(diff);
+    sunday.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(sunday);
+    setViewMode('week');
+  };
+
   return (
     <div className="space-y-5">
       <ConfirmModal
@@ -537,26 +599,65 @@ export default function ReservationsPage() {
           <p className="text-gray-500 text-sm mt-0.5">Reservas dos espaços comuns</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar reservas..."
-            />
+          {viewMode === 'table' && (
+            <>
+              <div className="w-80">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Pesquisar reservas..."
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Todos os estados</option>
+                <option value="Pending">Pendente</option>
+                <option value="Approved">Aprovado</option>
+                <option value="Rejected">Rejeitado</option>
+                <option value="CancellationRequested">Pedido Cancelamento</option>
+                <option value="Cancelled">Cancelado</option>
+                <option value="Completed">Terminado</option>
+              </select>
+            </>
+          )}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <TableIcon className="w-4 h-4" />
+              Tabela
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === 'week'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Semanal
+            </button>
+            <button
+              onClick={() => setViewMode('month')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                viewMode === 'month'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              Mensal
+            </button>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Todos os estados</option>
-            <option value="Pending">Pendente</option>
-            <option value="Approved">Aprovado</option>
-            <option value="Rejected">Rejeitado</option>
-            <option value="CancellationRequested">Pedido Cancelamento</option>
-            <option value="Cancelled">Cancelado</option>
-            <option value="Completed">Terminado</option>
-          </select>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -576,7 +677,7 @@ export default function ReservationsPage() {
                 <h3 className="font-medium text-gray-900">{s.name}</h3>
               </div>
               {s.description && <p className="text-xs text-gray-500 mb-2">{s.description}</p>}
-              {s.capacity > 0 && <p className="text-xs text-gray-400">Capacidade: {s.capacity} pessoas</p>}
+              {s.capacity && s.capacity > 0 && <p className="text-xs text-gray-400">Capacidade: {s.capacity} pessoas</p>}
             </div>
           ))}
         </div>
@@ -601,7 +702,9 @@ export default function ReservationsPage() {
             >
               <option value="">Selecionar espaço</option>
               {spaces.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} (máx. {s.capacity} pessoas)</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}{s.capacity && s.capacity > 0 ? ` (máx. ${s.capacity} pessoas)` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -644,8 +747,27 @@ export default function ReservationsPage() {
         </form>
       </ModalPopup>
 
-      {/* Reservations table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Calendar or Table view */}
+      {viewMode === 'week' ? (
+        <WeeklyCalendar
+          reservations={reservations}
+          spaces={spaces}
+          currentWeekStart={currentWeekStart}
+          onWeekChange={handleWeekChange}
+          onSelectSlot={handleSelectSlot}
+          onSelectReservation={handleSelectReservation}
+        />
+      ) : viewMode === 'month' ? (
+        <MonthlyCalendar
+          reservations={reservations}
+          spaces={spaces}
+          onSelectDay={handleSelectDay}
+          onSelectReservation={handleSelectReservation}
+        />
+      ) : (
+        <>
+          {/* Reservations table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
         ) : reservations.length === 0 ? (
@@ -816,6 +938,8 @@ export default function ReservationsPage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Comment Modal */}
       <ModalPopup
