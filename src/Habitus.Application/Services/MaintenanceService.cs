@@ -121,10 +121,10 @@ public class MaintenanceService
         if (entity == null) return null;
         if (!CanUserAccessMaintenance(entity, condominiumId, userRole, userId, unitId)) return null;
 
-        if (request.Status != null) entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
+        if (request.Status != null) entity.Status = ParseStatus(request.Status);
         if (request.Priority != null) entity.Priority = Enum.Parse<MaintenancePriority>(request.Priority);
         if (request.Description != null) entity.Description = request.Description;
-        if (entity.Status == MaintenanceStatus.Resolved) entity.ResolvedAt = DateTime.UtcNow;
+        if (IsCompletedStatus(entity.Status)) entity.ResolvedAt = DateTime.UtcNow;
         _repository.Update(entity);
         await _repository.SaveChangesAsync();
         return MapToDto(entity);
@@ -140,10 +140,10 @@ public class MaintenanceService
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return null;
 
-        if (request.Status != null) entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
+        if (request.Status != null) entity.Status = ParseStatus(request.Status);
         if (request.Priority != null) entity.Priority = Enum.Parse<MaintenancePriority>(request.Priority);
         if (request.Description != null) entity.Description = request.Description;
-        if (entity.Status == MaintenanceStatus.Resolved) entity.ResolvedAt = DateTime.UtcNow;
+        if (IsCompletedStatus(entity.Status)) entity.ResolvedAt = DateTime.UtcNow;
 
         _repository.Update(entity);
         await _repository.SaveChangesAsync();
@@ -162,7 +162,9 @@ public class MaintenanceService
         if (entity == null) return null;
         if (!CanUserAccessMaintenance(entity, condominiumId, userRole, userId, unitId)) return null;
 
-        entity.Status = Enum.Parse<MaintenanceStatus>(request.Status);
+        var nextStatus = ParseStatus(request.Status);
+        ValidateStatusTransition(entity.Status, nextStatus);
+        entity.Status = nextStatus;
         
         if (!string.IsNullOrEmpty(request.SupplierId))
         {
@@ -179,11 +181,11 @@ public class MaintenanceService
         }
         
         // Handle expense information - always required when resolving
-        if (entity.Status == MaintenanceStatus.Resolved)
+        if (IsCompletedStatus(entity.Status))
         {
             if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
             {
-                throw new InvalidOperationException("O custo da manutenção é obrigatório quando o estado é alterado para Resolvido.");
+                throw new InvalidOperationException("O custo da manutenção é obrigatório quando o estado é alterado para Concluído.");
             }
             
             entity.HasExpense = true;
@@ -218,7 +220,7 @@ public class MaintenanceService
             }
         }
         
-        if (entity.Status == MaintenanceStatus.Resolved)
+        if (IsCompletedStatus(entity.Status))
         {
             entity.ResolvedAt = DateTime.UtcNow;
             
@@ -244,7 +246,7 @@ public class MaintenanceService
         
         _repository.Update(entity);
         await _repository.SaveChangesAsync();
-        if (entity.HasExpense && entity.ExpenseAmount.HasValue && entity.Status == MaintenanceStatus.Resolved)
+        if (entity.HasExpense && entity.ExpenseAmount.HasValue && IsCompletedStatus(entity.Status))
         {
             await _financialRepository.SaveChangesAsync();
         }
@@ -261,6 +263,48 @@ public class MaintenanceService
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return true;
+    }
+
+    private static MaintenanceStatus ParseStatus(string status)
+    {
+        if (string.Equals(status, "Resolved", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Closed", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return MaintenanceStatus.Completed;
+        }
+
+        return Enum.Parse<MaintenanceStatus>(status, ignoreCase: true);
+    }
+
+    private static bool IsCompletedStatus(MaintenanceStatus status)
+    {
+        return status == MaintenanceStatus.Completed || status == MaintenanceStatus.Closed;
+    }
+
+    private static void ValidateStatusTransition(MaintenanceStatus currentStatus, MaintenanceStatus nextStatus)
+    {
+        if (currentStatus == nextStatus)
+        {
+            return;
+        }
+
+        if (IsCompletedStatus(currentStatus))
+        {
+            throw new InvalidOperationException("Uma manutenção concluída não pode voltar a outros estados.");
+        }
+
+        if (currentStatus == MaintenanceStatus.InProgress && nextStatus == MaintenanceStatus.Open)
+        {
+            throw new InvalidOperationException("Uma manutenção em curso não pode voltar ao estado Aberto.");
+        }
+    }
+
+    private static string ToDtoStatus(MaintenanceStatus status)
+    {
+        return IsCompletedStatus(status)
+            ? nameof(MaintenanceStatus.Completed)
+            : status.ToString();
     }
 
     private static bool CanUserAccessMaintenance(
@@ -293,7 +337,7 @@ public class MaintenanceService
         Id = r.Id,
         Title = r.Title,
         Description = r.Description,
-        Status = r.Status.ToString(),
+        Status = ToDtoStatus(r.Status),
         Priority = r.Priority.ToString(),
         CondominiumId = r.CondominiumId,
         UnitId = r.UnitId,

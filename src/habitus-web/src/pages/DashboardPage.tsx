@@ -74,25 +74,24 @@ function StatCard({
 }
 
 function statusBadge(status: string) {
+  const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
   const map: Record<string, string> = {
     Open: 'bg-yellow-100 text-yellow-700',
     Pending: 'bg-yellow-100 text-yellow-700',
     InProgress: 'bg-blue-100 text-blue-700',
-    Resolved: 'bg-green-100 text-green-700',
-    Closed: 'bg-gray-100 text-gray-500',
+    Completed: 'bg-green-100 text-green-700',
     Cancelled: 'bg-gray-100 text-gray-500',
   };
   const labels: Record<string, string> = {
     Open: 'Aberto',
     Pending: 'Pendente',
     InProgress: 'Em curso',
-    Resolved: 'Resolvido',
-    Closed: 'Fechado',
+    Completed: 'Concluído',
     Cancelled: 'Cancelado',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-gray-100 text-gray-600'}`}>
-      {labels[status] ?? status}
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[normalizedStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+      {labels[normalizedStatus] ?? normalizedStatus}
     </span>
   );
 }
@@ -456,12 +455,15 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="divide-y divide-gray-50">
-          {maintenance.slice(0, 5).map((m) => (
+          {maintenance.slice(0, 5).map((m) => {
+            const normalizedStatus = m.status === 'Resolved' || m.status === 'Closed' ? 'Completed' : m.status;
+
+            return (
             <div key={m.id} className="flex items-start gap-3 px-5 py-3.5">
               <div className="mt-0.5">
-                {m.status === 'Resolved' ? (
+                {normalizedStatus === 'Completed' ? (
                   <CheckCircle2 className="w-4 h-4 text-green-500" aria-hidden="true" />
-                ) : m.status === 'InProgress' ? (
+                ) : normalizedStatus === 'InProgress' ? (
                   <Clock className="w-4 h-4 text-blue-500" aria-hidden="true" />
                 ) : (
                   <AlertCircle className="w-4 h-4 text-orange-500" aria-hidden="true" />
@@ -473,7 +475,8 @@ export default function DashboardPage() {
               </div>
               {statusBadge(m.status)}
             </div>
-          ))}
+            );
+          })}
           {maintenance.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
               <Wrench className="w-8 h-8 opacity-40" aria-hidden="true" />

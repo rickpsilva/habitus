@@ -13,8 +13,7 @@ import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, Pagi
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
   InProgress: { label: 'Em curso', className: 'bg-blue-100 text-blue-700', icon: Clock },
-  Resolved: { label: 'Resolvido', className: 'bg-green-100 text-green-700', icon: CheckCircle2 },
-  Closed: { label: 'Fechado', className: 'bg-gray-100 text-gray-500', icon: AlertCircle },
+  Completed: { label: 'Concluído', className: 'bg-green-100 text-green-700', icon: CheckCircle2 },
 };
 
 const priorityMap: Record<string, string> = {
@@ -31,15 +30,38 @@ const priorityLabels: Record<string, string> = {
   Critical: 'Crítica',
 };
 
+const normalizeMaintenanceStatus = (status: string) => {
+  if (status === 'Resolved' || status === 'Closed') {
+    return 'Completed';
+  }
+
+  return status;
+};
+
+const isCompletedStatus = (status: string) => normalizeMaintenanceStatus(status) === 'Completed';
+
+const getAvailableStatusOptions = (currentStatus: string) => {
+  const normalizedStatus = normalizeMaintenanceStatus(currentStatus);
+
+  if (isCompletedStatus(normalizedStatus)) {
+    return ['Completed'];
+  }
+
+  if (normalizedStatus === 'InProgress') {
+    return ['InProgress', 'Completed'];
+  }
+
+  return ['Open', 'InProgress', 'Completed'];
+};
+
 export default function MaintenancePage() {
   const { isAdmin, condominiumId, unitId } = useAuth();
   const { success, error: toastError, warning } = useToast();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('Open');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState<PaginatedResponse<MaintenanceRequestDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -114,21 +136,22 @@ export default function MaintenancePage() {
     }
   }, [condominiumId]);
 
-  const load = useCallback((page: number = 1) => {
+  const load = useCallback(() => {
     setLoading(true);
-    maintenanceApi.getPaged(page, pageSize, debouncedSearch)
+    maintenanceApi.getAll()
       .then((r) => {
         const scopedItems = condominiumId
-          ? r.data.items.filter((item) => item.condominiumId === condominiumId)
+          ? r.data
+            .filter((item) => item.condominiumId === condominiumId)
+            .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }))
           : [];
-        setPagination(r.data);
         setRequests(scopedItems);
-        setCurrentPage(page);
       })
       .finally(() => setLoading(false));
-  }, [condominiumId, debouncedSearch]);
+  }, [condominiumId]);
 
-  useEffect(() => { load(1); }, [load]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setCurrentPage(1); }, [filter, debouncedSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +189,7 @@ export default function MaintenancePage() {
   const handleOpenStatusPanel = (request: MaintenanceRequestDto) => {
     setSelectedRequest(request);
     setStatusForm({
-      status: request.status,
+      status: normalizeMaintenanceStatus(request.status),
       supplierId: request.supplierId || '',
       adminComments: '',
       hasExpense: request.hasExpense || false,
@@ -195,15 +218,16 @@ export default function MaintenancePage() {
     e.preventDefault();
     if (!selectedRequest) return;
 
-    // Validate expense fields - required when status is Resolved
-    if (statusForm.status === 'Resolved') {
+    const nextStatus = normalizeMaintenanceStatus(statusForm.status);
+
+    if (isCompletedStatus(nextStatus)) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
-        warning('Por favor, indique o valor da despesa para registar como resolvida.');
+        warning('Por favor, indique o valor da despesa para registar como concluída.');
         return;
       }
     }
 
-    if (statusForm.status !== 'Resolved' && statusForm.hasExpense) {
+    if (!isCompletedStatus(nextStatus) && statusForm.hasExpense) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
         warning('Por favor, indique o valor da despesa.');
         return;
@@ -217,12 +241,12 @@ export default function MaintenancePage() {
     setSubmitting(true);
     try {
       await maintenanceApi.updateStatus(selectedRequest.id, {
-        status: statusForm.status,
+        status: nextStatus,
         supplierId: statusForm.supplierId || undefined,
         adminComments: statusForm.adminComments || undefined,
-        hasExpense: statusForm.status === 'Resolved' ? true : statusForm.hasExpense,
-        expenseAmount: (statusForm.status === 'Resolved' || statusForm.hasExpense) && statusForm.expenseAmount ? parseFloat(statusForm.expenseAmount) : undefined,
-        invoiceDocumentId: (statusForm.status === 'Resolved' || statusForm.hasExpense) && statusForm.invoiceDocumentId ? statusForm.invoiceDocumentId : undefined,
+        hasExpense: isCompletedStatus(nextStatus) ? true : statusForm.hasExpense,
+        expenseAmount: (isCompletedStatus(nextStatus) || statusForm.hasExpense) && statusForm.expenseAmount ? parseFloat(statusForm.expenseAmount) : undefined,
+        invoiceDocumentId: (isCompletedStatus(nextStatus) || statusForm.hasExpense) && statusForm.invoiceDocumentId ? statusForm.invoiceDocumentId : undefined,
       });
       handleCloseStatusPanel();
       load();
@@ -301,7 +325,41 @@ export default function MaintenancePage() {
     }
   };
 
-  const filtered = filter === 'All' ? requests : requests.filter((r) => r.status === filter);
+  const searchTerm = debouncedSearch.trim().toLowerCase();
+  const statusCounts = requests.reduce<Record<'Open' | 'InProgress' | 'Completed', number>>((acc, request) => {
+    const normalizedStatus = normalizeMaintenanceStatus(request.status) as 'Open' | 'InProgress' | 'Completed';
+    acc[normalizedStatus] += 1;
+    return acc;
+  }, { Open: 0, InProgress: 0, Completed: 0 });
+
+  const filtered = requests.filter((request) => {
+    const matchesFilter = filter === 'All' || normalizeMaintenanceStatus(request.status) === filter;
+    if (!matchesFilter) {
+      return false;
+    }
+
+    if (!searchTerm) {
+      return true;
+    }
+
+    return [request.title, request.description, request.location]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(searchTerm));
+  });
+
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRequests = filtered.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination: PaginatedResponse<MaintenanceRequestDto> = {
+    items: paginatedRequests,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   return (
     <div className="space-y-5">
@@ -335,6 +393,24 @@ export default function MaintenancePage() {
             Novo Pedido
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { key: 'Open', label: 'Aberto', count: statusCounts.Open, className: 'border-yellow-200 bg-yellow-50 text-yellow-800' },
+          { key: 'InProgress', label: 'Em curso', count: statusCounts.InProgress, className: 'border-blue-200 bg-blue-50 text-blue-800' },
+          { key: 'Completed', label: 'Concluído', count: statusCounts.Completed, className: 'border-green-200 bg-green-50 text-green-800' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setFilter(item.key)}
+            className={`rounded-xl border p-4 text-left transition-colors ${item.className} ${filter === item.key ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
+          >
+            <p className="text-sm font-medium">{item.label}</p>
+            <p className="mt-1 text-2xl font-bold">{item.count}</p>
+          </button>
+        ))}
       </div>
 
       {/* New request form */}
@@ -404,7 +480,7 @@ export default function MaintenancePage() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        {['All', 'Open', 'InProgress', 'Resolved', 'Closed'].map((s) => (
+        {['All', 'Open', 'InProgress', 'Completed'].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -412,7 +488,7 @@ export default function MaintenancePage() {
               filter === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
-            {s === 'All' ? 'Todos' : statusMap[s]?.label ?? s}
+            {s === 'All' ? `Todos (${requests.length})` : `${statusMap[s]?.label ?? s} (${statusCounts[s as 'Open' | 'InProgress' | 'Completed']})`}
           </button>
         ))}
       </div>
@@ -421,14 +497,14 @@ export default function MaintenancePage() {
       <div className="space-y-3">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : filtered.length === 0 ? (
+        ) : paginatedRequests.length === 0 ? (
           <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />
             Sem pedidos de manutenção
           </div>
         ) : (
           <>
-            {filtered.map((m) => {
+            {paginatedRequests.map((m) => {
               const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
               return (
                 <div key={m.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -449,7 +525,7 @@ export default function MaintenancePage() {
                         </div>
                       </div>
                     </div>
-                    {isAdmin ? (
+                    {isAdmin && !isCompletedStatus(m.status) ? (
                       <button
                         onClick={() => handleOpenStatusPanel(m)}
                         className="shrink-0 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
@@ -475,8 +551,8 @@ export default function MaintenancePage() {
             {pagination && (
               <Pagination
                 pagination={pagination}
-                currentPage={currentPage}
-                onPageChange={(page) => load(page)}
+                currentPage={safeCurrentPage}
+                onPageChange={setCurrentPage}
               />
             )}
           </>
@@ -487,7 +563,7 @@ export default function MaintenancePage() {
       <ModalPopup
         open={showStatusPanel && selectedRequest !== null}
         onClose={handleCloseStatusPanel}
-        title={isAdmin ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
+        title={isAdmin && selectedRequest && !isCompletedStatus(selectedRequest.status) ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
         maxWidthClass="max-w-3xl"
         bodyClassName="max-h-[75vh] overflow-y-auto px-6 py-4 space-y-5"
       >
@@ -503,7 +579,7 @@ export default function MaintenancePage() {
               </div>
 
               {/* Form */}
-              {isAdmin ? (
+              {isAdmin && !isCompletedStatus(selectedRequest.status) ? (
                 <form onSubmit={handleStatusUpdate} className="space-y-4">
                   {/* Status Select */}
                   <div>
@@ -514,8 +590,8 @@ export default function MaintenancePage() {
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                      {Object.entries(statusMap).map(([value, { label }]) => (
-                        <option key={value} value={value}>{label}</option>
+                      {getAvailableStatusOptions(selectedRequest.status).map((value) => (
+                        <option key={value} value={value}>{statusMap[value]?.label ?? value}</option>
                       ))}
                     </select>
                   </div>
@@ -587,15 +663,14 @@ export default function MaintenancePage() {
                     />
                   </div>
 
-                  {/* Expense Management - Always required when status is Resolved */}
-                  {statusForm.status === 'Resolved' && (
+                  {isCompletedStatus(statusForm.status) && (
                     <div className="border-t border-gray-200 pt-4 space-y-4">
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-1">
                           Custo da Manutenção <span className="text-red-500">*</span>
                         </p>
                         <p className="text-xs text-gray-500 mb-3">
-                          O custo é obrigatório para registar a manutenção como resolvida.
+                          O custo é obrigatório para registar a manutenção como concluída.
                         </p>
                       </div>
 
@@ -660,7 +735,7 @@ export default function MaintenancePage() {
                   )}
 
                   {/* Documents Section */}
-                  {selectedRequest.status !== 'Closed' && (
+                  {!isCompletedStatus(selectedRequest.status) && (
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex items-center justify-between mb-3">
                         <label className="block text-sm font-medium text-gray-700">Documentos</label>
