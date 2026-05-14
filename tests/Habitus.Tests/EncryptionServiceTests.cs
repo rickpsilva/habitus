@@ -54,6 +54,63 @@ public class EncryptionServiceTests
         result.Should().Be(plaintext);
     }
 
+    [Fact]
+    public void Decrypt_ShouldReturnInput_WhenNullOrEmpty()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        string? decryptedNull = service.Decrypt(null!);
+        var decryptedEmpty = service.Decrypt(string.Empty);
+
+        // Assert
+        decryptedNull.Should().BeNull();
+        decryptedEmpty.Should().Be(string.Empty);
+    }
+
+    [Fact]
+    public void IsEncrypted_ShouldReturnTrue_ForValueEncryptedByService()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var encrypted = service.Encrypt("sensitive-value");
+        var isEncrypted = service.IsEncrypted(encrypted);
+
+        // Assert
+        isEncrypted.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsEncrypted_ShouldReturnFalse_ForPlaintext()
+    {
+        // Arrange
+        var service = CreateService();
+
+        // Act
+        var isEncrypted = service.IsEncrypted("plain-text");
+
+        // Assert
+        isEncrypted.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Decrypt_ShouldThrow_WhenCiphertextLooksEncryptedButCannotBeDecrypted()
+    {
+        // Arrange
+        var service = CreateService();
+        var invalidCiphertext = Convert.ToBase64String(new byte[64]);
+
+        // Act
+        var act = () => service.Decrypt(invalidCiphertext);
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Failed to decrypt sensitive data");
+    }
+
     private static EncryptionService CreateService()
     {
         var inMemorySettings = new Dictionary<string, string?>
