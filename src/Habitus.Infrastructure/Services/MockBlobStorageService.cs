@@ -31,6 +31,12 @@ public class MockBlobStorageService : IBlobStorageService
         return Task.FromResult(mockUrl);
     }
 
+    public Task<(Stream Stream, string? ContentType)> DownloadAsync(string pathOrUrl)
+    {
+        var stream = new MemoryStream();
+        return Task.FromResult<(Stream, string?)>((stream, "application/octet-stream"));
+    }
+
     public Task DeleteAsync(string url)
     {
         var fileName = url.Split('/').Last();

@@ -197,16 +197,9 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleDownloadProof = async (documentIdOrPath: string, description: string) => {
+  const handleDownloadProof = async (paymentId: string, description: string) => {
     try {
-      const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (guidRegex.test(documentIdOrPath)) {
-        await documentsApi.download(documentIdOrPath, `Comprovativo - ${description}.pdf`);
-      } else if (documentIdOrPath.startsWith('/uploads/')) {
-        toastError('Este comprovativo usa formato antigo. Contacte o administrador.');
-      } else {
-        toastError('Formato de comprovativo não reconhecido.');
-      }
+      await paymentsApi.downloadProof(paymentId, description);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao descarregar o comprovativo. Tente novamente.');
@@ -693,7 +686,7 @@ export default function PaymentsPage() {
               <div className="flex flex-col gap-2">
                 {selectedPayment.proofOfPaymentUrl && (
                   <button
-                    onClick={() => handleDownloadProof(selectedPayment.proofOfPaymentUrl!, selectedPayment.description)}
+                    onClick={() => handleDownloadProof(selectedPayment.id, selectedPayment.description)}
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     <Download className="w-4 h-4" />
