@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -18,12 +18,30 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   height?: string;
+  tokenDefinitions?: RichTextTokenDefinition[];
 }
 
-export default function RichTextEditor({ value, onChange, placeholder = 'Escreva aqui...', height = '300px' }: RichTextEditorProps) {
+export interface RichTextTokenDefinition {
+  token: string;
+  label: string;
+  description: string;
+  example: string;
+  missingBehavior: string;
+  category: string;
+}
+
+export default function RichTextEditor({
+  value,
+  onChange,
+  placeholder = 'Escreva aqui...',
+  height = '300px',
+  tokenDefinitions = [],
+}: RichTextEditorProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [showTokenPicker, setShowTokenPicker] = useState(false);
+  const [tokenSearch, setTokenSearch] = useState('');
   
   const editor = useEditor({
     extensions: [
@@ -59,6 +77,16 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Escreva
       },
     },
   });
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    if (editor.getHTML() !== value) {
+      editor.commands.setContent(value || '');
+    }
+  }, [editor, value]);
 
   if (!editor) {
     return null;
@@ -96,6 +124,25 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Escreva
   const applyColor = (color: string) => {
     editor.chain().focus().setColor(color).run();
     setShowColorPicker(false);
+  };
+
+  const filteredTokens = tokenDefinitions.filter((definition) => {
+    const query = tokenSearch.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+
+    return [definition.token, definition.label, definition.description, definition.category]
+      .some((entry) => entry.toLowerCase().includes(query));
+  });
+
+  const groupedTokens = filteredTokens.reduce<Record<string, RichTextTokenDefinition[]>>((groups, definition) => {
+    groups[definition.category] = [...(groups[definition.category] || []), definition];
+    return groups;
+  }, {});
+
+  const insertToken = (token: string) => {
+    editor.chain().focus().insertContent(token).run();
   };
 
   return (
@@ -267,7 +314,70 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Escreva
         >
           <Link2 className="w-4 h-4" />
         </button>
+
+        {tokenDefinitions.length > 0 && (
+          <>
+            <div className="w-px h-6 bg-gray-300 mx-1" />
+            <button
+              onClick={() => setShowTokenPicker((current) => !current)}
+              className={`px-2.5 py-1.5 rounded hover:bg-gray-200 transition text-xs font-semibold ${showTokenPicker ? 'bg-blue-100 text-blue-600' : 'text-gray-700'}`}
+              title="Inserir tag"
+              type="button"
+            >
+              Tags
+            </button>
+          </>
+        )}
       </div>
+
+      {showTokenPicker && tokenDefinitions.length > 0 && (
+        <div className="border-b border-gray-200 bg-amber-50/60 px-4 py-3 space-y-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">Inserir Tags do Template</h4>
+              <p className="text-xs text-gray-600">Cada tag mostra o significado, um exemplo real e o comportamento quando não há valor.</p>
+            </div>
+            <input
+              type="text"
+              value={tokenSearch}
+              onChange={(e) => setTokenSearch(e.target.value)}
+              placeholder="Pesquisar tag..."
+              className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            {Object.entries(groupedTokens).map(([category, definitions]) => (
+              <div key={category} className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{category}</div>
+                <div className="grid gap-2">
+                  {definitions.map((definition) => (
+                    <button
+                      key={definition.token}
+                      type="button"
+                      onClick={() => insertToken(definition.token)}
+                      className="text-left rounded-lg border border-amber-200 bg-white px-3 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-mono text-xs text-indigo-700">{definition.token}</span>
+                        <span className="text-xs font-medium text-gray-900">{definition.label}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-600">{definition.description}</p>
+                      <p className="mt-1 text-xs text-gray-500">Exemplo: {definition.example}</p>
+                      <p className="mt-1 text-xs text-amber-700">Sem valor: {definition.missingBehavior}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {filteredTokens.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-sm text-gray-500">
+                Nenhuma tag encontrada para a pesquisa.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Editor Content */}
       <div className="bg-white rounded-b-lg" style={{ minHeight: height }}>

@@ -28,4 +28,10 @@ public class PaymentDto
     public string? ReceiptIssuedByUserName { get; set; }
     public string? ReceiptPdfPath { get; set; }
     public bool HasReceipt => ReceiptNumber.HasValue && ReceiptYear.HasValue;
+
+    // Quota period fields
+    public string? QuotaPeriodicity { get; set; }
+    public int? QuotaMonthStart { get; set; }
+    public int? QuotaMonthEnd { get; set; }
+    public int? QuotaYear { get; set; }
 }

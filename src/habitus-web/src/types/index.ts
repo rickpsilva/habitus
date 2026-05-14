@@ -463,14 +463,24 @@ export interface PaymentDto {
   receiptIssuedDate?: string;
   receiptIssuedByUserName?: string;
   hasReceipt?: boolean;
+  // Quota period fields
+  quotaPeriodicity?: 'Monthly' | 'Quarterly' | 'Annual';
+  quotaMonthStart?: number;
+  quotaMonthEnd?: number;
+  quotaYear?: number;
 }
 
 export interface CreatePaymentRequest {
-  type: 'MonthlyFee' | 'ExtraordinaryFee' | 'Reservation' | 'Other';
+  type: 'MonthlyFee' | 'Reservation' | 'Other';
   method: 'BankTransfer' | 'MBWay' | 'Card';
   amount: number;
   description: string;
   reservationId?: string;
+  // Quota period fields (only when type == MonthlyFee)
+  quotaPeriodicity?: 'Monthly' | 'Quarterly' | 'Annual';
+  quotaMonthStart?: number;
+  quotaMonthEnd?: number;
+  quotaYear?: number;
 }
 
 export interface ApprovePaymentRequest {
@@ -550,10 +560,18 @@ export interface ReceiptTemplateSettingsDto {
   condominiumId: string;
   companyName?: string;
   address?: string;
+  postalCode?: string;
+  locality?: string;
   taxId?: string;
   email?: string;
   phone?: string;
   template?: string;
+  templateMonthlyFee?: string;
+  templateMonthlyFeeQuarterly?: string;
+  templateMonthlyFeeAnnual?: string;
+  templateExtraordinaryFee?: string;
+  templateReservation?: string;
+  templateOther?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -561,10 +579,18 @@ export interface ReceiptTemplateSettingsDto {
 export interface UpdateReceiptTemplateSettingsRequest {
   companyName?: string;
   address?: string;
+  postalCode?: string;
+  locality?: string;
   taxId?: string;
   email?: string;
   phone?: string;
   template?: string;
+  templateMonthlyFee?: string;
+  templateMonthlyFeeQuarterly?: string;
+  templateMonthlyFeeAnnual?: string;
+  templateExtraordinaryFee?: string;
+  templateReservation?: string;
+  templateOther?: string;
 }
 
 export interface PlatformBillingSettingsDto {

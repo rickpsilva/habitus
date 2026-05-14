@@ -74,7 +74,7 @@ export default function FinancialPage() {
   
   // Cash In - All payments (Admin only)
   const [allPayments, setAllPayments] = useState<PaymentDto[]>([]);
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('Pending');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected' | 'AwaitingReceipt'>('Pending');
   const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -444,7 +444,11 @@ export default function FinancialPage() {
   // Filter and search payments
   const filteredPayments = allPayments.filter(payment => {
     // Status filter
-    if (paymentStatusFilter !== 'All' && payment.status !== paymentStatusFilter) {
+    if (paymentStatusFilter === 'AwaitingReceipt') {
+      if (!(payment.status === 'Approved' && !payment.hasReceipt)) {
+        return false;
+      }
+    } else if (paymentStatusFilter !== 'All' && payment.status !== paymentStatusFilter) {
       return false;
     }
     
@@ -468,6 +472,7 @@ export default function FinancialPage() {
     pending: allPayments.filter(p => p.status === 'Pending').length,
     approved: allPayments.filter(p => p.status === 'Approved').length,
     rejected: allPayments.filter(p => p.status === 'Rejected').length,
+    awaitingReceipt: allPayments.filter(p => p.status === 'Approved' && !p.hasReceipt).length,
   };
 
   const currentCategories = form.type === 'Income' ? incomeCategoryLabels : expenseCategoryLabels;
@@ -1066,6 +1071,9 @@ export default function FinancialPage() {
                 <span className="px-2 py-1 bg-green-50 text-green-700 rounded">
                   Aprovados: {paymentCounts.approved}
                 </span>
+                <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded">
+                  Recibo em falta: {paymentCounts.awaitingReceipt}
+                </span>
                 <span className="px-2 py-1 bg-red-50 text-red-700 rounded">
                   Rejeitados: {paymentCounts.rejected}
                 </span>
@@ -1084,11 +1092,12 @@ export default function FinancialPage() {
               <div className="min-w-[200px]">
                 <select
                   value={paymentStatusFilter}
-                  onChange={(e) => setPaymentStatusFilter(e.target.value as 'All' | 'Pending' | 'Approved' | 'Rejected')}
+                  onChange={(e) => setPaymentStatusFilter(e.target.value as 'All' | 'Pending' | 'Approved' | 'Rejected' | 'AwaitingReceipt')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="Pending">🟡 Pendentes</option>
                   <option value="Approved">🟢 Aprovados</option>
+                  <option value="AwaitingReceipt">🟠 Aguarda emissão de recibo</option>
                   <option value="Rejected">🔴 Rejeitados</option>
                   <option value="All">📋 Todos</option>
                 </select>
@@ -1100,7 +1109,9 @@ export default function FinancialPage() {
               <div className="text-center py-12 text-gray-500">
                 {paymentSearchQuery ? 
                   'Nenhum pagamento encontrado para a pesquisa' : 
-                  `Não há pagamentos ${paymentStatusFilter === 'All' ? '' : paymentStatusFilter.toLowerCase()}`
+                  paymentStatusFilter === 'AwaitingReceipt'
+                    ? 'Não há pagamentos a aguardar emissão de recibo'
+                    : `Não há pagamentos ${paymentStatusFilter === 'All' ? '' : paymentStatusFilter.toLowerCase()}`
                 }
               </div>
             ) : (
@@ -1188,9 +1199,9 @@ export default function FinancialPage() {
                           €{payment.amount.toFixed(2)}
                         </div>
                         <span className="inline-block px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded mt-1">
-                          {payment.type === 'MonthlyFee' ? 'Quota Mensal' :
+                          {payment.type === 'MonthlyFee' ? 'Quotas' :
                            payment.type === 'ExtraordinaryFee' ? 'Quota Extraordinária' :
-                           payment.type === 'Reservation' ? 'Reserva' : 'Outro'}
+                           payment.type === 'Reservation' ? 'Reservas' : 'Outros'}
                         </span>
                       </div>
                     </div>
