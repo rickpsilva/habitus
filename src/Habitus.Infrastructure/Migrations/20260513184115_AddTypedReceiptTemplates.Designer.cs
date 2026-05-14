@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260513184115_AddTypedReceiptTemplates")]
+    partial class AddTypedReceiptTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1048,18 +1051,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("ProofOfPaymentUrl")
                         .HasColumnType("text");
 
-                    b.Property<int?>("QuotaMonthEnd")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("QuotaMonthStart")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("QuotaPeriodicity")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("QuotaYear")
-                        .HasColumnType("integer");
-
                     b.Property<Guid?>("ReceiptIssuedByUserId")
                         .HasColumnType("uuid");
 
@@ -1506,13 +1497,7 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
-                    b.Property<string>("Locality")
-                        .HasColumnType("text");
-
                     b.Property<string>("Phone")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PostalCode")
                         .HasColumnType("text");
 
                     b.Property<string>("TaxId")
@@ -1525,12 +1510,6 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("TemplateMonthlyFee")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TemplateMonthlyFeeAnnual")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TemplateMonthlyFeeQuarterly")
                         .HasColumnType("text");
 
                     b.Property<string>("TemplateOther")

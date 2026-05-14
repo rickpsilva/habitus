@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { marked } from 'marked';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
-import RichTextEditor from '../components/RichTextEditor';
+import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
@@ -20,6 +21,17 @@ import type {
 import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
+
+const isHtmlTemplate = (value: string) => /<\/?[a-zA-Z][^>]*>/.test(value);
+
+const templateToEditorHtml = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return isHtmlTemplate(trimmed) ? trimmed : (marked.parse(trimmed) as string);
+};
 
 type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'system-email';
 
@@ -419,16 +431,158 @@ function UnitsContent() {
 function ReceiptTemplateContent() {
   const { condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const [activeTemplateType, setActiveTemplateType] = useState<'monthlyFee' | 'monthlyFeeQuarterly' | 'monthlyFeeAnnual' | 'reservation' | 'other'>('monthlyFee');
   const [template, setTemplate] = useState({
     companyName: '',
     address: '',
+    postalCode: '',
+    locality: '',
     taxId: '',
     email: '',
     phone: '',
     template: '',
+    templateMonthlyFee: '',
+    templateMonthlyFeeQuarterly: '',
+    templateMonthlyFeeAnnual: '',
+    templateExtraordinaryFee: '',
+    templateReservation: '',
+    templateOther: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const tagDefinitions: RichTextTokenDefinition[] = useMemo(() => [
+    {
+      token: '{resident_name}',
+      label: 'Nome do pagador',
+      description: 'Nome do residente ou admin interno que criou o pagamento.',
+      example: 'Joana Silva',
+      missingBehavior: 'Fica vazio.',
+      category: 'Pagador',
+    },
+    {
+      token: '{unit_number}',
+      label: 'Número da fração',
+      description: 'Número ou identificador principal da fração.',
+      example: 'A-12',
+      missingBehavior: 'Fica vazio.',
+      category: 'Fração',
+    },
+    {
+      token: '{unit_port}',
+      label: 'Piso / porta',
+      description: 'Piso associado à fração.',
+      example: '3',
+      missingBehavior: 'Fica vazio.',
+      category: 'Fração',
+    },
+    {
+      token: '{unit_build}',
+      label: 'Nome do condomínio',
+      description: 'Nome do condomínio associado ao pagamento.',
+      example: 'Condomínio Jardins do Sol',
+      missingBehavior: 'Fica vazio.',
+      category: 'Condomínio',
+    },
+    {
+      token: '{value_amount}',
+      label: 'Valor pago',
+      description: 'Valor monetário do pagamento formatado em euros.',
+      example: '75.00',
+      missingBehavior: 'Fica 0.00 se não existir valor.',
+      category: 'Pagamento',
+    },
+    {
+      token: '{quote_period_month_start}',
+      label: 'Mês inicial do período',
+      description: 'Mês inicial do período da quota.',
+      example: 'janeiro',
+      missingBehavior: 'Fica vazio até existirem campos estruturados de período.',
+      category: 'Quota',
+    },
+    {
+      token: '{quote_period_month_end}',
+      label: 'Mês final do período',
+      description: 'Mês final do período da quota.',
+      example: 'março',
+      missingBehavior: 'Fica vazio até existirem campos estruturados de período.',
+      category: 'Quota',
+    },
+    {
+      token: '{quote_period_month}',
+      label: 'Mês do período mensal',
+      description: 'Mês da quota quando o pagamento é mensal.',
+      example: 'janeiro',
+      missingBehavior: 'Fica vazio quando o pagamento não é mensal.',
+      category: 'Quota',
+    },
+    {
+      token: '{current_day}',
+      label: 'Dia atual',
+      description: 'Dia da emissão do recibo.',
+      example: '13',
+      missingBehavior: 'Usa a data atual.',
+      category: 'Data',
+    },
+    {
+      token: '{current_month}',
+      label: 'Mês atual',
+      description: 'Mês por extenso da emissão do recibo.',
+      example: 'maio',
+      missingBehavior: 'Usa a data atual.',
+      category: 'Data',
+    },
+    {
+      token: '{current_year}',
+      label: 'Ano atual',
+      description: 'Ano da emissão do recibo.',
+      example: '2026',
+      missingBehavior: 'Usa a data atual.',
+      category: 'Data',
+    },
+  ], []);
+
+  const templateTypeOptions = [
+    { key: 'monthlyFee', label: 'Quotas - Mensal' },
+    { key: 'monthlyFeeQuarterly', label: 'Quotas - Trimestral' },
+    { key: 'monthlyFeeAnnual', label: 'Quotas - Anual' },
+    { key: 'reservation', label: 'Reservas' },
+    { key: 'other', label: 'Outros' },
+  ] as const;
+
+  const templateFieldByType = {
+    monthlyFee: 'templateMonthlyFee',
+    monthlyFeeQuarterly: 'templateMonthlyFeeQuarterly',
+    monthlyFeeAnnual: 'templateMonthlyFeeAnnual',
+    reservation: 'templateReservation',
+    other: 'templateOther',
+  } as const;
+
+  const activeTemplateField = templateFieldByType[activeTemplateType];
+  const knownTagTokens = new Set(tagDefinitions.map((definition) => definition.token.toLowerCase()));
+  const unknownTags = useMemo(() => {
+    const values = [
+      template.templateMonthlyFee,
+      template.templateMonthlyFeeQuarterly,
+      template.templateMonthlyFeeAnnual,
+      template.templateReservation,
+      template.templateOther,
+      template.templateExtraordinaryFee,
+    ];
+
+    return Array.from(new Set(values.flatMap((value) => {
+      const matches = value.match(/\{[^}]+\}/g) || [];
+      return matches.filter((token) => !knownTagTokens.has(token.toLowerCase()));
+    })));
+  }, [
+    knownTagTokens,
+    template.templateExtraordinaryFee,
+    template.templateMonthlyFee,
+    template.templateMonthlyFeeAnnual,
+    template.templateMonthlyFeeQuarterly,
+    template.templateOther,
+    template.templateReservation,
+  ]);
 
   useEffect(() => {
     const loadTemplate = async () => {
@@ -439,10 +593,18 @@ function ReceiptTemplateContent() {
         setTemplate({
           companyName: response.data.companyName || '',
           address: response.data.address || '',
+          postalCode: response.data.postalCode || '',
+          locality: response.data.locality || '',
           taxId: response.data.taxId || '',
           email: response.data.email || '',
           phone: response.data.phone || '',
           template: response.data.template || '',
+          templateMonthlyFee: templateToEditorHtml(response.data.templateMonthlyFee || response.data.template || ''),
+          templateMonthlyFeeQuarterly: templateToEditorHtml(response.data.templateMonthlyFeeQuarterly || response.data.templateMonthlyFee || response.data.template || ''),
+          templateMonthlyFeeAnnual: templateToEditorHtml(response.data.templateMonthlyFeeAnnual || response.data.templateMonthlyFeeQuarterly || response.data.templateMonthlyFee || response.data.template || ''),
+          templateExtraordinaryFee: templateToEditorHtml(response.data.templateExtraordinaryFee || response.data.template || ''),
+          templateReservation: templateToEditorHtml(response.data.templateReservation || response.data.template || ''),
+          templateOther: templateToEditorHtml(response.data.templateOther || response.data.template || ''),
         });
       } catch (error) {
         console.error('Error loading receipt template settings:', error);
@@ -483,10 +645,18 @@ function ReceiptTemplateContent() {
       await receiptTemplateSettingsApi.update(condominiumId, {
         companyName: template.companyName || undefined,
         address: template.address || undefined,
+        postalCode: template.postalCode || undefined,
+        locality: template.locality || undefined,
         taxId: template.taxId || undefined,
         email: template.email || undefined,
         phone: template.phone || undefined,
-        template: template.template || undefined,
+        template: template.templateMonthlyFee || template.template || undefined,
+        templateMonthlyFee: template.templateMonthlyFee || undefined,
+        templateMonthlyFeeQuarterly: template.templateMonthlyFeeQuarterly || undefined,
+        templateMonthlyFeeAnnual: template.templateMonthlyFeeAnnual || undefined,
+        templateExtraordinaryFee: template.templateExtraordinaryFee || undefined,
+        templateReservation: template.templateReservation || undefined,
+        templateOther: template.templateOther || undefined,
       });
       toastSuccess('Template de recibos guardado com sucesso!');
     } catch (error) {
@@ -534,7 +704,7 @@ function ReceiptTemplateContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">NIF</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">NIPC</label>
             <input
               type="text"
               value={template.taxId}
@@ -554,6 +724,29 @@ function ReceiptTemplateContent() {
             placeholder="Rua das Flores, 120, 4000-123 Porto"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+            <input
+              type="text"
+              value={template.postalCode}
+              onChange={(e) => setTemplate({ ...template, postalCode: e.target.value })}
+              placeholder="4000-123"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+            <input
+              type="text"
+              value={template.locality}
+              onChange={(e) => setTemplate({ ...template, locality: e.target.value })}
+              placeholder="Porto"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -580,13 +773,32 @@ function ReceiptTemplateContent() {
         </div>
 
         <div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {templateTypeOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setActiveTemplateType(option.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTemplateType === option.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
           <RichTextEditor 
-            value={template.template}
-            onChange={(v) => setTemplate({ ...template, template: v })}
-            placeholder="Escreve o conteúdo que aparecerá nos recibo."
+            value={template[activeTemplateField]}
+            onChange={(v) => setTemplate({ ...template, [activeTemplateField]: v })}
+            placeholder="Escreva o conteúdo do recibo e use as tags disponíveis para preencher os dados automaticamente."
             height="240px"
+            tokenDefinitions={tagDefinitions}
           />
+          {unknownTags.length > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+              <p className="font-medium">Existem tags desconhecidas no template.</p>
+              <p className="mt-1 text-xs">Pode guardar na mesma, mas estas tags não serão preenchidas automaticamente: {unknownTags.join(', ')}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 pt-4">

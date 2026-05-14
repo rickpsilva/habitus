@@ -3,9 +3,16 @@ namespace Habitus.Domain.Entities;
 public enum PaymentType
 {
     MonthlyFee,        // Quota mensal
-    ExtraordinaryFee,  // Quota extraordinária
+    ExtraordinaryFee,  // Quota extraordinária (legacy – kept for backward compat)
     Reservation,       // Pagamento de reserva
     Other              // Outro tipo de pagamento
+}
+
+public enum QuotaPeriodicity
+{
+    Monthly,    // Mensal
+    Quarterly,  // Trimestral
+    Annual      // Anual
 }
 
 public enum PaymentStatus
@@ -41,7 +48,13 @@ public class Payment
     public Guid? ProcessedByUserId { get; set; }
     public Guid? FinancialRecordId { get; set; }
     public Guid? ReservationId { get; set; }
-    
+
+    // Quota period fields (only for MonthlyFee type)
+    public QuotaPeriodicity? QuotaPeriodicity { get; set; }
+    public int? QuotaMonthStart { get; set; }  // 1–12
+    public int? QuotaMonthEnd { get; set; }    // 1–12
+    public int? QuotaYear { get; set; }
+
     // Receipt information
     public int? ReceiptNumber { get; set; }
     public int? ReceiptYear { get; set; }

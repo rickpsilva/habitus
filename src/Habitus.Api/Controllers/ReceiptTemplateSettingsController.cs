@@ -38,10 +38,18 @@ public class ReceiptTemplateSettingsController : ControllerBase
                     CondominiumId = condominiumId,
                     CompanyName = null,
                     Address = null,
+                    PostalCode = null,
+                    Locality = null,
                     TaxId = null,
                     Email = null,
                     Phone = null,
                     Template = null,
+                    TemplateMonthlyFee = null,
+                    TemplateMonthlyFeeQuarterly = null,
+                    TemplateMonthlyFeeAnnual = null,
+                    TemplateExtraordinaryFee = null,
+                    TemplateReservation = null,
+                    TemplateOther = null,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 });
@@ -53,10 +61,18 @@ public class ReceiptTemplateSettingsController : ControllerBase
                 CondominiumId = receiptTemplateSettings.CondominiumId,
                 CompanyName = receiptTemplateSettings.CompanyName,
                 Address = receiptTemplateSettings.Address,
+                PostalCode = receiptTemplateSettings.PostalCode,
+                Locality = receiptTemplateSettings.Locality,
                 TaxId = receiptTemplateSettings.TaxId,
                 Email = receiptTemplateSettings.Email,
                 Phone = receiptTemplateSettings.Phone,
                 Template = receiptTemplateSettings.Template,
+                TemplateMonthlyFee = receiptTemplateSettings.TemplateMonthlyFee,
+                TemplateMonthlyFeeQuarterly = receiptTemplateSettings.TemplateMonthlyFeeQuarterly,
+                TemplateMonthlyFeeAnnual = receiptTemplateSettings.TemplateMonthlyFeeAnnual,
+                TemplateExtraordinaryFee = receiptTemplateSettings.TemplateExtraordinaryFee,
+                TemplateReservation = receiptTemplateSettings.TemplateReservation,
+                TemplateOther = receiptTemplateSettings.TemplateOther,
                 CreatedAt = receiptTemplateSettings.CreatedAt,
                 UpdatedAt = receiptTemplateSettings.UpdatedAt
             };
@@ -99,10 +115,18 @@ public class ReceiptTemplateSettingsController : ControllerBase
             // Update fields
             receiptTemplateSettings.CompanyName = request.CompanyName;
             receiptTemplateSettings.Address = request.Address;
+            receiptTemplateSettings.PostalCode = request.PostalCode;
+            receiptTemplateSettings.Locality = request.Locality;
             receiptTemplateSettings.TaxId = request.TaxId;
             receiptTemplateSettings.Email = request.Email;
             receiptTemplateSettings.Phone = request.Phone;
             receiptTemplateSettings.Template = request.Template;
+            receiptTemplateSettings.TemplateMonthlyFee = request.TemplateMonthlyFee;
+            receiptTemplateSettings.TemplateMonthlyFeeQuarterly = request.TemplateMonthlyFeeQuarterly;
+            receiptTemplateSettings.TemplateMonthlyFeeAnnual = request.TemplateMonthlyFeeAnnual;
+            receiptTemplateSettings.TemplateExtraordinaryFee = request.TemplateExtraordinaryFee;
+            receiptTemplateSettings.TemplateReservation = request.TemplateReservation;
+            receiptTemplateSettings.TemplateOther = request.TemplateOther;
             receiptTemplateSettings.UpdatedAt = DateTime.UtcNow;
 
             if (isNew)
@@ -122,10 +146,18 @@ public class ReceiptTemplateSettingsController : ControllerBase
                 CondominiumId = receiptTemplateSettings.CondominiumId,
                 CompanyName = receiptTemplateSettings.CompanyName,
                 Address = receiptTemplateSettings.Address,
+                PostalCode = receiptTemplateSettings.PostalCode,
+                Locality = receiptTemplateSettings.Locality,
                 TaxId = receiptTemplateSettings.TaxId,
                 Email = receiptTemplateSettings.Email,
                 Phone = receiptTemplateSettings.Phone,
                 Template = receiptTemplateSettings.Template,
+                TemplateMonthlyFee = receiptTemplateSettings.TemplateMonthlyFee,
+                TemplateMonthlyFeeQuarterly = receiptTemplateSettings.TemplateMonthlyFeeQuarterly,
+                TemplateMonthlyFeeAnnual = receiptTemplateSettings.TemplateMonthlyFeeAnnual,
+                TemplateExtraordinaryFee = receiptTemplateSettings.TemplateExtraordinaryFee,
+                TemplateReservation = receiptTemplateSettings.TemplateReservation,
+                TemplateOther = receiptTemplateSettings.TemplateOther,
                 CreatedAt = receiptTemplateSettings.CreatedAt,
                 UpdatedAt = receiptTemplateSettings.UpdatedAt
             };

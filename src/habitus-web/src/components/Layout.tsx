@@ -60,6 +60,7 @@ const adminMenuOrder = [
   '/maintenance',
   '/financial',
   '/reservations',
+  '/payments',
   '/documents',
   '/assemblies',
   '/users',

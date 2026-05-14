@@ -46,6 +46,12 @@ export default function PaymentsPage() {
     amount: 0,
     description: '',
   });
+  const [quotaPeriodicity, setQuotaPeriodicity] = useState<'Monthly' | 'Quarterly' | 'Annual'>('Monthly');
+  const [trimestralStart, setTrimestralStart] = useState<number>(1);
+
+  const PT_MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const currentMonth = new Date().getMonth(); // 0-indexed
+  const currentYear = new Date().getFullYear();
 
   const loadPayments = async () => {
     try {
@@ -113,7 +119,18 @@ export default function PaymentsPage() {
       console.log('Creating payment with data:', form);
       
       // 1. Create the payment first
-      const paymentResponse = await paymentsApi.create(form);
+      // Build quota period payload when type is MonthlyFee
+      let periodPayload: Partial<CreatePaymentRequest> = {};
+      if (form.type === 'MonthlyFee') {
+        if (quotaPeriodicity === 'Monthly') {
+          periodPayload = { quotaPeriodicity: 'Monthly', quotaMonthStart: currentMonth + 1, quotaMonthEnd: currentMonth + 1, quotaYear: currentYear };
+        } else if (quotaPeriodicity === 'Quarterly') {
+          periodPayload = { quotaPeriodicity: 'Quarterly', quotaMonthStart: trimestralStart, quotaMonthEnd: trimestralStart + 3, quotaYear: currentYear };
+        } else {
+          periodPayload = { quotaPeriodicity: 'Annual', quotaMonthStart: 1, quotaMonthEnd: 12, quotaYear: currentYear };
+        }
+      }
+      const paymentResponse = await paymentsApi.create({ ...form, ...periodPayload });
       const paymentId = paymentResponse.data.id;
 
       // 2. Upload proof if provided (required for BankTransfer)
@@ -148,6 +165,8 @@ export default function PaymentsPage() {
       // Reset form and close modal
       setShowCreateModal(false);
       setForm({ type: 'MonthlyFee', method: 'BankTransfer', amount: 0, description: '' });
+      setQuotaPeriodicity('Monthly');
+      setTrimestralStart(1);
       setProofFile(null);
       
       // Reload payments after a short delay to ensure backend has processed
@@ -226,10 +245,10 @@ export default function PaymentsPage() {
 
   const getTypeName = (type: string) => {
     const types: Record<string, string> = {
-      MonthlyFee: 'Quota Mensal',
+      MonthlyFee: 'Quotas',
       ExtraordinaryFee: 'Quota Extraordinária',
-      Reservation: 'Reserva',
-      Other: 'Outro',
+      Reservation: 'Reservas',
+      Other: 'Outros',
     };
     return types[type] || type;
   };
@@ -365,12 +384,59 @@ export default function PaymentsPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   required
                 >
-                  <option value="MonthlyFee">Quota Mensal</option>
-                  <option value="ExtraordinaryFee">Quota Extraordinária</option>
-                  <option value="Reservation">Reserva</option>
-                  <option value="Other">Outro</option>
+                  <option value="MonthlyFee">Quotas</option>
+                  <option value="Reservation">Reservas</option>
+                  <option value="Other">Outros</option>
                 </select>
               </div>
+
+              {/* Quota Periodicity Selector */}
+              {form.type === 'MonthlyFee' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Periodicidade
+                  </label>
+                  <div className="flex gap-2">
+                    {(['Monthly', 'Quarterly', 'Annual'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setQuotaPeriodicity(p)}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                          quotaPeriodicity === p
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
+                        }`}
+                      >
+                        {p === 'Monthly' ? 'Mensal' : p === 'Quarterly' ? 'Trimestral' : 'Anual'}
+                      </button>
+                    ))}
+                  </div>
+                  {quotaPeriodicity === 'Monthly' && (
+                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                      Período: <strong>{PT_MONTHS[currentMonth]}</strong> {currentYear}
+                    </p>
+                  )}
+                  {quotaPeriodicity === 'Quarterly' && (
+                    <div className="mt-2">
+                      <select
+                        value={trimestralStart}
+                        onChange={(e) => setTrimestralStart(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <option value={1}>Janeiro – Abril</option>
+                        <option value={5}>Maio – Agosto</option>
+                        <option value={9}>Setembro – Dezembro</option>
+                      </select>
+                    </div>
+                  )}
+                  {quotaPeriodicity === 'Annual' && (
+                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                      Período: <strong>Janeiro a Dezembro</strong> {currentYear}
+                    </p>
+                  )}
+                </div>
+              )}
               
               {/* Payment Method Selection */}
               <div>

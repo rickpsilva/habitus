@@ -19,4 +19,10 @@ public class CreatePaymentRequest
     public string Description { get; set; } = string.Empty;
     
     public Guid? ReservationId { get; set; } // Optional: link to a reservation if payment type is Reservation
+
+    // Quota period fields (only applicable when Type == MonthlyFee)
+    public string? QuotaPeriodicity { get; set; } // Monthly | Quarterly | Annual
+    public int? QuotaMonthStart { get; set; }
+    public int? QuotaMonthEnd { get; set; }
+    public int? QuotaYear { get; set; }
 }

@@ -48,6 +48,15 @@ public class PaymentService
             ReservationId = request.ReservationId
         };
 
+        // Populate quota period fields when type is MonthlyFee (Quotas)
+        if (payment.Type == PaymentType.MonthlyFee && !string.IsNullOrWhiteSpace(request.QuotaPeriodicity))
+        {
+            payment.QuotaPeriodicity = Enum.Parse<QuotaPeriodicity>(request.QuotaPeriodicity, ignoreCase: true);
+            payment.QuotaMonthStart = request.QuotaMonthStart;
+            payment.QuotaMonthEnd = request.QuotaMonthEnd;
+            payment.QuotaYear = request.QuotaYear ?? DateTime.UtcNow.Year;
+        }
+
         await _paymentRepository.AddAsync(payment);
         await _paymentRepository.SaveChangesAsync();
 
@@ -317,7 +326,11 @@ public class PaymentService
             ReceiptYear = payment.ReceiptYear,
             ReceiptIssuedDate = payment.ReceiptIssuedDate,
             ReceiptIssuedByUserName = receiptIssuedBy?.Name,
-            ReceiptPdfPath = payment.ReceiptPdfPath
+            ReceiptPdfPath = payment.ReceiptPdfPath,
+            QuotaPeriodicity = payment.QuotaPeriodicity?.ToString(),
+            QuotaMonthStart = payment.QuotaMonthStart,
+            QuotaMonthEnd = payment.QuotaMonthEnd,
+            QuotaYear = payment.QuotaYear
         };
     }
 }
