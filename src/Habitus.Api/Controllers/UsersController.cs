@@ -4,6 +4,8 @@ using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 
 namespace Habitus.Api.Controllers;
 
@@ -12,6 +14,54 @@ namespace Habitus.Api.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
+
+
+    /// <summary>
+    /// Request GDPR erasure (any authenticated user)
+    /// </summary>
+    [HttpPost("me/gdpr-erasure")]
+    public async Task<IActionResult> RequestGdprErasure()
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var userId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        try
+        {
+            await _userService.RequestGdprErasureAsync(userId, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "");
+            return Ok(new { message = "Pedido de eliminação dos dados enviado." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Approve GDPR erasure (Admin only)
+    /// </summary>
+    [HttpPost("{id}/gdpr-erasure/approve")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ApproveGdprErasure(Guid id)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var adminId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        try
+        {
+            await _userService.ApproveGdprErasureAsync(id, adminId);
+            return Ok(new { message = "Eliminação/anomização dos dados concluída." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
     private readonly UserService _userService;
 
     public UsersController(UserService userService) => _userService = userService;
@@ -38,22 +88,16 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get users by condominium (Manager and Admin)
+    /// Get users by condominium (Admin only)
     /// </summary>
     [HttpGet("condominium/{condominiumId}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetUsersByCondominium(Guid condominiumId)
     {
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        
-        // If Admin, verify they belong to this condominium
-        if (userRole == "Admin")
+        var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+        if (userCondominiumId != condominiumId.ToString())
         {
-            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
-            if (userCondominiumId != condominiumId.ToString())
-            {
-                return Forbid("You can only view users from your own condominium.");
-            }
+            return Forbid("You can only view users from your own condominium.");
         }
 
         var users = await _userService.GetUsersByCondominiumAsync(condominiumId);
@@ -61,22 +105,16 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get users by condominium with pagination (Manager and Admin)
+    /// Get users by condominium with pagination (Admin only)
     /// </summary>
     [HttpGet("condominium/{condominiumId}/paged")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetUsersByCondominiumPaged(Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-        
-        // If Admin, verify they belong to this condominium
-        if (userRole == "Admin")
+        var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+        if (userCondominiumId != condominiumId.ToString())
         {
-            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
-            if (userCondominiumId != condominiumId.ToString())
-            {
-                return Forbid("You can only view users from your own condominium.");
-            }
+            return Forbid("You can only view users from your own condominium.");
         }
 
         if (page < 1) page = 1;
@@ -102,6 +140,73 @@ public class UsersController : ControllerBase
         if (user == null) return NotFound("User not found");
 
         return Ok(user);
+    }
+
+    /// <summary>
+    /// Get current GDPR consent status for authenticated user.
+    /// </summary>
+    [HttpGet("me/gdpr-consent/status")]
+    public async Task<IActionResult> GetMyGdprConsentStatus()
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var userId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        var status = await _userService.GetGdprConsentStatusAsync(userId);
+        return Ok(status);
+    }
+
+    /// <summary>
+    /// Save GDPR consent for authenticated user.
+    /// </summary>
+    [HttpPost("me/gdpr-consent")]
+    public async Task<IActionResult> SaveMyGdprConsent([FromBody] SaveGdprConsentRequest request)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var userId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        try
+        {
+            var status = await _userService.SaveGdprConsentAsync(
+                userId,
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+                request);
+            return Ok(status);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Download authenticated user data export in JSON format.
+    /// </summary>
+    [HttpGet("me/data-export")]
+    public async Task<IActionResult> DownloadMyDataExport()
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var userId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        try
+        {
+            var export = await _userService.GetMyDataExportAsync(userId);
+            var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true });
+            var fileName = $"habitus-user-data-{userId}.json";
+            return File(Encoding.UTF8.GetBytes(json), "application/json", fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -174,37 +279,58 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Update user (Manager can update any, Admin can update users in their condominium)
     /// </summary>
+    /// <summary>
+    /// Update own profile (any authenticated user)
+    /// </summary>
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileRequest request)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var userId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        try
+        {
+            var user = await _userService.UpdateMyProfileAsync(userId, request);
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPut("{id}")]
     [Authorize(Roles = "Manager,Admin")]
     public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
     {
-        try
+        if (request.Id != id)
         {
-            if (id != request.Id) return BadRequest("ID mismatch.");
+            return BadRequest(new { error = "ID do utilizador inválido." });
+        }
 
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
 
-            var existingUser = await _userService.GetUserByIdAsync(id);
-            if (existingUser == null) return NotFound();
-
-            // If Admin, they can only update users from their condominium
-            if (userRole == "Admin")
+        if (userRole == "Admin")
+        {
+            if (!request.CondominiumId.HasValue || request.CondominiumId.ToString() != userCondominiumId)
             {
-                if (existingUser.CondominiumId?.ToString() != userCondominiumId)
-                {
-                    return Forbid("Admins can only update users from their own condominium.");
-                }
-
-                // Admins cannot promote users to Manager
-                if (request.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase))
-                {
-                    return Forbid("Admins cannot create or promote users to Manager role.");
-                }
+                return Forbid("Admins can only update users from their own condominium.");
             }
 
-            var user = await _userService.UpdateUserAsync(request);
-            return Ok(user);
+            if (request.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid("Admins cannot promote users to Manager.");
+            }
+        }
+
+        try
+        {
+            var updated = await _userService.UpdateUserAsync(request);
+            return Ok(updated);
         }
         catch (Exception ex)
         {

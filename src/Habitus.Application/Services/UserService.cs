@@ -6,29 +6,38 @@ using Habitus.Domain.Entities;
 
 namespace Habitus.Application.Services;
 
-public class UserService
+public class UserService : IUserService
 {
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<UserCondominium> _userCondominiumRepository;
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<Unit> _unitRepository;
+    private readonly IRepository<UserGdprConsent> _userGdprConsentRepository;
+    private readonly IRepository<Notification> _notificationRepository;
+    private readonly INotificationDispatchService _notificationDispatchService;
 
     public UserService(
         IRepository<User> userRepository,
         IRepository<UserCondominium> userCondominiumRepository,
         IRepository<Condominium> condominiumRepository,
-        IRepository<Unit> unitRepository)
+        IRepository<Unit> unitRepository,
+        IRepository<UserGdprConsent> userGdprConsentRepository,
+        IRepository<Notification> notificationRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _userRepository = userRepository;
         _userCondominiumRepository = userCondominiumRepository;
         _condominiumRepository = condominiumRepository;
         _unitRepository = unitRepository;
+        _userGdprConsentRepository = userGdprConsentRepository;
+        _notificationRepository = notificationRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
     {
         var users = await _userRepository.FindWithIncludesAsync(
-            u => true,
+            u => u.Role == UserRole.Manager,
             "Condominium", "Unit");
 
         return users.Select(MapToResponse);
@@ -37,7 +46,7 @@ public class UserService
     public async Task<PaginatedResponse<UserResponse>> GetPagedUsersAsync(int page, int pageSize, string? search = null)
     {
         var users = await _userRepository.FindWithIncludesAsync(
-            u => true,
+            u => u.Role == UserRole.Manager,
             "Condominium", "Unit");
         
         var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
@@ -57,8 +66,8 @@ public class UserService
     public async Task<IEnumerable<UserResponse>> GetUsersByCondominiumAsync(Guid condominiumId)
     {
         var users = await _userRepository.FindWithIncludesAsync(
-            u => u.CondominiumId == condominiumId,
-            "Condominium", "Unit");
+            u => u.CondominiumId == condominiumId || u.UserCondominiums.Any(uc => uc.CondominiumId == condominiumId),
+            "Condominium", "Unit", "UserCondominiums");
 
         return users.Select(MapToResponse);
     }
@@ -66,8 +75,8 @@ public class UserService
     public async Task<PaginatedResponse<UserResponse>> GetUsersByCondominiumPagedAsync(Guid condominiumId, int page = 1, int pageSize = 10, string? search = null)
     {
         var users = await _userRepository.FindWithIncludesAsync(
-            u => u.CondominiumId == condominiumId,
-            "Condominium", "Unit");
+            u => u.CondominiumId == condominiumId || u.UserCondominiums.Any(uc => uc.CondominiumId == condominiumId),
+            "Condominium", "Unit", "UserCondominiums");
         
         var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
         
@@ -403,5 +412,178 @@ public class UserService
             return pendingUser.UnitId == approverUnitId;
 
         return false;
+    }
+
+    public async Task<bool> HasGdprConsentAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var guid))
+            return false;
+
+        var consents = await _userGdprConsentRepository.FindAsync(c =>
+            c.UserId == guid && c.AcceptedTerms && c.AcceptedPrivacyPolicy);
+        return consents.Any();
+    }
+
+    public async Task<GdprConsentStatusResponse> SaveGdprConsentAsync(Guid userId, string ipAddress, SaveGdprConsentRequest request)
+    {
+        if (!request.AcceptedTerms || !request.AcceptedPrivacyPolicy)
+        {
+            throw new InvalidOperationException("É necessário aceitar termos e política de privacidade.");
+        }
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("Utilizador não encontrado.");
+        }
+
+        var consent = new UserGdprConsent
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            ConsentedAt = DateTime.UtcNow,
+            IpAddress = ipAddress,
+            AcceptedTerms = request.AcceptedTerms,
+            AcceptedPrivacyPolicy = request.AcceptedPrivacyPolicy,
+        };
+
+        await _userGdprConsentRepository.AddAsync(consent);
+        await _userGdprConsentRepository.SaveChangesAsync();
+
+        return new GdprConsentStatusResponse
+        {
+            HasConsent = true,
+            LastConsentedAt = consent.ConsentedAt,
+        };
+    }
+
+    public async Task<GdprConsentStatusResponse> GetGdprConsentStatusAsync(Guid userId)
+    {
+        var consents = await _userGdprConsentRepository.FindAsync(c =>
+            c.UserId == userId && c.AcceptedTerms && c.AcceptedPrivacyPolicy);
+
+        var latest = consents.OrderByDescending(c => c.ConsentedAt).FirstOrDefault();
+        return new GdprConsentStatusResponse
+        {
+            HasConsent = latest != null,
+            LastConsentedAt = latest?.ConsentedAt,
+        };
+    }
+
+    public async Task<UserDataExportResponse> GetMyDataExportAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("Utilizador não encontrado.");
+        }
+
+        var consentStatus = await GetGdprConsentStatusAsync(userId);
+
+        return new UserDataExportResponse
+        {
+            UserId = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            Role = (int)user.Role,
+            CondominiumId = user.CondominiumId,
+            UnitId = user.UnitId,
+            CreatedAt = user.CreatedAt,
+            LastLoginAt = user.LastLoginAt,
+            GdprErasureRequestedAt = user.GdprErasureRequestedAt,
+            HasGdprConsent = consentStatus.HasConsent,
+            LastConsentedAt = consentStatus.LastConsentedAt,
+        };
+    }
+
+    public async Task RequestGdprErasureAsync(Guid userId, string ipAddress)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+
+        if (user.GdprErasureRequestedAt != null)
+            throw new InvalidOperationException("Pedido de eliminação já foi efetuado.");
+
+        user.GdprErasureRequestedAt = DateTime.UtcNow;
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        var createdNotifications = new List<Notification>();
+
+        if (user.CondominiumId.HasValue)
+        {
+            var adminNotification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Title = "Pedido RGPD de eliminação de dados",
+                Message = $"O utilizador {user.Name} ({user.Email}) solicitou eliminação/anonymização dos dados pessoais.",
+                Type = NotificationType.Alert,
+                TargetRole = "Admin",
+                CondominiumId = user.CondominiumId.Value,
+                SentAt = DateTime.UtcNow,
+                IsRead = false,
+            };
+
+            await _notificationRepository.AddAsync(adminNotification);
+            createdNotifications.Add(adminNotification);
+        }
+
+        if (createdNotifications.Count > 0)
+        {
+            await _notificationRepository.SaveChangesAsync();
+
+            var dispatchable = createdNotifications
+                .Where(n => n.CondominiumId != Guid.Empty)
+                .ToList();
+
+            if (dispatchable.Count > 0)
+            {
+                await _notificationDispatchService.DispatchAsync(dispatchable, sendExternalChannels: true);
+            }
+        }
+    }
+
+    public async Task ApproveGdprErasureAsync(Guid userId, Guid managerId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+
+        if (user.GdprErasureRequestedAt == null)
+            throw new InvalidOperationException("Nenhum pedido de eliminação pendente.");
+
+        // Anonymize user data (soft delete + anonymization)
+        user.Name = "DELETED USER";
+        user.Email = $"deleted_{Guid.NewGuid()}@deleted.local";
+        user.Phone = null;
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
+        user.DeletionReason = "GDPR_ERASURE";
+
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        // TODO: Audit log, notification, and further cleanup if needed
+    }
+
+    public async Task<UserResponse> UpdateMyProfileAsync(Guid userId, UpdateMyProfileRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with ID {userId} not found.");
+        }
+
+        // Only allow updating Name, Email, Phone
+        user.Name = request.Name;
+        user.Email = request.Email;
+        user.Phone = request.Phone;
+
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        return MapToResponse(user);
     }
 }

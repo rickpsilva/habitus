@@ -9,7 +9,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
+import type { UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
 
 const roleLabels: Record<number, string> = {
   0: 'Gestor',
@@ -33,7 +33,12 @@ export default function ProfilePage() {
   const { user, isManager } = useAuth();
   const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents' | 'rgpd'>('profile');
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(false);
+  const [erasureLoading, setErasureLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -149,6 +154,15 @@ export default function ProfilePage() {
           } catch (err) {
             console.error('Failed to load unit:', err);
           }
+        }
+
+        try {
+          const consentResponse = await usersApi.getGdprConsentStatus();
+          const alreadyConsented = consentResponse.data?.hasConsent === true;
+          setHasConsent(alreadyConsented);
+          setConsentGiven(alreadyConsented);
+        } catch (err) {
+          console.error('Failed to load GDPR consent status:', err);
         }
       } catch (error) {
         console.error('Failed to load user data:', error);
@@ -352,18 +366,13 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      const updateData: UpdateUserRequest = {
-        id: userData.id,
+      const updateData = {
         name: profileData.name,
         email: profileData.email,
         phone: profileData.phone,
-        role: userData.role,
-        condominiumId: userData.condominiumId,
-        unitId: userData.unitId,
-        isActive: userData.isActive,
       };
 
-      await usersApi.update(userData.id, updateData);
+      await usersApi.updateMe(updateData);
       setSuccess('Perfil atualizado com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -474,8 +483,128 @@ export default function ProfilePage() {
               Documentos
             </button>
           )}
+          <button
+            onClick={() => setActiveTab('rgpd')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'rgpd'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            RGPD
+          </button>
         </div>
       </div>
+
+      {/* RGPD Tab */}
+      {activeTab === 'rgpd' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-indigo-600" />
+              Consentimento RGPD
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Para utilizar o portal, é obrigatório aceitar os termos e a política de privacidade.</p>
+            <label className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                checked={consentGiven}
+                onChange={e => setConsentGiven(e.target.checked)}
+                disabled={consentLoading || hasConsent}
+              />
+              Aceito os <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline text-indigo-600">termos e condições</a> e a <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline text-indigo-600">política de privacidade</a>.
+            </label>
+            <button
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              disabled={!consentGiven || consentLoading || hasConsent}
+              onClick={async () => {
+                setConsentLoading(true);
+                setError('');
+                setSuccess('');
+                try {
+                  await usersApi.saveGdprConsent({ acceptedTerms: true, acceptedPrivacyPolicy: true });
+                  setHasConsent(true);
+                  setConsentGiven(true);
+                  setSuccess('Consentimento RGPD registado com sucesso!');
+                } catch (err) {
+                  setError('Erro ao guardar consentimento RGPD.');
+                } finally {
+                  setConsentLoading(false);
+                }
+              }}
+            >
+              {consentLoading ? 'A guardar...' : hasConsent ? 'Consentimento já registado' : 'Guardar Consentimento'}
+            </button>
+            <p className="text-xs text-gray-500 mt-2">Se não aceitar os termos, não poderá usar o portal.</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Download className="w-5 h-5 text-indigo-600" />
+              Os Meus Dados
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Pode descarregar todos os seus dados pessoais em formato JSON.</p>
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              disabled={exportLoading}
+              onClick={async () => {
+                setExportLoading(true);
+                setError('');
+                setSuccess('');
+                try {
+                  const response = await usersApi.downloadMyDataExport();
+                  const blob = new Blob([response.data], { type: 'application/json' });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  const fallbackName = `habitus-user-data-${userData?.id ?? 'me'}.json`;
+                  const contentDisposition = response.headers?.['content-disposition'] as string | undefined;
+                  const match = contentDisposition?.match(/filename="?([^\"]+)"?/);
+                  link.href = url;
+                  link.setAttribute('download', match?.[1] ?? fallbackName);
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  window.URL.revokeObjectURL(url);
+                  setSuccess('Exportação concluída com sucesso.');
+                } catch (err) {
+                  setError('Erro ao exportar os seus dados.');
+                } finally {
+                  setExportLoading(false);
+                }
+              }}
+            >
+              {exportLoading ? 'A exportar...' : 'Descarregar os meus dados'}
+            </button>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              Eliminação dos meus dados
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">Pode solicitar a eliminação/anomização dos seus dados pessoais. Esta ação é irreversível e será aprovada por um gestor/administrador.</p>
+            <button
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              disabled={erasureLoading}
+              onClick={async () => {
+                setErasureLoading(true);
+                setError('');
+                setSuccess('');
+                try {
+                  await usersApi.requestGdprErasure();
+                  setSuccess('Pedido de eliminação enviado com sucesso!');
+                } catch (err) {
+                  setError('Erro ao solicitar eliminação.');
+                } finally {
+                  setErasureLoading(false);
+                }
+              }}
+            >
+              {erasureLoading ? 'A enviar...' : 'Solicitar eliminação dos meus dados'}
+            </button>
+            <p className="text-xs text-gray-500 mt-2">Após aprovação, os seus dados serão anonimizados de acordo com o RGPD.</p>
+          </div>
+        </div>
+      )}
 
       {/* Success/Error Messages */}
       {success && (

@@ -107,6 +107,7 @@ public static class DependencyInjection
         
         // New multi-condominium services
         services.AddScoped<UserService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<CondominiumService>();
         services.AddScoped<SubscriptionService>();
         services.AddScoped<InvoiceService>();

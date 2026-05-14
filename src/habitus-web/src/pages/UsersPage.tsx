@@ -80,7 +80,7 @@ export default function UsersPage() {
 
       let usersData = usersResponse.data.items;
       if (isManager) {
-        // Manager only sees other platform Managers
+        // Manager only sees platform Managers
         usersData = usersData.filter(u => u.role === UserRole.Manager);
       } else if (isAdmin) {
         // Admin never sees platform Managers

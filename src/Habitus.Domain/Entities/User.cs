@@ -43,4 +43,10 @@ public class User
     public ICollection<UserAuthProvider> AuthProviders { get; set; } = new List<UserAuthProvider>();
     public ICollection<UserRecoveryCode> RecoveryCodes { get; set; } = new List<UserRecoveryCode>();
     public ICollection<AuthChallenge> AuthChallenges { get; set; } = new List<AuthChallenge>();
+    
+    // GDPR and Soft Delete
+    public DateTime? GdprErasureRequestedAt { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletionReason { get; set; }
 }

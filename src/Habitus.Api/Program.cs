@@ -151,6 +151,7 @@ app.UseCors();
 app.UseHttpsRedirection();
 app.UseIpRateLimiting();  // ⬅️ Rate limiting middleware (antes de auth)
 app.UseAuthentication();
+app.UseMiddleware<GdprConsentMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

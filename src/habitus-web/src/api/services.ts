@@ -127,6 +127,15 @@ export const usersApi = {
     };
     return api.put<UserDto>(`/users/${id}`, payload);
   },
+  updateMe: (data: { name: string; email: string; phone: string }) =>
+    api.put<UserDto>('/users/me', data),
+  getGdprConsentStatus: () =>
+    api.get<{ hasConsent: boolean; lastConsentedAt?: string }>('/users/me/gdpr-consent/status'),
+  saveGdprConsent: (data: { acceptedTerms: boolean; acceptedPrivacyPolicy: boolean }) =>
+    api.post<{ hasConsent: boolean; lastConsentedAt?: string }>('/users/me/gdpr-consent', data),
+  requestGdprErasure: () => api.post('/users/me/gdpr-erasure'),
+  downloadMyDataExport: () =>
+    api.get('/users/me/data-export', { responseType: 'blob' }),
   updatePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
     api.put(`/users/${id}/password`, data),
   getActiveLastMonthByCondominium: () =>

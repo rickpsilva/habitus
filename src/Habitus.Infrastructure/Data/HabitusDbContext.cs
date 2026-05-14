@@ -14,6 +14,7 @@ public class HabitusDbContext : DbContext
     public DbSet<UserAuthProvider> UserAuthProviders => Set<UserAuthProvider>();
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<AuthChallenge> AuthChallenges => Set<AuthChallenge>();
+    public DbSet<UserGdprConsent> UserGdprConsents => Set<UserGdprConsent>();
     
     // Existing entities (updated to use Condominium)
     public DbSet<Unit> Units => Set<Unit>();
@@ -119,6 +120,18 @@ public class HabitusDbContext : DbContext
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+            modelBuilder.Entity<UserGdprConsent>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.IpAddress).IsRequired();
+                entity.HasIndex(c => c.UserId);
+
+                entity.HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            });
 
         // Configure Condominium entity
         modelBuilder.Entity<Condominium>(entity =>
