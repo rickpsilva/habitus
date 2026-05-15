@@ -17,12 +17,16 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Testes de integração de autorização GDPR adicionados e a passar: `UsersGdprAuthorizationIntegrationTests`.
 - Testes de integração happy-path RGPD autenticado adicionados e a passar (consentimento, estado de consentimento, export de dados, pedido duplicado de eliminação).
 - Aprovação de eliminação RGPD restrita a `Admin` no endpoint de API.
+- Testes unitários de encriptação expandidos e a passar (`EncryptionServiceTests`).
+- Testes unitários de mascaramento adicionados e a passar (`SensitiveDataMaskingTests`).
+- Testes de encriptação em serviços adicionados e a passar (`CondominiumServiceEncryptionTests`, `InvoiceServiceEncryptionTests`, `InvoicePdfServiceEncryptionTests`).
+- Scripts SQL de validação RGPD adicionados em `scripts/sql/`.
 
 ### Em curso
-- Fase 5.17/5.19/5.20: expandir validações de encriptação, mascaramento e scripts SQL.
+- Fases 1, 2, 3 e 4 (encriptação alargada e mascaramento por role em middleware/DTO).
 
 ### Pendente
-- Fases 1, 2, 3 (encriptação alargada), 4 (mascaramento automático), 5.17/5.19/5.20 e Fase 6.
+- Fases 1, 2, 3 (encriptação alargada), 4 (mascaramento automático por role) e Fase 6.
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -40,7 +44,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
     - [ ] Índice único em `User.EmailHash`
-- [ ] Fase 3 - Encriptação nos serviços: **15%**
+- [ ] Fase 3 - Encriptação nos serviços: **20%**
     - [x] Fluxos RGPD no `UserService`
     - [ ] Encriptação/decriptação de phone/hash email no `UserService`
     - [ ] `SupplierService` completo
@@ -51,13 +55,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Marcação de DTOs
     - [ ] Middleware de mascaramento
     - [ ] `DataMaskingHelper`
-- [ ] Fase 5 - Testes e validação: **50%**
+- [ ] Fase 5 - Testes e validação: **80%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
-    - [ ] Testes de encriptação de serviços
-    - [ ] Testes de mascaramento
-    - [ ] Scripts SQL de validação
+    - [x] Testes de encriptação de serviços (amostra inicial)
+    - [x] Testes de mascaramento (helper)
+    - [x] Scripts SQL de validação
 - [ ] Fase 6 - Documentação e deploy: **5%**
     - [x] Plano RGPD atualizado com estado de execução
     - [ ] Guia técnico de encriptação
