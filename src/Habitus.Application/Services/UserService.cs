@@ -131,7 +131,8 @@ public class UserService : IUserService
         }
 
         // Check if email already exists
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         if (existing.Any())
         {
             throw new InvalidOperationException($"User with email {request.Email} already exists.");
@@ -166,6 +167,7 @@ public class UserService : IUserService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
+            EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
             Phone = string.IsNullOrEmpty(request.Phone) ? string.Empty : null,  // Clear plaintext after encryption
             PhoneEncrypted = string.IsNullOrEmpty(request.Phone) ? null : _encryptionService.Encrypt(request.Phone),
             Role = userRole,

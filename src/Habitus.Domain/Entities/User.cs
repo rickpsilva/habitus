@@ -12,6 +12,7 @@ public class User
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? EmailHash { get; set; }  // SHA256 hash of email for unique index and fast login (new field)
     public string Phone { get; set; } = string.Empty;  // DEPRECATED: Use PhoneEncrypted instead (kept for legacy compatibility)
     public string? PhoneEncrypted { get; set; }  // Encrypted phone number (new field)
     public string PasswordHash { get; set; } = string.Empty;

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Habitus.Application.DTOs.Auth;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -62,8 +63,9 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request, string? ipAddress = null, string? userAgent = null)
     {
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
         var users = await _userRepository.FindWithIncludesAsync(
-            u => u.Email == request.Email,
+            u => u.EmailHash == emailHash,
             "UserCondominiums.Condominium");
 
         var user = users.FirstOrDefault();
@@ -311,8 +313,9 @@ public class AuthService
         }
         else
         {
+            var emailHash = EmailHashHelper.GenerateEmailHash(providerEmail);
             user = (await _userRepository.FindWithIncludesAsync(
-                u => u.Email == providerEmail,
+                u => u.EmailHash == emailHash,
                 "UserCondominiums.Condominium")).FirstOrDefault();
             if (user == null || !user.IsActive)
             {
@@ -397,7 +400,8 @@ public class AuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         if (existing.Any()) return null;
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
@@ -428,6 +432,7 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
+            EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
             Phone = request.Phone,
             Role = userRole,
             CondominiumId = request.CondominiumId,
@@ -474,7 +479,8 @@ public class AuthService
             return InitialManagerBootstrapStatus.ManagerAlreadyExists;
         }
 
-        var existingEmail = await _userRepository.FindAsync(u => u.Email == email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(email);
+        var existingEmail = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         if (existingEmail.Any())
         {
             return InitialManagerBootstrapStatus.EmailAlreadyExists;
@@ -485,6 +491,7 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = name,
             Email = email,
+            EmailHash = EmailHashHelper.GenerateEmailHash(email),
             Phone = phone,
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -505,7 +512,8 @@ public class AuthService
         if (condominium == null)
             return (null, "Condomínio não encontrado.");
 
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         if (existing.Any())
             return (null, "Este email já está registado.");
 
@@ -518,6 +526,7 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
+            EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
             Phone = request.Phone,
             Role = UserRole.Resident,
             CondominiumId = condominiumId,
@@ -560,7 +569,8 @@ public class AuthService
 
     public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var users = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         var user = users.FirstOrDefault();
         if (user == null) return false;
 
@@ -597,7 +607,8 @@ Habitus Team
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var users = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
         var user = users.FirstOrDefault();
 
         if (user == null || user.PasswordResetToken != request.Token || user.PasswordResetTokenExpiry < DateTime.UtcNow)

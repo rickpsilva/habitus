@@ -30,12 +30,15 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Hardening aplicado no `CondominiumService`: `UpdateCondominiumAsync` preserva `TaxIdEncrypted` existente quando `TaxId` não é enviado (evita perda acidental de dados encriptados).
 - Hardening aplicado no `CondominiumService`: `UpdatePaymentMethodsAsync` preserva `PaymentIbanEncrypted` existente quando `Iban` não é enviado (evita limpeza acidental em updates parciais).
 - Hardening aplicado no `PaymentSettingsService`: `UpdateAsync` preserva `BankTransferIbanEncrypted` quando `BankTransferIban` é omitido em update parcial.
-- **[NOVO - 15-05-2026]** Entidade `User.PhoneEncrypted` criada (campo paralelo ao legacy `Phone`).
-- **[NOVO - 15-05-2026]** Migration `AddUserPhoneEncrypted` criada.
-- **[NOVO - 15-05-2026]** `UserService` atualizado com IEncryptionService: encriptação em CreateUserAsync/UpdateUserAsync, desencriptação em MapToResponse.
-- **[NOVO - 15-05-2026]** Hardening em UpdateUserAsync: preserva `PhoneEncrypted` quando `Phone` é omitido (update parcial).
-- **[NOVO - 15-05-2026]** Testes unitários `UserServicePhoneEncryptionTests` adicionados (6 testes, todos a passar).
-- **[NOVO - 15-05-2026]** Testes GDPR atualizados com nova assinatura de UserService (13 testes total passando).
+- **[NOVO - 15-05-2026]** Entidade `User.EmailHash` criada (SHA256 hash para índice único).
+- **[NOVO - 15-05-2026]** Migration `AddUserEmailHash` criada com índice único em EmailHash.
+- **[NOVO - 15-05-2026]** `EmailHashHelper.GenerateEmailHash()` criado para gerar hashes SHA256 determinísticos.
+- **[NOVO - 15-05-2026]** AuthService atualizado: 7 locais agora usam EmailHash para queries (LoginAsync, ExternalAuthProviderAsync, RegisterAsync, CreateInitialManagerAsync, RegisterResidentAsync, ForgotPasswordAsync, ResetPasswordAsync).
+- **[NOVO - 15-05-2026]** UserService atualizado: CreateUserAsync agora gera EmailHash.
+- **[NOVO - 15-05-2026]** 4 locais onde User é criado atualizados para gerar EmailHash.
+- **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
+- **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
+- **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
 
 ### Em curso
 - Fase 2.1: User.Email com EmailHash (próximo increment)
