@@ -196,8 +196,15 @@ public class CondominiumService
 
         condominium.Name = request.Name;
         condominium.Address = request.Address;
-        condominium.TaxId = null;
-        condominium.TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId);
+        // Preserve existing encrypted TaxId when request omits TaxId.
+        // If TaxId is explicitly provided, update encrypted value and clear plaintext column.
+        if (request.TaxId != null)
+        {
+            condominium.TaxId = null;
+            condominium.TaxIdEncrypted = string.IsNullOrWhiteSpace(request.TaxId)
+                ? null
+                : _encryptionService.Encrypt(request.TaxId);
+        }
         if (request.Email != null)
         {
             condominium.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();

@@ -27,6 +27,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Hardening aplicado: limpeza de plaintext residual em IBAN (`PaymentSettings` e `CondominiumService`) após gravação encriptada.
 - Hardening aplicado: limpeza de plaintext residual em `Condominium.TaxId` nos fluxos de create/update.
 - Hardening aplicado no `InvoiceService`: geração de fatura passa a preferir `Condominium.TaxIdEncrypted` e só usa/encripta fallback legado quando necessário.
+- Hardening aplicado no `CondominiumService`: `UpdateCondominiumAsync` preserva `TaxIdEncrypted` existente quando `TaxId` não é enviado (evita perda acidental de dados encriptados).
 
 ### Em curso
 - Fases 1, 2, 3 e 4 (encriptação alargada e mascaramento por role em middleware/DTO).
@@ -50,7 +51,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
     - [ ] Índice único em `User.EmailHash`
-- [ ] Fase 3 - Encriptação nos serviços: **50%**
+- [ ] Fase 3 - Encriptação nos serviços: **51%**
     - [x] Fluxos RGPD no `UserService`
     - [ ] Encriptação/decriptação de phone/hash email no `UserService`
     - [ ] `SupplierService` completo
@@ -61,7 +62,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Marcação de DTOs
     - [ ] Middleware de mascaramento
     - [ ] `DataMaskingHelper`
-- [ ] Fase 5 - Testes e validação: **93%**
+- [ ] Fase 5 - Testes e validação: **94%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado

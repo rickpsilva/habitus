@@ -114,6 +114,66 @@ public class CondominiumServiceEncryptionTests
     }
 
     [Fact]
+    public async Task UpdateCondominiumAsync_ShouldPreserveEncryptedTaxId_WhenTaxIdIsOmitted()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var userRepo = new Mock<IRepository<User>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var paymentSettingsRepo = new Mock<IRepository<PaymentSettings>>();
+        var encryption = new Mock<IEncryptionService>();
+
+        var condominiumId = Guid.NewGuid();
+        var condominium = new Condominium
+        {
+            Id = condominiumId,
+            Name = "Condo A",
+            Address = "Street 1",
+            TaxId = null,
+            TaxIdEncrypted = "enc-existing-taxid",
+            Email = "before@example.com",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        condominiumRepo.Setup(r => r.GetByIdAsync(condominiumId)).ReturnsAsync(condominium);
+        condominiumRepo.Setup(r => r.Update(It.IsAny<Condominium>()));
+        condominiumRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        userRepo.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>() ))
+            .ReturnsAsync(new List<User>());
+        unitRepo.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Unit, bool>>>() ))
+            .ReturnsAsync(new List<Unit>());
+
+        encryption.Setup(e => e.Decrypt("enc-existing-taxid")).Returns("123456789");
+
+        var service = new CondominiumService(
+            condominiumRepo.Object,
+            userRepo.Object,
+            unitRepo.Object,
+            paymentSettingsRepo.Object,
+            encryption.Object);
+
+        var request = new UpdateCondominiumRequest
+        {
+            Id = condominiumId,
+            Name = "Condo A Updated",
+            Address = "Street 2",
+            TaxId = null,
+            Email = "updated@example.com",
+            IsActive = true,
+        };
+
+        var result = await service.UpdateCondominiumAsync(request);
+
+        condominium.TaxIdEncrypted.Should().Be("enc-existing-taxid");
+        condominium.TaxId.Should().BeNull();
+        result.TaxId.Should().Be("123456789");
+
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+        encryption.Verify(e => e.Decrypt("enc-existing-taxid"), Times.Once);
+    }
+
+    [Fact]
     public async Task GetAllCondominiumsAsync_ShouldDecryptEncryptedTaxId()
     {
         var condominiumRepo = new Mock<IRepository<Condominium>>();
