@@ -65,11 +65,15 @@ public class PaymentSettingsService
         }
 
         paymentSettings.BankTransferEnabled = request.BankTransferEnabled;
-        paymentSettings.BankTransferIbanEncrypted = string.IsNullOrWhiteSpace(request.BankTransferIban)
-            ? null
-            : _encryptionService.Encrypt(request.BankTransferIban);
-        // Keep plaintext column empty for newly updated records.
-        paymentSettings.BankTransferIban = null;
+        // Preserve existing encrypted IBAN when request omits BankTransferIban.
+        // If IBAN is explicitly provided, update encrypted value and clear plaintext column.
+        if (request.BankTransferIban != null)
+        {
+            paymentSettings.BankTransferIbanEncrypted = string.IsNullOrWhiteSpace(request.BankTransferIban)
+                ? null
+                : _encryptionService.Encrypt(request.BankTransferIban);
+            paymentSettings.BankTransferIban = null;
+        }
         paymentSettings.BankTransferAccountHolder = request.BankTransferAccountHolder;
 
         paymentSettings.MBReferenceEnabled = request.MBReferenceEnabled;
