@@ -12,10 +12,12 @@ namespace Habitus.Api.Controllers;
 public class PaymentSettingsController : ControllerBase
 {
     private readonly IRepository<PaymentSettings> _repository;
+    private readonly IEncryptionService _encryptionService;
 
-    public PaymentSettingsController(IRepository<PaymentSettings> repository)
+    public PaymentSettingsController(IRepository<PaymentSettings> repository, IEncryptionService encryptionService)
     {
         _repository = repository;
+        _encryptionService = encryptionService;
     }
 
     /// <summary>
@@ -59,7 +61,9 @@ public class PaymentSettingsController : ControllerBase
                 Id = paymentSettings.Id,
                 CondominiumId = paymentSettings.CondominiumId,
                 BankTransferEnabled = paymentSettings.BankTransferEnabled,
-                BankTransferIban = paymentSettings.BankTransferIban,
+                BankTransferIban = !string.IsNullOrEmpty(paymentSettings.BankTransferIbanEncrypted)
+                    ? _encryptionService.Decrypt(paymentSettings.BankTransferIbanEncrypted)
+                    : paymentSettings.BankTransferIban,
                 BankTransferAccountHolder = paymentSettings.BankTransferAccountHolder,
                 MBReferenceEnabled = paymentSettings.MBReferenceEnabled,
                 MBReferenceEntity = paymentSettings.MBReferenceEntity,
@@ -113,6 +117,9 @@ public class PaymentSettingsController : ControllerBase
             // Update fields
             paymentSettings.BankTransferEnabled = request.BankTransferEnabled;
             paymentSettings.BankTransferIban = request.BankTransferIban;
+            paymentSettings.BankTransferIbanEncrypted = string.IsNullOrWhiteSpace(request.BankTransferIban)
+                ? null
+                : _encryptionService.Encrypt(request.BankTransferIban);
             paymentSettings.BankTransferAccountHolder = request.BankTransferAccountHolder;
             
             paymentSettings.MBReferenceEnabled = request.MBReferenceEnabled;
@@ -130,8 +137,8 @@ public class PaymentSettingsController : ControllerBase
             // Only update secret key if provided
             if (!string.IsNullOrWhiteSpace(request.CardSecretKey))
             {
-                // TODO: Encrypt the secret key before storing in production
-                paymentSettings.CardSecretKey = request.CardSecretKey;
+                paymentSettings.CardSecretKeyEncrypted = _encryptionService.Encrypt(request.CardSecretKey);
+                paymentSettings.CardSecretKey = null;
             }
             
             paymentSettings.CardMerchantId = request.CardMerchantId;
