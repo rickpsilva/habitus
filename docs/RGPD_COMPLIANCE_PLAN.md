@@ -212,6 +212,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
      - Lê `Invoice.CustomerTaxId` → encripta → salva em `Invoice.CustomerTaxIdEncrypted`
      - Marca campos antigos como NULL após migração
    - Usar EncryptionService dentro da migration (via DI ou instanciação manual com chave configurada)
+     - ✅ Implementado via `HistoricalEncryptionBackfillService` + `HistoricalEncryptionBackfillHostedService` (idempotente no startup):
+         - Migra e limpa campos legados em `Condominium` (`TaxId`, `PaymentIban`, `Address`)
+         - Migra e limpa campos legados em `Invoice` (`CustomerTaxId`, `CustomerAddress`)
+         - Configuração opcional: `Rgpd:EnableHistoricalBackfill` (default: `true`)
    
 2. Criar testes de validação de migração de dados
    - Verificar que dados foram encriptados corretamente
