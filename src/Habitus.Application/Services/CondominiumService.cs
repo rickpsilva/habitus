@@ -343,9 +343,15 @@ public class CondominiumService
         if (condominium == null)
             throw new InvalidOperationException($"Condominium with ID {condominiumId} not found.");
 
-        // Keep plaintext column empty for newly updated records.
-        condominium.PaymentIban = null;
-        condominium.PaymentIbanEncrypted = string.IsNullOrEmpty(request.Iban) ? null : _encryptionService.Encrypt(request.Iban);
+        // Preserve existing encrypted IBAN when request omits Iban.
+        // If Iban is explicitly provided, update encrypted value and clear plaintext column.
+        if (request.Iban != null)
+        {
+            condominium.PaymentIban = null;
+            condominium.PaymentIbanEncrypted = string.IsNullOrWhiteSpace(request.Iban)
+                ? null
+                : _encryptionService.Encrypt(request.Iban);
+        }
         condominium.PaymentInstructions = request.Instructions;
         condominium.PaymentMbWay = request.MbWay;
         condominium.PaymentMbReference = request.MbReference;

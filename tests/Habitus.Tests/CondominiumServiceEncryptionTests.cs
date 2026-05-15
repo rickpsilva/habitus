@@ -271,6 +271,60 @@ public class CondominiumServiceEncryptionTests
     }
 
     [Fact]
+    public async Task UpdatePaymentMethodsAsync_ShouldPreserveEncryptedIban_WhenIbanIsOmitted()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var userRepo = new Mock<IRepository<User>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var paymentSettingsRepo = new Mock<IRepository<PaymentSettings>>();
+        var encryption = new Mock<IEncryptionService>();
+
+        var condominium = new Condominium
+        {
+            Id = Guid.NewGuid(),
+            Name = "Condo A",
+            Address = "Street 1",
+            PaymentIban = null,
+            PaymentIbanEncrypted = "enc-existing-iban",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        condominiumRepo.Setup(r => r.GetByIdAsync(condominium.Id)).ReturnsAsync(condominium);
+        condominiumRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        condominiumRepo.Setup(r => r.Update(It.IsAny<Condominium>()));
+
+        encryption.Setup(e => e.Decrypt("enc-existing-iban")).Returns("PT50000201231234567890154");
+
+        var service = new CondominiumService(
+            condominiumRepo.Object,
+            userRepo.Object,
+            unitRepo.Object,
+            paymentSettingsRepo.Object,
+            encryption.Object);
+
+        var request = new UpdatePaymentMethodsRequest
+        {
+            Iban = null,
+            Instructions = "Updated instructions",
+            MbWay = "910000000",
+            MbReference = "12345",
+            BankTransferEnabled = true,
+            MbWayEnabled = true,
+            CardEnabled = false,
+        };
+
+        var result = await service.UpdatePaymentMethodsAsync(condominium.Id, request);
+
+        condominium.PaymentIban.Should().BeNull();
+        condominium.PaymentIbanEncrypted.Should().Be("enc-existing-iban");
+        result.Iban.Should().Be("PT50000201231234567890154");
+
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+        encryption.Verify(e => e.Decrypt("enc-existing-iban"), Times.Once);
+    }
+
+    [Fact]
     public async Task GetPaymentMethodsAsync_ShouldDecryptIban_FromPaymentSettings()
     {
         var condominiumRepo = new Mock<IRepository<Condominium>>();
