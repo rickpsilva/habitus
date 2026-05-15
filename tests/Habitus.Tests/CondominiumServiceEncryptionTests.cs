@@ -142,6 +142,7 @@ public class CondominiumServiceEncryptionTests
 
         var result = await service.UpdatePaymentMethodsAsync(condominium.Id, request);
 
+        condominium.PaymentIban.Should().BeNull();
         condominium.PaymentIbanEncrypted.Should().Be("enc-iban");
         result.Iban.Should().Be("PT50000201231234567890154");
 

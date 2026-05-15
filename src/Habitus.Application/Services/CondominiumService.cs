@@ -336,7 +336,8 @@ public class CondominiumService
         if (condominium == null)
             throw new InvalidOperationException($"Condominium with ID {condominiumId} not found.");
 
-        condominium.PaymentIban = request.Iban;  // Keep old field for backward compatibility
+        // Keep plaintext column empty for newly updated records.
+        condominium.PaymentIban = null;
         condominium.PaymentIbanEncrypted = string.IsNullOrEmpty(request.Iban) ? null : _encryptionService.Encrypt(request.Iban);
         condominium.PaymentInstructions = request.Instructions;
         condominium.PaymentMbWay = request.MbWay;
