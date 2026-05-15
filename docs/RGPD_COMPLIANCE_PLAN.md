@@ -22,6 +22,8 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Testes de encriptação em serviços adicionados e a passar (`CondominiumServiceEncryptionTests`, `InvoiceServiceEncryptionTests`, `InvoicePdfServiceEncryptionTests`).
 - Scripts SQL de validação RGPD adicionados em `scripts/sql/`.
 - Cobertura negativa adicionada e a passar para caminhos sem decrypt quando campos encriptados estão ausentes (`CondominiumServiceEncryptionTests`, `InvoiceServiceEncryptionTests`).
+- Fluxo de `PaymentSettings` atualizado com encriptação/desencriptação de IBAN e encriptação de `CardSecretKey` (controller + service).
+- Testes de `PaymentSettings` adicionados e a passar (unitários e integração HTTP end-to-end).
 
 ### Em curso
 - Fases 1, 2, 3 e 4 (encriptação alargada e mascaramento por role em middleware/DTO).
@@ -45,7 +47,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
     - [ ] Índice único em `User.EmailHash`
-- [ ] Fase 3 - Encriptação nos serviços: **25%**
+- [ ] Fase 3 - Encriptação nos serviços: **35%**
     - [x] Fluxos RGPD no `UserService`
     - [ ] Encriptação/decriptação de phone/hash email no `UserService`
     - [ ] `SupplierService` completo
@@ -56,7 +58,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Marcação de DTOs
     - [ ] Middleware de mascaramento
     - [ ] `DataMaskingHelper`
-- [ ] Fase 5 - Testes e validação: **85%**
+- [ ] Fase 5 - Testes e validação: **90%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
