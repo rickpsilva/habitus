@@ -215,6 +215,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
      - ✅ Implementado via `HistoricalEncryptionBackfillService` + `HistoricalEncryptionBackfillHostedService` (idempotente no startup):
          - Migra e limpa campos legados em `Condominium` (`TaxId`, `PaymentIban`, `Address`)
          - Migra e limpa campos legados em `Invoice` (`CustomerTaxId`, `CustomerAddress`)
+         - Executa auditoria pós-backfill e alerta quando restam valores plaintext
          - Configuração opcional: `Rgpd:EnableHistoricalBackfill` (default: `true`)
    
 2. Criar testes de validação de migração de dados ✅

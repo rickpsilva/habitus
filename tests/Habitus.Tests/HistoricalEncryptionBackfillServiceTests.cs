@@ -198,4 +198,76 @@ public class HistoricalEncryptionBackfillServiceTests
 
         encryptionService.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
     }
+
+    [Fact]
+    public async Task AuditRemainingLegacyPlaintextAsync_ShouldReturnCountsPerField()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var invoiceRepo = new Mock<IRepository<Invoice>>();
+        var encryptionService = new Mock<IEncryptionService>();
+
+        condominiumRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Condominium, bool>>>() ))
+            .ReturnsAsync(new List<Condominium>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Condo A",
+                    Address = "Street 1",
+                    TaxId = "123",
+                    PaymentIban = null
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Condo B",
+                    Address = string.Empty,
+                    TaxId = null,
+                    PaymentIban = "PT50"
+                }
+            });
+
+        invoiceRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>() ))
+            .ReturnsAsync(new List<Invoice>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Number = 1,
+                    Year = 2026,
+                    Series = "HABITUS",
+                    CustomerName = "Condo",
+                    PlanName = "Starter",
+                    SubscriptionId = Guid.NewGuid(),
+                    CondominiumId = Guid.NewGuid(),
+                    IssuedDate = DateTime.UtcNow,
+                    DueDate = DateTime.UtcNow.AddDays(30),
+                    PeriodStartDate = DateTime.UtcNow,
+                    PeriodEndDate = DateTime.UtcNow,
+                    SubtotalAmount = 1m,
+                    VatAmount = 0.23m,
+                    TotalAmount = 1.23m,
+                    CustomerTaxId = "987",
+                    CustomerAddress = "Street 2"
+                }
+            });
+
+        var logger = Mock.Of<ILogger<HistoricalEncryptionBackfillService>>();
+        var service = new HistoricalEncryptionBackfillService(
+            condominiumRepo.Object,
+            invoiceRepo.Object,
+            encryptionService.Object,
+            logger);
+
+        var audit = await service.AuditRemainingLegacyPlaintextAsync();
+
+        audit.CondominiumTaxIdLegacyCount.Should().Be(1);
+        audit.CondominiumPaymentIbanLegacyCount.Should().Be(1);
+        audit.CondominiumAddressLegacyCount.Should().Be(1);
+        audit.InvoiceCustomerTaxIdLegacyCount.Should().Be(1);
+        audit.InvoiceCustomerAddressLegacyCount.Should().Be(1);
+        audit.TotalRemaining.Should().Be(5);
+    }
 }

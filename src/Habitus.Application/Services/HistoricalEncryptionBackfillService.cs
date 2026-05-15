@@ -12,6 +12,22 @@ public sealed class HistoricalEncryptionBackfillResult
     public int LegacyValuesCleared { get; set; }
 }
 
+public sealed class HistoricalLegacyPlaintextAuditResult
+{
+    public int CondominiumTaxIdLegacyCount { get; set; }
+    public int CondominiumPaymentIbanLegacyCount { get; set; }
+    public int CondominiumAddressLegacyCount { get; set; }
+    public int InvoiceCustomerTaxIdLegacyCount { get; set; }
+    public int InvoiceCustomerAddressLegacyCount { get; set; }
+
+    public int TotalRemaining =>
+        CondominiumTaxIdLegacyCount +
+        CondominiumPaymentIbanLegacyCount +
+        CondominiumAddressLegacyCount +
+        InvoiceCustomerTaxIdLegacyCount +
+        InvoiceCustomerAddressLegacyCount;
+}
+
 public class HistoricalEncryptionBackfillService
 {
     private readonly IRepository<Condominium> _condominiumRepository;
@@ -37,6 +53,33 @@ public class HistoricalEncryptionBackfillService
 
         await BackfillCondominiumsAsync(result, cancellationToken);
         await BackfillInvoicesAsync(result, cancellationToken);
+
+        return result;
+    }
+
+    public async Task<HistoricalLegacyPlaintextAuditResult> AuditRemainingLegacyPlaintextAsync(CancellationToken cancellationToken = default)
+    {
+        var result = new HistoricalLegacyPlaintextAuditResult();
+
+        var condos = await _condominiumRepository.FindAsync(c =>
+            !string.IsNullOrWhiteSpace(c.TaxId) ||
+            !string.IsNullOrWhiteSpace(c.PaymentIban) ||
+            !string.IsNullOrWhiteSpace(c.Address));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        result.CondominiumTaxIdLegacyCount = condos.Count(c => !string.IsNullOrWhiteSpace(c.TaxId));
+        result.CondominiumPaymentIbanLegacyCount = condos.Count(c => !string.IsNullOrWhiteSpace(c.PaymentIban));
+        result.CondominiumAddressLegacyCount = condos.Count(c => !string.IsNullOrWhiteSpace(c.Address));
+
+        var invoices = await _invoiceRepository.FindAsync(i =>
+            !string.IsNullOrWhiteSpace(i.CustomerTaxId) ||
+            !string.IsNullOrWhiteSpace(i.CustomerAddress));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        result.InvoiceCustomerTaxIdLegacyCount = invoices.Count(i => !string.IsNullOrWhiteSpace(i.CustomerTaxId));
+        result.InvoiceCustomerAddressLegacyCount = invoices.Count(i => !string.IsNullOrWhiteSpace(i.CustomerAddress));
 
         return result;
     }

@@ -42,6 +42,23 @@ public class HistoricalEncryptionBackfillHostedService : IHostedService
             result.InvoiceRecordsUpdated,
             result.ValuesEncrypted,
             result.LegacyValuesCleared);
+
+        var audit = await service.AuditRemainingLegacyPlaintextAsync(cancellationToken);
+        if (audit.TotalRemaining > 0)
+        {
+            _logger.LogWarning(
+                "RGPD legacy plaintext still present after backfill. Total={Total}, CondoTaxId={CondoTaxId}, CondoIban={CondoIban}, CondoAddress={CondoAddress}, InvoiceTaxId={InvoiceTaxId}, InvoiceAddress={InvoiceAddress}",
+                audit.TotalRemaining,
+                audit.CondominiumTaxIdLegacyCount,
+                audit.CondominiumPaymentIbanLegacyCount,
+                audit.CondominiumAddressLegacyCount,
+                audit.InvoiceCustomerTaxIdLegacyCount,
+                audit.InvoiceCustomerAddressLegacyCount);
+        }
+        else
+        {
+            _logger.LogInformation("RGPD legacy plaintext audit passed: no plaintext values remaining in audited fields.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
