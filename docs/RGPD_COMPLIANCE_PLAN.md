@@ -44,7 +44,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 15-05-2026]** `PaymentSettingsService` atualizado: encriptação em UpdateAsync, desencriptação em MapToDto.
 - **[NOVO - 15-05-2026]** Hardening em UpdateAsync: preserva `MBWayPhoneNumberEncrypted` quando `MBWayPhoneNumber` é omitido.
 - **[NOVO - 15-05-2026]** Testes `PaymentSettingsServiceEncryptionTests` expandidos (6 testes, 2 novos para MBWay, todos a passar).
-- **[NOVO - 15-05-2026]** Suite de testes completa: 33 testes passando (8 Auth + 6 User.Phone + 6 EmailHash + 3 GDPR + 6 PaymentSettings).
+- **[NOVO - 15-05-2026]** Entidade `UsefulContact.PhoneEncrypted` criada (campo paralelo ao legacy `Phone`).
+- **[NOVO - 15-05-2026]** Migration `AddUsefulContactPhoneEncrypted` criada.
+- **[NOVO - 15-05-2026]** `UsefulContactService` criado com injeção de IEncryptionService (padrão completo: create, update, read com encriptação/desencriptação).
+- **[NOVO - 15-05-2026]** Controller `UsefulContactsController` atualizado para usar UsefulContactService + request/response DTOs.
+- **[NOVO - 15-05-2026]** DependencyInjection atualizado para registrar UsefulContactService.
+- **[NOVO - 15-05-2026]** Testes `UsefulContactServiceEncryptionTests` criados (7 testes, todos a passar: create with/without phone, update with/without phone, getbyid, delete).
+- **[NOVO - 15-05-2026]** Suite completa de testes de encriptação: 40 testes passando (8 Auth + 6 User.Phone + 6 EmailHash + 7 GDPR + 6 PaymentSettings + 7 UsefulContact).
 
 ### Em curso
 - Fase 2.1: User.Email com EmailHash (próximo increment)

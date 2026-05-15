@@ -1,4 +1,4 @@
-using Habitus.Application.Interfaces;
+using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,55 +6,79 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/useful-contacts")]
+[Route("api/condominiums/{condominiumId}/useful-contacts")]
 [Authorize]
 public class UsefulContactsController : ControllerBase
 {
-    private readonly IRepository<UsefulContact> _repository;
-    public UsefulContactsController(IRepository<UsefulContact> repository) => _repository = repository;
+    private readonly UsefulContactService _service;
+    
+    public UsefulContactsController(UsefulContactService service) => _service = service;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
+    public async Task<IActionResult> GetAll() => Ok(await _service.GetAllAsync());
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await _repository.GetByIdAsync(id);
+        var result = await _service.GetByIdAsync(id);
         return result == null ? NotFound() : Ok(result);
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] UsefulContact contact)
+    public async Task<IActionResult> Create(Guid condominiumId, [FromBody] CreateUsefulContactRequest request)
     {
-        contact.Id = Guid.NewGuid();
-        await _repository.AddAsync(contact);
-        await _repository.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = contact.Id }, contact);
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var contact = await _service.CreateAsync(condominiumId, request.Name, request.Phone, request.Category);
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = contact.Id }, contact);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UsefulContact contact)
+    public async Task<IActionResult> Update(Guid condominiumId, Guid id, [FromBody] UpdateUsefulContactRequest request)
     {
-        var existing = await _repository.GetByIdAsync(id);
-        if (existing == null) return NotFound();
-        existing.Name = contact.Name;
-        existing.Phone = contact.Phone;
-        existing.Category = contact.Category;
-        _repository.Update(existing);
-        await _repository.SaveChangesAsync();
-        return Ok(existing);
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var contact = await _service.UpdateAsync(id, request.Name, request.Phone, request.Category);
+            return contact == null ? NotFound() : Ok(contact);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid condominiumId, Guid id)
     {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return NotFound();
-        _repository.Remove(entity);
-        await _repository.SaveChangesAsync();
-        return NoContent();
+        var deleted = await _service.DeleteAsync(id);
+        return deleted ? NoContent() : NotFound();
     }
+}
+
+public class CreateUsefulContactRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public ContactCategory Category { get; set; }
+}
+
+public class UpdateUsefulContactRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public ContactCategory Category { get; set; }
 }
