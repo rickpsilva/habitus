@@ -107,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<UsefulContactService>();
         services.AddScoped<SupplierService>();
         services.AddScoped<ReceiptService>();
+        services.AddScoped<ReceiptTemplateSettingsService>();
         
         // New multi-condominium services
         services.AddScoped<UserService>();

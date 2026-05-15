@@ -1,3 +1,4 @@
+using Habitus.Application.Services;
 using Habitus.Application.DTOs.Receipts;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
@@ -11,11 +12,11 @@ namespace Habitus.Api.Controllers;
 [Authorize(Roles = "Admin,Manager")]
 public class ReceiptTemplateSettingsController : ControllerBase
 {
-    private readonly IRepository<ReceiptTemplateSettings> _repository;
+    private readonly ReceiptTemplateSettingsService _service;
 
-    public ReceiptTemplateSettingsController(IRepository<ReceiptTemplateSettings> repository)
+    public ReceiptTemplateSettingsController(ReceiptTemplateSettingsService service)
     {
-        _repository = repository;
+        _service = service;
     }
 
     /// <summary>
@@ -26,10 +27,8 @@ public class ReceiptTemplateSettingsController : ControllerBase
     {
         try
         {
-            var settings = await _repository.FindAsync(rts => rts.CondominiumId == condominiumId);
-            var receiptTemplateSettings = settings.FirstOrDefault();
-
-            if (receiptTemplateSettings == null)
+            var dto = await _service.GetByCondominiumIdAsync(condominiumId);
+            if (dto == null)
             {
                 // Return default settings if none exist
                 return Ok(new ReceiptTemplateSettingsDto
@@ -54,29 +53,6 @@ public class ReceiptTemplateSettingsController : ControllerBase
                     UpdatedAt = DateTime.UtcNow
                 });
             }
-
-            var dto = new ReceiptTemplateSettingsDto
-            {
-                Id = receiptTemplateSettings.Id,
-                CondominiumId = receiptTemplateSettings.CondominiumId,
-                CompanyName = receiptTemplateSettings.CompanyName,
-                Address = receiptTemplateSettings.Address,
-                PostalCode = receiptTemplateSettings.PostalCode,
-                Locality = receiptTemplateSettings.Locality,
-                TaxId = receiptTemplateSettings.TaxId,
-                Email = receiptTemplateSettings.Email,
-                Phone = receiptTemplateSettings.Phone,
-                Template = receiptTemplateSettings.Template,
-                TemplateMonthlyFee = receiptTemplateSettings.TemplateMonthlyFee,
-                TemplateMonthlyFeeQuarterly = receiptTemplateSettings.TemplateMonthlyFeeQuarterly,
-                TemplateMonthlyFeeAnnual = receiptTemplateSettings.TemplateMonthlyFeeAnnual,
-                TemplateExtraordinaryFee = receiptTemplateSettings.TemplateExtraordinaryFee,
-                TemplateReservation = receiptTemplateSettings.TemplateReservation,
-                TemplateOther = receiptTemplateSettings.TemplateOther,
-                CreatedAt = receiptTemplateSettings.CreatedAt,
-                UpdatedAt = receiptTemplateSettings.UpdatedAt
-            };
-
             return Ok(dto);
         }
         catch (Exception ex)
@@ -96,72 +72,7 @@ public class ReceiptTemplateSettingsController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var settings = await _repository.FindAsync(rts => rts.CondominiumId == condominiumId);
-            var receiptTemplateSettings = settings.FirstOrDefault();
-
-            bool isNew = false;
-            if (receiptTemplateSettings == null)
-            {
-                // Create new settings
-                isNew = true;
-                receiptTemplateSettings = new ReceiptTemplateSettings
-                {
-                    Id = Guid.NewGuid(),
-                    CondominiumId = condominiumId,
-                    CreatedAt = DateTime.UtcNow
-                };
-            }
-
-            // Update fields
-            receiptTemplateSettings.CompanyName = request.CompanyName;
-            receiptTemplateSettings.Address = request.Address;
-            receiptTemplateSettings.PostalCode = request.PostalCode;
-            receiptTemplateSettings.Locality = request.Locality;
-            receiptTemplateSettings.TaxId = request.TaxId;
-            receiptTemplateSettings.Email = request.Email;
-            receiptTemplateSettings.Phone = request.Phone;
-            receiptTemplateSettings.Template = request.Template;
-            receiptTemplateSettings.TemplateMonthlyFee = request.TemplateMonthlyFee;
-            receiptTemplateSettings.TemplateMonthlyFeeQuarterly = request.TemplateMonthlyFeeQuarterly;
-            receiptTemplateSettings.TemplateMonthlyFeeAnnual = request.TemplateMonthlyFeeAnnual;
-            receiptTemplateSettings.TemplateExtraordinaryFee = request.TemplateExtraordinaryFee;
-            receiptTemplateSettings.TemplateReservation = request.TemplateReservation;
-            receiptTemplateSettings.TemplateOther = request.TemplateOther;
-            receiptTemplateSettings.UpdatedAt = DateTime.UtcNow;
-
-            if (isNew)
-            {
-                await _repository.AddAsync(receiptTemplateSettings);
-            }
-            else
-            {
-                _repository.Update(receiptTemplateSettings);
-            }
-
-            await _repository.SaveChangesAsync();
-
-            var dto = new ReceiptTemplateSettingsDto
-            {
-                Id = receiptTemplateSettings.Id,
-                CondominiumId = receiptTemplateSettings.CondominiumId,
-                CompanyName = receiptTemplateSettings.CompanyName,
-                Address = receiptTemplateSettings.Address,
-                PostalCode = receiptTemplateSettings.PostalCode,
-                Locality = receiptTemplateSettings.Locality,
-                TaxId = receiptTemplateSettings.TaxId,
-                Email = receiptTemplateSettings.Email,
-                Phone = receiptTemplateSettings.Phone,
-                Template = receiptTemplateSettings.Template,
-                TemplateMonthlyFee = receiptTemplateSettings.TemplateMonthlyFee,
-                TemplateMonthlyFeeQuarterly = receiptTemplateSettings.TemplateMonthlyFeeQuarterly,
-                TemplateMonthlyFeeAnnual = receiptTemplateSettings.TemplateMonthlyFeeAnnual,
-                TemplateExtraordinaryFee = receiptTemplateSettings.TemplateExtraordinaryFee,
-                TemplateReservation = receiptTemplateSettings.TemplateReservation,
-                TemplateOther = receiptTemplateSettings.TemplateOther,
-                CreatedAt = receiptTemplateSettings.CreatedAt,
-                UpdatedAt = receiptTemplateSettings.UpdatedAt
-            };
-
+            var dto = await _service.UpsertAsync(condominiumId, request);
             return Ok(dto);
         }
         catch (Exception ex)
