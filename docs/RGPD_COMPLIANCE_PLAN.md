@@ -77,6 +77,50 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Atualizações em `EF_MIGRATIONS_GUIDE`, `SECURITY_AUDIT` e `README`
     - [ ] Plano de deploy + rollback validado
 
+### Notas de Retoma (handoff para próxima sessão)
+
+#### Estado técnico consolidado (últimos increments)
+- `InvoiceService.GenerateInvoiceAsync`: usa `Condominium.TaxIdEncrypted` como fonte principal; só encripta fallback legado (`TaxId`) quando necessário.
+- `CondominiumService.UpdateCondominiumAsync`: preserva `TaxIdEncrypted` quando `TaxId` vem omitido (update parcial), evitando perda acidental.
+- `CondominiumService.UpdatePaymentMethodsAsync`: preserva `PaymentIbanEncrypted` quando `Iban` vem omitido.
+- `PaymentSettingsService.UpdateAsync`: preserva `BankTransferIbanEncrypted` quando `BankTransferIban` vem omitido.
+- Regressões cobertas por testes unitários dedicados e já validadas com filtros por classe.
+
+#### Fluxo de raciocínio que funcionou (manter)
+1. Priorizar increments pequenos, de baixo risco, sem migration quando possível.
+2. Aplicar padrão "encrypted-first + fallback legado + limpeza de plaintext".
+3. Em updates parciais, distinguir:
+    - campo omitido (`null`) -> preservar valor encriptado existente;
+    - campo enviado vazio/branco -> limpar valor;
+    - campo enviado preenchido -> encriptar novo valor e limpar plaintext.
+4. Escrever teste de regressão no mesmo increment antes de fechar.
+5. Correr `dotnet test` filtrado para a suite impactada.
+6. Só depois sincronizar plano e criar commit local (sem push).
+
+#### Próximos passos sugeridos (ordem recomendada)
+1. **PaymentSettingsService (seguir padrão parcial seguro para restantes sensíveis)**
+    - Rever `CardSecretKey` e futuros campos encriptados (ex: MBWay) para garantir semântica consistente de update parcial.
+    - Adicionar testes de preservação quando campo sensível é omitido.
+2. **InvoiceService / Invoice entity (CustomerAddressEncrypted)**
+    - Preparar fase de transição para `CustomerAddressEncrypted` (quando coluna existir): leitura encrypted-first, fallback legacy e limpeza progressiva.
+    - Adicionar testes unitários equivalentes aos de TaxId (read/export/list/generate).
+3. **Supplier (quando iniciar Fase 2+3 conjunta)**
+    - Introduzir campos encriptados no entity + migration.
+    - Extrair lógica de controller para `SupplierService` e aplicar padrão encrypted-first.
+
+#### Definition of Done para cada novo increment RGPD
+- 1 alteração de comportamento bem delimitada.
+- 1+ testes novos/ajustados a cobrir happy path e não-regressão.
+- Suite filtrada relevante a passar.
+- Plano atualizado em "Estado Atual de Execução" e percentuais ajustados de forma conservadora.
+- Commit local criado, sem push.
+
+#### Comandos rápidos de retoma
+- Testes faturação: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~InvoiceServiceEncryptionTests"`
+- Testes condomínio: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~CondominiumServiceEncryptionTests"`
+- Testes payment settings: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~PaymentSettingsServiceEncryptionTests"`
+- Estado git: `git log -5 --oneline && git status --short`
+
 ### Nota de alinhamento de política
 - Aplicado: endpoint de aprovação de eliminação RGPD restrito a `Admin`.
 
