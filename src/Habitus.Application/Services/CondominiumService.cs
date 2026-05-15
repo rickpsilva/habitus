@@ -4,6 +4,7 @@ using Habitus.Application.DTOs.Users;
 using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
+using Microsoft.Extensions.Configuration;
 
 namespace Habitus.Application.Services;
 
@@ -14,19 +15,22 @@ public class CondominiumService
     private readonly IRepository<Unit> _unitRepository;
     private readonly IRepository<PaymentSettings> _paymentSettingsRepository;
     private readonly IEncryptionService _encryptionService;
+    private readonly bool _allowLegacyPlaintextFallback;
 
     public CondominiumService(
         IRepository<Condominium> condominiumRepository,
         IRepository<User> userRepository,
         IRepository<Unit> unitRepository,
         IRepository<PaymentSettings> paymentSettingsRepository,
-        IEncryptionService encryptionService)
+        IEncryptionService encryptionService,
+        IConfiguration? configuration = null)
     {
         _condominiumRepository = condominiumRepository;
         _userRepository = userRepository;
         _unitRepository = unitRepository;
         _paymentSettingsRepository = paymentSettingsRepository;
         _encryptionService = encryptionService;
+        _allowLegacyPlaintextFallback = RgpdRuntimePolicy.AllowLegacyPlaintextFallback(configuration);
     }
 
     public async Task<IEnumerable<CondominiumResponse>> GetAllCondominiumsAsync()
@@ -41,7 +45,7 @@ public class CondominiumService
 
             // Decrypt TaxId if encrypted, otherwise use old field
             var decryptedTaxId = string.IsNullOrEmpty(condo.TaxIdEncrypted)
-                ? condo.TaxId
+                ? (_allowLegacyPlaintextFallback ? condo.TaxId : null)
                 : _encryptionService.Decrypt(condo.TaxIdEncrypted);
 
             responses.Add(new CondominiumResponse
@@ -73,7 +77,7 @@ public class CondominiumService
 
             // Decrypt TaxId if encrypted, otherwise use old field
             var decryptedTaxId = string.IsNullOrEmpty(condo.TaxIdEncrypted)
-                ? condo.TaxId
+                ? (_allowLegacyPlaintextFallback ? condo.TaxId : null)
                 : _encryptionService.Decrypt(condo.TaxIdEncrypted);
 
             responses.Add(new CondominiumResponse
@@ -115,7 +119,7 @@ public class CondominiumService
 
         // Decrypt TaxId if encrypted, otherwise use old field
         var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
+            ? (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
             : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
 
         var admins = users.Where(u => u.Role == UserRole.Admin).Select(u => new UserSummary
@@ -170,7 +174,7 @@ public class CondominiumService
 
         // Return decrypted TaxId in the response
         var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted) 
-            ? condominium.TaxId 
+            ? (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
             : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
@@ -221,7 +225,7 @@ public class CondominiumService
 
         // Return decrypted TaxId in the response
         var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
+            ? (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
             : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
@@ -255,7 +259,7 @@ public class CondominiumService
         var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominium.Id);
 
         var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
+            ? (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
             : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
@@ -428,6 +432,6 @@ public class CondominiumService
             return _encryptionService.Decrypt(condominium.AddressEncrypted);
         }
 
-        return condominium.Address;
+        return _allowLegacyPlaintextFallback ? condominium.Address : string.Empty;
     }
 }

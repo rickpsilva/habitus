@@ -1,9 +1,11 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using InvoiceEntity = Habitus.Domain.Entities.Invoice;
 
 namespace Habitus.Application.Services;
@@ -16,12 +18,14 @@ public class InvoicePdfService
 {
     private readonly CultureInfo _ptPt = CultureInfo.GetCultureInfo("pt-PT");
     private readonly IEncryptionService _encryptionService;
+    private readonly bool _allowLegacyPlaintextFallback;
 
-    public InvoicePdfService(IEncryptionService encryptionService)
+    public InvoicePdfService(IEncryptionService encryptionService, IConfiguration? configuration = null)
     {
         // QuestPdf license (Community use)
         QuestPDF.Settings.License = LicenseType.Community;
         _encryptionService = encryptionService;
+        _allowLegacyPlaintextFallback = RgpdRuntimePolicy.AllowLegacyPlaintextFallback(configuration);
     }
 
     /// <summary>
@@ -39,7 +43,7 @@ public class InvoicePdfService
 
         var customerAddress = !string.IsNullOrEmpty(invoice.CustomerAddressEncrypted)
             ? _encryptionService.Decrypt(invoice.CustomerAddressEncrypted)
-            : invoice.CustomerAddress;
+            : (_allowLegacyPlaintextFallback ? invoice.CustomerAddress : null);
 
         // Prefer encrypted condominium tax ID when available.
         var footerCompanyTaxId = companyNif;
@@ -47,7 +51,7 @@ public class InvoicePdfService
         {
             footerCompanyTaxId = !string.IsNullOrEmpty(invoice.Condominium.TaxIdEncrypted)
                 ? _encryptionService.Decrypt(invoice.Condominium.TaxIdEncrypted)
-                : (invoice.Condominium.TaxId ?? companyNif);
+                : (_allowLegacyPlaintextFallback ? (invoice.Condominium.TaxId ?? companyNif) : companyNif);
         }
 
         return QuestPDF.Fluent.Document.Create(container =>

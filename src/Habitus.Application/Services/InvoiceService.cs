@@ -1,4 +1,5 @@
 using Habitus.Application.DTOs.Billing;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +20,7 @@ public class InvoiceService
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<InvoiceService> _logger;
+    private readonly bool _allowLegacyPlaintextFallback;
 
     public InvoiceService(
         IRepository<Invoice> invoicesRepo,
@@ -44,6 +46,7 @@ public class InvoiceService
         _emailService = emailService;
         _configuration = configuration;
         _logger = logger;
+        _allowLegacyPlaintextFallback = RgpdRuntimePolicy.AllowLegacyPlaintextFallback(configuration);
     }
 
     /// <summary>
@@ -62,7 +65,7 @@ public class InvoiceService
             Email   = condominium.Email,
             TaxId   = !string.IsNullOrEmpty(condominium.TaxIdEncrypted)
                         ? _encryptionService.Decrypt(condominium.TaxIdEncrypted)
-                        : condominium.TaxId
+                        : (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
         };
     }
 
@@ -144,13 +147,13 @@ public class InvoiceService
         // Prefer existing encrypted value; fallback to encrypt legacy plaintext when needed.
         var encryptedTaxId = !string.IsNullOrEmpty(condominium.TaxIdEncrypted)
             ? condominium.TaxIdEncrypted
-            : (!string.IsNullOrEmpty(condominium.TaxId)
+            : (_allowLegacyPlaintextFallback && !string.IsNullOrEmpty(condominium.TaxId)
                 ? _encryptionService.Encrypt(condominium.TaxId)
                 : null);
 
         var encryptedAddress = !string.IsNullOrEmpty(condominium.AddressEncrypted)
             ? condominium.AddressEncrypted
-            : (!string.IsNullOrWhiteSpace(condominium.Address)
+            : (_allowLegacyPlaintextFallback && !string.IsNullOrWhiteSpace(condominium.Address)
                 ? _encryptionService.Encrypt(condominium.Address)
                 : null);
 
@@ -446,7 +449,7 @@ public class InvoiceService
             return _encryptionService.Decrypt(condominium.AddressEncrypted);
         }
 
-        return condominium.Address;
+        return _allowLegacyPlaintextFallback ? condominium.Address : null;
     }
 
     private string? DecryptInvoiceAddressOrFallback(Invoice invoice)
@@ -456,7 +459,7 @@ public class InvoiceService
             return _encryptionService.Decrypt(invoice.CustomerAddressEncrypted);
         }
 
-        return invoice.CustomerAddress;
+        return _allowLegacyPlaintextFallback ? invoice.CustomerAddress : null;
     }
 
     /// <summary>
