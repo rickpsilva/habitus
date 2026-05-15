@@ -141,10 +141,12 @@ public class InvoiceService
         // Get next invoice number for this condominium and year
         var invoiceNumber = await GetNextInvoiceNumberAsync(condominium.Id);
 
-        // Encrypt the tax ID
-        var encryptedTaxId = !string.IsNullOrEmpty(condominium.TaxId)
-            ? _encryptionService.Encrypt(condominium.TaxId)
-            : condominium.TaxId;
+        // Prefer existing encrypted value; fallback to encrypt legacy plaintext when needed.
+        var encryptedTaxId = !string.IsNullOrEmpty(condominium.TaxIdEncrypted)
+            ? condominium.TaxIdEncrypted
+            : (!string.IsNullOrEmpty(condominium.TaxId)
+                ? _encryptionService.Encrypt(condominium.TaxId)
+                : null);
 
         // Create invoice
         var invoice = new Invoice

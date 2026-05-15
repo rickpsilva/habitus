@@ -339,6 +339,191 @@ public class InvoiceServiceEncryptionTests
         encryptionService.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
     }
 
+    [Fact]
+    public async Task GenerateInvoiceAsync_ShouldReuseEncryptedCondominiumTaxId_WhenAvailable()
+    {
+        var invoicesRepo = new Mock<IRepository<Invoice>>();
+        var subscriptionsRepo = new Mock<IRepository<CondominiumSubscription>>();
+        var condominiumsRepo = new Mock<IRepository<Condominium>>();
+        var plansRepo = new Mock<IRepository<SubscriptionPlan>>();
+        var documentsRepo = new Mock<IRepository<Document>>();
+        var encryptionService = new Mock<IEncryptionService>();
+        var blobStorage = new Mock<IBlobStorageService>();
+        var emailService = new Mock<IEmailService>();
+
+        var subscriptionId = Guid.NewGuid();
+        var condominiumId = Guid.NewGuid();
+
+        var subscription = new CondominiumSubscription
+        {
+            Id = subscriptionId,
+            CondominiumId = condominiumId,
+            BillingCycle = BillingCycle.Monthly,
+            Status = SubscriptionStatus.Active,
+            NextBillingDate = DateTime.UtcNow.Date.AddDays(1),
+            Condominium = new Condominium
+            {
+                Id = condominiumId,
+                Name = "Condo A",
+                Address = "Street 1",
+                TaxId = null,
+                TaxIdEncrypted = "enc-existing-taxid",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            },
+            Plan = new SubscriptionPlan
+            {
+                Id = Guid.NewGuid(),
+                Name = "Starter",
+                PriceMonthly = 100m,
+                PriceAnnual = 1000m,
+                PriceQuinquennial = 4500m,
+            }
+        };
+
+        subscriptionsRepo
+            .Setup(r => r.GetByIdWithIncludesAsync(subscriptionId, It.IsAny<string[]>()))
+            .ReturnsAsync(subscription);
+        subscriptionsRepo.Setup(r => r.Update(It.IsAny<CondominiumSubscription>()));
+
+        invoicesRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>() ))
+            .ReturnsAsync(new List<Invoice>());
+
+        Invoice? added = null;
+        invoicesRepo
+            .Setup(r => r.AddAsync(It.IsAny<Invoice>()))
+            .Callback<Invoice>(i => added = i)
+            .Returns(Task.CompletedTask);
+        invoicesRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        blobStorage
+            .Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), "application/pdf"))
+            .ReturnsAsync("https://blob.local/invoice.pdf");
+
+        emailService
+            .Setup(e => e.SendAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<EmailSenderType>(),
+                It.IsAny<Guid?>()))
+            .Returns(Task.CompletedTask);
+
+        encryptionService.Setup(e => e.Decrypt("enc-existing-taxid")).Returns("123456789");
+
+        var service = CreateService(
+            invoicesRepo,
+            subscriptionsRepo,
+            condominiumsRepo,
+            plansRepo,
+            documentsRepo,
+            encryptionService,
+            blobStorage,
+            emailService);
+
+        var result = await service.GenerateInvoiceAsync(subscriptionId);
+
+        added.Should().NotBeNull();
+        added!.CustomerTaxIdEncrypted.Should().Be("enc-existing-taxid");
+        result.CustomerTaxId.Should().Be("*****6789");
+
+        encryptionService.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateInvoiceAsync_ShouldEncryptCondominiumTaxId_WhenOnlyPlaintextExists()
+    {
+        var invoicesRepo = new Mock<IRepository<Invoice>>();
+        var subscriptionsRepo = new Mock<IRepository<CondominiumSubscription>>();
+        var condominiumsRepo = new Mock<IRepository<Condominium>>();
+        var plansRepo = new Mock<IRepository<SubscriptionPlan>>();
+        var documentsRepo = new Mock<IRepository<Document>>();
+        var encryptionService = new Mock<IEncryptionService>();
+        var blobStorage = new Mock<IBlobStorageService>();
+        var emailService = new Mock<IEmailService>();
+
+        var subscriptionId = Guid.NewGuid();
+        var condominiumId = Guid.NewGuid();
+
+        var subscription = new CondominiumSubscription
+        {
+            Id = subscriptionId,
+            CondominiumId = condominiumId,
+            BillingCycle = BillingCycle.Monthly,
+            Status = SubscriptionStatus.Active,
+            NextBillingDate = DateTime.UtcNow.Date.AddDays(1),
+            Condominium = new Condominium
+            {
+                Id = condominiumId,
+                Name = "Condo B",
+                Address = "Street 2",
+                TaxId = "987654321",
+                TaxIdEncrypted = null,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            },
+            Plan = new SubscriptionPlan
+            {
+                Id = Guid.NewGuid(),
+                Name = "Starter",
+                PriceMonthly = 100m,
+                PriceAnnual = 1000m,
+                PriceQuinquennial = 4500m,
+            }
+        };
+
+        subscriptionsRepo
+            .Setup(r => r.GetByIdWithIncludesAsync(subscriptionId, It.IsAny<string[]>()))
+            .ReturnsAsync(subscription);
+        subscriptionsRepo.Setup(r => r.Update(It.IsAny<CondominiumSubscription>()));
+
+        invoicesRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>() ))
+            .ReturnsAsync(new List<Invoice>());
+
+        Invoice? added = null;
+        invoicesRepo
+            .Setup(r => r.AddAsync(It.IsAny<Invoice>()))
+            .Callback<Invoice>(i => added = i)
+            .Returns(Task.CompletedTask);
+        invoicesRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        blobStorage
+            .Setup(b => b.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), "application/pdf"))
+            .ReturnsAsync("https://blob.local/invoice.pdf");
+
+        emailService
+            .Setup(e => e.SendAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<EmailSenderType>(),
+                It.IsAny<Guid?>()))
+            .Returns(Task.CompletedTask);
+
+        encryptionService.Setup(e => e.Encrypt("987654321")).Returns("enc-new-taxid");
+        encryptionService.Setup(e => e.Decrypt("enc-new-taxid")).Returns("987654321");
+
+        var service = CreateService(
+            invoicesRepo,
+            subscriptionsRepo,
+            condominiumsRepo,
+            plansRepo,
+            documentsRepo,
+            encryptionService,
+            blobStorage,
+            emailService);
+
+        var result = await service.GenerateInvoiceAsync(subscriptionId);
+
+        added.Should().NotBeNull();
+        added!.CustomerTaxIdEncrypted.Should().Be("enc-new-taxid");
+        result.CustomerTaxId.Should().Be("*****4321");
+
+        encryptionService.Verify(e => e.Encrypt("987654321"), Times.Once);
+    }
+
     private static InvoiceService CreateService(
         Mock<IRepository<Invoice>> invoicesRepo,
         Mock<IRepository<CondominiumSubscription>> subscriptionsRepo,
