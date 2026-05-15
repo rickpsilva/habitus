@@ -217,10 +217,14 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
          - Migra e limpa campos legados em `Invoice` (`CustomerTaxId`, `CustomerAddress`)
          - Configuração opcional: `Rgpd:EnableHistoricalBackfill` (default: `true`)
    
-2. Criar testes de validação de migração de dados
+2. Criar testes de validação de migração de dados ✅
    - Verificar que dados foram encriptados corretamente
    - Verificar que se conseguem descriptografar
    - Teste em ambiente local antes de produção
+    - ✅ `HistoricalEncryptionBackfillServiceTests` (3 cenários):
+      - encriptação + limpeza legacy em `Condominium`
+      - encriptação + limpeza legacy em `Invoice`
+      - limpeza legacy quando valores `*Encrypted` já existem
 
 **Fase 2: Adicionar Campos Encriptados para Entidades Faltantes** *(1-2 dias)* - *parallel com Fase 1*
 
