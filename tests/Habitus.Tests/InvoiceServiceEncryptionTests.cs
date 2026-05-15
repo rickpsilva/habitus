@@ -158,6 +158,66 @@ public class InvoiceServiceEncryptionTests
     }
 
     [Fact]
+    public async Task ExportSaftInvoicesAsync_ShouldNotDecrypt_WhenEncryptedCustomerTaxIdIsMissing()
+    {
+        var invoicesRepo = new Mock<IRepository<Invoice>>();
+        var subscriptionsRepo = new Mock<IRepository<CondominiumSubscription>>();
+        var condominiumsRepo = new Mock<IRepository<Condominium>>();
+        var plansRepo = new Mock<IRepository<SubscriptionPlan>>();
+        var documentsRepo = new Mock<IRepository<Document>>();
+        var encryptionService = new Mock<IEncryptionService>();
+        var blobStorage = new Mock<IBlobStorageService>();
+        var emailService = new Mock<IEmailService>();
+
+        var condominiumId = Guid.NewGuid();
+        invoicesRepo
+            .Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>(),
+                It.IsAny<string[]>()))
+            .ReturnsAsync(new List<Invoice>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    CondominiumId = condominiumId,
+                    CustomerName = "Condo A",
+                    CustomerAddress = "Street 1",
+                    CustomerTaxIdEncrypted = null,
+                    Series = "HABITUS",
+                    Number = 2,
+                    Year = 2026,
+                    Type = InvoiceType.FT,
+                    IssuedDate = DateTime.UtcNow,
+                    DueDate = DateTime.UtcNow.AddDays(30),
+                    PeriodStartDate = DateTime.UtcNow.Date,
+                    PeriodEndDate = DateTime.UtcNow.Date.AddMonths(1).AddDays(-1),
+                    SubtotalAmount = 100m,
+                    VatAmount = 23m,
+                    TotalAmount = 123m,
+                    VatRate = 0.23m,
+                    Status = InvoiceStatus.Emitted,
+                    PlanName = "Starter",
+                }
+            });
+
+        var service = CreateService(
+            invoicesRepo,
+            subscriptionsRepo,
+            condominiumsRepo,
+            plansRepo,
+            documentsRepo,
+            encryptionService,
+            blobStorage,
+            emailService);
+
+        var result = await service.ExportSaftInvoicesAsync(condominiumId, 2026);
+
+        result.Should().HaveCount(1);
+        result[0].CustomerTaxId.Should().BeEmpty();
+        encryptionService.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GetCondominiumInvoicesAsync_ShouldMaskDecryptedCustomerTaxId()
     {
         var invoicesRepo = new Mock<IRepository<Invoice>>();
