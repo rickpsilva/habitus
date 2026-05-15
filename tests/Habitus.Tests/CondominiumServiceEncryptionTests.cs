@@ -244,4 +244,94 @@ public class CondominiumServiceEncryptionTests
         result.CardEnabled.Should().BeTrue();
         encryption.Verify(e => e.Decrypt("enc-legacy-iban"), Times.Once);
     }
+
+    [Fact]
+    public async Task GetPaymentMethodsAsync_ShouldNotDecrypt_FromPaymentSettings_WhenEncryptedIbanMissing()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var userRepo = new Mock<IRepository<User>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var paymentSettingsRepo = new Mock<IRepository<PaymentSettings>>();
+        var encryption = new Mock<IEncryptionService>();
+
+        var condominiumId = Guid.NewGuid();
+        condominiumRepo.Setup(r => r.GetByIdAsync(condominiumId)).ReturnsAsync(new Condominium
+        {
+            Id = condominiumId,
+            Name = "Condo A",
+            Address = "Street 1",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        paymentSettingsRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<PaymentSettings, bool>>>() ))
+            .ReturnsAsync(new List<PaymentSettings>
+            {
+                new()
+                {
+                    CondominiumId = condominiumId,
+                    BankTransferEnabled = true,
+                    BankTransferIban = "PT50000201230000000000000",
+                    BankTransferIbanEncrypted = null,
+                    MBWayEnabled = false,
+                    CardEnabled = false,
+                }
+            });
+
+        var service = new CondominiumService(
+            condominiumRepo.Object,
+            userRepo.Object,
+            unitRepo.Object,
+            paymentSettingsRepo.Object,
+            encryption.Object);
+
+        var result = await service.GetPaymentMethodsAsync(condominiumId);
+
+        result.Should().NotBeNull();
+        result!.Iban.Should().Be("PT50000201230000000000000");
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetPaymentMethodsAsync_ShouldNotDecrypt_FromCondominiumFallback_WhenEncryptedIbanMissing()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var userRepo = new Mock<IRepository<User>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var paymentSettingsRepo = new Mock<IRepository<PaymentSettings>>();
+        var encryption = new Mock<IEncryptionService>();
+
+        var condominiumId = Guid.NewGuid();
+        condominiumRepo.Setup(r => r.GetByIdAsync(condominiumId)).ReturnsAsync(new Condominium
+        {
+            Id = condominiumId,
+            Name = "Condo A",
+            Address = "Street 1",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            PaymentIban = "PT50000201239999999999998",
+            PaymentIbanEncrypted = string.Empty,
+            PaymentBankTransferEnabled = true,
+            PaymentMbWayEnabled = false,
+            PaymentCardEnabled = false,
+        });
+
+        paymentSettingsRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<PaymentSettings, bool>>>() ))
+            .ReturnsAsync(new List<PaymentSettings>());
+
+        var service = new CondominiumService(
+            condominiumRepo.Object,
+            userRepo.Object,
+            unitRepo.Object,
+            paymentSettingsRepo.Object,
+            encryption.Object);
+
+        var result = await service.GetPaymentMethodsAsync(condominiumId);
+
+        result.Should().NotBeNull();
+        result!.Iban.Should().Be("PT50000201239999999999998");
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
 }
