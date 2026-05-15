@@ -37,6 +37,15 @@ public class InvoicePdfService
             maskedTaxId = MaskTaxId(decryptedTaxId);
         }
 
+        // Prefer encrypted condominium tax ID when available.
+        var footerCompanyTaxId = companyNif;
+        if (invoice.Condominium != null)
+        {
+            footerCompanyTaxId = !string.IsNullOrEmpty(invoice.Condominium.TaxIdEncrypted)
+                ? _encryptionService.Decrypt(invoice.Condominium.TaxIdEncrypted)
+                : (invoice.Condominium.TaxId ?? companyNif);
+        }
+
         return QuestPDF.Fluent.Document.Create(container =>
         {
             container.Page(page =>
@@ -155,7 +164,7 @@ public class InvoicePdfService
                 });
 
                 page.Footer().AlignCenter().PaddingTop(10).Text(
-                    $"NIF da Empresa: {invoice.Condominium?.TaxId ?? "N/A"} | Documento gerado by HABITUS em {DateTime.UtcNow:dd/MM/yyyy HH:mm}"
+                    $"NIF da Empresa: {footerCompanyTaxId} | Documento gerado by HABITUS em {DateTime.UtcNow:dd/MM/yyyy HH:mm}"
                 ).FontSize(7);
             });
         }).GeneratePdf();

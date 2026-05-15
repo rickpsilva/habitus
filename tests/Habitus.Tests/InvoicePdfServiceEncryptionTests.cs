@@ -41,6 +41,56 @@ public class InvoicePdfServiceEncryptionTests
         encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
     }
 
+    [Fact]
+    public void GenerateInvoicePdf_ShouldDecryptCondominiumTaxId_WhenEncryptedValueExists()
+    {
+        var encryption = new Mock<IEncryptionService>();
+        encryption.Setup(e => e.Decrypt("enc-company-taxid")).Returns("509876543");
+
+        var service = new InvoicePdfService(encryption.Object);
+        var invoice = CreateBaseInvoice();
+        invoice.Condominium = new Condominium
+        {
+            Id = Guid.NewGuid(),
+            Name = "Condo A",
+            Address = "Street 1",
+            TaxIdEncrypted = "enc-company-taxid",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        var result = service.GenerateInvoicePdf(invoice, "999999999");
+
+        result.Should().NotBeNull();
+        result.Should().NotBeEmpty();
+        encryption.Verify(e => e.Decrypt("enc-company-taxid"), Times.Once);
+    }
+
+    [Fact]
+    public void GenerateInvoicePdf_ShouldNotDecryptCondominiumTaxId_WhenEncryptedValueIsMissing()
+    {
+        var encryption = new Mock<IEncryptionService>();
+        var service = new InvoicePdfService(encryption.Object);
+
+        var invoice = CreateBaseInvoice();
+        invoice.Condominium = new Condominium
+        {
+            Id = Guid.NewGuid(),
+            Name = "Condo A",
+            Address = "Street 1",
+            TaxId = "509876543",
+            TaxIdEncrypted = null,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        var result = service.GenerateInvoicePdf(invoice, "999999999");
+
+        result.Should().NotBeNull();
+        result.Should().NotBeEmpty();
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
     private static Invoice CreateBaseInvoice()
     {
         return new Invoice
