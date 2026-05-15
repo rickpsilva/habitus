@@ -67,6 +67,40 @@ public class InvoicePdfServiceEncryptionTests
     }
 
     [Fact]
+    public void GenerateInvoicePdf_ShouldDecryptCustomerAddress_WhenEncryptedValueExists()
+    {
+        var encryption = new Mock<IEncryptionService>();
+        encryption.Setup(e => e.Decrypt("enc-customer-address")).Returns("Street 1");
+
+        var service = new InvoicePdfService(encryption.Object);
+        var invoice = CreateBaseInvoice();
+        invoice.CustomerAddress = null;
+        invoice.CustomerAddressEncrypted = "enc-customer-address";
+
+        var result = service.GenerateInvoicePdf(invoice, "999999999");
+
+        result.Should().NotBeNull();
+        result.Should().NotBeEmpty();
+        encryption.Verify(e => e.Decrypt("enc-customer-address"), Times.Once);
+    }
+
+    [Fact]
+    public void GenerateInvoicePdf_ShouldNotDecryptCustomerAddress_WhenEncryptedValueIsMissing()
+    {
+        var encryption = new Mock<IEncryptionService>();
+        var service = new InvoicePdfService(encryption.Object);
+
+        var invoice = CreateBaseInvoice();
+        invoice.CustomerAddressEncrypted = null;
+
+        var result = service.GenerateInvoicePdf(invoice, "999999999");
+
+        result.Should().NotBeNull();
+        result.Should().NotBeEmpty();
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public void GenerateInvoicePdf_ShouldNotDecryptCondominiumTaxId_WhenEncryptedValueIsMissing()
     {
         var encryption = new Mock<IEncryptionService>();

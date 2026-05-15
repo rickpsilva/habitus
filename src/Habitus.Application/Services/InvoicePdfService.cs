@@ -37,6 +37,10 @@ public class InvoicePdfService
             maskedTaxId = MaskTaxId(decryptedTaxId);
         }
 
+        var customerAddress = !string.IsNullOrEmpty(invoice.CustomerAddressEncrypted)
+            ? _encryptionService.Decrypt(invoice.CustomerAddressEncrypted)
+            : invoice.CustomerAddress;
+
         // Prefer encrypted condominium tax ID when available.
         var footerCompanyTaxId = companyNif;
         if (invoice.Condominium != null)
@@ -87,8 +91,8 @@ public class InvoicePdfService
                         col.Item().PaddingTop(3).Text($"Designação: {invoice.CustomerName}").FontSize(9);
                         if (!string.IsNullOrEmpty(maskedTaxId))
                             col.Item().Text($"NIF: {maskedTaxId}").FontSize(9);
-                        if (!string.IsNullOrEmpty(invoice.CustomerAddress))
-                            col.Item().Text($"Morada: {invoice.CustomerAddress}").FontSize(9);
+                        if (!string.IsNullOrEmpty(customerAddress))
+                            col.Item().Text($"Morada: {customerAddress}").FontSize(9);
                     });
 
                     contentCol.Item().PaddingVertical(10).Text("─────────────────────────────────────────────────────────").FontSize(8);
