@@ -81,7 +81,15 @@ public class PaymentSettingsService
         paymentSettings.MBReferenceReference = request.MBReferenceReference;
 
         paymentSettings.MBWayEnabled = request.MBWayEnabled;
-        paymentSettings.MBWayPhoneNumber = request.MBWayPhoneNumber;
+        // Preserve existing encrypted MB Way phone number when request omits MBWayPhoneNumber.
+        // If phone is explicitly provided, update encrypted value and clear plaintext column.
+        if (request.MBWayPhoneNumber != null)
+        {
+            paymentSettings.MBWayPhoneNumberEncrypted = string.IsNullOrWhiteSpace(request.MBWayPhoneNumber)
+                ? null
+                : _encryptionService.Encrypt(request.MBWayPhoneNumber);
+            paymentSettings.MBWayPhoneNumber = null;
+        }
         paymentSettings.MBWayMerchantId = request.MBWayMerchantId;
 
         paymentSettings.CardEnabled = request.CardEnabled;
@@ -116,6 +124,10 @@ public class PaymentSettingsService
         var decryptedIban = !string.IsNullOrEmpty(paymentSettings.BankTransferIbanEncrypted)
             ? _encryptionService.Decrypt(paymentSettings.BankTransferIbanEncrypted)
             : paymentSettings.BankTransferIban;
+        
+        var decryptedMBWayPhone = !string.IsNullOrEmpty(paymentSettings.MBWayPhoneNumberEncrypted)
+            ? _encryptionService.Decrypt(paymentSettings.MBWayPhoneNumberEncrypted)
+            : paymentSettings.MBWayPhoneNumber;
 
         return new PaymentSettingsDto
         {
@@ -128,7 +140,7 @@ public class PaymentSettingsService
             MBReferenceEntity = paymentSettings.MBReferenceEntity,
             MBReferenceReference = paymentSettings.MBReferenceReference,
             MBWayEnabled = paymentSettings.MBWayEnabled,
-            MBWayPhoneNumber = paymentSettings.MBWayPhoneNumber,
+            MBWayPhoneNumber = decryptedMBWayPhone,
             MBWayMerchantId = paymentSettings.MBWayMerchantId,
             CardEnabled = paymentSettings.CardEnabled,
             CardProvider = paymentSettings.CardProvider,

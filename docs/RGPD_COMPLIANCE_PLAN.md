@@ -39,6 +39,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
+- **[NOVO - 15-05-2026]** Entidade `PaymentSettings.MBWayPhoneNumberEncrypted` criada (campo paralelo ao legacy `MBWayPhoneNumber`).
+- **[NOVO - 15-05-2026]** Migration `AddPaymentSettingsMBWayPhoneEncrypted` criada.
+- **[NOVO - 15-05-2026]** `PaymentSettingsService` atualizado: encriptação em UpdateAsync, desencriptação em MapToDto.
+- **[NOVO - 15-05-2026]** Hardening em UpdateAsync: preserva `MBWayPhoneNumberEncrypted` quando `MBWayPhoneNumber` é omitido.
+- **[NOVO - 15-05-2026]** Testes `PaymentSettingsServiceEncryptionTests` expandidos (6 testes, 2 novos para MBWay, todos a passar).
+- **[NOVO - 15-05-2026]** Suite de testes completa: 33 testes passando (8 Auth + 6 User.Phone + 6 EmailHash + 3 GDPR + 6 PaymentSettings).
 
 ### Em curso
 - Fase 2.1: User.Email com EmailHash (próximo increment)

@@ -20,7 +20,8 @@ public class PaymentSettings
     
     // MB Way Configuration
     public bool MBWayEnabled { get; set; } = false;
-    public string? MBWayPhoneNumber { get; set; }
+    public string? MBWayPhoneNumber { get; set; }  // DEPRECATED: Use MBWayPhoneNumberEncrypted instead (kept for legacy compatibility)
+    public string? MBWayPhoneNumberEncrypted { get; set; }  // Encrypted MB Way phone number (new field)
     public string? MBWayMerchantId { get; set; }
     
     // Card Payment Configuration
