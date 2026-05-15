@@ -2,6 +2,7 @@ using FluentAssertions;
 using Habitus.Api.Controllers;
 using Habitus.Application.DTOs.Payments;
 using Habitus.Application.Interfaces;
+using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -34,7 +35,8 @@ public class PaymentSettingsControllerEncryptionTests
 
         encryption.Setup(e => e.Decrypt("enc-iban")).Returns("PT50000201231234567890154");
 
-        var controller = new PaymentSettingsController(repository.Object, encryption.Object);
+        var service = new PaymentSettingsService(repository.Object, encryption.Object);
+        var controller = new PaymentSettingsController(service);
 
         var actionResult = await controller.Get(condominiumId);
 
@@ -69,7 +71,8 @@ public class PaymentSettingsControllerEncryptionTests
         encryption.Setup(e => e.Encrypt("PT50000201231234567890154")).Returns("enc-iban");
         encryption.Setup(e => e.Encrypt("sk_test_secret")).Returns("enc-secret");
 
-        var controller = new PaymentSettingsController(repository.Object, encryption.Object);
+        var service = new PaymentSettingsService(repository.Object, encryption.Object);
+        var controller = new PaymentSettingsController(service);
 
         var request = new UpdatePaymentSettingsRequest
         {

@@ -103,6 +103,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
         services.AddScoped<PaymentService>();
+        services.AddScoped<PaymentSettingsService>();
         services.AddScoped<ReceiptService>();
         
         // New multi-condominium services
