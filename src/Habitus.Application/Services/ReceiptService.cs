@@ -18,19 +18,22 @@ public class ReceiptService
     private readonly IRepository<DomainUnit> _unitRepository;
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<ReceiptTemplateSettings> _receiptTemplateSettingsRepository;
+    private readonly IEncryptionService _encryptionService;
 
     public ReceiptService(
         IRepository<Payment> paymentRepository,
         IRepository<User> userRepository,
         IRepository<DomainUnit> unitRepository,
         IRepository<Condominium> condominiumRepository,
-        IRepository<ReceiptTemplateSettings> receiptTemplateSettingsRepository)
+        IRepository<ReceiptTemplateSettings> receiptTemplateSettingsRepository,
+        IEncryptionService encryptionService)
     {
         _paymentRepository = paymentRepository;
         _userRepository = userRepository;
         _unitRepository = unitRepository;
         _condominiumRepository = condominiumRepository;
         _receiptTemplateSettingsRepository = receiptTemplateSettingsRepository;
+        _encryptionService = encryptionService;
         
         // Configure QuestPDF license (Community license is free for open source)
         QuestPDF.Settings.License = LicenseType.Community;
@@ -103,7 +106,13 @@ public class ReceiptService
         var companyPostalCode = templateSettings?.PostalCode;
         var companyLocality = templateSettings?.Locality;
         var companyLocationLine = FormatPostalCodeAndLocality(companyPostalCode, companyLocality);
-        var companyTaxId = templateSettings?.TaxId ?? condominium.TaxId;
+        var companyTaxId = templateSettings?.TaxId;
+        if (string.IsNullOrWhiteSpace(companyTaxId))
+        {
+            companyTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
+                ? condominium.TaxId
+                : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+        }
         var templateBody = BuildReceiptBody(payment, resident, unit, condominium, templateSettings);
 
         var document = QuestPDF.Fluent.Document.Create(container =>
