@@ -157,7 +157,7 @@ public class CondominiumService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Address = request.Address,
-            TaxId = request.TaxId,  // Keep old field for backward compatibility
+            TaxId = null,
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId),
             CreatedAt = DateTime.UtcNow,
@@ -196,7 +196,7 @@ public class CondominiumService
 
         condominium.Name = request.Name;
         condominium.Address = request.Address;
-        condominium.TaxId = request.TaxId;  // Keep old field for backward compatibility
+        condominium.TaxId = null;
         condominium.TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId);
         if (request.Email != null)
         {
