@@ -15,6 +15,7 @@ public class UserService : IUserService
     private readonly IRepository<UserGdprConsent> _userGdprConsentRepository;
     private readonly IRepository<Notification> _notificationRepository;
     private readonly INotificationDispatchService _notificationDispatchService;
+    private readonly IEncryptionService _encryptionService;
 
     public UserService(
         IRepository<User> userRepository,
@@ -23,7 +24,8 @@ public class UserService : IUserService
         IRepository<Unit> unitRepository,
         IRepository<UserGdprConsent> userGdprConsentRepository,
         IRepository<Notification> notificationRepository,
-        INotificationDispatchService notificationDispatchService)
+        INotificationDispatchService notificationDispatchService,
+        IEncryptionService encryptionService)
     {
         _userRepository = userRepository;
         _userCondominiumRepository = userCondominiumRepository;
@@ -32,6 +34,7 @@ public class UserService : IUserService
         _userGdprConsentRepository = userGdprConsentRepository;
         _notificationRepository = notificationRepository;
         _notificationDispatchService = notificationDispatchService;
+        _encryptionService = encryptionService;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
@@ -163,7 +166,8 @@ public class UserService : IUserService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
-            Phone = request.Phone,
+            Phone = string.IsNullOrEmpty(request.Phone) ? string.Empty : null,  // Clear plaintext after encryption
+            PhoneEncrypted = string.IsNullOrEmpty(request.Phone) ? null : _encryptionService.Encrypt(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
             UnitId = request.UnitId,
@@ -214,7 +218,14 @@ public class UserService : IUserService
         // Update properties
         user.Name = request.Name;
         user.Email = request.Email;
-        user.Phone = request.Phone;
+        
+        // Encrypt phone if provided, preserve encrypted value if omitted
+        if (!string.IsNullOrEmpty(request.Phone))
+        {
+            user.Phone = null;  // Clear plaintext
+            user.PhoneEncrypted = _encryptionService.Encrypt(request.Phone);
+        }
+        
         user.Role = userRole;
         user.CondominiumId = request.CondominiumId;
         user.UnitId = request.UnitId;
@@ -318,12 +329,17 @@ public class UserService : IUserService
 
     private UserResponse MapToResponse(User user)
     {
+        // Decrypt phone if encrypted, otherwise use old field (fallback for legacy data)
+        var decryptedPhone = string.IsNullOrEmpty(user.PhoneEncrypted)
+            ? user.Phone
+            : _encryptionService.Decrypt(user.PhoneEncrypted);
+
         return new UserResponse
         {
             Id = user.Id,
             Name = user.Name,
             Email = user.Email,
-            Phone = user.Phone,
+            Phone = decryptedPhone,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
             CondominiumName = user.Condominium?.Name,
@@ -346,16 +362,23 @@ public class UserService : IUserService
             u => u.CondominiumId == condominiumId && !u.IsActive && u.Role == UserRole.Resident,
             "Unit");
 
-        return users.Select(u => new PendingUserDto
+        return users.Select(u => 
         {
-            Id = u.Id,
-            Name = u.Name,
-            Email = u.Email,
-            Phone = u.Phone,
-            UnitId = u.UnitId,
-            UnitNumber = u.Unit?.Number,
-            CondominiumId = u.CondominiumId,
-            CreatedAt = u.CreatedAt
+            var decryptedPhone = string.IsNullOrEmpty(u.PhoneEncrypted)
+                ? u.Phone
+                : _encryptionService.Decrypt(u.PhoneEncrypted);
+
+            return new PendingUserDto
+            {
+                Id = u.Id,
+                Name = u.Name,
+                Email = u.Email,
+                Phone = decryptedPhone,
+                UnitId = u.UnitId,
+                UnitNumber = u.Unit?.Number,
+                CondominiumId = u.CondominiumId,
+                CreatedAt = u.CreatedAt
+            };
         });
     }
 
@@ -479,13 +502,18 @@ public class UserService : IUserService
         }
 
         var consentStatus = await GetGdprConsentStatusAsync(userId);
+        
+        // Decrypt phone if encrypted, otherwise use old field (fallback for legacy data)
+        var decryptedPhone = string.IsNullOrEmpty(user.PhoneEncrypted)
+            ? user.Phone
+            : _encryptionService.Decrypt(user.PhoneEncrypted);
 
         return new UserDataExportResponse
         {
             UserId = user.Id,
             Name = user.Name,
             Email = user.Email,
-            Phone = user.Phone,
+            Phone = decryptedPhone,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
             UnitId = user.UnitId,

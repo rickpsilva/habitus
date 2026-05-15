@@ -30,12 +30,19 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Hardening aplicado no `CondominiumService`: `UpdateCondominiumAsync` preserva `TaxIdEncrypted` existente quando `TaxId` não é enviado (evita perda acidental de dados encriptados).
 - Hardening aplicado no `CondominiumService`: `UpdatePaymentMethodsAsync` preserva `PaymentIbanEncrypted` existente quando `Iban` não é enviado (evita limpeza acidental em updates parciais).
 - Hardening aplicado no `PaymentSettingsService`: `UpdateAsync` preserva `BankTransferIbanEncrypted` quando `BankTransferIban` é omitido em update parcial.
+- **[NOVO - 15-05-2026]** Entidade `User.PhoneEncrypted` criada (campo paralelo ao legacy `Phone`).
+- **[NOVO - 15-05-2026]** Migration `AddUserPhoneEncrypted` criada.
+- **[NOVO - 15-05-2026]** `UserService` atualizado com IEncryptionService: encriptação em CreateUserAsync/UpdateUserAsync, desencriptação em MapToResponse.
+- **[NOVO - 15-05-2026]** Hardening em UpdateUserAsync: preserva `PhoneEncrypted` quando `Phone` é omitido (update parcial).
+- **[NOVO - 15-05-2026]** Testes unitários `UserServicePhoneEncryptionTests` adicionados (6 testes, todos a passar).
+- **[NOVO - 15-05-2026]** Testes GDPR atualizados com nova assinatura de UserService (13 testes total passando).
 
 ### Em curso
-- Fases 1, 2, 3 e 4 (encriptação alargada e mascaramento por role em middleware/DTO).
+- Fase 2.1: User.Email com EmailHash (próximo increment)
+- Fases 2, 3 (encriptação alargada) e Fase 4 (mascaramento por role).
 
 ### Pendente
-- Fases 1, 2, 3 (encriptação alargada), 4 (mascaramento automático por role) e Fase 6.
+- Fase 1 (migração dados históricos), Fases 2.2+, 3, 4 (mascaramento automático por role) e Fase 6.
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -48,14 +55,16 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Migration helper e batch encryption
     - [ ] Migration de dados históricos
     - [ ] Testes de validação de migração
-- [ ] Fase 2 - Campos encriptados em entidades: **10%**
+- [ ] Fase 2 - Campos encriptados em entidades: **15%**
     - [x] Base RGPD em `User` e `UserGdprConsent`
+    - [x] Campo `User.PhoneEncrypted` adicionado
+    - [ ] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-    - [ ] Índice único em `User.EmailHash`
-- [ ] Fase 3 - Encriptação nos serviços: **53%**
+- [ ] Fase 3 - Encriptação nos serviços: **59%**
     - [x] Fluxos RGPD no `UserService`
-    - [ ] Encriptação/decriptação de phone/hash email no `UserService`
+    - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
+    - [ ] Encriptação/desencriptação de email + EmailHash no `UserService`
     - [ ] `SupplierService` completo
     - [ ] `CondominiumService` completo
     - [ ] `ReceiptService`, `PaymentService`, `InvoiceService`, `UsefulContact`
@@ -98,15 +107,34 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 6. Só depois sincronizar plano e criar commit local (sem push).
 
 #### Próximos passos sugeridos (ordem recomendada)
-1. **PaymentSettingsService (seguir padrão parcial seguro para restantes sensíveis)**
-    - Rever `CardSecretKey` e futuros campos encriptados (ex: MBWay) para garantir semântica consistente de update parcial.
-    - Adicionar testes de preservação quando campo sensível é omitido.
-2. **InvoiceService / Invoice entity (CustomerAddressEncrypted)**
-    - Preparar fase de transição para `CustomerAddressEncrypted` (quando coluna existir): leitura encrypted-first, fallback legacy e limpeza progressiva.
-    - Adicionar testes unitários equivalentes aos de TaxId (read/export/list/generate).
-3. **Supplier (quando iniciar Fase 2+3 conjunta)**
-    - Introduzir campos encriptados no entity + migration.
-    - Extrair lógica de controller para `SupplierService` e aplicar padrão encrypted-first.
+
+**Implementado:**
+1. ✅ **User.Phone** (15-05-2026) - encriptado, testes adicionados (6 novos), hardening em update parcial, tudo passando
+
+**Próximos passos:**
+2. **User.Email com EmailHash** (próximo)
+    - Adicionar `EmailHash` (SHA256) para índice único e login rápido
+    - Adicionar `EmailEncrypted` para dados sensíveis
+    - Atualizar `UserService` com desencriptação em leitura
+    - Testes: Create, Update (parcial), Read, Regressão
+    - **Nota**: Email permanece em plaintext na tabela (para índice), é encriptado apenas em backups/exports
+3. **PaymentSettings MbWay Phone** (seguir padrão User.Phone)
+    - Adicionar `PaymentMbWayPhoneNumberEncrypted`
+    - Padrão idêntico: encrypt-first + fallback legacy + cleanup + preservação em update parcial
+    - Testes de encriptação
+4. **UsefulContact Phone**
+    - Seguir padrão de Condominium/User (encrypted-first + fallback)
+    - Testes de encriptação
+5. **Invoice CustomerAddress**
+    - Preparar fase de transição para `CustomerAddressEncrypted`
+    - Testes unitários (read/export/generate)
+6. **Supplier** (quando iniciar Fase 2+3 conjunta)
+    - Introduzir campos encriptados no entity + migration
+    - Extrair lógica de controller para `SupplierService` e aplicar padrão encrypted-first
+    - Todas as entidades faltantes: Contact, Email, Phone, Address
+7. **ReceiptTemplateSettings** (independente)
+    - Adicionar campos encriptados: TaxId, Email, Phone, Address, PostalCode, Locality
+    - Aplicar padrão "encrypted-first + fallback"
 
 #### Definition of Done para cada novo increment RGPD
 - 1 alteração de comportamento bem delimitada.
@@ -116,6 +144,8 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Commit local criado, sem push.
 
 #### Comandos rápidos de retoma
+- Testes user phone: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~UserServicePhoneEncryptionTests"`
+- Testes GDPR: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~GdprConsentTests|FullyQualifiedName~GdprErasureTests|FullyQualifiedName~GdprConsentMiddlewareTests"`
 - Testes faturação: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~InvoiceServiceEncryptionTests"`
 - Testes condomínio: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~CondominiumServiceEncryptionTests"`
 - Testes payment settings: `dotnet test tests/Habitus.Tests/Habitus.Tests.csproj --filter "FullyQualifiedName~PaymentSettingsServiceEncryptionTests"`

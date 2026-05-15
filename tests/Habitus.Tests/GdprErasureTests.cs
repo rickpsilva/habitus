@@ -15,6 +15,7 @@ public class GdprErasureTests
     private readonly Mock<IRepository<UserGdprConsent>> _userGdprConsentRepositoryMock = new();
     private readonly Mock<IRepository<Notification>> _notificationRepositoryMock = new();
     private readonly Mock<INotificationDispatchService> _notificationDispatchServiceMock = new();
+    private readonly Mock<IEncryptionService> _encryptionServiceMock = new();
 
     private readonly UserService _service;
 
@@ -34,7 +35,8 @@ public class GdprErasureTests
             _unitRepositoryMock.Object,
             _userGdprConsentRepositoryMock.Object,
             _notificationRepositoryMock.Object,
-            _notificationDispatchServiceMock.Object);
+            _notificationDispatchServiceMock.Object,
+            _encryptionServiceMock.Object);
     }
 
     [Fact]
