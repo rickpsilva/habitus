@@ -29,12 +29,14 @@ public class InvoiceServiceEncryptionTests
             {
                 Id = condoId,
                 Name = "Condo A",
-                Address = "Street 1",
+                Address = string.Empty,
+                AddressEncrypted = "enc-address",
                 Email = "condo@example.com",
                 TaxIdEncrypted = "enc-taxid",
             });
 
         encryptionService.Setup(e => e.Decrypt("enc-taxid")).Returns("123456789");
+        encryptionService.Setup(e => e.Decrypt("enc-address")).Returns("Street 1");
 
         var service = CreateService(
             invoicesRepo,
@@ -50,7 +52,9 @@ public class InvoiceServiceEncryptionTests
 
         result.Should().NotBeNull();
         result!.TaxId.Should().Be("123456789");
+        result.Address.Should().Be("Street 1");
         encryptionService.Verify(e => e.Decrypt("enc-taxid"), Times.Once);
+        encryptionService.Verify(e => e.Decrypt("enc-address"), Times.Once);
     }
 
     [Fact]
@@ -119,7 +123,8 @@ public class InvoiceServiceEncryptionTests
                     Id = Guid.NewGuid(),
                     CondominiumId = condominiumId,
                     CustomerName = "Condo A",
-                    CustomerAddress = "Street 1",
+                    CustomerAddress = null,
+                    CustomerAddressEncrypted = "enc-customer-address",
                     CustomerTaxIdEncrypted = "enc-taxid",
                     Series = "HABITUS",
                     Number = 1,
@@ -139,6 +144,7 @@ public class InvoiceServiceEncryptionTests
             });
 
         encryptionService.Setup(e => e.Decrypt("enc-taxid")).Returns("123456789");
+    encryptionService.Setup(e => e.Decrypt("enc-customer-address")).Returns("Street 1");
 
         var service = CreateService(
             invoicesRepo,
@@ -154,7 +160,9 @@ public class InvoiceServiceEncryptionTests
 
         result.Should().HaveCount(1);
         result[0].CustomerTaxId.Should().Be("123456789");
+        result[0].CustomerAddress.Should().Be("Street 1");
         encryptionService.Verify(e => e.Decrypt("enc-taxid"), Times.Once);
+        encryptionService.Verify(e => e.Decrypt("enc-customer-address"), Times.Once);
     }
 
     [Fact]
@@ -410,6 +418,8 @@ public class InvoiceServiceEncryptionTests
                 It.IsAny<Guid?>()))
             .Returns(Task.CompletedTask);
 
+        encryptionService.Setup(e => e.Encrypt("Street 1")).Returns("enc-address");
+        encryptionService.Setup(e => e.Decrypt("enc-address")).Returns("Street 1");
         encryptionService.Setup(e => e.Decrypt("enc-existing-taxid")).Returns("123456789");
 
         var service = CreateService(
@@ -426,9 +436,12 @@ public class InvoiceServiceEncryptionTests
 
         added.Should().NotBeNull();
         added!.CustomerTaxIdEncrypted.Should().Be("enc-existing-taxid");
+        added!.CustomerAddressEncrypted.Should().Be("enc-address");
+        result.CustomerAddress.Should().Be("Street 1");
         result.CustomerTaxId.Should().Be("*****6789");
 
-        encryptionService.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+        encryptionService.Verify(e => e.Encrypt("Street 1"), Times.Once);
+        encryptionService.Verify(e => e.Encrypt(It.Is<string>(s => s != "Street 1")), Times.Never);
     }
 
     [Fact]
@@ -503,7 +516,9 @@ public class InvoiceServiceEncryptionTests
             .Returns(Task.CompletedTask);
 
         encryptionService.Setup(e => e.Encrypt("987654321")).Returns("enc-new-taxid");
+        encryptionService.Setup(e => e.Encrypt("Street 2")).Returns("enc-new-address");
         encryptionService.Setup(e => e.Decrypt("enc-new-taxid")).Returns("987654321");
+        encryptionService.Setup(e => e.Decrypt("enc-new-address")).Returns("Street 2");
 
         var service = CreateService(
             invoicesRepo,
@@ -519,9 +534,13 @@ public class InvoiceServiceEncryptionTests
 
         added.Should().NotBeNull();
         added!.CustomerTaxIdEncrypted.Should().Be("enc-new-taxid");
+        added!.CustomerAddress.Should().BeNull();
+        added!.CustomerAddressEncrypted.Should().Be("enc-new-address");
+        result.CustomerAddress.Should().Be("Street 2");
         result.CustomerTaxId.Should().Be("*****4321");
 
         encryptionService.Verify(e => e.Encrypt("987654321"), Times.Once);
+        encryptionService.Verify(e => e.Encrypt("Street 2"), Times.Once);
     }
 
     private static InvoiceService CreateService(

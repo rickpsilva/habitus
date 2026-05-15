@@ -139,6 +139,7 @@ public class HabitusDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).IsRequired();
             entity.Property(c => c.Address).IsRequired();
+            entity.Property(c => c.AddressEncrypted).HasMaxLength(2048);
             entity.HasIndex(c => c.TaxId);
         });
 
@@ -465,6 +466,7 @@ public class HabitusDbContext : DbContext
             entity.Property(i => i.CustomerName).IsRequired().HasMaxLength(256);
             entity.Property(i => i.CustomerTaxIdEncrypted).HasMaxLength(255); // Encrypted NIF
             entity.Property(i => i.CustomerAddress).HasMaxLength(512);
+            entity.Property(i => i.CustomerAddressEncrypted).HasMaxLength(2048);
             entity.Property(i => i.PlanName).IsRequired().HasMaxLength(128);
             entity.Property(i => i.SubtotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(i => i.VatAmount).HasColumnType("decimal(18,2)");

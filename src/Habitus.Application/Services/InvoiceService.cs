@@ -58,7 +58,7 @@ public class InvoiceService
         {
             Id      = condominium.Id,
             Name    = condominium.Name,
-            Address = condominium.Address,
+            Address = DecryptCondominiumAddressOrFallback(condominium),
             Email   = condominium.Email,
             TaxId   = !string.IsNullOrEmpty(condominium.TaxIdEncrypted)
                         ? _encryptionService.Decrypt(condominium.TaxIdEncrypted)
@@ -148,6 +148,12 @@ public class InvoiceService
                 ? _encryptionService.Encrypt(condominium.TaxId)
                 : null);
 
+        var encryptedAddress = !string.IsNullOrEmpty(condominium.AddressEncrypted)
+            ? condominium.AddressEncrypted
+            : (!string.IsNullOrWhiteSpace(condominium.Address)
+                ? _encryptionService.Encrypt(condominium.Address)
+                : null);
+
         // Create invoice
         var invoice = new Invoice
         {
@@ -161,7 +167,8 @@ public class InvoiceService
             CondominiumId = condominium.Id,
             CustomerName = condominium.Name,
             CustomerTaxIdEncrypted = encryptedTaxId,
-            CustomerAddress = condominium.Address,
+            CustomerAddress = null,
+            CustomerAddressEncrypted = encryptedAddress,
             SubscriptionId = subscriptionId,
             PlanName = plan.Name,
             PeriodStartDate = periodStart,
@@ -349,7 +356,7 @@ public class InvoiceService
                     PaidDate = inv.PaidDate,
                     CustomerName = inv.CustomerName,
                     CustomerTaxId = decryptedTaxId,
-                    CustomerAddress = inv.CustomerAddress,
+                    CustomerAddress = DecryptInvoiceAddressOrFallback(inv),
                     Description = $"Subscription to {inv.PlanName} plan for {inv.PeriodStartDate:MMMM yyyy}",
                     PeriodStartDate = inv.PeriodStartDate,
                     PeriodEndDate = inv.PeriodEndDate,
@@ -404,7 +411,7 @@ public class InvoiceService
             CondominiumId = invoice.CondominiumId,
             CustomerName = invoice.CustomerName,
             CustomerTaxId = maskedTaxId,
-            CustomerAddress = invoice.CustomerAddress,
+            CustomerAddress = DecryptInvoiceAddressOrFallback(invoice),
             PlanName = invoice.PlanName,
             PeriodStartDate = invoice.PeriodStartDate,
             PeriodEndDate = invoice.PeriodEndDate,
@@ -430,6 +437,26 @@ public class InvoiceService
             return taxId;
 
         return new string('*', taxId.Length - 4) + taxId.Substring(taxId.Length - 4);
+    }
+
+    private string? DecryptCondominiumAddressOrFallback(Condominium condominium)
+    {
+        if (!string.IsNullOrWhiteSpace(condominium.AddressEncrypted))
+        {
+            return _encryptionService.Decrypt(condominium.AddressEncrypted);
+        }
+
+        return condominium.Address;
+    }
+
+    private string? DecryptInvoiceAddressOrFallback(Invoice invoice)
+    {
+        if (!string.IsNullOrWhiteSpace(invoice.CustomerAddressEncrypted))
+        {
+            return _encryptionService.Decrypt(invoice.CustomerAddressEncrypted);
+        }
+
+        return invoice.CustomerAddress;
     }
 
     /// <summary>

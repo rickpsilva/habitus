@@ -48,7 +48,7 @@ public class CondominiumService
             {
                 Id = condo.Id,
                 Name = condo.Name,
-                Address = condo.Address,
+                Address = DecryptAddressOrFallback(condo),
                 TaxId = decryptedTaxId,
                 Email = condo.Email,
                 CreatedAt = condo.CreatedAt,
@@ -80,7 +80,7 @@ public class CondominiumService
             {
                 Id = condo.Id,
                 Name = condo.Name,
-                Address = condo.Address,
+                Address = DecryptAddressOrFallback(condo),
                 TaxId = decryptedTaxId,
                 Email = condo.Email,
                 CreatedAt = condo.CreatedAt,
@@ -138,7 +138,7 @@ public class CondominiumService
         {
             Id = condominium.Id,
             Name = condominium.Name,
-            Address = condominium.Address,
+            Address = DecryptAddressOrFallback(condominium),
             TaxId = decryptedTaxId,
             Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
@@ -156,7 +156,8 @@ public class CondominiumService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Address = request.Address,
+            Address = string.Empty,
+            AddressEncrypted = EncryptOrNull(request.Address),
             TaxId = null,
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId),
@@ -176,7 +177,7 @@ public class CondominiumService
         {
             Id = condominium.Id,
             Name = condominium.Name,
-            Address = condominium.Address,
+            Address = DecryptAddressOrFallback(condominium),
             TaxId = decryptedTaxId,
             Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
@@ -195,7 +196,8 @@ public class CondominiumService
         }
 
         condominium.Name = request.Name;
-        condominium.Address = request.Address;
+        condominium.Address = string.Empty;
+        condominium.AddressEncrypted = EncryptOrNull(request.Address);
         // Preserve existing encrypted TaxId when request omits TaxId.
         // If TaxId is explicitly provided, update encrypted value and clear plaintext column.
         if (request.TaxId != null)
@@ -226,7 +228,7 @@ public class CondominiumService
         {
             Id = condominium.Id,
             Name = condominium.Name,
-            Address = condominium.Address,
+            Address = DecryptAddressOrFallback(condominium),
             TaxId = decryptedTaxId,
             Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
@@ -260,7 +262,7 @@ public class CondominiumService
         {
             Id = condominium.Id,
             Name = condominium.Name,
-            Address = condominium.Address,
+            Address = DecryptAddressOrFallback(condominium),
             TaxId = decryptedTaxId,
             Email = condominium.Email,
             CreatedAt = condominium.CreatedAt,
@@ -391,7 +393,7 @@ public class CondominiumService
             {
                 Id = c.Id,
                 Name = c.Name,
-                Address = c.Address
+                Address = DecryptAddressOrFallback(c)
             });
     }
 
@@ -411,5 +413,21 @@ public class CondominiumService
                 Floor = u.Floor,
                 ApartmentNumber = u.ApartmentNumber
             });
+    }
+
+    private string? EncryptOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return _encryptionService.Encrypt(value);
+    }
+
+    private string DecryptAddressOrFallback(Condominium condominium)
+    {
+        if (!string.IsNullOrWhiteSpace(condominium.AddressEncrypted))
+        {
+            return _encryptionService.Decrypt(condominium.AddressEncrypted);
+        }
+
+        return condominium.Address;
     }
 }

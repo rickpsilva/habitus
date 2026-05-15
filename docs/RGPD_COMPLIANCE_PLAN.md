@@ -227,11 +227,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
      - ✅ Adicionar `PhoneEncrypted` 
      - ✅ Adicionar campos RGPD: `GdprConsentedAt`, `GdprErasureRequestedAt`, `IsDeleted`, `DeletedAt`, `DeletionReason`
    - `Supplier.cs`: adicionar `ContactEncrypted`, `PhoneEncrypted`, `AddressEncrypted` (Email fica plaintext - comercial)
-   - `Condominium.cs`: adicionar `AddressEncrypted` (TaxIdEncrypted já existe)
+    - `Condominium.cs`: ✅ adicionar `AddressEncrypted` (TaxIdEncrypted já existe) (implementado, testado)
     - `ReceiptTemplateSettings.cs`: ✅ adicionar `TaxIdEncrypted`, `EmailEncrypted`, `PhoneEncrypted`, `AddressEncrypted`, `PostalCodeEncrypted`, `LocalityEncrypted` (implementado, testado)
    - `PaymentSettings.cs`: adicionar `MbWayPhoneNumberEncrypted`
    - `UsefulContact.cs`: adicionar `PhoneEncrypted`
-   - `Invoice.cs`: adicionar `CustomerAddressEncrypted` (complementar)
+    - `Invoice.cs`: ✅ adicionar `CustomerAddressEncrypted` (complementar) (implementado, testado)
    - Criar: `UserGdprConsent.cs` - entity para consentimentos
    - Marcar campos antigos como `[Obsolete]` para deprecação gradual
 

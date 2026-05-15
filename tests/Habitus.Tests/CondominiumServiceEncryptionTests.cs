@@ -27,6 +27,8 @@ public class CondominiumServiceEncryptionTests
 
         encryption.Setup(e => e.Encrypt("123456789")).Returns("enc-taxid");
         encryption.Setup(e => e.Decrypt("enc-taxid")).Returns("123456789");
+        encryption.Setup(e => e.Encrypt("Street 1")).Returns("enc-address");
+        encryption.Setup(e => e.Decrypt("enc-address")).Returns("Street 1");
 
         var service = new CondominiumService(
             condominiumRepo.Object,
@@ -48,10 +50,15 @@ public class CondominiumServiceEncryptionTests
         added.Should().NotBeNull();
         added!.TaxId.Should().BeNull();
         added!.TaxIdEncrypted.Should().Be("enc-taxid");
+        added!.Address.Should().BeEmpty();
+        added!.AddressEncrypted.Should().Be("enc-address");
         result.TaxId.Should().Be("123456789");
+        result.Address.Should().Be("Street 1");
 
         encryption.Verify(e => e.Encrypt("123456789"), Times.Once);
         encryption.Verify(e => e.Decrypt("enc-taxid"), Times.Once);
+        encryption.Verify(e => e.Encrypt("Street 1"), Times.Once);
+        encryption.Verify(e => e.Decrypt("enc-address"), Times.Once);
     }
 
     [Fact]
@@ -85,6 +92,8 @@ public class CondominiumServiceEncryptionTests
 
         encryption.Setup(e => e.Encrypt("987654321")).Returns("enc-taxid-updated");
         encryption.Setup(e => e.Decrypt("enc-taxid-updated")).Returns("987654321");
+        encryption.Setup(e => e.Encrypt("Street 2")).Returns("enc-address-updated");
+        encryption.Setup(e => e.Decrypt("enc-address-updated")).Returns("Street 2");
 
         var service = new CondominiumService(
             condominiumRepo.Object,
@@ -107,10 +116,15 @@ public class CondominiumServiceEncryptionTests
 
         condominium.TaxId.Should().BeNull();
         condominium.TaxIdEncrypted.Should().Be("enc-taxid-updated");
+        condominium.Address.Should().BeEmpty();
+        condominium.AddressEncrypted.Should().Be("enc-address-updated");
         result.TaxId.Should().Be("987654321");
+        result.Address.Should().Be("Street 2");
 
         encryption.Verify(e => e.Encrypt("987654321"), Times.Once);
         encryption.Verify(e => e.Decrypt("enc-taxid-updated"), Times.Once);
+        encryption.Verify(e => e.Encrypt("Street 2"), Times.Once);
+        encryption.Verify(e => e.Decrypt("enc-address-updated"), Times.Once);
     }
 
     [Fact]
@@ -144,6 +158,8 @@ public class CondominiumServiceEncryptionTests
         unitRepo.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Unit, bool>>>() ))
             .ReturnsAsync(new List<Unit>());
 
+        encryption.Setup(e => e.Encrypt("Street 2")).Returns("enc-address-updated");
+        encryption.Setup(e => e.Decrypt("enc-address-updated")).Returns("Street 2");
         encryption.Setup(e => e.Decrypt("enc-existing-taxid")).Returns("123456789");
 
         var service = new CondominiumService(
@@ -167,10 +183,13 @@ public class CondominiumServiceEncryptionTests
 
         condominium.TaxIdEncrypted.Should().Be("enc-existing-taxid");
         condominium.TaxId.Should().BeNull();
+        condominium.AddressEncrypted.Should().Be("enc-address-updated");
+        result.Address.Should().Be("Street 2");
         result.TaxId.Should().Be("123456789");
 
-        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+        encryption.Verify(e => e.Encrypt("Street 2"), Times.Once);
         encryption.Verify(e => e.Decrypt("enc-existing-taxid"), Times.Once);
+        encryption.Verify(e => e.Decrypt("enc-address-updated"), Times.Once);
     }
 
     [Fact]
@@ -189,7 +208,8 @@ public class CondominiumServiceEncryptionTests
             {
                 Id = condominiumId,
                 Name = "Condo A",
-                Address = "Street 1",
+                Address = string.Empty,
+                AddressEncrypted = "enc-address",
                 TaxIdEncrypted = "enc-taxid",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -202,6 +222,7 @@ public class CondominiumServiceEncryptionTests
             .ReturnsAsync(new List<Unit>());
 
         encryption.Setup(e => e.Decrypt("enc-taxid")).Returns("123456789");
+        encryption.Setup(e => e.Decrypt("enc-address")).Returns("Street 1");
 
         var service = new CondominiumService(
             condominiumRepo.Object,
@@ -214,7 +235,9 @@ public class CondominiumServiceEncryptionTests
 
         result.Should().HaveCount(1);
         result[0].TaxId.Should().Be("123456789");
+        result[0].Address.Should().Be("Street 1");
         encryption.Verify(e => e.Decrypt("enc-taxid"), Times.Once);
+        encryption.Verify(e => e.Decrypt("enc-address"), Times.Once);
     }
 
     [Fact]

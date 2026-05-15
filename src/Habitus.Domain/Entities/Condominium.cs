@@ -4,7 +4,8 @@ public class Condominium
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty; // Deprecated: use AddressEncrypted
+    public string? AddressEncrypted { get; set; }
     public string? Email { get; set; }  // Contact email for notifications
     public string? TaxId { get; set; }  // NIF or NIPC - will be deprecated, use TaxIdEncrypted
     public string? TaxIdEncrypted { get; set; }  // Encrypted NIF or NIPC (new field)

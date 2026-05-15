@@ -108,7 +108,13 @@ public class Invoice
     /// <summary>
     /// Customer address snapshot (for communication + SAF-T compliance).
     /// </summary>
+    [Obsolete("Use CustomerAddressEncrypted instead")]
     public string? CustomerAddress { get; set; }
+
+    /// <summary>
+    /// Customer address encrypted with AES-256-GCM (RGPD compliant).
+    /// </summary>
+    public string? CustomerAddressEncrypted { get; set; }
     
     // ============= Subscription Reference =============
     
