@@ -299,7 +299,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - `CondominiumResponse.cs`: marcar Address, Email, TaxId
     - `InvoiceDto.cs`: marcar CustomerTaxId (já mascarado no service), CustomerAddress
     - `PaymentSettingsDto.cs`: marcar IBAN, Phone
-    - `ReceiptTemplateSettingsDto.cs`: marcar TaxId, Email, Phone, Address
+    - `ReceiptTemplateSettingsDto.cs`: marcar todos sensíveis
 
 15. Criar middleware de mascaramento automático
     - Criar `src/Habitus.Api/Middleware/SensitiveDataMaskingMiddleware.cs`
@@ -459,7 +459,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 
 **Validação RGPD Compliance:**
 1. ✅ Todos os dados pessoais sensíveis (phone, taxId, address, iban) estão encriptados em repouso
-2. ✅ Email mantém-se plaintext (justificação RGPD: performance crítica + proteção via access control)
+2. ✅ Email mantém-se plaintext (justificação RGPD: performance crítica + proteção via access control suficiente)
 3. ✅ Backups contêm dados encriptados (novos registos)
 4. ✅ Logs não contêm dados sensíveis em plaintext
 5. ✅ Responses para roles baixos têm dados mascarados
