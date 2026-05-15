@@ -108,6 +108,7 @@ public class PaymentSettingsServiceEncryptionTests
         var result = await service.UpdateAsync(condominiumId, request);
 
         existing.BankTransferIbanEncrypted.Should().Be("enc-iban");
+        existing.BankTransferIban.Should().BeNull();
         existing.CardSecretKeyEncrypted.Should().Be("enc-secret");
         existing.CardSecretKey.Should().BeNull();
         result.BankTransferIban.Should().Be("PT50000201231234567890154");

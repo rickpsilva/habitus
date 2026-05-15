@@ -148,7 +148,7 @@ public class PaymentSettingsEncryptionIntegrationTests : IClassFixture<WebApplic
             var settings = await db.PaymentSettings.FirstOrDefaultAsync(ps => ps.CondominiumId == condominiumId);
 
             Assert.NotNull(settings);
-            Assert.Equal("PT50000201231234567890154", settings!.BankTransferIban);
+            Assert.Null(settings!.BankTransferIban);
             Assert.False(string.IsNullOrWhiteSpace(settings.BankTransferIbanEncrypted));
             Assert.NotEqual("PT50000201231234567890154", settings.BankTransferIbanEncrypted);
 
