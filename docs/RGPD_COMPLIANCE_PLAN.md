@@ -21,6 +21,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Testes unitários de mascaramento adicionados e a passar (`SensitiveDataMaskingTests`).
 - Testes de encriptação em serviços adicionados e a passar (`CondominiumServiceEncryptionTests`, `InvoiceServiceEncryptionTests`, `InvoicePdfServiceEncryptionTests`).
 - Scripts SQL de validação RGPD adicionados em `scripts/sql/`.
+- Cobertura negativa adicionada e a passar para caminhos sem decrypt quando campos encriptados estão ausentes (`CondominiumServiceEncryptionTests`, `InvoiceServiceEncryptionTests`).
 
 ### Em curso
 - Fases 1, 2, 3 e 4 (encriptação alargada e mascaramento por role em middleware/DTO).
@@ -44,7 +45,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
     - [ ] Índice único em `User.EmailHash`
-- [ ] Fase 3 - Encriptação nos serviços: **20%**
+- [ ] Fase 3 - Encriptação nos serviços: **25%**
     - [x] Fluxos RGPD no `UserService`
     - [ ] Encriptação/decriptação de phone/hash email no `UserService`
     - [ ] `SupplierService` completo
@@ -55,11 +56,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Marcação de DTOs
     - [ ] Middleware de mascaramento
     - [ ] `DataMaskingHelper`
-- [ ] Fase 5 - Testes e validação: **80%**
+- [ ] Fase 5 - Testes e validação: **85%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
-    - [x] Testes de encriptação de serviços (amostra inicial)
+    - [x] Testes de encriptação de serviços (amostra inicial + cenários negativos)
     - [x] Testes de mascaramento (helper)
     - [x] Scripts SQL de validação
 - [ ] Fase 6 - Documentação e deploy: **5%**
