@@ -1,7 +1,44 @@
+using Habitus.Application.Attributes;
+using System.Reflection;
+
 namespace Habitus.Application.Helpers;
 
 public static class DataMaskingHelper
 {
+    public static T? ApplySensitiveDataMasking<T>(T? target, string? currentRole)
+    {
+        if (target == null)
+            return target;
+
+        var properties = target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var property in properties)
+        {
+            if (property.PropertyType != typeof(string) || !property.CanRead || !property.CanWrite)
+                continue;
+
+            var attribute = property.GetCustomAttribute<SensitiveDataAttribute>();
+            if (attribute == null)
+                continue;
+
+            if (RoleCanSeeRawValue(currentRole, attribute.RequiresRole))
+                continue;
+
+            var rawValue = property.GetValue(target) as string;
+            var maskedValue = attribute.DataType switch
+            {
+                SensitiveDataType.Email => MaskEmail(rawValue),
+                SensitiveDataType.Phone => MaskPhone(rawValue),
+                SensitiveDataType.TaxId => MaskTaxId(rawValue),
+                SensitiveDataType.Iban => MaskIban(rawValue),
+                _ => string.IsNullOrWhiteSpace(rawValue) ? rawValue : "****",
+            };
+
+            property.SetValue(target, maskedValue);
+        }
+
+        return target;
+    }
+
     public static string? MaskEmail(string? email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -78,5 +115,19 @@ public static class DataMaskingHelper
         }
 
         return new string(chars);
+    }
+
+    private static bool RoleCanSeeRawValue(string? currentRole, string? requiresRole)
+    {
+        if (string.IsNullOrWhiteSpace(requiresRole))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(currentRole))
+            return false;
+
+        var allowedRoles = requiresRole
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        return allowedRoles.Any(r => string.Equals(r, currentRole, StringComparison.OrdinalIgnoreCase));
     }
 }

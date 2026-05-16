@@ -63,6 +63,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Revisão do `PaymentService`: classificado como **N/A para encriptação de PII** neste contexto.
     - O serviço trata lifecycle transacional de pagamento e não persiste NIF/IBAN/telefone em campos próprios.
     - Campos sensíveis de pagamento estão centralizados em `PaymentSettingsService` (já coberto com encriptação e testes).
+- **[NOVO - 16-05-2026]** Início da Fase 4 (mascaramento por role):
+    - atributo `SensitiveDataAttribute` criado com `SensitiveDataType` e `RequiresRole`
+    - `DataMaskingHelper.ApplySensitiveDataMasking` implementado para masking por reflexão/role
+    - DTO piloto marcado: `UserResponse.Email` e `UserResponse.Phone`
+    - testes `SensitiveDataMaskingTests` expandidos para cenários role-based (8/8 a passar)
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -110,11 +115,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **0%**
-    - [ ] Atributo `SensitiveData`
-    - [ ] Marcação de DTOs
+- [ ] Fase 4 - Mascaramento por role: **35%**
+    - [x] Atributo `SensitiveData`
+    - [x] Marcação de DTOs (piloto)
     - [ ] Middleware de mascaramento
-    - [ ] `DataMaskingHelper`
+    - [x] `DataMaskingHelper`
 - [ ] Fase 5 - Testes e validação: **96%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD

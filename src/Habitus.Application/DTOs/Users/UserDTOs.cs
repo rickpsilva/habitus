@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Users
 {
     public class UpdateMyProfileRequest
@@ -40,7 +42,9 @@ namespace Habitus.Application.DTOs.Users
     {
         public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
     public string Email { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string Phone { get; set; } = string.Empty;
     public int Role { get; set; } // 0=Manager, 1=Admin, 2=Resident
     public Guid? CondominiumId { get; set; }

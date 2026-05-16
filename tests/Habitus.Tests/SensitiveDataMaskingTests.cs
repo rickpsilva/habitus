@@ -1,10 +1,23 @@
 using Habitus.Application.Helpers;
+using Habitus.Application.Attributes;
 using FluentAssertions;
 
 namespace Habitus.Tests;
 
 public class SensitiveDataMaskingTests
 {
+    private sealed class TestDto
+    {
+        [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
+        public string Email { get; set; } = string.Empty;
+
+        [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager")]
+        public string Phone { get; set; } = string.Empty;
+
+        [SensitiveData(SensitiveDataType.Generic)]
+        public string Secret { get; set; } = string.Empty;
+    }
+
     [Fact]
     public void MaskEmail_ShouldMaskLocalPart_AndKeepDomain()
     {
@@ -58,5 +71,39 @@ public class SensitiveDataMaskingTests
         DataMaskingHelper.MaskTaxId(string.Empty).Should().BeEmpty();
         DataMaskingHelper.MaskIban(null).Should().BeNull();
         DataMaskingHelper.MaskIban(string.Empty).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ApplySensitiveDataMasking_ShouldMask_WhenRoleNotAllowed()
+    {
+        var dto = new TestDto
+        {
+            Email = "joao.silva@example.com",
+            Phone = "912345678",
+            Secret = "my-secret"
+        };
+
+        DataMaskingHelper.ApplySensitiveDataMasking(dto, "Resident");
+
+        dto.Email.Should().Be("j***@example.com");
+        dto.Phone.Should().Be("*******78");
+        dto.Secret.Should().Be("****");
+    }
+
+    [Fact]
+    public void ApplySensitiveDataMasking_ShouldKeepRaw_WhenRoleAllowed()
+    {
+        var dto = new TestDto
+        {
+            Email = "joao.silva@example.com",
+            Phone = "912345678",
+            Secret = "my-secret"
+        };
+
+        DataMaskingHelper.ApplySensitiveDataMasking(dto, "Manager");
+
+        dto.Email.Should().Be("joao.silva@example.com");
+        dto.Phone.Should().Be("912345678");
+        dto.Secret.Should().Be("****");
     }
 }
