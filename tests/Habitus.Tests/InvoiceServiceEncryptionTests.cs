@@ -348,6 +348,132 @@ public class InvoiceServiceEncryptionTests
     }
 
     [Fact]
+    public async Task ExportSaftInvoicesAsync_ShouldUseLegacyCustomerTaxId_WhenFallbackEnabled()
+    {
+        var invoicesRepo = new Mock<IRepository<Invoice>>();
+        var subscriptionsRepo = new Mock<IRepository<CondominiumSubscription>>();
+        var condominiumsRepo = new Mock<IRepository<Condominium>>();
+        var plansRepo = new Mock<IRepository<SubscriptionPlan>>();
+        var documentsRepo = new Mock<IRepository<Document>>();
+        var encryptionService = new Mock<IEncryptionService>();
+        var blobStorage = new Mock<IBlobStorageService>();
+        var emailService = new Mock<IEmailService>();
+
+        var condominiumId = Guid.NewGuid();
+        invoicesRepo
+            .Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>(),
+                It.IsAny<string[]>() ))
+            .ReturnsAsync(new List<Invoice>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    CondominiumId = condominiumId,
+                    CustomerName = "Condo A",
+                    CustomerAddress = "Street 1",
+                    CustomerTaxId = "123456789",
+                    CustomerTaxIdEncrypted = null,
+                    Series = "HABITUS",
+                    Number = 3,
+                    Year = 2026,
+                    Type = InvoiceType.FT,
+                    IssuedDate = DateTime.UtcNow,
+                    DueDate = DateTime.UtcNow.AddDays(30),
+                    PeriodStartDate = DateTime.UtcNow.Date,
+                    PeriodEndDate = DateTime.UtcNow.Date.AddMonths(1).AddDays(-1),
+                    SubtotalAmount = 100m,
+                    VatAmount = 23m,
+                    TotalAmount = 123m,
+                    VatRate = 0.23m,
+                    Status = InvoiceStatus.Emitted,
+                    PlanName = "Starter",
+                }
+            });
+
+        var service = CreateService(
+            invoicesRepo,
+            subscriptionsRepo,
+            condominiumsRepo,
+            plansRepo,
+            documentsRepo,
+            encryptionService,
+            blobStorage,
+            emailService);
+
+        var result = await service.ExportSaftInvoicesAsync(condominiumId, 2026);
+
+        result.Should().HaveCount(1);
+        result[0].CustomerTaxId.Should().Be("123456789");
+        encryptionService.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetCondominiumInvoicesAsync_ShouldHideLegacyCustomerTaxId_WhenFallbackDisabled()
+    {
+        var invoicesRepo = new Mock<IRepository<Invoice>>();
+        var subscriptionsRepo = new Mock<IRepository<CondominiumSubscription>>();
+        var condominiumsRepo = new Mock<IRepository<Condominium>>();
+        var plansRepo = new Mock<IRepository<SubscriptionPlan>>();
+        var documentsRepo = new Mock<IRepository<Document>>();
+        var encryptionService = new Mock<IEncryptionService>();
+        var blobStorage = new Mock<IBlobStorageService>();
+        var emailService = new Mock<IEmailService>();
+
+        var condominiumId = Guid.NewGuid();
+        invoicesRepo
+            .Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>(),
+                It.IsAny<string[]>() ))
+            .ReturnsAsync(new List<Invoice>
+            {
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    CondominiumId = condominiumId,
+                    CustomerName = "Condo A",
+                    CustomerAddress = "Street 1",
+                    CustomerTaxId = "123456789",
+                    CustomerTaxIdEncrypted = null,
+                    Series = "HABITUS",
+                    Number = 9,
+                    Year = 2026,
+                    Type = InvoiceType.FT,
+                    IssuedDate = DateTime.UtcNow,
+                    DueDate = DateTime.UtcNow.AddDays(30),
+                    PeriodStartDate = DateTime.UtcNow.Date,
+                    PeriodEndDate = DateTime.UtcNow.Date.AddMonths(1).AddDays(-1),
+                    SubtotalAmount = 100m,
+                    VatAmount = 23m,
+                    TotalAmount = 123m,
+                    VatRate = 0.23m,
+                    Status = InvoiceStatus.Emitted,
+                    PlanName = "Starter",
+                }
+            });
+
+        var service = CreateService(
+            invoicesRepo,
+            subscriptionsRepo,
+            condominiumsRepo,
+            plansRepo,
+            documentsRepo,
+            encryptionService,
+            blobStorage,
+            emailService,
+            new Dictionary<string, string?>
+            {
+                ["Rgpd:AllowLegacyPlaintextFallback"] = "false"
+            });
+
+        var result = await service.GetCondominiumInvoicesAsync(condominiumId);
+
+        result.Should().HaveCount(1);
+        result[0].CustomerTaxId.Should().BeEmpty();
+        encryptionService.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public async Task GenerateInvoiceAsync_ShouldReuseEncryptedCondominiumTaxId_WhenAvailable()
     {
         var invoicesRepo = new Mock<IRepository<Invoice>>();
@@ -551,9 +677,16 @@ public class InvoiceServiceEncryptionTests
         Mock<IRepository<Document>> documentsRepo,
         Mock<IEncryptionService> encryptionService,
         Mock<IBlobStorageService> blobStorage,
-        Mock<IEmailService> emailService)
+        Mock<IEmailService> emailService,
+        Dictionary<string, string?>? inMemoryConfiguration = null)
     {
-        var configuration = new ConfigurationBuilder().Build();
+        var configurationBuilder = new ConfigurationBuilder();
+        if (inMemoryConfiguration != null)
+        {
+            configurationBuilder.AddInMemoryCollection(inMemoryConfiguration);
+        }
+
+        var configuration = configurationBuilder.Build();
         var logger = Mock.Of<ILogger<InvoiceService>>();
         var pdfService = new InvoicePdfService(encryptionService.Object);
 

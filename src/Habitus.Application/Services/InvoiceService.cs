@@ -343,11 +343,7 @@ public class InvoiceService
             .Where(i => i.Status != InvoiceStatus.Draft) // Only emitted invoices for SAF-T
             .Select(inv =>
             {
-                var decryptedTaxId = string.Empty;
-                if (!string.IsNullOrEmpty(inv.CustomerTaxIdEncrypted))
-                {
-                    decryptedTaxId = _encryptionService.Decrypt(inv.CustomerTaxIdEncrypted);
-                }
+                var decryptedTaxId = DecryptInvoiceTaxIdOrFallback(inv) ?? string.Empty;
 
                 return new SaftInvoiceDto
                 {
@@ -396,9 +392,9 @@ public class InvoiceService
     {
         // Decrypt and mask the tax ID
         var maskedTaxId = string.Empty;
-        if (!string.IsNullOrEmpty(invoice.CustomerTaxIdEncrypted))
+        var decryptedTaxId = DecryptInvoiceTaxIdOrFallback(invoice);
+        if (!string.IsNullOrEmpty(decryptedTaxId))
         {
-            var decryptedTaxId = _encryptionService.Decrypt(invoice.CustomerTaxIdEncrypted);
             maskedTaxId = MaskTaxId(decryptedTaxId);
         }
 
@@ -460,6 +456,16 @@ public class InvoiceService
         }
 
         return _allowLegacyPlaintextFallback ? invoice.CustomerAddress : null;
+    }
+
+    private string? DecryptInvoiceTaxIdOrFallback(Invoice invoice)
+    {
+        if (!string.IsNullOrWhiteSpace(invoice.CustomerTaxIdEncrypted))
+        {
+            return _encryptionService.Decrypt(invoice.CustomerTaxIdEncrypted);
+        }
+
+        return _allowLegacyPlaintextFallback ? invoice.CustomerTaxId : null;
     }
 
     /// <summary>
