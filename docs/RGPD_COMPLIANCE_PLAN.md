@@ -78,6 +78,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - unitários `SensitiveDataMaskingTests` (9/9)
     - integração `SensitiveDataMaskingIntegrationTests` (2/2) cobrindo `Manager` (unmasked) vs `Resident` (masked) em `/api/users/me`.
 - **[NOVO - 16-05-2026]** Cobertura de integração expandida para `SupplierDto` paginado (`/api/suppliers/paged`), validando masking recursivo em `items` para `Resident` e dados brutos para `Manager`.
+- **[NOVO - 16-05-2026]** Cobertura de integração expandida para `CondominiumDetailResponse` (`/api/condominiums/{id}`):
+    - `Resident` recebe `TaxId` mascarado e `admins[].email` mascarado.
+    - `Manager` recebe `TaxId` e `admins[].email` sem máscara.
+- **[NOVO - 16-05-2026]** DTO expandido: `UserSummary.Email` marcado com `SensitiveDataAttribute` para suporte a masking recursivo em objetos aninhados.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -125,7 +129,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **85%**
+- [ ] Fase 4 - Mascaramento por role: **90%**
     - [x] Atributo `SensitiveData`
     - [x] Marcação de DTOs (piloto + críticos principais)
     - [x] Middleware de mascaramento

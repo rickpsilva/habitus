@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using Habitus.Domain.Entities;
 using Habitus.Infrastructure.Data;
+using Habitus.Application.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -142,6 +143,45 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         await db.SaveChangesAsync();
     }
 
+    private async Task SeedCondominiumDetailsAsync(Guid condominiumId, string condoTaxId, string adminEmail)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        var encryptionService = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        await db.Database.EnsureCreatedAsync();
+
+        if (!await db.Condominiums.AnyAsync(c => c.Id == condominiumId))
+        {
+            db.Condominiums.Add(new Condominium
+            {
+                Id = condominiumId,
+                Name = "Condo Masking",
+                Address = string.Empty,
+                AddressEncrypted = encryptionService.Encrypt("Rua do Condomínio 10"),
+                TaxId = null,
+                TaxIdEncrypted = encryptionService.Encrypt(condoTaxId),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        db.Users.Add(new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Admin Condo",
+            Email = adminEmail,
+            EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(adminEmail),
+            Phone = "910000001",
+            PasswordHash = "integration-test-hash",
+            Role = UserRole.Admin,
+            CondominiumId = condominiumId,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task MeEndpoint_WithManagerRole_ShouldReturnUnmaskedSensitiveFields()
     {
@@ -223,5 +263,49 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         Assert.Equal("supplier.full@example.com", firstItem.GetProperty("email").GetString());
         Assert.Equal("919888777", firstItem.GetProperty("phone").GetString());
         Assert.Equal("Avenida Transparente 5", firstItem.GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task CondominiumById_WithResidentRole_ShouldMaskTaxIdAndNestedAdminEmail()
+    {
+        var condominiumId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedCondominiumDetailsAsync(condominiumId, "509123456", "admin.condo@example.com");
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.condo@example.com", "933333333", condominiumId);
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId));
+
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("*****3456", body.GetProperty("taxId").GetString());
+        var adminEmail = body.GetProperty("admins")[0].GetProperty("email").GetString();
+        Assert.Equal("a***@example.com", adminEmail);
+    }
+
+    [Fact]
+    public async Task CondominiumById_WithManagerRole_ShouldKeepTaxIdAndNestedAdminEmailUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+
+        await SeedCondominiumDetailsAsync(condominiumId, "509123456", "admin.full@example.com");
+        await SeedUserWithConsentAsync(managerId, "Manager", "manager.condo@example.com", "944444444");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Manager", managerId));
+
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("509123456", body.GetProperty("taxId").GetString());
+        var adminEmail = body.GetProperty("admins")[0].GetProperty("email").GetString();
+        Assert.Equal("admin.full@example.com", adminEmail);
     }
 }

@@ -49,6 +49,7 @@ public class UserSummary
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
 }
