@@ -1,5 +1,6 @@
 using Habitus.Application.Helpers;
 using Habitus.Application.Attributes;
+using Habitus.Application.DTOs.Common;
 using FluentAssertions;
 
 namespace Habitus.Tests;
@@ -105,5 +106,32 @@ public class SensitiveDataMaskingTests
         dto.Email.Should().Be("joao.silva@example.com");
         dto.Phone.Should().Be("912345678");
         dto.Secret.Should().Be("****");
+    }
+
+    [Fact]
+    public void ApplySensitiveDataMaskingRecursively_ShouldMaskNestedItems()
+    {
+        var paged = new PaginatedResponse<TestDto>
+        {
+            Items = new List<TestDto>
+            {
+                new() { Email = "joao.silva@example.com", Phone = "912345678", Secret = "abc" },
+                new() { Email = "maria@example.com", Phone = "934567890", Secret = "xyz" }
+            },
+            Page = 1,
+            PageSize = 10,
+            TotalItems = 2,
+            TotalPages = 1,
+        };
+
+        DataMaskingHelper.ApplySensitiveDataMaskingRecursively(paged, "Resident");
+
+        var items = paged.Items.ToList();
+        items[0].Email.Should().Be("j***@example.com");
+        items[0].Phone.Should().Be("*******78");
+        items[0].Secret.Should().Be("****");
+        items[1].Email.Should().Be("m***@example.com");
+        items[1].Phone.Should().Be("*******90");
+        items[1].Secret.Should().Be("****");
     }
 }

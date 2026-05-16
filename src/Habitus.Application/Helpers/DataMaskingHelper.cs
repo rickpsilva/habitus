@@ -1,4 +1,5 @@
 using Habitus.Application.Attributes;
+using System.Collections;
 using System.Reflection;
 
 namespace Habitus.Application.Helpers;
@@ -36,6 +37,13 @@ public static class DataMaskingHelper
             property.SetValue(target, maskedValue);
         }
 
+        return target;
+    }
+
+    public static object? ApplySensitiveDataMaskingRecursively(object? target, string? currentRole)
+    {
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        ApplySensitiveDataMaskingRecursivelyInternal(target, currentRole, visited);
         return target;
     }
 
@@ -129,5 +137,70 @@ public static class DataMaskingHelper
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         return allowedRoles.Any(r => string.Equals(r, currentRole, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void ApplySensitiveDataMaskingRecursivelyInternal(
+        object? target,
+        string? currentRole,
+        HashSet<object> visited)
+    {
+        if (target == null)
+            return;
+
+        var type = target.GetType();
+        if (IsSimpleType(type))
+            return;
+
+        if (!type.IsValueType)
+        {
+            if (!visited.Add(target))
+                return;
+        }
+
+        if (target is IEnumerable enumerable and not string)
+        {
+            foreach (var item in enumerable)
+            {
+                ApplySensitiveDataMaskingRecursivelyInternal(item, currentRole, visited);
+            }
+
+            return;
+        }
+
+        ApplySensitiveDataMasking(target, currentRole);
+
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        foreach (var property in properties)
+        {
+            if (!property.CanRead || property.GetIndexParameters().Length > 0)
+                continue;
+
+            if (property.PropertyType == typeof(string) || IsSimpleType(property.PropertyType))
+                continue;
+
+            object? value;
+            try
+            {
+                value = property.GetValue(target);
+            }
+            catch
+            {
+                continue;
+            }
+
+            ApplySensitiveDataMaskingRecursivelyInternal(value, currentRole, visited);
+        }
+    }
+
+    private static bool IsSimpleType(Type type)
+    {
+        return type.IsPrimitive
+            || type.IsEnum
+            || type == typeof(string)
+            || type == typeof(decimal)
+            || type == typeof(DateTime)
+            || type == typeof(DateTimeOffset)
+            || type == typeof(TimeSpan)
+            || type == typeof(Guid);
     }
 }

@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Condominium;
 
 public class CreateCondominiumRequest
@@ -28,6 +30,7 @@ public class CondominiumResponse
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.TaxId, RequiresRole = "Manager,Admin")]
     public string? TaxId { get; set; }
     public string? Email { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -60,9 +63,12 @@ public class UnitSummary
 
 public class PaymentMethodsDto
 {
+    [SensitiveData(SensitiveDataType.Iban, RequiresRole = "Manager,Admin")]
     public string? Iban { get; set; }
     public string? Instructions { get; set; }
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string? MbWay { get; set; }
+    [SensitiveData(SensitiveDataType.Generic, RequiresRole = "Manager,Admin")]
     public string? MbReference { get; set; }
     public bool BankTransferEnabled { get; set; }
     public bool MbWayEnabled { get; set; }

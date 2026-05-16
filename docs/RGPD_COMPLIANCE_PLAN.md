@@ -68,6 +68,15 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - `DataMaskingHelper.ApplySensitiveDataMasking` implementado para masking por reflexão/role
     - DTO piloto marcado: `UserResponse.Email` e `UserResponse.Phone`
     - testes `SensitiveDataMaskingTests` expandidos para cenários role-based (8/8 a passar)
+- **[NOVO - 16-05-2026]** Fase 4 - passo 1 concluído: filtro global de resposta (`SensitiveDataMaskingResultFilter`) registado no pipeline MVC.
+- **[NOVO - 16-05-2026]** Fase 4 - passo 2 concluído: expansão de marcação para DTOs críticos adicionais:
+    - `SupplierDto`: `Email`, `Phone`, `Address`
+    - `CondominiumResponse`: `TaxId`
+    - `PaymentMethodsDto`: `Iban`, `MbWay`, `MbReference`
+- **[NOVO - 16-05-2026]** `DataMaskingHelper` expandido com masking recursivo para objetos/coleções paginadas.
+- **[NOVO - 16-05-2026]** Testes validados:
+    - unitários `SensitiveDataMaskingTests` (9/9)
+    - integração `SensitiveDataMaskingIntegrationTests` (2/2) cobrindo `Manager` (unmasked) vs `Resident` (masked) em `/api/users/me`.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -115,11 +124,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **35%**
+- [ ] Fase 4 - Mascaramento por role: **85%**
     - [x] Atributo `SensitiveData`
-    - [x] Marcação de DTOs (piloto)
-    - [ ] Middleware de mascaramento
+    - [x] Marcação de DTOs (piloto + críticos principais)
+    - [x] Middleware de mascaramento
     - [x] `DataMaskingHelper`
+    - [ ] Expansão para todos os DTOs sensíveis remanescentes
 - [ ] Fase 5 - Testes e validação: **96%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD

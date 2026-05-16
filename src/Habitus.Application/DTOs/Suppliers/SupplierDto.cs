@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Suppliers;
 
 public class SupplierDto
@@ -5,8 +7,11 @@ public class SupplierDto
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Contact { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
     public string Email { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string Phone { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Generic, RequiresRole = "Manager,Admin")]
     public string Address { get; set; } = string.Empty;
     public string Specialty { get; set; } = string.Empty;
     public bool IsActive { get; set; }
