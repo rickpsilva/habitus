@@ -3,6 +3,7 @@ using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
@@ -12,13 +13,16 @@ namespace Habitus.Api.Controllers;
 public class PaymentMethodsController : ControllerBase
 {
     private readonly IRepository<PaymentSettings> _repository;
+    private readonly IEncryptionService _encryptionService;
     private readonly ILogger<PaymentMethodsController> _logger;
 
     public PaymentMethodsController(
         IRepository<PaymentSettings> repository,
+        IEncryptionService encryptionService,
         ILogger<PaymentMethodsController> logger)
     {
         _repository = repository;
+        _encryptionService = encryptionService;
         _logger = logger;
     }
 
@@ -31,6 +35,15 @@ public class PaymentMethodsController : ControllerBase
     {
         try
         {
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var userCondominiumId = User.FindFirstValue("CondominiumId");
+
+            if (!string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase)
+                && userCondominiumId != condominiumId.ToString())
+            {
+                return Forbid();
+            }
+
             _logger.LogInformation("Getting payment methods for condominium {CondominiumId}", condominiumId);
             
             // Get all settings first
@@ -65,13 +78,17 @@ public class PaymentMethodsController : ControllerBase
             var dto = new PaymentMethodsPublicDto
             {
                 BankTransferEnabled = paymentSettings.BankTransferEnabled,
-                BankTransferIban = paymentSettings.BankTransferIban,
+                BankTransferIban = !string.IsNullOrEmpty(paymentSettings.BankTransferIbanEncrypted)
+                    ? _encryptionService.Decrypt(paymentSettings.BankTransferIbanEncrypted)
+                    : paymentSettings.BankTransferIban,
                 BankTransferAccountHolder = paymentSettings.BankTransferAccountHolder,
                 MBReferenceEnabled = paymentSettings.MBReferenceEnabled,
                 MBReferenceEntity = paymentSettings.MBReferenceEntity,
                 MBReferenceReference = paymentSettings.MBReferenceReference,
                 MBWayEnabled = paymentSettings.MBWayEnabled,
-                MBWayPhoneNumber = paymentSettings.MBWayPhoneNumber,
+                MBWayPhoneNumber = !string.IsNullOrEmpty(paymentSettings.MBWayPhoneNumberEncrypted)
+                    ? _encryptionService.Decrypt(paymentSettings.MBWayPhoneNumberEncrypted)
+                    : paymentSettings.MBWayPhoneNumber,
                 CardEnabled = paymentSettings.CardEnabled,
                 CardProvider = paymentSettings.CardProvider,
                 CardPublicKey = paymentSettings.CardPublicKey
