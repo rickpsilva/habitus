@@ -1,4 +1,5 @@
 using Habitus.Application.DTOs.Users;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
@@ -337,5 +338,120 @@ public class UserServicePhoneEncryptionTests
         result!.Phone.Should().Be("+351912345678");
 
         encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_WhenEmailChanges_ShouldUpdateEmailHash()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Name = "João Silva",
+            Email = "old@example.com",
+            EmailHash = EmailHashHelper.GenerateEmailHash("old@example.com"),
+            Phone = string.Empty,
+            Role = UserRole.Manager,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        var userRepo = new Mock<IRepository<User>>();
+        var userCondoRepo = new Mock<IRepository<UserCondominium>>();
+        var condoRepo = new Mock<IRepository<Condominium>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var gdprConsentRepo = new Mock<IRepository<UserGdprConsent>>();
+        var notificationRepo = new Mock<IRepository<Notification>>();
+        var notificationDispatch = new Mock<INotificationDispatchService>();
+        var encryption = new Mock<IEncryptionService>();
+
+        userRepo.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        userRepo.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<User, bool>>>() ))
+            .ReturnsAsync(new List<User> { user });
+        userRepo.Setup(r => r.Update(It.IsAny<User>()));
+        userRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new UserService(
+            userRepo.Object,
+            userCondoRepo.Object,
+            condoRepo.Object,
+            unitRepo.Object,
+            gdprConsentRepo.Object,
+            notificationRepo.Object,
+            notificationDispatch.Object,
+            encryption.Object);
+
+        var request = new UpdateUserRequest
+        {
+            Id = userId,
+            Name = "João Silva",
+            Email = "new@example.com",
+            Phone = string.Empty,
+            Role = "0",
+            IsActive = true,
+        };
+
+        await service.UpdateUserAsync(request);
+
+        user.EmailHash.Should().Be(EmailHashHelper.GenerateEmailHash("new@example.com"));
+    }
+
+    [Fact]
+    public async Task UpdateMyProfileAsync_ShouldEncryptPhone_AndUpdateEmailHash()
+    {
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Name = "João Silva",
+            Email = "old@example.com",
+            EmailHash = EmailHashHelper.GenerateEmailHash("old@example.com"),
+            Phone = string.Empty,
+            Role = UserRole.Manager,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        var userRepo = new Mock<IRepository<User>>();
+        var userCondoRepo = new Mock<IRepository<UserCondominium>>();
+        var condoRepo = new Mock<IRepository<Condominium>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var gdprConsentRepo = new Mock<IRepository<UserGdprConsent>>();
+        var notificationRepo = new Mock<IRepository<Notification>>();
+        var notificationDispatch = new Mock<INotificationDispatchService>();
+        var encryption = new Mock<IEncryptionService>();
+
+        userRepo.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        userRepo.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<User, bool>>>() ))
+            .ReturnsAsync(new List<User> { user });
+        userRepo.Setup(r => r.Update(It.IsAny<User>()));
+        userRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        encryption.Setup(e => e.Encrypt("+351911111111")).Returns("enc-profile-phone");
+        encryption.Setup(e => e.Decrypt("enc-profile-phone")).Returns("+351911111111");
+
+        var service = new UserService(
+            userRepo.Object,
+            userCondoRepo.Object,
+            condoRepo.Object,
+            unitRepo.Object,
+            gdprConsentRepo.Object,
+            notificationRepo.Object,
+            notificationDispatch.Object,
+            encryption.Object);
+
+        var result = await service.UpdateMyProfileAsync(userId, new UpdateMyProfileRequest
+        {
+            Name = "João Silva Updated",
+            Email = "new@example.com",
+            Phone = "+351911111111",
+        });
+
+        user.EmailHash.Should().Be(EmailHashHelper.GenerateEmailHash("new@example.com"));
+        user.Phone.Should().BeNull();
+        user.PhoneEncrypted.Should().Be("enc-profile-phone");
+        result.Phone.Should().Be("+351911111111");
+
+        encryption.Verify(e => e.Encrypt("+351911111111"), Times.Once);
     }
 }

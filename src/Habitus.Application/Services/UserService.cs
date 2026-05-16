@@ -205,6 +205,13 @@ public class UserService : IUserService
             throw new InvalidOperationException($"User with ID {request.Id} not found.");
         }
 
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
+        if (existing.Any(u => u.Id != user.Id))
+        {
+            throw new InvalidOperationException($"User with email {request.Email} already exists.");
+        }
+
         // Handle both numeric and string role values
         UserRole userRole;
         if (int.TryParse(request.Role, out int roleNumber))
@@ -220,6 +227,7 @@ public class UserService : IUserService
         // Update properties
         user.Name = request.Name;
         user.Email = request.Email;
+        user.EmailHash = emailHash;
         
         // Encrypt phone if provided, preserve encrypted value if omitted
         if (!string.IsNullOrEmpty(request.Phone))
@@ -587,7 +595,9 @@ public class UserService : IUserService
         // Anonymize user data (soft delete + anonymization)
         user.Name = "DELETED USER";
         user.Email = $"deleted_{Guid.NewGuid()}@deleted.local";
+        user.EmailHash = EmailHashHelper.GenerateEmailHash(user.Email);
         user.Phone = null;
+        user.PhoneEncrypted = null;
         user.IsDeleted = true;
         user.DeletedAt = DateTime.UtcNow;
         user.DeletionReason = "GDPR_ERASURE";
@@ -606,10 +616,23 @@ public class UserService : IUserService
             throw new InvalidOperationException($"User with ID {userId} not found.");
         }
 
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == emailHash);
+        if (existing.Any(u => u.Id != user.Id))
+        {
+            throw new InvalidOperationException($"User with email {request.Email} already exists.");
+        }
+
         // Only allow updating Name, Email, Phone
         user.Name = request.Name;
         user.Email = request.Email;
-        user.Phone = request.Phone;
+        user.EmailHash = emailHash;
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            user.Phone = null;
+            user.PhoneEncrypted = _encryptionService.Encrypt(request.Phone);
+        }
 
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();

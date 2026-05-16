@@ -36,6 +36,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 15-05-2026]** AuthService atualizado: 7 locais agora usam EmailHash para queries (LoginAsync, ExternalAuthProviderAsync, RegisterAsync, CreateInitialManagerAsync, RegisterResidentAsync, ForgotPasswordAsync, ResetPasswordAsync).
 - **[NOVO - 15-05-2026]** UserService atualizado: CreateUserAsync agora gera EmailHash.
 - **[NOVO - 15-05-2026]** 4 locais onde User é criado atualizados para gerar EmailHash.
+- **[NOVO - 16-05-2026]** `UserService.UpdateUserAsync` e `UserService.UpdateMyProfileAsync` atualizados para manter `EmailHash` sincronizado quando email muda.
+- **[NOVO - 16-05-2026]** `UserService.UpdateMyProfileAsync` atualizado para encriptar `Phone` em `PhoneEncrypted` (com limpeza de plaintext).
+- **[NOVO - 16-05-2026]** `UserService.ApproveGdprErasureAsync` atualizado para regenerar `EmailHash` após anonimização.
+- **[NOVO - 16-05-2026]** Testes de regressão adicionados em `UserServicePhoneEncryptionTests` para cobertura de `EmailHash` em updates.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -70,16 +74,16 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Migration helper e batch encryption
     - [x] Migration de dados históricos
     - [x] Testes de validação de migração
-- [ ] Fase 2 - Campos encriptados em entidades: **15%**
+- [ ] Fase 2 - Campos encriptados em entidades: **25%**
     - [x] Base RGPD em `User` e `UserGdprConsent`
     - [x] Campo `User.PhoneEncrypted` adicionado
-    - [ ] Campo `User.EmailHash` (para índice único)
+    - [x] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-- [ ] Fase 3 - Encriptação nos serviços: **59%**
+- [ ] Fase 3 - Encriptação nos serviços: **65%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
-    - [ ] Encriptação/desencriptação de email + EmailHash no `UserService`
+    - [x] Gestão de `EmailHash` no `UserService` (create/update/profile/anonimização)
     - [ ] `SupplierService` completo
     - [ ] `CondominiumService` completo
     - [ ] `ReceiptService`, `PaymentService`, `InvoiceService`, `UsefulContact`
