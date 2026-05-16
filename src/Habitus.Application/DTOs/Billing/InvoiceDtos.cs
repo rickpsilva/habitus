@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Billing;
 
 /// <summary>
@@ -33,7 +35,9 @@ public class InvoiceDto
     // Customer Info
     public Guid CondominiumId { get; set; }
     public string CustomerName { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.TaxId, RequiresRole = "Manager,Admin")]
     public string? CustomerTaxId { get; set; }
+    [SensitiveData(SensitiveDataType.Generic, RequiresRole = "Manager,Admin")]
     public string? CustomerAddress { get; set; }
     
     // Subscription/Service Info

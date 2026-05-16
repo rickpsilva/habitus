@@ -182,6 +182,84 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         await db.SaveChangesAsync();
     }
 
+    private async Task SeedInvoiceForCondominiumAsync(Guid condominiumId, string customerTaxId, string customerAddress)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        var encryptionService = scope.ServiceProvider.GetRequiredService<IEncryptionService>();
+        await db.Database.EnsureCreatedAsync();
+
+        var planId = Guid.NewGuid();
+        var subscriptionId = Guid.NewGuid();
+
+        if (!await db.Condominiums.AnyAsync(c => c.Id == condominiumId))
+        {
+            db.Condominiums.Add(new Condominium
+            {
+                Id = condominiumId,
+                Name = "Condo Invoices",
+                Address = string.Empty,
+                AddressEncrypted = encryptionService.Encrypt("Rua Faturas 20"),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        db.SubscriptionPlans.Add(new SubscriptionPlan
+        {
+            Id = planId,
+            Name = "Starter",
+            Tier = PlanTier.Silver,
+            Description = "Starter Plan",
+            PriceMonthly = 100m,
+            AnnualDiscountPercent = 0m,
+            QuinquennialDiscountPercent = 0m,
+            PriceAnnual = 1200m,
+            PriceQuinquennial = 6000m,
+            IsActive = true,
+        });
+
+        db.CondominiumSubscriptions.Add(new CondominiumSubscription
+        {
+            Id = subscriptionId,
+            CondominiumId = condominiumId,
+            PlanId = planId,
+            BillingCycle = BillingCycle.Monthly,
+            Status = SubscriptionStatus.Active,
+            StartDate = DateTime.UtcNow.Date.AddMonths(-1),
+            NextBillingDate = DateTime.UtcNow.Date.AddMonths(1),
+            PriceAtPurchase = 100m,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        db.Invoices.Add(new Invoice
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Series = "HABITUS",
+            Year = DateTime.UtcNow.Year,
+            Type = InvoiceType.FT,
+            IssuedDate = DateTime.UtcNow,
+            DueDate = DateTime.UtcNow.AddDays(30),
+            CondominiumId = condominiumId,
+            CustomerName = "Condo Invoices",
+            CustomerTaxIdEncrypted = encryptionService.Encrypt(customerTaxId),
+            CustomerAddressEncrypted = encryptionService.Encrypt(customerAddress),
+            SubscriptionId = subscriptionId,
+            PlanName = "Starter",
+            PeriodStartDate = DateTime.UtcNow.Date,
+            PeriodEndDate = DateTime.UtcNow.Date.AddMonths(1).AddDays(-1),
+            SubtotalAmount = 100m,
+            VatAmount = 23m,
+            TotalAmount = 123m,
+            VatRate = 0.23m,
+            Status = InvoiceStatus.Emitted,
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task MeEndpoint_WithManagerRole_ShouldReturnUnmaskedSensitiveFields()
     {
@@ -307,5 +385,49 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         Assert.Equal("509123456", body.GetProperty("taxId").GetString());
         var adminEmail = body.GetProperty("admins")[0].GetProperty("email").GetString();
         Assert.Equal("admin.full@example.com", adminEmail);
+    }
+
+    [Fact]
+    public async Task InvoicesByCondominium_WithResidentRole_ShouldMaskCustomerTaxIdAndAddress()
+    {
+        var condominiumId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedInvoiceForCondominiumAsync(condominiumId, "509123456", "Rua Faturas 20");
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.invoice@example.com", "955555555", condominiumId);
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId));
+
+        var response = await client.GetAsync($"/api/invoices/{condominiumId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var firstInvoice = body[0];
+        Assert.Equal("*****3456", firstInvoice.GetProperty("customerTaxId").GetString());
+        Assert.Equal("****", firstInvoice.GetProperty("customerAddress").GetString());
+    }
+
+    [Fact]
+    public async Task InvoicesByCondominium_WithManagerRole_ShouldKeepCustomerTaxIdAndAddressUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+
+        await SeedInvoiceForCondominiumAsync(condominiumId, "509123456", "Rua Faturas 20");
+        await SeedUserWithConsentAsync(managerId, "Manager", "manager.invoice@example.com", "966666666");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Manager", managerId));
+
+        var response = await client.GetAsync($"/api/invoices/{condominiumId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var firstInvoice = body[0];
+        Assert.Equal("509123456", firstInvoice.GetProperty("customerTaxId").GetString());
+        Assert.Equal("Rua Faturas 20", firstInvoice.GetProperty("customerAddress").GetString());
     }
 }

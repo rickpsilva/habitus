@@ -88,6 +88,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Integração `PaymentSettingsEncryptionIntegrationTests` expandida com cobertura de:
     - retorno de IBAN/MBWay decriptados no `payment-methods` para `Resident` do mesmo condomínio;
     - `403 Forbidden` para `Resident` de condomínio diferente.
+- **[NOVO - 16-05-2026]** Faturação alinhada ao masking automático por role:
+    - `InvoiceDto.CustomerTaxId` e `InvoiceDto.CustomerAddress` marcados com `SensitiveDataAttribute` (`Manager,Admin` sem máscara);
+    - removido masking hardcoded em `InvoiceService.MapInvoiceToDto` para devolver valor decriptado e delegar masking ao filtro global.
+- **[NOVO - 16-05-2026]** Cobertura expandida em `SensitiveDataMaskingIntegrationTests` para `GET /api/invoices/{condominiumId}`:
+    - `Resident` recebe `customerTaxId` e `customerAddress` mascarados;
+    - `Manager` recebe `customerTaxId` e `customerAddress` sem máscara.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -135,7 +141,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **92%**
+- [ ] Fase 4 - Mascaramento por role: **94%**
     - [x] Atributo `SensitiveData`
     - [x] Marcação de DTOs (piloto + críticos principais)
     - [x] Middleware de mascaramento

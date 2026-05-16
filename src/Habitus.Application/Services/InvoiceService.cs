@@ -390,13 +390,7 @@ public class InvoiceService
 
     private InvoiceDto MapInvoiceToDto(Invoice invoice)
     {
-        // Decrypt and mask the tax ID
-        var maskedTaxId = string.Empty;
         var decryptedTaxId = DecryptInvoiceTaxIdOrFallback(invoice);
-        if (!string.IsNullOrEmpty(decryptedTaxId))
-        {
-            maskedTaxId = MaskTaxId(decryptedTaxId);
-        }
 
         return new InvoiceDto
         {
@@ -409,7 +403,7 @@ public class InvoiceService
             PaidDate = invoice.PaidDate,
             CondominiumId = invoice.CondominiumId,
             CustomerName = invoice.CustomerName,
-            CustomerTaxId = maskedTaxId,
+            CustomerTaxId = decryptedTaxId,
             CustomerAddress = DecryptInvoiceAddressOrFallback(invoice),
             PlanName = invoice.PlanName,
             PeriodStartDate = invoice.PeriodStartDate,
@@ -424,18 +418,6 @@ public class InvoiceService
             CreatedAt = invoice.CreatedAt,
             UpdatedAt = invoice.UpdatedAt
         };
-    }
-
-    /// <summary>
-    /// Mask a tax ID showing only last 4 digits.
-    /// Example: 505123456 becomes *****3456
-    /// </summary>
-    private string MaskTaxId(string taxId)
-    {
-        if (string.IsNullOrEmpty(taxId) || taxId.Length < 4)
-            return taxId;
-
-        return new string('*', taxId.Length - 4) + taxId.Substring(taxId.Length - 4);
     }
 
     private string? DecryptCondominiumAddressOrFallback(Condominium condominium)
