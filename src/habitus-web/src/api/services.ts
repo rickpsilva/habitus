@@ -327,17 +327,17 @@ export const documentsApi = {
 };
 
 export const assembliesApi = {
-  getAll: () => api.get<AssemblyDto[]>('/assemblies'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<AssemblyDto>>(`/assemblies/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<AssemblyDto>(`/assemblies/${id}`),
-  create: (data: CreateAssemblyRequest) => api.post<AssemblyDto>('/assemblies', data),
-  update: (id: string, data: UpdateAssemblyRequest) => api.put<AssemblyDto>(`/assemblies/${id}`, data),
-  updateMinutes: (id: string, minutes: string) => api.put<AssemblyDto>(`/assemblies/${id}/minutes`, { minutes }),
-  updateMinutesDraft: (id: string, minutes: string) => api.put<AssemblyDto>(`/assemblies/${id}/draft-minutes`, { minutes }),
-  updateNotes: (id: string, notes: string) => api.put<AssemblyDto>(`/assemblies/${id}/notes`, { notes }),
-  cancel: (id: string, cancellationReason: string) => api.put<AssemblyDto>(`/assemblies/${id}/cancel`, { cancellationReason }),
-  delete: (id: string) => api.delete(`/assemblies/${id}`),
+  getAll: (condominiumId: string) => api.get<AssemblyDto[]>(`/condominiums/${condominiumId}/assemblies`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<AssemblyDto>>(`/condominiums/${condominiumId}/assemblies/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}`),
+  create: (condominiumId: string, data: CreateAssemblyRequest) => api.post<AssemblyDto>(`/condominiums/${condominiumId}/assemblies`, data),
+  update: (condominiumId: string, id: string, data: UpdateAssemblyRequest) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}`, data),
+  updateMinutes: (condominiumId: string, id: string, minutes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/minutes`, { minutes }),
+  updateMinutesDraft: (condominiumId: string, id: string, minutes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/draft-minutes`, { minutes }),
+  updateNotes: (condominiumId: string, id: string, notes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/notes`, { notes }),
+  cancel: (condominiumId: string, id: string, cancellationReason: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/cancel`, { cancellationReason }),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/assemblies/${id}`),
 };
 
 export const suppliersApi = {

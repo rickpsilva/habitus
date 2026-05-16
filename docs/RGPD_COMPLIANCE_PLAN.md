@@ -77,7 +77,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Testes validados:
     - unitários `SensitiveDataMaskingTests` (9/9)
     - integração `SensitiveDataMaskingIntegrationTests` (2/2) cobrindo `Manager` (unmasked) vs `Resident` (masked) em `/api/users/me`.
-- **[NOVO - 16-05-2026]** Cobertura de integração expandida para `SupplierDto` paginado (`/api/suppliers/paged`), validando masking recursivo em `items` para `Resident` e dados brutos para `Manager`.
+- **[NOVO - 16-05-2026]** Cobertura de integração expandida para `SupplierDto` paginado (`/api/condominiums/{condominiumId}/suppliers/paged`), validando masking recursivo em `items` para `Resident` e dados brutos para `Manager`.
 - **[NOVO - 16-05-2026]** Cobertura de integração expandida para `CondominiumDetailResponse` (`/api/condominiums/{id}`):
     - `Resident` recebe `TaxId` mascarado e `admins[].email` mascarado.
     - `Manager` recebe `TaxId` e `admins[].email` sem máscara.
@@ -102,7 +102,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - `Admin` do mesmo condomínio recebe `email` e `phone` sem máscara.
 - **[NOVO - 16-05-2026]** Hardening multi-condomínio em `SuppliersController` (leitura):
     - `Manager` mantém visão global;
-    - `Admin/Resident` passam a ficar limitados ao `CondominiumId` do token em `GET /api/suppliers`, `GET /api/suppliers/paged` e `GET /api/suppliers/{id}`.
+    - `Admin/Resident` passam a ficar limitados ao `CondominiumId` do token em `GET /api/condominiums/{condominiumId}/suppliers`, `GET /api/condominiums/{condominiumId}/suppliers/paged` e `GET /api/condominiums/{condominiumId}/suppliers/{id}`.
 - **[NOVO - 16-05-2026]** Rota de fornecedores migrada para escopo explícito por condomínio:
     - de: `/api/suppliers...`
     - para: `/api/condominiums/{condominiumId}/suppliers...`
@@ -117,6 +117,19 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Novos testes de integração `CommunicationSettingsSecurityIntegrationTests`:
     - valida persistência encriptada de segredos (`EmailPassword`, `WhatsAppApiKey`, `SmsApiKey`);
     - valida `403 Forbidden` para `Admin` fora do próprio condomínio.
+- **[NOVO - 16-05-2026]** Rota de assembleias migrada para escopo explícito por condomínio:
+    - de: `/api/assemblies...`
+    - para: `/api/condominiums/{condominiumId}/assemblies...`
+    - backend, frontend e testes de compatibilidade atualizados.
+- **[NOVO - 16-05-2026]** `AssembliesController` hardened para isolamento multi-condomínio por rota + claim:
+    - `401 Unauthorized` quando claim `CondominiumId` é inválida/ausente;
+    - `403 Forbidden` quando condomínio da rota difere do condomínio do token.
+- **[NOVO - 16-05-2026]** `CondominiumScopeEnforcementTests` expandidos:
+    - cobertura de mismatch de condomínio em assemblies para `Admin` e `Resident`;
+    - suite focada validada: **11/11 a passar**.
+- **[NOVO - 16-05-2026]** Sweep de compatibilidade concluído:
+    - removidas referências legadas de API global para suppliers e assemblies no código;
+    - documentação operacional alinhada para suppliers por condomínio.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -194,6 +207,19 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Implementação do teste com fila bloqueante de teste para cenário determinístico sem flakiness de timing.
 
 ### Notas de Retoma (handoff para próxima sessão)
+
+### [NOVO - 16-05-2026 | HANDOFF FIM DE SESSÃO]
+- Estado fechado de hoje:
+    - suppliers e assemblies estão ambos com contrato por condomínio (`/api/condominiums/{condominiumId}/...`), incluindo frontend e testes de enforcement.
+    - validação executada com sucesso:
+        - `dotnet test ...CondominiumScopeEnforcementTests` -> 11/11;
+        - `npm run build` no frontend -> sucesso.
+- Ponto de retoma recomendado (próxima sessão):
+    1. Executar sweep final de integração para endpoints tenant-aware remanescentes (`reservations`, `maintenance`, `financial`) confirmando coerência 401/403.
+    2. Expandir testes de segurança para operações não-listagem de assemblies (ex.: by-id/update/delete com condomínio divergente).
+    3. Consolidar commit(s) por tema: documentação RGPD, rota/scoping de assemblies, testes de enforcement.
+- Nota operacional:
+    - workspace ficou intencionalmente sem commit automático nesta sessão, para revisão final antes de fechar PR.
 
 #### Estado técnico consolidado (últimos increments)
 - `InvoiceService.GenerateInvoiceAsync`: usa `Condominium.TaxIdEncrypted` como fonte principal; só encripta fallback legado (`TaxId`) quando necessário.
@@ -550,13 +576,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 
 **Validação de Encriptação em Services:**
 1. POST /api/users com email "test@example.com" → query na DB → verificar que `EmailEncrypted` contém base64, não plaintext
-2. POST /api/suppliers com phone "912345678" → query na DB → verificar que `PhoneEncrypted` está encriptado
+2. POST /api/condominiums/{condominiumId}/suppliers com phone "912345678" → query na DB → verificar que `PhoneEncrypted` está encriptado
 3. GET /api/users/{id} → verificar que response contém email descriptografado "test@example.com"
 4. PUT /api/condominiums/{id} com TaxId "123456789" → verificar que `TaxIdEncrypted` foi atualizado
 
 **Validação de Mascaramento em DTOs:**
-1. Login como Admin → GET /api/suppliers → verificar que emails aparecem como "t***@example.com"
-2. Login como Manager → GET /api/suppliers → verificar que emails aparecem completos
+1. Login como Admin → GET /api/condominiums/{condominiumId}/suppliers → verificar que emails aparecem como "t***@example.com"
+2. Login como Manager → GET /api/condominiums/{condominiumId}/suppliers → verificar que emails aparecem completos
 3. Login como Resident → GET /api/condominiums/{id} → verificar que TaxId aparece como "*****6789"
 4. Verificar headers HTTP que não há dados sensíveis em logs (middleware funciona)
 

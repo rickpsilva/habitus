@@ -72,7 +72,7 @@ const documentTypesByContext: Record<string, string[]> = {
 };
 
 export default function DocumentsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
@@ -121,10 +121,15 @@ export default function DocumentsPage() {
   }, [activeTab, debouncedSearch, pageSize]);
 
   const loadAssemblies = useCallback(() => {
-    assembliesApi.getPaged(1, 100)
+    if (!condominiumId) {
+      setAssemblies([]);
+      return;
+    }
+
+    assembliesApi.getPaged(condominiumId, 1, 100)
       .then((r) => setAssemblies(r.data.items))
       .catch(() => setAssemblies([]));
-  }, []);
+  }, [condominiumId]);
 
   const loadUnits = useCallback(() => {
     unitsApi.getPaged(1, 100)

@@ -20,6 +20,7 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
     private const string SecretKey = "habitus-super-secret-key-for-development-only";
     private const string Issuer = "habitus";
     private const string Audience = "habitus-users";
+    private static readonly Guid TestCondominiumId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     private readonly WebApplicationFactory<Program> _factory;
 
@@ -59,7 +60,7 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
 
     public static TheoryData<string> TenantListEndpoints => new()
     {
-        "/api/assemblies/paged",
+        $"/api/condominiums/{TestCondominiumId}/assemblies/paged",
         "/api/reservations/paged",
         "/api/maintenance/paged",
         "/api/financial/paged",
@@ -116,8 +117,36 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(expired));
 
-        var response = await client.GetAsync("/api/assemblies/paged");
+        var response = await client.GetAsync($"/api/condominiums/{TestCondominiumId}/assemblies/paged");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AssembliesEndpoint_WithDifferentCondominiumAdminToken_Returns403()
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin", tokenCondominiumId));
+
+        var response = await client.GetAsync($"/api/condominiums/{TestCondominiumId}/assemblies/paged");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AssembliesEndpoint_WithDifferentCondominiumResidentToken_Returns403()
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", tokenCondominiumId));
+
+        var response = await client.GetAsync($"/api/condominiums/{TestCondominiumId}/assemblies/paged");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

@@ -102,18 +102,21 @@ export default function AssembliesPage() {
   const [dragOverAssemblyId, setDragOverAssemblyId] = useState<string | null>(null);
 
   const load = useCallback((page: number = 1) => {
+    if (!condominiumId) {
+      setAssemblies([]);
+      setPagination(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    assembliesApi.getPaged(page, pageSize, debouncedSearch)
+    assembliesApi.getPaged(condominiumId, page, pageSize, debouncedSearch)
       .then((r) => {
-        // Defensive: only show assemblies belonging to the logged-in user's condominium
-        const scoped = condominiumId
-          ? r.data.items.filter((a) => a.condominiumId === condominiumId)
-          : [];
         // Sort by most recent scheduled date first
-        const sorted = scoped.sort((a, b) => 
+        const sorted = r.data.items.sort((a, b) => 
           new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
         );
-        setPagination({ ...r.data, items: sorted, totalItems: sorted.length });
+        setPagination({ ...r.data, items: sorted });
         setAssemblies(sorted);
         setCurrentPage(page);
       })
@@ -168,13 +171,21 @@ export default function AssembliesPage() {
           scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
           location: form.location,
         };
-        await assembliesApi.update(editId, updateData);
+        if (!condominiumId) {
+          toastError('Condomínio não definido.');
+          return;
+        }
+        await assembliesApi.update(condominiumId, editId, updateData);
       } else {
         const createData: CreateAssemblyRequest = {
           ...form,
           scheduledAt: new Date(form.scheduledAt).toISOString(),
         };
-        await assembliesApi.create(createData);
+        if (!condominiumId) {
+          toastError('Condomínio não definido.');
+          return;
+        }
+        await assembliesApi.create(condominiumId, createData);
       }
       setShowForm(false);
       load();
@@ -193,7 +204,11 @@ export default function AssembliesPage() {
   const confirmDeleteAssembly = async () => {
     if (!deleteAssemblyId) return;
     try {
-      await assembliesApi.delete(deleteAssemblyId);
+      if (!condominiumId) {
+        toastError('Condomínio não definido.');
+        return;
+      }
+      await assembliesApi.delete(condominiumId, deleteAssemblyId);
       load();
     } catch (error) {
       console.error('Erro ao eliminar assembleia:', error);
@@ -224,7 +239,8 @@ export default function AssembliesPage() {
     const timer = setTimeout(async () => {
       setNotesAutoSaving(true);
       try {
-        await assembliesApi.updateNotes(selectedAssembly.id, notes);
+        if (!condominiumId) return;
+        await assembliesApi.updateNotes(condominiumId, selectedAssembly.id, notes);
         setNotesLastSaved(new Date());
         // Update selectedAssembly to reflect new saved state
         setSelectedAssembly({ ...selectedAssembly, notes });
@@ -242,7 +258,11 @@ export default function AssembliesPage() {
     if (!selectedAssembly) return;
     setSubmitting(true);
     try {
-      await assembliesApi.updateNotes(selectedAssembly.id, notes);
+      if (!condominiumId) {
+        toastError('Condomínio não definido.');
+        return;
+      }
+      await assembliesApi.updateNotes(condominiumId, selectedAssembly.id, notes);
       setShowNotesModal(false);
       load();
     } catch (error) {
@@ -269,7 +289,8 @@ export default function AssembliesPage() {
     const timer = setTimeout(async () => {
       setMinutesAutoSaving(true);
       try {
-        await assembliesApi.updateMinutesDraft(selectedAssembly.id, minutes);
+        if (!condominiumId) return;
+        await assembliesApi.updateMinutesDraft(condominiumId, selectedAssembly.id, minutes);
         setMinutesLastSaved(new Date());
         // Update selectedAssembly to reflect new saved state
         setSelectedAssembly({ ...selectedAssembly, minutes });
@@ -287,7 +308,11 @@ export default function AssembliesPage() {
     if (!selectedAssembly) return;
     setSubmitting(true);
     try {
-      await assembliesApi.updateMinutesDraft(selectedAssembly.id, minutes);
+      if (!condominiumId) {
+        toastError('Condomínio não definido.');
+        return;
+      }
+      await assembliesApi.updateMinutesDraft(condominiumId, selectedAssembly.id, minutes);
       setMinutesLastSaved(new Date());
       toastSuccess('Draft das atas guardado com sucesso!');
     } catch (error) {
@@ -312,7 +337,11 @@ export default function AssembliesPage() {
     setConfirmCompleteOpen(false);
     setSubmitting(true);
     try {
-      await assembliesApi.updateMinutes(selectedAssembly.id, minutes);
+      if (!condominiumId) {
+        toastError('Condomínio não definido.');
+        return;
+      }
+      await assembliesApi.updateMinutes(condominiumId, selectedAssembly.id, minutes);
       setShowMinutesModal(false);
       load();
       toastSuccess('Assembleia concluída! As atas foram publicadas e notificações enviadas.');
@@ -338,7 +367,11 @@ export default function AssembliesPage() {
     }
     setSubmitting(true);
     try {
-      await assembliesApi.cancel(selectedAssembly.id, cancellationReason);
+      if (!condominiumId) {
+        toastError('Condomínio não definido.');
+        return;
+      }
+      await assembliesApi.cancel(condominiumId, selectedAssembly.id, cancellationReason);
       setShowCancelModal(false);
       load();
     } catch (error) {
