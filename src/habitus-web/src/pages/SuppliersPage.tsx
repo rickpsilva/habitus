@@ -58,9 +58,16 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   }, []);
 
   const load = useCallback(async (page: number = 1) => {
+    if (!condominiumId) {
+      setSuppliers([]);
+      setPagination(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await suppliersApi.getPaged(page, pageSize, debouncedSearch);
+      const response = await suppliersApi.getPaged(condominiumId, page, pageSize, debouncedSearch);
       setPagination(response.data);
       setSuppliers(response.data.items);
       setCurrentPage(page);
@@ -69,7 +76,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, condominiumId]);
 
   useEffect(() => { load(1); }, [load]);
 
@@ -93,7 +100,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           specialty: form.specialty,
           isActive: form.isActive,
         };
-        await suppliersApi.update(editingId, updatePayload);
+        await suppliersApi.update(condominiumId, editingId, updatePayload);
       } else {
         const createPayload: CreateSupplierRequest = {
           name: form.name,
@@ -104,7 +111,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           specialty: form.specialty,
           condominiumId,
         };
-        await suppliersApi.create(createPayload);
+        await suppliersApi.create(condominiumId, createPayload);
       }
       
       setShowForm(false);
@@ -141,7 +148,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await suppliersApi.delete(deleteId);
+      await suppliersApi.delete(condominiumId, deleteId);
       load();
     } catch (error) {
       console.error('Erro ao eliminar fornecedor:', error);

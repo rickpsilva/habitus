@@ -103,6 +103,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Hardening multi-condomínio em `SuppliersController` (leitura):
     - `Manager` mantém visão global;
     - `Admin/Resident` passam a ficar limitados ao `CondominiumId` do token em `GET /api/suppliers`, `GET /api/suppliers/paged` e `GET /api/suppliers/{id}`.
+- **[NOVO - 16-05-2026]** Rota de fornecedores migrada para escopo explícito por condomínio:
+    - de: `/api/suppliers...`
+    - para: `/api/condominiums/{condominiumId}/suppliers...`
+    - frontend e testes atualizados para a nova convenção.
 - **[NOVO - 16-05-2026]** Cobertura expandida de suppliers by-id:
     - `Resident` do mesmo condomínio recebe campos sensíveis mascarados;
     - `Manager` recebe campos sem máscara;

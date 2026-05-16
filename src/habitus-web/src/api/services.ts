@@ -341,13 +341,13 @@ export const assembliesApi = {
 };
 
 export const suppliersApi = {
-  getAll: () => api.get<SupplierDto[]>('/suppliers'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<SupplierDto>>(`/suppliers/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<SupplierDto>(`/suppliers/${id}`),
-  create: (data: CreateSupplierRequest) => api.post<SupplierDto>('/suppliers', data),
-  update: (id: string, data: UpdateSupplierRequest) => api.put<SupplierDto>(`/suppliers/${id}`, data),
-  delete: (id: string) => api.delete(`/suppliers/${id}`),
+  getAll: (condominiumId: string) => api.get<SupplierDto[]>(`/condominiums/${condominiumId}/suppliers`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<SupplierDto>>(`/condominiums/${condominiumId}/suppliers/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<SupplierDto>(`/condominiums/${condominiumId}/suppliers/${id}`),
+  create: (condominiumId: string, data: CreateSupplierRequest) => api.post<SupplierDto>(`/condominiums/${condominiumId}/suppliers`, data),
+  update: (condominiumId: string, id: string, data: UpdateSupplierRequest) => api.put<SupplierDto>(`/condominiums/${condominiumId}/suppliers/${id}`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/suppliers/${id}`),
 };
 
 export const paymentsApi = {

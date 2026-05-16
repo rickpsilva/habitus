@@ -342,7 +342,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", CreateToken("Resident", userId, condominiumId));
 
-        var response = await client.GetAsync("/api/suppliers/paged?page=1&pageSize=10");
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}/suppliers/paged?page=1&pageSize=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -365,7 +365,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", CreateToken("Manager", userId));
 
-        var response = await client.GetAsync("/api/suppliers/paged?page=1&pageSize=10");
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}/suppliers/paged?page=1&pageSize=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -388,7 +388,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId));
 
-        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}/suppliers/{supplierId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -410,7 +410,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", CreateToken("Manager", managerId));
 
-        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+        var response = await client.GetAsync($"/api/condominiums/{condominiumId}/suppliers/{supplierId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -433,7 +433,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, residentCondominiumId));
 
-        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+        var response = await client.GetAsync($"/api/condominiums/{supplierCondominiumId}/suppliers/{supplierId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
