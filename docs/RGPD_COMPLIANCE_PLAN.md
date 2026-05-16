@@ -60,6 +60,9 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - exportação SAF-T (`ExportSaftInvoicesAsync`)
     - mapping de DTO (`MapInvoiceToDto`)
 - **[NOVO - 16-05-2026]** `InvoiceServiceEncryptionTests` expandidos para validar uso de `CustomerTaxId` legacy quando fallback está ativo e ocultação quando fallback está desativado (10/10 a passar).
+- **[NOVO - 16-05-2026]** Revisão do `PaymentService`: classificado como **N/A para encriptação de PII** neste contexto.
+    - O serviço trata lifecycle transacional de pagamento e não persiste NIF/IBAN/telefone em campos próprios.
+    - Campos sensíveis de pagamento estão centralizados em `PaymentSettingsService` (já coberto com encriptação e testes).
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -100,13 +103,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-- [ ] Fase 3 - Encriptação nos serviços: **98%**
+- [x] Fase 3 - Encriptação nos serviços: **100%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
     - [x] Gestão de `EmailHash` no `UserService` (create/update/profile/anonimização)
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
-    - [ ] `PaymentService`
+    - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
 - [ ] Fase 4 - Mascaramento por role: **0%**
     - [ ] Atributo `SensitiveData`
     - [ ] Marcação de DTOs
