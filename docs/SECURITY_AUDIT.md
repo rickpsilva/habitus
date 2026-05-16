@@ -21,6 +21,7 @@ Estado atual:
 | Validação de input | Implementado para faturação | Médio | FluentValidation ativo; cobertura ainda não é transversal a toda a API |
 | Rate limiting | Implementado | Baixo | `AspNetCoreRateLimit` ativo em middleware |
 | Encriptação de PII | Implementado em NIF/IBAN | Médio | Bom avanço; ainda convém rever outros segredos/configs |
+| Operação RGPD em produção | Implementado com fila assíncrona | Baixo/Médio | Execução de backfill/audit via queue+worker e tracking de runs |
 | PDF e blob access | Implementado | Médio | URLs devem ser revistas conforme política de acesso do storage |
 | Webhook Stripe | Implementado | Médio | Assinatura validada; falta observabilidade/auditoria mais forte |
 | Logging de segurança | Parcial | Médio | Há logs técnicos; falta auditoria funcional persistente |
@@ -83,6 +84,23 @@ O endpoint de webhook Stripe valida a assinatura HMAC através do SDK oficial an
 Impacto:
 - Evita callbacks forjados triviais
 - Garante que apenas eventos Stripe válidos podem auto-marcar faturas como pagas
+
+### 5. Operação assíncrona da migração RGPD
+
+Estado: Resolvido
+
+A execução de migração/auditoria RGPD foi convertida para fluxo assíncrono em background.
+
+Cobertura confirmada:
+- Endpoints de manutenção para `Manager`: `status`, `run`, `audit`
+- `POST run/audit` retorna rápido e enfileira a operação
+- Worker dedicado processa os runs e persiste estado em `RgpdMigrationRuns`
+- Painel de manutenção acompanha execução por polling
+
+Impacto:
+- Reduz risco de timeout HTTP em operações longas
+- Melhora rastreabilidade operacional (estado, contadores, erro)
+- Diminui risco de intervenções manuais durante janelas de migração
 
 ---
 
@@ -210,6 +228,7 @@ Itens mínimos antes de produção:
 - [x] NIF encriptado em faturação
 - [x] FluentValidation no módulo de billing
 - [x] Webhook Stripe com verificação de assinatura
+- [x] Operação RGPD assíncrona com tracking de execução
 - [ ] Audit log persistente para operações críticas
 - [ ] HSTS ativo em produção
 - [ ] Security headers revistos

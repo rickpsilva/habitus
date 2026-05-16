@@ -25,6 +25,7 @@ Habitus is a modern condominium management platform built with **.NET 8** and a 
 - **Useful Contacts** — emergency, service, and administrative contacts
 - **Feature Gating by Plan** — plan-aware endpoint access for selected modules
 - **Security Hardening** — IP rate limiting + encryption service for sensitive fields
+- **RGPD Migration Operations** — manager-driven async backfill/audit with run tracking
 - **Optional Translation** — Azure AI Translator for multilingual residents
 
 ## Recent Updates (Apr 2026)
@@ -126,6 +127,7 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | User Registration | `/api/user` |
 | Subscriptions | `/api/subscriptions` |
 | Invoices | `/api/invoices` |
+| RGPD Migration (Maintenance) | `/api/maintenance/rgpd-migration` |
 
 Full interactive documentation is available via Swagger at `/swagger`.
 
@@ -147,6 +149,20 @@ Full interactive documentation is available via Swagger at `/swagger`.
 ```bash
 dotnet test src/Habitus.slnx
 ```
+
+## RGPD Operations (Production)
+
+For RGPD historical encryption in production environments:
+
+1. Apply schema migrations normally.
+2. Run `POST /api/maintenance/rgpd-migration/audit` to capture baseline pending plaintext counts.
+3. Run `POST /api/maintenance/rgpd-migration/run` to execute backfill in background.
+4. Track progress through `GET /api/maintenance/rgpd-migration/status` (or the Maintenance UI tab).
+5. Keep legacy fallback enabled until pending legacy counters reach zero.
+
+Notes:
+- Endpoints are restricted to the `Manager` role.
+- Backfill and audit execute asynchronously through queue + hosted worker to avoid long-running HTTP requests.
 
 ## Deployment
 

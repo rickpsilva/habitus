@@ -95,10 +95,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Testes de encriptação de serviços (amostra inicial + cenários negativos)
     - [x] Testes de mascaramento (helper)
     - [x] Scripts SQL de validação
-- [ ] Fase 6 - Documentação e deploy: **5%**
+- [ ] Fase 6 - Documentação e deploy: **50%**
     - [x] Plano RGPD atualizado com estado de execução
     - [ ] Guia técnico de encriptação
-    - [ ] Atualizações em `EF_MIGRATIONS_GUIDE`, `SECURITY_AUDIT` e `README`
+    - [x] Atualizações em `EF_MIGRATIONS_GUIDE`, `SECURITY_AUDIT` e `README`
     - [ ] Plano de deploy + rollback validado
 
 ### [NOVO - 16-05-2026] Validação de Operação Assíncrona RGPD
