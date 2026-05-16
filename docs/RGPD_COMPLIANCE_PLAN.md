@@ -57,7 +57,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Fases 2, 3 (encriptação alargada) e Fase 4 (mascaramento por role).
 
 ### Pendente
-- Fases 2.2+, 3, 4 (mascaramento automático por role) e Fase 6.
+- Fases 2.2+, 3 e 4 (mascaramento automático por role).
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -95,11 +95,15 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Testes de encriptação de serviços (amostra inicial + cenários negativos)
     - [x] Testes de mascaramento (helper)
     - [x] Scripts SQL de validação
-- [ ] Fase 6 - Documentação e deploy: **50%**
+- [x] Fase 6 - Documentação e deploy: **100%**
     - [x] Plano RGPD atualizado com estado de execução
-    - [ ] Guia técnico de encriptação
+    - [x] Guia técnico de encriptação
     - [x] Atualizações em `EF_MIGRATIONS_GUIDE`, `SECURITY_AUDIT` e `README`
-    - [ ] Plano de deploy + rollback validado
+    - [x] Plano de deploy + rollback validado
+
+### [NOVO - 16-05-2026] Fecho de Documentação Operacional RGPD
+- Guia técnico adicionado em `docs/RGPD_ENCRYPTION_TECHNICAL_GUIDE.md`
+- Runbook de deploy/rollback adicionado em `docs/RGPD_DEPLOY_ROLLBACK_RUNBOOK.md`
 
 ### [NOVO - 16-05-2026] Validação de Operação Assíncrona RGPD
 - Teste de integração HTTP adicionado para `POST /api/maintenance/rgpd-migration/run`:
