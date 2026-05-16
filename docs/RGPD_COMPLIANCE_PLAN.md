@@ -77,6 +77,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Testes validados:
     - unitários `SensitiveDataMaskingTests` (9/9)
     - integração `SensitiveDataMaskingIntegrationTests` (2/2) cobrindo `Manager` (unmasked) vs `Resident` (masked) em `/api/users/me`.
+- **[NOVO - 16-05-2026]** Cobertura de integração expandida para `SupplierDto` paginado (`/api/suppliers/paged`), validando masking recursivo em `items` para `Resident` e dados brutos para `Manager`.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).

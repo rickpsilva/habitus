@@ -108,6 +108,40 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         await db.SaveChangesAsync();
     }
 
+    private async Task SeedSupplierAsync(Guid condominiumId, string email, string phone, string address)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        if (!await db.Condominiums.AnyAsync(c => c.Id == condominiumId))
+        {
+            db.Condominiums.Add(new Condominium
+            {
+                Id = condominiumId,
+                Name = "Condo Sensitive",
+                Address = "Rua Principal 1",
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+            });
+        }
+
+        db.Suppliers.Add(new Supplier
+        {
+            Id = Guid.NewGuid(),
+            Name = "Supplier Sensitive",
+            Contact = "Main Contact",
+            Email = email,
+            Phone = phone,
+            Address = address,
+            Specialty = "Plumbing",
+            CondominiumId = condominiumId,
+            IsActive = true,
+        });
+
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task MeEndpoint_WithManagerRole_ShouldReturnUnmaskedSensitiveFields()
     {
@@ -143,5 +177,51 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("r***@example.com", body.GetProperty("email").GetString());
         Assert.Equal("*******78", body.GetProperty("phone").GetString());
+    }
+
+    [Fact]
+    public async Task SuppliersPaged_WithResidentRole_ShouldMaskSensitiveFieldsInItems()
+    {
+        var condominiumId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(userId, "Resident", "resident.two@example.com", "931111111", condominiumId);
+        await SeedSupplierAsync(condominiumId, "supplier.private@example.com", "912345678", "Rua da Privacidade 12");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", userId, condominiumId));
+
+        var response = await client.GetAsync("/api/suppliers/paged?page=1&pageSize=10");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var firstItem = body.GetProperty("items")[0];
+        Assert.Equal("s***@example.com", firstItem.GetProperty("email").GetString());
+        Assert.Equal("*******78", firstItem.GetProperty("phone").GetString());
+        Assert.Equal("****", firstItem.GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task SuppliersPaged_WithManagerRole_ShouldKeepSensitiveFieldsUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(userId, "Manager", "manager.two@example.com", "932222222");
+        await SeedSupplierAsync(condominiumId, "supplier.full@example.com", "919888777", "Avenida Transparente 5");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Manager", userId));
+
+        var response = await client.GetAsync("/api/suppliers/paged?page=1&pageSize=10");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var firstItem = body.GetProperty("items")[0];
+        Assert.Equal("supplier.full@example.com", firstItem.GetProperty("email").GetString());
+        Assert.Equal("919888777", firstItem.GetProperty("phone").GetString());
+        Assert.Equal("Avenida Transparente 5", firstItem.GetProperty("address").GetString());
     }
 }
