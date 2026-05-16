@@ -1,10 +1,12 @@
 using Habitus.Application.Interfaces;
+using Habitus.Application.Helpers;
 using Habitus.Domain.Entities;
 using HtmlAgilityPack;
 using Markdig;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Text.RegularExpressions;
 using DomainUnit = Habitus.Domain.Entities.Unit;
@@ -19,6 +21,7 @@ public class ReceiptService
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<ReceiptTemplateSettings> _receiptTemplateSettingsRepository;
     private readonly IEncryptionService _encryptionService;
+    private readonly bool _allowLegacyPlaintextFallback;
 
     public ReceiptService(
         IRepository<Payment> paymentRepository,
@@ -26,7 +29,8 @@ public class ReceiptService
         IRepository<DomainUnit> unitRepository,
         IRepository<Condominium> condominiumRepository,
         IRepository<ReceiptTemplateSettings> receiptTemplateSettingsRepository,
-        IEncryptionService encryptionService)
+        IEncryptionService encryptionService,
+        IConfiguration? configuration = null)
     {
         _paymentRepository = paymentRepository;
         _userRepository = userRepository;
@@ -34,6 +38,7 @@ public class ReceiptService
         _condominiumRepository = condominiumRepository;
         _receiptTemplateSettingsRepository = receiptTemplateSettingsRepository;
         _encryptionService = encryptionService;
+        _allowLegacyPlaintextFallback = RgpdRuntimePolicy.AllowLegacyPlaintextFallback(configuration);
         
         // Configure QuestPDF license (Community license is free for open source)
         QuestPDF.Settings.License = LicenseType.Community;
@@ -102,15 +107,17 @@ public class ReceiptService
         int receiptYear)
     {
         var companyName = templateSettings?.CompanyName ?? condominium.Name;
-        var companyAddress = templateSettings?.Address ?? condominium.Address;
-        var companyPostalCode = templateSettings?.PostalCode;
-        var companyLocality = templateSettings?.Locality;
+        var companyAddress = DecryptValueOrFallback(templateSettings?.AddressEncrypted, templateSettings?.Address)
+            ?? DecryptCondominiumAddressOrFallback(condominium)
+            ?? string.Empty;
+        var companyPostalCode = DecryptValueOrFallback(templateSettings?.PostalCodeEncrypted, templateSettings?.PostalCode);
+        var companyLocality = DecryptValueOrFallback(templateSettings?.LocalityEncrypted, templateSettings?.Locality);
         var companyLocationLine = FormatPostalCodeAndLocality(companyPostalCode, companyLocality);
-        var companyTaxId = templateSettings?.TaxId;
+        var companyTaxId = DecryptValueOrFallback(templateSettings?.TaxIdEncrypted, templateSettings?.TaxId);
         if (string.IsNullOrWhiteSpace(companyTaxId))
         {
             companyTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-                ? condominium.TaxId
+                ? (_allowLegacyPlaintextFallback ? condominium.TaxId : null)
                 : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
         }
         var templateBody = BuildReceiptBody(payment, resident, unit, condominium, templateSettings);
@@ -302,6 +309,21 @@ public class ReceiptService
             PaymentType.Reservation => "Recebemos do Sr./a. {resident_name}, proprietário da {unit_number} - {unit_port}, {unit_build}, a quantia de {value_amount} euros, referente a pagamento de reserva.",
             _ => "Recebemos do Sr./a. {resident_name}, proprietário da {unit_number} - {unit_port}, {unit_build}, a quantia de {value_amount} euros, referente ao pagamento efetuado."
         };
+    }
+
+    private string? DecryptCondominiumAddressOrFallback(Condominium condominium)
+    {
+        return DecryptValueOrFallback(condominium.AddressEncrypted, condominium.Address);
+    }
+
+    private string? DecryptValueOrFallback(string? encryptedValue, string? legacyValue)
+    {
+        if (!string.IsNullOrWhiteSpace(encryptedValue))
+        {
+            return _encryptionService.Decrypt(encryptedValue);
+        }
+
+        return _allowLegacyPlaintextFallback ? legacyValue : null;
     }
 
     private void RenderTemplateBody(ColumnDescriptor column, string templateBody)
