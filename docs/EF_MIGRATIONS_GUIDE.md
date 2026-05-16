@@ -136,6 +136,30 @@ sleep 5  # Aguardar PostgreSQL iniciar
 - ✅ `20260227220749_AddPasswordResetTokenToResident`
 - ✅ `20260228090634_MultiCondominiumSupport` - **Nova arquitetura multi-condomínio**
 
+## RGPD: Operação de Migração Assíncrona
+
+Para cargas reais de produção, a migração RGPD não deve ser executada dentro do request HTTP.
+O sistema atual usa fila + worker em background com rastreamento em base de dados.
+
+### Tabela de tracking
+
+- `RgpdMigrationRuns` (migration `20260516123547_AddRgpdMigrationRuns`)
+- Guarda: tipo de operação, estado (`Running`, `Completed`, `Failed`), timestamps, contadores e erro.
+
+### Endpoints operacionais (Manager)
+
+- `GET /api/maintenance/rgpd-migration/status`
+- `POST /api/maintenance/rgpd-migration/run`
+- `POST /api/maintenance/rgpd-migration/audit`
+
+### Ordem recomendada de operação em produção
+
+1. Aplicar migrations EF normalmente (`dotnet ef database update`).
+2. Executar `POST /api/maintenance/rgpd-migration/audit` para baseline.
+3. Executar `POST /api/maintenance/rgpd-migration/run` para backfill.
+4. Acompanhar progresso via endpoint `status` (ou painel Manutenção > Migração RGPD).
+5. Só após contadores `remaining` a zero, desativar fallback legado quando apropriado.
+
 ## Notas Importantes
 
 1. **Sempre execute comandos a partir da raiz do projeto** (`/home/rick/workspace/habitus`)

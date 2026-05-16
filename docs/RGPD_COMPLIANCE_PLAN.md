@@ -57,7 +57,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - Fases 2, 3 (encriptação alargada) e Fase 4 (mascaramento por role).
 
 ### Pendente
-- Fase 1 (migração dados históricos), Fases 2.2+, 3, 4 (mascaramento automático por role) e Fase 6.
+- Fases 2.2+, 3, 4 (mascaramento automático por role) e Fase 6.
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -66,10 +66,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Fluxo de eliminação RGPD
     - [x] TAB RGPD no frontend
     - [x] Middleware de consentimento
-- [ ] Fase 1 - Migração de dados históricos: **0%**
-    - [ ] Migration helper e batch encryption
-    - [ ] Migration de dados históricos
-    - [ ] Testes de validação de migração
+- [x] Fase 1 - Migração de dados históricos: **100%**
+    - [x] Migration helper e batch encryption
+    - [x] Migration de dados históricos
+    - [x] Testes de validação de migração
 - [ ] Fase 2 - Campos encriptados em entidades: **15%**
     - [x] Base RGPD em `User` e `UserGdprConsent`
     - [x] Campo `User.PhoneEncrypted` adicionado
@@ -100,6 +100,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [ ] Guia técnico de encriptação
     - [ ] Atualizações em `EF_MIGRATIONS_GUIDE`, `SECURITY_AUDIT` e `README`
     - [ ] Plano de deploy + rollback validado
+
+### [NOVO - 16-05-2026] Validação de Operação Assíncrona RGPD
+- Teste de integração HTTP adicionado para `POST /api/maintenance/rgpd-migration/run`:
+    - retorna `202 Accepted` para Manager autenticado
+    - retorna `409 Conflict` quando já existe run `Running`
+- Implementação do teste com fila bloqueante de teste para cenário determinístico sem flakiness de timing.
 
 ### Notas de Retoma (handoff para próxima sessão)
 
