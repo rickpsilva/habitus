@@ -11,15 +11,18 @@ public class RgpdMigrationOperationsService
     private readonly IRepository<RgpdMigrationRun> _runRepository;
     private readonly HistoricalEncryptionBackfillService _backfillService;
     private readonly IConfiguration _configuration;
+    private readonly IRgpdMigrationJobQueue _jobQueue;
 
     public RgpdMigrationOperationsService(
         IRepository<RgpdMigrationRun> runRepository,
         HistoricalEncryptionBackfillService backfillService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IRgpdMigrationJobQueue jobQueue)
     {
         _runRepository = runRepository;
         _backfillService = backfillService;
         _configuration = configuration;
+        _jobQueue = jobQueue;
     }
 
     public async Task<RgpdMigrationStatusDto> GetStatusAsync(CancellationToken cancellationToken = default)
@@ -50,15 +53,55 @@ public class RgpdMigrationOperationsService
 
     public Task<RgpdMigrationRunDto> RunBackfillAsync(Guid? triggeredByUserId, CancellationToken cancellationToken = default)
     {
-        return RunInternalAsync(RgpdMigrationOperationType.Backfill, triggeredByUserId, cancellationToken);
+        return QueueRunAsync(RgpdMigrationOperationType.Backfill, triggeredByUserId, cancellationToken);
     }
 
     public Task<RgpdMigrationRunDto> RunAuditAsync(Guid? triggeredByUserId, CancellationToken cancellationToken = default)
     {
-        return RunInternalAsync(RgpdMigrationOperationType.Audit, triggeredByUserId, cancellationToken);
+        return QueueRunAsync(RgpdMigrationOperationType.Audit, triggeredByUserId, cancellationToken);
     }
 
-    private async Task<RgpdMigrationRunDto> RunInternalAsync(
+    public async Task ProcessRunAsync(Guid runId, CancellationToken cancellationToken = default)
+    {
+        var run = await _runRepository.GetByIdAsync(runId);
+        if (run == null || run.Status != RgpdMigrationRunStatus.Running)
+        {
+            return;
+        }
+
+        try
+        {
+            if (run.OperationType == RgpdMigrationOperationType.Backfill)
+            {
+                var backfillResult = await _backfillService.RunAsync(cancellationToken);
+                run.CondominiumRecordsUpdated = backfillResult.CondominiumRecordsUpdated;
+                run.InvoiceRecordsUpdated = backfillResult.InvoiceRecordsUpdated;
+                run.ValuesEncrypted = backfillResult.ValuesEncrypted;
+                run.LegacyValuesCleared = backfillResult.LegacyValuesCleared;
+            }
+
+            var auditResult = await _backfillService.AuditRemainingLegacyPlaintextAsync(cancellationToken);
+            run.RemainingCondominiumTaxIdLegacyCount = auditResult.CondominiumTaxIdLegacyCount;
+            run.RemainingCondominiumPaymentIbanLegacyCount = auditResult.CondominiumPaymentIbanLegacyCount;
+            run.RemainingCondominiumAddressLegacyCount = auditResult.CondominiumAddressLegacyCount;
+            run.RemainingInvoiceCustomerTaxIdLegacyCount = auditResult.InvoiceCustomerTaxIdLegacyCount;
+            run.RemainingInvoiceCustomerAddressLegacyCount = auditResult.InvoiceCustomerAddressLegacyCount;
+            run.Status = RgpdMigrationRunStatus.Completed;
+            run.CompletedAt = DateTime.UtcNow;
+            run.ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            run.Status = RgpdMigrationRunStatus.Failed;
+            run.CompletedAt = DateTime.UtcNow;
+            run.ErrorMessage = ex.Message;
+        }
+
+        _runRepository.Update(run);
+        await _runRepository.SaveChangesAsync();
+    }
+
+    private async Task<RgpdMigrationRunDto> QueueRunAsync(
         RgpdMigrationOperationType operationType,
         Guid? triggeredByUserId,
         CancellationToken cancellationToken)
@@ -81,40 +124,7 @@ public class RgpdMigrationOperationsService
         await _runRepository.AddAsync(run);
         await _runRepository.SaveChangesAsync();
 
-        try
-        {
-            if (operationType == RgpdMigrationOperationType.Backfill)
-            {
-                var backfillResult = await _backfillService.RunAsync(cancellationToken);
-                run.CondominiumRecordsUpdated = backfillResult.CondominiumRecordsUpdated;
-                run.InvoiceRecordsUpdated = backfillResult.InvoiceRecordsUpdated;
-                run.ValuesEncrypted = backfillResult.ValuesEncrypted;
-                run.LegacyValuesCleared = backfillResult.LegacyValuesCleared;
-            }
-
-            var auditResult = await _backfillService.AuditRemainingLegacyPlaintextAsync(cancellationToken);
-            run.RemainingCondominiumTaxIdLegacyCount = auditResult.CondominiumTaxIdLegacyCount;
-            run.RemainingCondominiumPaymentIbanLegacyCount = auditResult.CondominiumPaymentIbanLegacyCount;
-            run.RemainingCondominiumAddressLegacyCount = auditResult.CondominiumAddressLegacyCount;
-            run.RemainingInvoiceCustomerTaxIdLegacyCount = auditResult.InvoiceCustomerTaxIdLegacyCount;
-            run.RemainingInvoiceCustomerAddressLegacyCount = auditResult.InvoiceCustomerAddressLegacyCount;
-            run.Status = RgpdMigrationRunStatus.Completed;
-            run.CompletedAt = DateTime.UtcNow;
-        }
-        catch (Exception ex)
-        {
-            run.Status = RgpdMigrationRunStatus.Failed;
-            run.CompletedAt = DateTime.UtcNow;
-            run.ErrorMessage = ex.Message;
-        }
-
-        _runRepository.Update(run);
-        await _runRepository.SaveChangesAsync();
-
-        if (run.Status == RgpdMigrationRunStatus.Failed)
-        {
-            throw new InvalidOperationException(run.ErrorMessage ?? "Falha ao executar migração RGPD.");
-        }
+        await _jobQueue.EnqueueAsync(run.Id, cancellationToken);
 
         return MapRun(run);
     }

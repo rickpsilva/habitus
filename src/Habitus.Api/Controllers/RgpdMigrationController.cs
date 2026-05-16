@@ -32,7 +32,7 @@ public class RgpdMigrationController : ControllerBase
         try
         {
             var run = await _service.RunBackfillAsync(userId, cancellationToken);
-            return Ok(run);
+            return Accepted(run);
         }
         catch (InvalidOperationException ex)
         {
@@ -48,7 +48,7 @@ public class RgpdMigrationController : ControllerBase
         try
         {
             var run = await _service.RunAuditAsync(userId, cancellationToken);
-            return Ok(run);
+            return Accepted(run);
         }
         catch (InvalidOperationException ex)
         {

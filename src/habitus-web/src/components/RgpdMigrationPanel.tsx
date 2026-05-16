@@ -27,11 +27,23 @@ export default function RgpdMigrationPanel() {
     loadStatus();
   }, [loadStatus]);
 
+  useEffect(() => {
+    if (!status?.isRunning) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      loadStatus();
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [status?.isRunning, loadStatus]);
+
   const runBackfill = async () => {
     setActionLoading('run');
     try {
       await rgpdMigrationApi.runMigration();
-      success('Migração RGPD executada com sucesso.');
+      success('Migração RGPD enfileirada. A acompanhar execução em background...');
       await loadStatus();
     } catch (error) {
       console.error('Failed to run RGPD migration:', error);
@@ -45,7 +57,7 @@ export default function RgpdMigrationPanel() {
     setActionLoading('audit');
     try {
       await rgpdMigrationApi.runAudit();
-      success('Auditoria RGPD concluída.');
+      success('Auditoria RGPD enfileirada. A acompanhar execução em background...');
       await loadStatus();
     } catch (error) {
       console.error('Failed to run RGPD audit:', error);

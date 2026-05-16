@@ -38,7 +38,8 @@ public class RgpdMigrationOperationsServiceTests
             backfillLogger);
 
         var config = new ConfigurationBuilder().Build();
-        var service = new RgpdMigrationOperationsService(runRepo.Object, backfill, config);
+        var queue = new Mock<IRgpdMigrationJobQueue>();
+        var service = new RgpdMigrationOperationsService(runRepo.Object, backfill, config, queue.Object);
 
         var act = () => service.RunBackfillAsync(Guid.NewGuid());
 
@@ -47,7 +48,7 @@ public class RgpdMigrationOperationsServiceTests
     }
 
     [Fact]
-    public async Task RunAuditAsync_ShouldCreateCompletedAuditRun_WithRemainingCounts()
+    public async Task RunAuditAsync_ShouldQueueRun_AndReturnRunningStatus()
     {
         var storedRuns = new List<RgpdMigrationRun>();
         var runRepo = new Mock<IRepository<RgpdMigrationRun>>();
@@ -60,6 +61,7 @@ public class RgpdMigrationOperationsServiceTests
             .Returns(Task.CompletedTask);
         runRepo.Setup(r => r.Update(It.IsAny<RgpdMigrationRun>()));
         runRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        runRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((RgpdMigrationRun?)null);
 
         var condoRepo = new Mock<IRepository<Condominium>>();
         condoRepo
@@ -109,13 +111,66 @@ public class RgpdMigrationOperationsServiceTests
             ["Rgpd:AllowLegacyPlaintextFallback"] = "true"
         }).Build();
 
-        var service = new RgpdMigrationOperationsService(runRepo.Object, backfill, config);
+        var queue = new Mock<IRgpdMigrationJobQueue>();
+        queue.Setup(q => q.EnqueueAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).Returns(ValueTask.CompletedTask);
+        var service = new RgpdMigrationOperationsService(runRepo.Object, backfill, config, queue.Object);
 
         var result = await service.RunAuditAsync(Guid.NewGuid());
 
         result.OperationType.Should().Be("Audit");
-        result.Status.Should().Be("Completed");
-        result.RemainingTotalLegacyCount.Should().BeGreaterThan(0);
+        result.Status.Should().Be("Running");
+        result.RemainingTotalLegacyCount.Should().Be(0);
         storedRuns.Should().ContainSingle();
+        queue.Verify(q => q.EnqueueAsync(storedRuns[0].Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessRunAsync_ShouldCompleteAuditRun_WithAuditCounts()
+    {
+        var runId = Guid.NewGuid();
+        var runningRun = new RgpdMigrationRun
+        {
+            Id = runId,
+            OperationType = RgpdMigrationOperationType.Audit,
+            Status = RgpdMigrationRunStatus.Running,
+            StartedAt = DateTime.UtcNow,
+        };
+
+        var runRepo = new Mock<IRepository<RgpdMigrationRun>>();
+        runRepo.Setup(r => r.GetByIdAsync(runId)).ReturnsAsync(runningRun);
+        runRepo.Setup(r => r.Update(It.IsAny<RgpdMigrationRun>()));
+        runRepo.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var condoRepo = new Mock<IRepository<Condominium>>();
+        condoRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Condominium, bool>>>() ))
+            .ReturnsAsync(new List<Condominium>
+            {
+                new() { Id = Guid.NewGuid(), Name = "Condo", Address = "Street" }
+            });
+
+        var invoiceRepo = new Mock<IRepository<Invoice>>();
+        invoiceRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Invoice, bool>>>() ))
+            .ReturnsAsync(new List<Invoice>());
+
+        var encryption = new Mock<IEncryptionService>();
+        var backfillLogger = Mock.Of<ILogger<HistoricalEncryptionBackfillService>>();
+        var backfill = new HistoricalEncryptionBackfillService(
+            condoRepo.Object,
+            invoiceRepo.Object,
+            encryption.Object,
+            backfillLogger);
+
+        var config = new ConfigurationBuilder().Build();
+        var queue = new Mock<IRgpdMigrationJobQueue>();
+        var service = new RgpdMigrationOperationsService(runRepo.Object, backfill, config, queue.Object);
+
+        await service.ProcessRunAsync(runId);
+
+        runningRun.Status.Should().Be(RgpdMigrationRunStatus.Completed);
+        runningRun.CompletedAt.Should().NotBeNull();
+        runningRun.RemainingCondominiumAddressLegacyCount.Should().Be(1);
+        runningRun.RemainingInvoiceCustomerAddressLegacyCount.Should().Be(0);
     }
 }

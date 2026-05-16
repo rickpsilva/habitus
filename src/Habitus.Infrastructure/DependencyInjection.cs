@@ -119,11 +119,13 @@ public static class DependencyInjection
         services.AddScoped<SaftXmlService>();
         services.AddScoped<HistoricalEncryptionBackfillService>();
         services.AddScoped<RgpdMigrationOperationsService>();
+        services.AddSingleton<IRgpdMigrationJobQueue, RgpdMigrationJobQueue>();
 
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
         services.AddHostedService<HistoricalEncryptionBackfillHostedService>();
+        services.AddHostedService<RgpdMigrationWorkerHostedService>();
 
         // Encryption service for sensitive data
         services.AddScoped<IEncryptionService, EncryptionService>();

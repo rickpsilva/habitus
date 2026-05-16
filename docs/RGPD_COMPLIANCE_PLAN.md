@@ -223,6 +223,8 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
              - API `POST /api/maintenance/rgpd-migration/run`
              - API `POST /api/maintenance/rgpd-migration/audit`
              - UI: página `Manutenção` com tab `Migração RGPD` visível apenas para `Manager`
+             - Execução assíncrona em background (fila + worker) para evitar timeout HTTP em execuções longas
+             - Polling automático de estado no frontend enquanto existe run `Running`
    
 2. Criar testes de validação de migração de dados ✅
    - Verificar que dados foram encriptados corretamente
