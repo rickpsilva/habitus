@@ -1,5 +1,7 @@
 using Habitus.Application.Interfaces;
+using Habitus.Application.Helpers;
 using Habitus.Domain.Entities;
+using Microsoft.Extensions.Configuration;
 
 namespace Habitus.Application.Services;
 
@@ -7,11 +9,16 @@ public class UsefulContactService
 {
     private readonly IRepository<UsefulContact> _repository;
     private readonly IEncryptionService _encryptionService;
+    private readonly bool _allowLegacyPlaintextFallback;
 
-    public UsefulContactService(IRepository<UsefulContact> repository, IEncryptionService encryptionService)
+    public UsefulContactService(
+        IRepository<UsefulContact> repository,
+        IEncryptionService encryptionService,
+        IConfiguration? configuration = null)
     {
         _repository = repository;
         _encryptionService = encryptionService;
+        _allowLegacyPlaintextFallback = RgpdRuntimePolicy.AllowLegacyPlaintextFallback(configuration);
     }
 
     public async Task<IEnumerable<UsefulContact>> GetAllAsync()
@@ -33,7 +40,7 @@ public class UsefulContactService
             Id = Guid.NewGuid(),
             CondominiumId = condominiumId,
             Name = name,
-            PhoneEncrypted = string.IsNullOrEmpty(phone) ? null : _encryptionService.Encrypt(phone),
+            PhoneEncrypted = string.IsNullOrWhiteSpace(phone) ? null : _encryptionService.Encrypt(phone),
             Phone = string.Empty,  // Clear plaintext phone
             Category = category
         };
@@ -56,7 +63,7 @@ public class UsefulContactService
         // If phone is explicitly provided, update encrypted value and clear plaintext column.
         if (phone != null)
         {
-            contact.PhoneEncrypted = string.IsNullOrEmpty(phone) ? null : _encryptionService.Encrypt(phone);
+            contact.PhoneEncrypted = string.IsNullOrWhiteSpace(phone) ? null : _encryptionService.Encrypt(phone);
             contact.Phone = string.Empty;  // Clear plaintext phone
         }
 
@@ -79,9 +86,9 @@ public class UsefulContactService
     private UsefulContact MapToResponse(UsefulContact contact)
     {
         // Decrypt phone using encrypted-first logic (fallback to plaintext for legacy data)
-        var decryptedPhone = !string.IsNullOrEmpty(contact.PhoneEncrypted)
+        var decryptedPhone = !string.IsNullOrWhiteSpace(contact.PhoneEncrypted)
             ? _encryptionService.Decrypt(contact.PhoneEncrypted)
-            : contact.Phone;
+            : (_allowLegacyPlaintextFallback ? contact.Phone : string.Empty);
 
         // Return a copy with decrypted phone set in the Phone field for API response
         return new UsefulContact

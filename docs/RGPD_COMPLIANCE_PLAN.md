@@ -52,6 +52,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** `ReceiptService` atualizado para `encrypted-first` nos dados de template/empresa (`Address`, `PostalCode`, `Locality`, `TaxId`) com fallback legado controlado por `Rgpd:AllowLegacyPlaintextFallback`.
 - **[NOVO - 16-05-2026]** `ReceiptService` atualizado para fallback seguro de morada/NIF do condomínio respeitando a política RGPD.
 - **[NOVO - 16-05-2026]** `ReceiptServiceEncryptionTests` expandidos para validar decrypt de campos encriptados de template e comportamento com fallback desativado (4/4 a passar).
+- **[NOVO - 16-05-2026]** `UsefulContactService` hardened para:
+    - `encrypted-first` com fallback legado controlado por política RGPD
+    - tratamento de `whitespace` como limpeza explícita (sem encriptação inválida)
+- **[NOVO - 16-05-2026]** `UsefulContactServiceEncryptionTests` expandidos para fallback desativado e cenários de `whitespace` (10/10 a passar).
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -92,13 +96,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-- [ ] Fase 3 - Encriptação nos serviços: **86%**
+- [ ] Fase 3 - Encriptação nos serviços: **92%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
     - [x] Gestão de `EmailHash` no `UserService` (create/update/profile/anonimização)
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
-    - [ ] `PaymentService`, `InvoiceService`, `UsefulContact`
+    - [ ] `PaymentService`, `InvoiceService`
 - [ ] Fase 4 - Mascaramento por role: **0%**
     - [ ] Atributo `SensitiveData`
     - [ ] Marcação de DTOs

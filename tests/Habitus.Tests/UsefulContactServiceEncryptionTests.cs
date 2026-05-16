@@ -2,6 +2,7 @@ using FluentAssertions;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
+using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace Habitus.Tests;
@@ -47,6 +48,24 @@ public class UsefulContactServiceEncryptionTests
         var service = new UsefulContactService(repository.Object, encryption.Object);
 
         var contact = await service.CreateAsync(condominiumId, "Service", string.Empty, ContactCategory.Service);
+
+        contact.Phone.Should().Be(string.Empty);
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithWhitespacePhone_ShouldNotEncrypt()
+    {
+        var repository = new Mock<IRepository<UsefulContact>>();
+        var encryption = new Mock<IEncryptionService>();
+        var condominiumId = Guid.NewGuid();
+
+        repository.Setup(r => r.AddAsync(It.IsAny<UsefulContact>()));
+        repository.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new UsefulContactService(repository.Object, encryption.Object);
+
+        var contact = await service.CreateAsync(condominiumId, "Service", "   ", ContactCategory.Service);
 
         contact.Phone.Should().Be(string.Empty);
         encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
@@ -122,6 +141,72 @@ public class UsefulContactServiceEncryptionTests
 
         encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
         encryption.Verify(e => e.Decrypt("enc-existing-phone"), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithWhitespacePhone_ShouldClearEncryptedPhone()
+    {
+        var repository = new Mock<IRepository<UsefulContact>>();
+        var encryption = new Mock<IEncryptionService>();
+        var contactId = Guid.NewGuid();
+
+        var existing = new UsefulContact
+        {
+            Id = contactId,
+            CondominiumId = Guid.NewGuid(),
+            Name = "Contact Name",
+            Phone = string.Empty,
+            PhoneEncrypted = "enc-existing-phone",
+            Category = ContactCategory.Emergency,
+            Condominium = null!
+        };
+
+        repository.Setup(r => r.GetByIdAsync(contactId)).ReturnsAsync(existing);
+        repository.Setup(r => r.Update(It.IsAny<UsefulContact>()));
+        repository.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new UsefulContactService(repository.Object, encryption.Object);
+
+        var contact = await service.UpdateAsync(contactId, "Same Contact", "   ", ContactCategory.Service);
+
+        contact.Should().NotBeNull();
+        existing.PhoneEncrypted.Should().BeNull();
+        contact!.Phone.Should().Be(string.Empty);
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ShouldHideLegacyPlaintext_WhenFallbackDisabled()
+    {
+        var repository = new Mock<IRepository<UsefulContact>>();
+        var encryption = new Mock<IEncryptionService>();
+        var contactId = Guid.NewGuid();
+
+        var existing = new UsefulContact
+        {
+            Id = contactId,
+            CondominiumId = Guid.NewGuid(),
+            Name = "Contact",
+            Phone = "912345678",
+            PhoneEncrypted = null,
+            Category = ContactCategory.Emergency,
+            Condominium = null!
+        };
+
+        repository.Setup(r => r.GetByIdAsync(contactId)).ReturnsAsync(existing);
+
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Rgpd:AllowLegacyPlaintextFallback"] = "false"
+        }).Build();
+
+        var service = new UsefulContactService(repository.Object, encryption.Object, configuration);
+
+        var contact = await service.GetByIdAsync(contactId);
+
+        contact.Should().NotBeNull();
+        contact!.Phone.Should().Be(string.Empty);
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
