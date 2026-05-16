@@ -58,11 +58,11 @@ public class SupplierService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Contact = request.Contact,
-            EmailEncrypted = string.IsNullOrEmpty(request.Email) ? null : _encryptionService.Encrypt(request.Email),
+            EmailEncrypted = string.IsNullOrWhiteSpace(request.Email) ? null : _encryptionService.Encrypt(request.Email),
             Email = string.Empty,  // Clear plaintext email
-            PhoneEncrypted = string.IsNullOrEmpty(request.Phone) ? null : _encryptionService.Encrypt(request.Phone),
+            PhoneEncrypted = string.IsNullOrWhiteSpace(request.Phone) ? null : _encryptionService.Encrypt(request.Phone),
             Phone = string.Empty,  // Clear plaintext phone
-            AddressEncrypted = string.IsNullOrEmpty(request.Address) ? null : _encryptionService.Encrypt(request.Address),
+            AddressEncrypted = string.IsNullOrWhiteSpace(request.Address) ? null : _encryptionService.Encrypt(request.Address),
             Address = string.Empty,  // Clear plaintext address
             Specialty = request.Specialty,
             CondominiumId = Guid.Parse(request.CondominiumId),
@@ -88,21 +88,21 @@ public class SupplierService
         // Encrypt Email if provided
         if (request.Email != null)
         {
-            supplier.EmailEncrypted = string.IsNullOrEmpty(request.Email) ? null : _encryptionService.Encrypt(request.Email);
+            supplier.EmailEncrypted = string.IsNullOrWhiteSpace(request.Email) ? null : _encryptionService.Encrypt(request.Email);
             supplier.Email = string.Empty;  // Clear plaintext email
         }
 
         // Encrypt Phone if provided
         if (request.Phone != null)
         {
-            supplier.PhoneEncrypted = string.IsNullOrEmpty(request.Phone) ? null : _encryptionService.Encrypt(request.Phone);
+            supplier.PhoneEncrypted = string.IsNullOrWhiteSpace(request.Phone) ? null : _encryptionService.Encrypt(request.Phone);
             supplier.Phone = string.Empty;  // Clear plaintext phone
         }
 
         // Encrypt Address if provided
         if (request.Address != null)
         {
-            supplier.AddressEncrypted = string.IsNullOrEmpty(request.Address) ? null : _encryptionService.Encrypt(request.Address);
+            supplier.AddressEncrypted = string.IsNullOrWhiteSpace(request.Address) ? null : _encryptionService.Encrypt(request.Address);
             supplier.Address = string.Empty;  // Clear plaintext address
         }
 

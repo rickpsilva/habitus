@@ -40,6 +40,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** `UserService.UpdateMyProfileAsync` atualizado para encriptar `Phone` em `PhoneEncrypted` (com limpeza de plaintext).
 - **[NOVO - 16-05-2026]** `UserService.ApproveGdprErasureAsync` atualizado para regenerar `EmailHash` após anonimização.
 - **[NOVO - 16-05-2026]** Testes de regressão adicionados em `UserServicePhoneEncryptionTests` para cobertura de `EmailHash` em updates.
+- **[NOVO - 16-05-2026]** `SupplierService` hardened para updates parciais de campos sensíveis com semântica correta:
+    - `null` preserva valor encriptado existente
+    - vazio/whitespace limpa valor encriptado
+    - valor preenchido encripta novo conteúdo e limpa plaintext
+- **[NOVO - 16-05-2026]** DTO `UpdateSupplierRequest` atualizado para campos sensíveis nullable (`Email`, `Phone`, `Address`) para suportar omissão explícita.
+- **[NOVO - 16-05-2026]** `SupplierServiceEncryptionTests` expandidos com regressões de whitespace e create sem encriptação indevida (8/8 a passar).
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -80,11 +86,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-- [ ] Fase 3 - Encriptação nos serviços: **65%**
+- [ ] Fase 3 - Encriptação nos serviços: **72%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
     - [x] Gestão de `EmailHash` no `UserService` (create/update/profile/anonimização)
-    - [ ] `SupplierService` completo
+    - [x] `SupplierService` completo
     - [ ] `CondominiumService` completo
     - [ ] `ReceiptService`, `PaymentService`, `InvoiceService`, `UsefulContact`
 - [ ] Fase 4 - Mascaramento por role: **0%**

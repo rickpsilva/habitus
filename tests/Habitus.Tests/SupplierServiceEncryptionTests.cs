@@ -282,4 +282,88 @@ public class SupplierServiceEncryptionTests
         first.Phone.Should().Be("911111111");
         first.Address.Should().Be("Rua 1, 100");
     }
+
+    [Fact]
+    public async Task UpdateAsync_WithWhitespaceSensitiveFields_ShouldClearEncryptedValues()
+    {
+        var repository = new Mock<IRepository<Supplier>>();
+        var encryption = new Mock<IEncryptionService>();
+        var supplierId = Guid.NewGuid();
+
+        var existing = new Supplier
+        {
+            Id = supplierId,
+            CondominiumId = Guid.NewGuid(),
+            Name = "Supplier",
+            Contact = "Contact",
+            Email = string.Empty,
+            EmailEncrypted = "enc-email",
+            Phone = string.Empty,
+            PhoneEncrypted = "enc-phone",
+            Address = string.Empty,
+            AddressEncrypted = "enc-address",
+            Specialty = "Specialty",
+            IsActive = true,
+            Condominium = null!,
+        };
+
+        repository.Setup(r => r.GetByIdAsync(supplierId)).ReturnsAsync(existing);
+        repository.Setup(r => r.Update(It.IsAny<Supplier>()));
+        repository.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new SupplierService(repository.Object, encryption.Object);
+
+        var result = await service.UpdateAsync(supplierId, new UpdateSupplierRequest
+        {
+            Name = "Supplier",
+            Contact = "Contact",
+            Email = "   ",
+            Phone = "   ",
+            Address = "   ",
+            Specialty = "Specialty",
+            IsActive = true,
+        });
+
+        result.Should().NotBeNull();
+        existing.EmailEncrypted.Should().BeNull();
+        existing.PhoneEncrypted.Should().BeNull();
+        existing.AddressEncrypted.Should().BeNull();
+        existing.Email.Should().Be(string.Empty);
+        existing.Phone.Should().Be(string.Empty);
+        existing.Address.Should().Be(string.Empty);
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithWhitespaceSensitiveFields_ShouldNotEncrypt()
+    {
+        var repository = new Mock<IRepository<Supplier>>();
+        var encryption = new Mock<IEncryptionService>();
+        var condominiumId = Guid.NewGuid();
+
+        Supplier? added = null;
+        repository.Setup(r => r.AddAsync(It.IsAny<Supplier>()))
+            .Callback<Supplier>(s => added = s)
+            .Returns(Task.CompletedTask);
+        repository.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+
+        var service = new SupplierService(repository.Object, encryption.Object);
+
+        var result = await service.CreateAsync(new CreateSupplierRequest
+        {
+            Name = "ABC Services",
+            Contact = "John",
+            Email = "   ",
+            Phone = "   ",
+            Address = "   ",
+            Specialty = "Electrical",
+            CondominiumId = condominiumId.ToString(),
+        });
+
+        added.Should().NotBeNull();
+        added!.EmailEncrypted.Should().BeNull();
+        added.PhoneEncrypted.Should().BeNull();
+        added.AddressEncrypted.Should().BeNull();
+        encryption.Verify(e => e.Encrypt(It.IsAny<string>()), Times.Never);
+    }
 }
