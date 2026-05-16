@@ -3,6 +3,7 @@ using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
@@ -33,6 +34,15 @@ public class CommunicationSettingsController : ControllerBase
     {
         try
         {
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var userCondominiumId = User.FindFirstValue("CondominiumId");
+
+            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                && userCondominiumId != condominiumId.ToString())
+            {
+                return Forbid();
+            }
+
             var settings = await _repository.FindAsync(cs => cs.CondominiumId == condominiumId);
             var communicationSettings = settings.FirstOrDefault();
 
@@ -103,6 +113,15 @@ public class CommunicationSettingsController : ControllerBase
     {
         try
         {
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            var userCondominiumId = User.FindFirstValue("CondominiumId");
+
+            if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)
+                && userCondominiumId != condominiumId.ToString())
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -146,8 +165,7 @@ public class CommunicationSettingsController : ControllerBase
             // Only update API key if provided
             if (!string.IsNullOrWhiteSpace(request.WhatsAppApiKey))
             {
-                // TODO: Encrypt the API key before storing in production
-                communicationSettings.WhatsAppApiKey = request.WhatsAppApiKey;
+                communicationSettings.WhatsAppApiKey = _encryptionService.Encrypt(request.WhatsAppApiKey.Trim());
             }
             
             // Update SMS fields
@@ -159,8 +177,7 @@ public class CommunicationSettingsController : ControllerBase
             // Only update SMS API key if provided
             if (!string.IsNullOrWhiteSpace(request.SmsApiKey))
             {
-                // TODO: Encrypt the API key before storing in production
-                communicationSettings.SmsApiKey = request.SmsApiKey;
+                communicationSettings.SmsApiKey = _encryptionService.Encrypt(request.SmsApiKey.Trim());
             }
             
             communicationSettings.UpdatedAt = DateTime.UtcNow;

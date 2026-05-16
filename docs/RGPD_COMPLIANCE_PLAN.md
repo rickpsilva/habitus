@@ -94,6 +94,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Cobertura expandida em `SensitiveDataMaskingIntegrationTests` para `GET /api/invoices/{condominiumId}`:
     - `Resident` recebe `customerTaxId` e `customerAddress` mascarados;
     - `Manager` recebe `customerTaxId` e `customerAddress` sem máscara.
+- **[NOVO - 16-05-2026]** Hardening de `CommunicationSettingsController`:
+    - aplicado isolamento por condomínio para `Admin` em `GET`/`PUT` de `communication-settings`;
+    - `WhatsAppApiKey` e `SmsApiKey` passam a ser encriptadas em update (além de `EmailPassword`).
+- **[NOVO - 16-05-2026]** Novos testes de integração `CommunicationSettingsSecurityIntegrationTests`:
+    - valida persistência encriptada de segredos (`EmailPassword`, `WhatsAppApiKey`, `SmsApiKey`);
+    - valida `403 Forbidden` para `Admin` fora do próprio condomínio.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
