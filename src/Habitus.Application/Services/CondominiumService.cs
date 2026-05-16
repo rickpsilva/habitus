@@ -308,15 +308,19 @@ public class CondominiumService
         if (settings != null)
         {
             // Use new PaymentSettings structure
-            var decryptedIban = string.IsNullOrEmpty(settings.BankTransferIbanEncrypted)
-                ? settings.BankTransferIban
-                : _encryptionService.Decrypt(settings.BankTransferIbanEncrypted);
+            var decryptedIban = DecryptValueOrFallback(
+                settings.BankTransferIbanEncrypted,
+                settings.BankTransferIban);
+
+            var decryptedMbWay = DecryptValueOrFallback(
+                settings.MBWayPhoneNumberEncrypted,
+                settings.MBWayPhoneNumber);
 
             return new PaymentMethodsDto
             {
                 Iban = decryptedIban,
                 Instructions = null, // Not in new structure, could be added if needed
-                MbWay = settings.MBWayPhoneNumber,
+                MbWay = decryptedMbWay,
                 MbReference = settings.MBReferenceEntity != null && settings.MBReferenceReference != null
                     ? $"{settings.MBReferenceEntity} | {settings.MBReferenceReference}"
                     : null,
@@ -327,15 +331,17 @@ public class CondominiumService
         }
 
         // Fallback to old Condominium fields (for backward compatibility)
-        var decryptedCondoIban = string.IsNullOrEmpty(condominium.PaymentIbanEncrypted)
-            ? condominium.PaymentIban
-            : _encryptionService.Decrypt(condominium.PaymentIbanEncrypted);
+        var decryptedCondoIban = DecryptValueOrFallback(
+            condominium.PaymentIbanEncrypted,
+            condominium.PaymentIban);
+
+        var mbWay = _allowLegacyPlaintextFallback ? condominium.PaymentMbWay : null;
 
         return new PaymentMethodsDto
         {
             Iban = decryptedCondoIban,
             Instructions = condominium.PaymentInstructions,
-            MbWay = condominium.PaymentMbWay,
+            MbWay = mbWay,
             MbReference = condominium.PaymentMbReference,
             BankTransferEnabled = condominium.PaymentBankTransferEnabled,
             MbWayEnabled = condominium.PaymentMbWayEnabled,
@@ -433,5 +439,15 @@ public class CondominiumService
         }
 
         return _allowLegacyPlaintextFallback ? condominium.Address : string.Empty;
+    }
+
+    private string? DecryptValueOrFallback(string? encryptedValue, string? legacyValue)
+    {
+        if (!string.IsNullOrWhiteSpace(encryptedValue))
+        {
+            return _encryptionService.Decrypt(encryptedValue);
+        }
+
+        return _allowLegacyPlaintextFallback ? legacyValue : null;
     }
 }

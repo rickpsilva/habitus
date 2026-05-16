@@ -3,6 +3,7 @@ using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using Moq;
 
 namespace Habitus.Tests;
@@ -376,12 +377,13 @@ public class CondominiumServiceEncryptionTests
                     BankTransferEnabled = true,
                     BankTransferIbanEncrypted = "enc-iban",
                     MBWayEnabled = true,
-                    MBWayPhoneNumber = "910000000",
+                    MBWayPhoneNumberEncrypted = "enc-mbway",
                     CardEnabled = false,
                 }
             });
 
         encryption.Setup(e => e.Decrypt("enc-iban")).Returns("PT50000201231234567890154");
+        encryption.Setup(e => e.Decrypt("enc-mbway")).Returns("910000000");
 
         var service = new CondominiumService(
             condominiumRepo.Object,
@@ -396,6 +398,69 @@ public class CondominiumServiceEncryptionTests
         result!.Iban.Should().Be("PT50000201231234567890154");
         result.MbWay.Should().Be("910000000");
         encryption.Verify(e => e.Decrypt("enc-iban"), Times.Once);
+        encryption.Verify(e => e.Decrypt("enc-mbway"), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPaymentMethodsAsync_ShouldHideLegacyPlaintext_WhenFallbackDisabled()
+    {
+        var condominiumRepo = new Mock<IRepository<Condominium>>();
+        var userRepo = new Mock<IRepository<User>>();
+        var unitRepo = new Mock<IRepository<Unit>>();
+        var paymentSettingsRepo = new Mock<IRepository<PaymentSettings>>();
+        var encryption = new Mock<IEncryptionService>();
+
+        var condominiumId = Guid.NewGuid();
+        condominiumRepo.Setup(r => r.GetByIdAsync(condominiumId)).ReturnsAsync(new Condominium
+        {
+            Id = condominiumId,
+            Name = "Condo A",
+            Address = "Street 1",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            PaymentIban = "PT50000201239999999999998",
+            PaymentMbWay = "911111111",
+            PaymentBankTransferEnabled = true,
+            PaymentMbWayEnabled = true,
+            PaymentCardEnabled = false,
+        });
+
+        paymentSettingsRepo
+            .Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<PaymentSettings, bool>>>() ))
+            .ReturnsAsync(new List<PaymentSettings>
+            {
+                new()
+                {
+                    CondominiumId = condominiumId,
+                    BankTransferEnabled = true,
+                    BankTransferIbanEncrypted = null,
+                    BankTransferIban = "PT50000201230000000000000",
+                    MBWayEnabled = true,
+                    MBWayPhoneNumberEncrypted = null,
+                    MBWayPhoneNumber = "922222222",
+                    CardEnabled = false,
+                }
+            });
+
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Rgpd:AllowLegacyPlaintextFallback"] = "false"
+        }).Build();
+
+        var service = new CondominiumService(
+            condominiumRepo.Object,
+            userRepo.Object,
+            unitRepo.Object,
+            paymentSettingsRepo.Object,
+            encryption.Object,
+            config);
+
+        var result = await service.GetPaymentMethodsAsync(condominiumId);
+
+        result.Should().NotBeNull();
+        result!.Iban.Should().BeNull();
+        result.MbWay.Should().BeNull();
+        encryption.Verify(e => e.Decrypt(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]

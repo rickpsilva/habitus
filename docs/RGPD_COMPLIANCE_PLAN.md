@@ -46,6 +46,9 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - valor preenchido encripta novo conteúdo e limpa plaintext
 - **[NOVO - 16-05-2026]** DTO `UpdateSupplierRequest` atualizado para campos sensíveis nullable (`Email`, `Phone`, `Address`) para suportar omissão explícita.
 - **[NOVO - 16-05-2026]** `SupplierServiceEncryptionTests` expandidos com regressões de whitespace e create sem encriptação indevida (8/8 a passar).
+- **[NOVO - 16-05-2026]** `CondominiumService` atualizado para `encrypted-first` também na leitura de `PaymentSettings` (`BankTransferIban` e `MBWayPhoneNumber`) com fallback legado controlado por política RGPD.
+- **[NOVO - 16-05-2026]** `CondominiumService` atualizado para ocultar plaintext legado de `Iban`/`MbWay` quando `Rgpd:AllowLegacyPlaintextFallback=false`.
+- **[NOVO - 16-05-2026]** `CondominiumServiceEncryptionTests` expandidos para cobertura de MBWay encriptado e fallback desativado (11/11 a passar).
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -86,12 +89,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Campo `User.EmailHash` (para índice único)
     - [ ] Restantes entidades com campos encriptados
     - [ ] Migration de schema de encriptação alargada
-- [ ] Fase 3 - Encriptação nos serviços: **72%**
+- [ ] Fase 3 - Encriptação nos serviços: **80%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
     - [x] Gestão de `EmailHash` no `UserService` (create/update/profile/anonimização)
     - [x] `SupplierService` completo
-    - [ ] `CondominiumService` completo
+    - [x] `CondominiumService` completo
     - [ ] `ReceiptService`, `PaymentService`, `InvoiceService`, `UsefulContact`
 - [ ] Fase 4 - Mascaramento por role: **0%**
     - [ ] Atributo `SensitiveData`
