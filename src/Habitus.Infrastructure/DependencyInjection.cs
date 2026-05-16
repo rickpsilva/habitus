@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<InvoicePdfService>();
         services.AddScoped<SaftXmlService>();
         services.AddScoped<HistoricalEncryptionBackfillService>();
+        services.AddScoped<RgpdMigrationOperationsService>();
 
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();

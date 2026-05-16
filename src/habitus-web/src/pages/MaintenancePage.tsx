@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import RgpdMigrationPanel from '../components/RgpdMigrationPanel';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
@@ -55,7 +56,7 @@ const getAvailableStatusOptions = (currentStatus: string) => {
 };
 
 export default function MaintenancePage() {
-  const { isAdmin, condominiumId, unitId } = useAuth();
+  const { isAdmin, isManager, condominiumId, unitId } = useAuth();
   const { success, error: toastError, warning } = useToast();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,7 @@ export default function MaintenancePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'maintenance' | 'rgpd'>('maintenance');
   const pageSize = 10;
 
   useEffect(() => {
@@ -377,6 +379,30 @@ export default function MaintenancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
           <p className="text-gray-500 text-sm mt-0.5">Pedidos de manutenção do condomínio</p>
         </div>
+        {isManager && (
+          <div className="inline-flex bg-white border border-gray-200 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('maintenance')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === 'maintenance' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              Pedidos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('rgpd')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${activeTab === 'rgpd' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              Migração RGPD
+            </button>
+          </div>
+        )}
+      </div>
+
+      {activeTab === 'rgpd' && isManager ? (
+        <RgpdMigrationPanel />
+      ) : (
+        <>
         <div className="flex items-center gap-3">
           <div className="w-80">
             <SearchBar
@@ -393,7 +419,6 @@ export default function MaintenancePage() {
             Novo Pedido
           </button>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
@@ -1019,6 +1044,8 @@ export default function MaintenancePage() {
               </div>
             </form>
       </ModalPopup>
+        </>
+      )}
     </div>
   );
 }

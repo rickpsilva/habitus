@@ -246,6 +246,39 @@ export interface CreateMaintenanceRequest {
   photos?: string[];
 }
 
+export interface RgpdMigrationRunDto {
+  id: string;
+  operationType: string;
+  status: string;
+  triggeredByUserId?: string;
+  startedAt: string;
+  completedAt?: string;
+  condominiumRecordsUpdated: number;
+  invoiceRecordsUpdated: number;
+  valuesEncrypted: number;
+  legacyValuesCleared: number;
+  remainingCondominiumTaxIdLegacyCount: number;
+  remainingCondominiumPaymentIbanLegacyCount: number;
+  remainingCondominiumAddressLegacyCount: number;
+  remainingInvoiceCustomerTaxIdLegacyCount: number;
+  remainingInvoiceCustomerAddressLegacyCount: number;
+  remainingTotalLegacyCount: number;
+  errorMessage?: string;
+}
+
+export interface RgpdMigrationStatusDto {
+  enableHistoricalBackfill: boolean;
+  allowLegacyPlaintextFallback: boolean;
+  isRunning: boolean;
+  currentAuditRemainingTotalLegacyCount: number;
+  currentAuditCondominiumTaxIdLegacyCount: number;
+  currentAuditCondominiumPaymentIbanLegacyCount: number;
+  currentAuditCondominiumAddressLegacyCount: number;
+  currentAuditInvoiceCustomerTaxIdLegacyCount: number;
+  currentAuditInvoiceCustomerAddressLegacyCount: number;
+  latestRun?: RgpdMigrationRunDto;
+}
+
 export interface FinancialRecordDto {
   id: string;
   type: string;

@@ -49,6 +49,7 @@ public class HabitusDbContext : DbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
     public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
+    public DbSet<RgpdMigrationRun> RgpdMigrationRuns => Set<RgpdMigrationRun>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Users instead")]
@@ -324,6 +325,21 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(p => p.Id);
             entity.Property(p => p.GatewayProvider).IsRequired();
+        });
+
+        modelBuilder.Entity<RgpdMigrationRun>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.OperationType).IsRequired();
+            entity.Property(r => r.Status).IsRequired();
+            entity.Property(r => r.ErrorMessage).HasMaxLength(2000);
+            entity.HasIndex(r => r.StartedAt);
+            entity.HasIndex(r => r.Status);
+
+            entity.HasOne(r => r.TriggeredByUser)
+                .WithMany()
+                .HasForeignKey(r => r.TriggeredByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Configure CommunicationSettings relationships

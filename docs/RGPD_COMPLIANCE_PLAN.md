@@ -218,6 +218,11 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
          - Executa auditoria pós-backfill e alerta quando restam valores plaintext
          - Configuração opcional: `Rgpd:EnableHistoricalBackfill` (default: `true`)
         - Configuração opcional: `Rgpd:AllowLegacyPlaintextFallback` (default: `true`) para controlar fallback de leitura de colunas legacy
+         - Operação manual em produção para `Manager`:
+             - API `GET /api/maintenance/rgpd-migration/status`
+             - API `POST /api/maintenance/rgpd-migration/run`
+             - API `POST /api/maintenance/rgpd-migration/audit`
+             - UI: página `Manutenção` com tab `Migração RGPD` visível apenas para `Manager`
    
 2. Criar testes de validação de migração de dados ✅
    - Verificar que dados foram encriptados corretamente

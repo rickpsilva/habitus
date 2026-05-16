@@ -82,6 +82,8 @@ import type {
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
   CsvImportResult,
+  RgpdMigrationRunDto,
+  RgpdMigrationStatusDto,
 } from '../types';
 
 export const authApi = {
@@ -203,6 +205,12 @@ export const maintenanceApi = {
   }) =>
     api.put<MaintenanceRequestDto>(`/maintenance/${id}/status`, data),
   delete: (id: string) => api.delete(`/maintenance/${id}`),
+};
+
+export const rgpdMigrationApi = {
+  getStatus: () => api.get<RgpdMigrationStatusDto>('/maintenance/rgpd-migration/status'),
+  runMigration: () => api.post<RgpdMigrationRunDto>('/maintenance/rgpd-migration/run'),
+  runAudit: () => api.post<RgpdMigrationRunDto>('/maintenance/rgpd-migration/audit'),
 };
 
 export const financialApi = {
