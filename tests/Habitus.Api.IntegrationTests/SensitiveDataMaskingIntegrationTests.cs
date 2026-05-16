@@ -109,6 +109,34 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         await db.SaveChangesAsync();
     }
 
+    private async Task SeedUserAsync(Guid userId, string role, string email, string phone, Guid? condominiumId = null)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var parsedRole = Enum.Parse<UserRole>(role);
+
+        if (!await db.Users.AnyAsync(u => u.Id == userId))
+        {
+            db.Users.Add(new User
+            {
+                Id = userId,
+                Name = $"{role} Target User",
+                Email = email,
+                EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(email),
+                Phone = phone,
+                PasswordHash = "integration-test-hash",
+                Role = parsedRole,
+                CondominiumId = condominiumId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     private async Task SeedSupplierAsync(Guid condominiumId, string email, string phone, string address)
     {
         using var scope = _factory.Services.CreateScope();
@@ -473,5 +501,47 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("509123456", body.GetProperty("customerTaxId").GetString());
         Assert.Equal("Rua Faturas 21", body.GetProperty("customerAddress").GetString());
+    }
+
+    [Fact]
+    public async Task UserById_WithResidentRole_ShouldMaskEmailAndPhone()
+    {
+        var condominiumId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.user.id@example.com", "911111111", condominiumId);
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId));
+
+        var response = await client.GetAsync($"/api/users/{residentId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("r***@example.com", body.GetProperty("email").GetString());
+        Assert.Equal("*******11", body.GetProperty("phone").GetString());
+    }
+
+    [Fact]
+    public async Task UserById_WithSameCondominiumAdminRole_ShouldKeepEmailAndPhoneUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(adminId, "Admin", "admin.user.id@example.com", "922222222", condominiumId);
+        await SeedUserAsync(targetUserId, "Resident", "target.user.id@example.com", "933333333", condominiumId);
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin", adminId, condominiumId));
+
+        var response = await client.GetAsync($"/api/users/{targetUserId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("target.user.id@example.com", body.GetProperty("email").GetString());
+        Assert.Equal("933333333", body.GetProperty("phone").GetString());
     }
 }
