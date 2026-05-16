@@ -100,6 +100,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Cobertura expandida para utilizadores por ID `GET /api/users/{id}`:
     - `Resident` (self) recebe `email` e `phone` mascarados;
     - `Admin` do mesmo condomínio recebe `email` e `phone` sem máscara.
+- **[NOVO - 16-05-2026]** Hardening multi-condomínio em `SuppliersController` (leitura):
+    - `Manager` mantém visão global;
+    - `Admin/Resident` passam a ficar limitados ao `CondominiumId` do token em `GET /api/suppliers`, `GET /api/suppliers/paged` e `GET /api/suppliers/{id}`.
+- **[NOVO - 16-05-2026]** Cobertura expandida de suppliers by-id:
+    - `Resident` do mesmo condomínio recebe campos sensíveis mascarados;
+    - `Manager` recebe campos sem máscara;
+    - `Resident` de condomínio diferente recebe `403 Forbidden`.
 - **[NOVO - 16-05-2026]** Hardening de `CommunicationSettingsController`:
     - aplicado isolamento por condomínio para `Admin` em `GET`/`PUT` de `communication-settings`;
     - `WhatsAppApiKey` e `SmsApiKey` passam a ser encriptadas em update (além de `EmailPassword`).
@@ -153,7 +160,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **96%**
+- [ ] Fase 4 - Mascaramento por role: **98%**
     - [x] Atributo `SensitiveData`
     - [x] Marcação de DTOs (piloto + críticos principais)
     - [x] Middleware de mascaramento

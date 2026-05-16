@@ -17,18 +17,24 @@ public class SupplierService
         _encryptionService = encryptionService;
     }
 
-    public async Task<IEnumerable<SupplierDto>> GetAllAsync()
+    public async Task<IEnumerable<SupplierDto>> GetAllAsync(Guid? condominiumId = null)
     {
-        var suppliers = await _repository.GetAllAsync();
+        var suppliers = condominiumId.HasValue
+            ? await _repository.FindAsync(s => s.CondominiumId == condominiumId.Value)
+            : await _repository.GetAllAsync();
+
         return suppliers.Select(MapToDto).ToList();
     }
 
-    public async Task<PaginatedResponse<SupplierDto>> GetPagedAsync(int page = 1, int pageSize = 10, string? search = null)
+    public async Task<PaginatedResponse<SupplierDto>> GetPagedAsync(int page = 1, int pageSize = 10, string? search = null, Guid? condominiumId = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var suppliers = await _repository.GetAllAsync();
+        var suppliers = condominiumId.HasValue
+            ? await _repository.FindAsync(s => s.CondominiumId == condominiumId.Value)
+            : await _repository.GetAllAsync();
+
         var dtos = suppliers.Select(MapToDto).OrderBy(s => s.Name);
 
         if (!string.IsNullOrWhiteSpace(search))

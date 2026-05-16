@@ -2,6 +2,7 @@ using Habitus.Application.Services;
 using Habitus.Application.DTOs.Suppliers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
@@ -19,7 +20,11 @@ public class SuppliersController : ControllerBase
     {
         try
         {
-            var suppliers = await _service.GetAllAsync();
+            var condominiumScope = GetCondominiumScopeForRead();
+            if (condominiumScope == Guid.Empty)
+                return Forbid();
+
+            var suppliers = await _service.GetAllAsync(condominiumScope == null ? null : condominiumScope.Value);
             return Ok(suppliers);
         }
         catch (Exception ex)
@@ -33,10 +38,14 @@ public class SuppliersController : ControllerBase
     {
         try
         {
+            var condominiumScope = GetCondominiumScopeForRead();
+            if (condominiumScope == Guid.Empty)
+                return Forbid();
+
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-            var result = await _service.GetPagedAsync(page, pageSize, search);
+            var result = await _service.GetPagedAsync(page, pageSize, search, condominiumScope == null ? null : condominiumScope.Value);
             return Ok(result);
         }
         catch (Exception ex)
@@ -50,7 +59,14 @@ public class SuppliersController : ControllerBase
     {
         try
         {
+            var condominiumScope = GetCondominiumScopeForRead();
+            if (condominiumScope == Guid.Empty)
+                return Forbid();
+
             var supplier = await _service.GetByIdAsync(id);
+            if (supplier != null && condominiumScope.HasValue && supplier.CondominiumId != condominiumScope.Value.ToString())
+                return Forbid();
+
             return supplier == null ? NotFound() : Ok(supplier);
         }
         catch (Exception ex)
@@ -108,5 +124,18 @@ public class SuppliersController : ControllerBase
         {
             return StatusCode(500, new { message = ex.Message });
         }
+    }
+
+    private Guid? GetCondominiumScopeForRead()
+    {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var condominiumIdClaim = User.FindFirstValue("CondominiumId");
+        if (!Guid.TryParse(condominiumIdClaim, out var condominiumId))
+            return Guid.Empty;
+
+        return condominiumId;
     }
 }

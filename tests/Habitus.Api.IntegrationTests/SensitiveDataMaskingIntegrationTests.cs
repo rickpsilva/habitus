@@ -137,7 +137,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         await db.SaveChangesAsync();
     }
 
-    private async Task SeedSupplierAsync(Guid condominiumId, string email, string phone, string address)
+    private async Task<Guid> SeedSupplierAsync(Guid condominiumId, string email, string phone, string address)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
@@ -155,9 +155,10 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
             });
         }
 
+        var supplierId = Guid.NewGuid();
         db.Suppliers.Add(new Supplier
         {
-            Id = Guid.NewGuid(),
+            Id = supplierId,
             Name = "Supplier Sensitive",
             Contact = "Main Contact",
             Email = email,
@@ -169,6 +170,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         });
 
         await db.SaveChangesAsync();
+        return supplierId;
     }
 
     private async Task SeedCondominiumDetailsAsync(Guid condominiumId, string condoTaxId, string adminEmail)
@@ -371,6 +373,69 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         Assert.Equal("supplier.full@example.com", firstItem.GetProperty("email").GetString());
         Assert.Equal("919888777", firstItem.GetProperty("phone").GetString());
         Assert.Equal("Avenida Transparente 5", firstItem.GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task SupplierById_WithResidentRole_ShouldMaskSensitiveFields()
+    {
+        var condominiumId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.supplier.byid@example.com", "991111111", condominiumId);
+        var supplierId = await SeedSupplierAsync(condominiumId, "supplier.byid@example.com", "915555444", "Rua Sigilo 7");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId));
+
+        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("s***@example.com", body.GetProperty("email").GetString());
+        Assert.Equal("*******44", body.GetProperty("phone").GetString());
+        Assert.Equal("****", body.GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task SupplierById_WithManagerRole_ShouldKeepSensitiveFieldsUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(managerId, "Manager", "manager.supplier.byid@example.com", "992222222");
+        var supplierId = await SeedSupplierAsync(condominiumId, "supplier.manager@example.com", "916666333", "Avenida Aberta 9");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Manager", managerId));
+
+        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("supplier.manager@example.com", body.GetProperty("email").GetString());
+        Assert.Equal("916666333", body.GetProperty("phone").GetString());
+        Assert.Equal("Avenida Aberta 9", body.GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task SupplierById_WithDifferentCondominiumResident_ShouldReturnForbidden()
+    {
+        var residentCondominiumId = Guid.NewGuid();
+        var supplierCondominiumId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.supplier.scope@example.com", "993333333", residentCondominiumId);
+        var supplierId = await SeedSupplierAsync(supplierCondominiumId, "supplier.scope@example.com", "917777222", "Rua Scope 11");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, residentCondominiumId));
+
+        var response = await client.GetAsync($"/api/suppliers/{supplierId}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
