@@ -44,8 +44,8 @@ public class ReservationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReservationRequest request)
     {
-        if (!TryGetCondominiumId(out _)) return Unauthorized("User scope is invalid.");
-        var (dto, error) = await _service.CreateAsync(request);
+        if (!TryGetCondominiumId(out var condominiumId)) return Unauthorized("User scope is invalid.");
+        var (dto, error) = await _service.CreateAsync(request, condominiumId);
         if (error != null) return Conflict(error);
         return CreatedAtAction(nameof(GetById), new { id = dto!.Id }, dto);
     }
@@ -56,7 +56,7 @@ public class ReservationsController : ControllerBase
         if (!TryGetCondominiumId(out var condominiumId)) return Unauthorized("User scope is invalid.");
         var existing = await _service.GetByIdAsync(id, condominiumId);
         if (existing == null) return NotFound();
-        var (dto, error) = await _service.UpdateAsync(id, request);
+        var (dto, error) = await _service.UpdateAsync(id, request, condominiumId);
         if (error != null) return error.Contains("not found") ? NotFound(error) : Conflict(error);
         return Ok(dto);
     }

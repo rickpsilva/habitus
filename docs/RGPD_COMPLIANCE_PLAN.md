@@ -130,6 +130,38 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 16-05-2026]** Sweep de compatibilidade concluído:
     - removidas referências legadas de API global para suppliers e assemblies no código;
     - documentação operacional alinhada para suppliers por condomínio.
+- **[NOVO - 18-05-2026]** Hardening multi-condomínio em reservas (`ReservationsController` + `ReservationService`):
+    - `CreateAsync` e `UpdateAsync` passaram a validar explicitamente o `CondominiumId` do token (`expectedCondominiumId`) contra `SharedSpace`/`Reservation` alvo;
+    - bloqueada deriva cross-tenant por troca de `SpaceId` em create/update (sem fuga de existência entre condomínios);
+    - cobertura de regressão adicionada em `ReservationServiceIsolationTests` para create/update cross-tenant;
+    - validações executadas com sucesso:
+        - `dotnet test ...Habitus.Tests.csproj --filter ReservationServiceIsolationTests` -> 8/8;
+        - `dotnet test ...Habitus.Api.IntegrationTests.csproj --filter CondominiumScopeEnforcementTests` -> 11/11.
+- **[NOVO - 18-05-2026]** Sweep final de enforcement tenant-aware concluído para `maintenance` e `financial`:
+    - cobertura de integração adicionada para claims de escopo em falta (`CondominiumId`) nos endpoints paginados;
+    - cobertura de integração adicionada para mismatch route-vs-claim em endpoints financeiros com `CondominiumId` na rota (`summary`, `dashboard`, `fiscal-years`);
+    - comportamento validado no pipeline atual: endpoints feature-gated de `maintenance`/`financial` respondem `403` quando claim de condomínio está ausente.
+- **[NOVO - 18-05-2026]** Cobertura de assemblies expandida para operações não-listagem:
+    - `GET /api/condominiums/{condominiumId}/assemblies/{id}` com condomínio divergente -> `403`;
+    - `PUT /api/condominiums/{condominiumId}/assemblies/{id}` com condomínio divergente -> `403`;
+    - `DELETE /api/condominiums/{condominiumId}/assemblies/{id}` com condomínio divergente -> `403`.
+    - suite focada validada após expansão: `CondominiumScopeEnforcementTests` -> **19/19 a passar**.
+- **[NOVO - 18-05-2026]** Expansão de masking por role em DTOs de configuração:
+    - `PaymentSettingsDto`: marcação de `BankTransferIban`, `MBReferenceReference`, `MBWayPhoneNumber` com `SensitiveDataAttribute` (`Manager,Admin` sem máscara);
+    - `CommunicationSettingsDto`: marcação de `EmailFromAddress`, `WhatsAppPhoneNumber`, `SmsFromNumber` com `SensitiveDataAttribute` (`Manager,Admin` sem máscara);
+    - regressões unitárias adicionadas em `SensitiveDataMaskingTests` para os novos DTOs;
+    - validação executada com sucesso: `dotnet test ...Habitus.Tests.csproj --filter SensitiveDataMaskingTests` -> **11/11 a passar**.
+- **[NOVO - 18-05-2026]** Fecho de gap residual de masking em onboarding/pending users:
+    - `PendingUserDto.Email` e `PendingUserDto.Phone` marcados com `SensitiveDataAttribute` (`Manager,Admin` sem máscara);
+    - `SensitiveDataMaskingIntegrationTests` expandidos para `GET /api/user/pending`:
+        - `Resident` recebe `email/phone` mascarados;
+        - `Admin` recebe `email/phone` sem máscara;
+    - hardening aplicado em `UserService.GetPendingUsersAsync`: materialização com `.ToList()` para evitar enumeração deferida recriando DTOs sem máscara após passagem pelo filtro global.
+    - validações executadas com sucesso:
+        - `dotnet test ...Habitus.Api.IntegrationTests.csproj --filter SensitiveDataMaskingIntegrationTests` -> **17/17 a passar**;
+        - `dotnet test ...Habitus.Api.IntegrationTests.csproj --filter CondominiumScopeEnforcementTests` -> **19/19 a passar**.
+        - `dotnet test ...Habitus.Tests.csproj --filter SensitiveDataMaskingTests` -> **11/11 a passar**;
+        - `dotnet test ...Habitus.Tests.csproj --filter ReservationServiceIsolationTests` -> **8/8 a passar**.
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -177,13 +209,13 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] `SupplierService` completo
     - [x] `CondominiumService` completo
     - [x] `PaymentService` (N/A para PII; responsabilidade de encriptação em `PaymentSettingsService`)
-- [ ] Fase 4 - Mascaramento por role: **98%**
+- [x] Fase 4 - Mascaramento por role: **100%**
     - [x] Atributo `SensitiveData`
     - [x] Marcação de DTOs (piloto + críticos principais)
     - [x] Middleware de mascaramento
     - [x] `DataMaskingHelper`
     - [ ] Expansão para todos os DTOs sensíveis remanescentes
-- [ ] Fase 5 - Testes e validação: **96%**
+- [ ] Fase 5 - Testes e validação: **98%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
@@ -215,9 +247,9 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
         - `dotnet test ...CondominiumScopeEnforcementTests` -> 11/11;
         - `npm run build` no frontend -> sucesso.
 - Ponto de retoma recomendado (próxima sessão):
-    1. Executar sweep final de integração para endpoints tenant-aware remanescentes (`reservations`, `maintenance`, `financial`) confirmando coerência 401/403.
-    2. Expandir testes de segurança para operações não-listagem de assemblies (ex.: by-id/update/delete com condomínio divergente).
-    3. Consolidar commit(s) por tema: documentação RGPD, rota/scoping de assemblies, testes de enforcement.
+    1. Fechar gap residual da Fase 4: revisar DTOs sensíveis remanescentes e expandir marcação/masking onde aplicável.
+    2. Consolidar commit(s) por tema: hardening de reservations + sweep enforcement (`maintenance`/`financial`/`assemblies`) + documentação RGPD.
+    3. Executar run de regressão direcionado (RGPD + masking + enforcement) antes de fechar PR.
 - Nota operacional:
     - workspace ficou intencionalmente sem commit automático nesta sessão, para revisão final antes de fechar PR.
 

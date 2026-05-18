@@ -42,7 +42,7 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         });
     }
 
-    private static string CreateToken(string role, Guid userId, Guid? condominiumId = null)
+    private static string CreateToken(string role, Guid userId, Guid? condominiumId = null, Guid? unitId = null)
     {
         var claims = new List<Claim>
         {
@@ -53,6 +53,11 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         if (condominiumId.HasValue)
         {
             claims.Add(new Claim("CondominiumId", condominiumId.Value.ToString()));
+        }
+
+        if (unitId.HasValue)
+        {
+            claims.Add(new Claim("UnitId", unitId.Value.ToString()));
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
@@ -290,6 +295,33 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
 
         await db.SaveChangesAsync();
         return invoiceId;
+    }
+
+    private async Task SeedPendingResidentAsync(Guid condominiumId, Guid unitId, string email, string phone)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        if (!await db.Users.AnyAsync(u => u.Email == email))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Pending Resident",
+                Email = email,
+                EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(email),
+                Phone = phone,
+                PasswordHash = "integration-test-hash",
+                Role = UserRole.Resident,
+                CondominiumId = condominiumId,
+                UnitId = unitId,
+                IsActive = false,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 
     [Fact]
@@ -608,5 +640,57 @@ public class SensitiveDataMaskingIntegrationTests : IClassFixture<WebApplication
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("target.user.id@example.com", body.GetProperty("email").GetString());
         Assert.Equal("933333333", body.GetProperty("phone").GetString());
+    }
+
+    [Fact]
+    public async Task PendingUsers_WithResidentRole_ShouldMaskEmailAndPhone()
+    {
+        var condominiumId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var residentId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(residentId, "Resident", "resident.pending.viewer@example.com", "911223344", condominiumId);
+        await SeedPendingResidentAsync(condominiumId, unitId, "pending.user@example.com", "919876543");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", residentId, condominiumId, unitId));
+
+        var response = await client.GetAsync("/api/user/pending");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.ValueKind == JsonValueKind.Array);
+        Assert.True(body.GetArrayLength() > 0);
+        var foundMasked = body.EnumerateArray().Any(item =>
+            item.GetProperty("email").GetString() == "p***@example.com"
+            && item.GetProperty("phone").GetString() == "*******43");
+        Assert.True(foundMasked);
+    }
+
+    [Fact]
+    public async Task PendingUsers_WithAdminRole_ShouldKeepEmailAndPhoneUnmasked()
+    {
+        var condominiumId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+
+        await SeedUserWithConsentAsync(adminId, "Admin", "admin.pending.viewer@example.com", "912334455", condominiumId);
+        await SeedPendingResidentAsync(condominiumId, unitId, "pending.admin.view@example.com", "917654321");
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin", adminId, condominiumId));
+
+        var response = await client.GetAsync("/api/user/pending");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.ValueKind == JsonValueKind.Array);
+        Assert.True(body.GetArrayLength() > 0);
+        var foundRaw = body.EnumerateArray().Any(item =>
+            item.GetProperty("email").GetString() == "pending.admin.view@example.com"
+            && item.GetProperty("phone").GetString() == "917654321");
+        Assert.True(foundRaw);
     }
 }

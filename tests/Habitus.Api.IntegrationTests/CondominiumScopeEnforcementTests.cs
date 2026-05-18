@@ -21,6 +21,7 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
     private const string Issuer = "habitus";
     private const string Audience = "habitus-users";
     private static readonly Guid TestCondominiumId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid TestAssemblyId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private readonly WebApplicationFactory<Program> _factory;
 
@@ -64,6 +65,19 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
         "/api/reservations/paged",
         "/api/maintenance/paged",
         "/api/financial/paged",
+    };
+
+    public static TheoryData<string> ScopeClaimRequiredEndpoints => new()
+    {
+        "/api/maintenance/paged",
+        "/api/financial/paged",
+    };
+
+    public static TheoryData<string> FinancialRouteScopedEndpoints => new()
+    {
+        $"/api/financial/summary/{TestCondominiumId}",
+        $"/api/financial/dashboard/{TestCondominiumId}",
+        $"/api/financial/fiscal-years/{TestCondominiumId}",
     };
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -146,6 +160,73 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
             new AuthenticationHeaderValue("Bearer", CreateToken("Resident", tokenCondominiumId));
 
         var response = await client.GetAsync($"/api/condominiums/{TestCondominiumId}/assemblies/paged");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(ScopeClaimRequiredEndpoints))]
+    public async Task TenantEndpoint_WithMissingCondominiumClaim_Returns403(string endpoint)
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin"));
+
+        var response = await client.GetAsync(endpoint);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [MemberData(nameof(FinancialRouteScopedEndpoints))]
+    public async Task FinancialRouteScopedEndpoint_WithDifferentCondominiumResidentToken_Returns403(string endpoint)
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", tokenCondominiumId));
+
+        var response = await client.GetAsync(endpoint);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AssembliesById_WithDifferentCondominiumResidentToken_Returns403()
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Resident", tokenCondominiumId));
+
+        var response = await client.GetAsync($"/api/condominiums/{TestCondominiumId}/assemblies/{TestAssemblyId}");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AssembliesUpdate_WithDifferentCondominiumAdminToken_Returns403()
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin", tokenCondominiumId));
+
+        using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+        var response = await client.PutAsync($"/api/condominiums/{TestCondominiumId}/assemblies/{TestAssemblyId}", content);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AssembliesDelete_WithDifferentCondominiumAdminToken_Returns403()
+    {
+        using var client = _factory.CreateClient();
+        var tokenCondominiumId = Guid.NewGuid();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", CreateToken("Admin", tokenCondominiumId));
+
+        var response = await client.DeleteAsync($"/api/condominiums/{TestCondominiumId}/assemblies/{TestAssemblyId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

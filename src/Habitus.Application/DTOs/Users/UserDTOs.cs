@@ -74,7 +74,9 @@ public class PendingUserDto
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
     public string Email { get; set; } = string.Empty;
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string Phone { get; set; } = string.Empty;
     public Guid? UnitId { get; set; }
     public string? UnitNumber { get; set; }

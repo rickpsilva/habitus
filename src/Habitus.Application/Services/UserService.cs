@@ -389,7 +389,7 @@ public class UserService : IUserService
                 CondominiumId = u.CondominiumId,
                 CreatedAt = u.CreatedAt
             };
-        });
+        }).ToList();
     }
 
     /// <summary>

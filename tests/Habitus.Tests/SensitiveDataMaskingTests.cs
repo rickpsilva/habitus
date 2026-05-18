@@ -1,6 +1,8 @@
 using Habitus.Application.Helpers;
 using Habitus.Application.Attributes;
 using Habitus.Application.DTOs.Common;
+using Habitus.Application.DTOs.Communication;
+using Habitus.Application.DTOs.Payments;
 using FluentAssertions;
 
 namespace Habitus.Tests;
@@ -133,5 +135,40 @@ public class SensitiveDataMaskingTests
         items[1].Email.Should().Be("m***@example.com");
         items[1].Phone.Should().Be("*******90");
         items[1].Secret.Should().Be("****");
+    }
+
+    [Fact]
+    public void ApplySensitiveDataMasking_ShouldMaskPaymentSettings_ForResident()
+    {
+        var dto = new PaymentSettingsDto
+        {
+            BankTransferIban = "PT50 0002 0123 1234 5678 9015 4",
+            MBReferenceReference = "123456789",
+            MBWayPhoneNumber = "912345678"
+        };
+
+        DataMaskingHelper.ApplySensitiveDataMasking(dto, "Resident");
+
+        dto.BankTransferIban.Should().Contain("*");
+        dto.BankTransferIban.Should().StartWith("PT50");
+        dto.MBReferenceReference.Should().Be("****");
+        dto.MBWayPhoneNumber.Should().Be("*******78");
+    }
+
+    [Fact]
+    public void ApplySensitiveDataMasking_ShouldMaskCommunicationSettings_ForResident()
+    {
+        var dto = new CommunicationSettingsDto
+        {
+            EmailFromAddress = "contacto@habitus.pt",
+            WhatsAppPhoneNumber = "934567890",
+            SmsFromNumber = "932112233"
+        };
+
+        DataMaskingHelper.ApplySensitiveDataMasking(dto, "Resident");
+
+        dto.EmailFromAddress.Should().Be("c***@habitus.pt");
+        dto.WhatsAppPhoneNumber.Should().Be("*******90");
+        dto.SmsFromNumber.Should().Be("*******33");
     }
 }

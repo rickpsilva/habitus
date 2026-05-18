@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Communication;
 
 public class CommunicationSettingsDto
@@ -10,12 +12,14 @@ public class CommunicationSettingsDto
     public string? EmailSmtpHost { get; set; }
     public int? EmailSmtpPort { get; set; }
     public string? EmailUsername { get; set; }
+    [SensitiveData(SensitiveDataType.Email, RequiresRole = "Manager,Admin")]
     public string? EmailFromAddress { get; set; }
     public string? EmailFromName { get; set; }
     public bool EmailUseSsl { get; set; }
     
     // WhatsApp Configuration
     public bool WhatsAppEnabled { get; set; }
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string? WhatsAppPhoneNumber { get; set; }
     public string? WhatsAppApiProvider { get; set; }
     public string? WhatsAppGroupId { get; set; }
@@ -23,6 +27,7 @@ public class CommunicationSettingsDto
     // SMS Configuration (future)
     public bool SmsEnabled { get; set; }
     public string? SmsProvider { get; set; }
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string? SmsFromNumber { get; set; }
 
     // Announcements Configuration

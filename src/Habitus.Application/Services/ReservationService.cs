@@ -69,16 +69,18 @@ public class ReservationService
         return true;
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> CreateAsync(CreateReservationRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> CreateAsync(CreateReservationRequest request, Guid expectedCondominiumId)
     {
         // Get SharedSpace to obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
-        if (space == null)
+        if (space == null || space.CondominiumId != expectedCondominiumId)
             return (null, "Espaço comum não encontrado.");
 
         // Check that the user has an associated unit (fração)
         var user = await _userRepository.GetByIdAsync(request.UserId);
         if (user == null)
+            return (null, "Utilizador não encontrado.");
+        if (user.CondominiumId != expectedCondominiumId)
             return (null, "Utilizador não encontrado.");
         if (!user.UnitId.HasValue)
             return (null, "Apenas utilizadores com uma fração associada podem efetuar reservas.");
@@ -147,15 +149,15 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> UpdateAsync(Guid id, UpdateReservationRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> UpdateAsync(Guid id, UpdateReservationRequest request, Guid expectedCondominiumId)
     {
         var entity = await _repository.GetByIdAsync(id);
-        if (entity == null)
+        if (entity == null || entity.CondominiumId != expectedCondominiumId)
             return (null, "Reserva não encontrada.");
 
         // Get SharedSpace to validate and obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
-        if (space == null)
+        if (space == null || space.CondominiumId != expectedCondominiumId)
             return (null, "Espaço comum não encontrado.");
 
         // Validate that start time is not in the past
@@ -178,7 +180,7 @@ public class ReservationService
         entity.SpaceId = request.SpaceId;
         entity.StartTime = request.StartTime;
         entity.EndTime = request.EndTime;
-        entity.CondominiumId = space.CondominiumId;
+        entity.CondominiumId = expectedCondominiumId;
 
         _repository.Update(entity);
         await _repository.SaveChangesAsync();

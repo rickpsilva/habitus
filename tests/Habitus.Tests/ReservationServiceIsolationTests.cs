@@ -124,4 +124,71 @@ public class ReservationServiceIsolationTests
         dto.Should().BeNull();
         error.Should().NotBeNullOrEmpty();
     }
+
+    [Fact]
+    public async Task CreateAsync_ReturnsError_WhenSharedSpaceIsFromAnotherCondominium()
+    {
+        var request = new CreateReservationRequest
+        {
+            SpaceId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            StartTime = DateTime.UtcNow.AddHours(2),
+            EndTime = DateTime.UtcNow.AddHours(3)
+        };
+
+        _spaceRepositoryMock
+            .Setup(r => r.GetByIdAsync(request.SpaceId))
+            .ReturnsAsync(new SharedSpace
+            {
+                Id = request.SpaceId,
+                CondominiumId = _condominiumB,
+                Name = "Piscina"
+            });
+
+        var (dto, error) = await _service.CreateAsync(request, _condominiumA);
+
+        dto.Should().BeNull();
+        error.Should().Be("Espaço comum não encontrado.");
+        _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Reservation>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReturnsError_WhenTargetSpaceIsFromAnotherCondominium()
+    {
+        var reservationId = Guid.NewGuid();
+        var request = new UpdateReservationRequest
+        {
+            SpaceId = Guid.NewGuid(),
+            StartTime = DateTime.UtcNow.AddHours(2),
+            EndTime = DateTime.UtcNow.AddHours(4)
+        };
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(reservationId))
+            .ReturnsAsync(new Reservation
+            {
+                Id = reservationId,
+                CondominiumId = _condominiumA,
+                SpaceId = Guid.NewGuid(),
+                UserId = Guid.NewGuid(),
+                StartTime = DateTime.UtcNow.AddHours(1),
+                EndTime = DateTime.UtcNow.AddHours(2),
+                Status = ReservationStatus.Pending
+            });
+
+        _spaceRepositoryMock
+            .Setup(r => r.GetByIdAsync(request.SpaceId))
+            .ReturnsAsync(new SharedSpace
+            {
+                Id = request.SpaceId,
+                CondominiumId = _condominiumB,
+                Name = "Sala Comum"
+            });
+
+        var (dto, error) = await _service.UpdateAsync(reservationId, request, _condominiumA);
+
+        dto.Should().BeNull();
+        error.Should().Be("Espaço comum não encontrado.");
+        _repositoryMock.Verify(r => r.Update(It.IsAny<Reservation>()), Times.Never);
+    }
 }

@@ -1,3 +1,5 @@
+using Habitus.Application.Attributes;
+
 namespace Habitus.Application.DTOs.Payments;
 
 public class PaymentSettingsDto
@@ -7,16 +9,19 @@ public class PaymentSettingsDto
     
     // Bank Transfer Configuration
     public bool BankTransferEnabled { get; set; }
+    [SensitiveData(SensitiveDataType.Iban, RequiresRole = "Manager,Admin")]
     public string? BankTransferIban { get; set; }
     public string? BankTransferAccountHolder { get; set; }
     
     // MB Reference Configuration
     public bool MBReferenceEnabled { get; set; }
     public string? MBReferenceEntity { get; set; }
+    [SensitiveData(SensitiveDataType.Generic, RequiresRole = "Manager,Admin")]
     public string? MBReferenceReference { get; set; }
     
     // MB Way Configuration
     public bool MBWayEnabled { get; set; }
+    [SensitiveData(SensitiveDataType.Phone, RequiresRole = "Manager,Admin")]
     public string? MBWayPhoneNumber { get; set; }
     public string? MBWayMerchantId { get; set; }
     
