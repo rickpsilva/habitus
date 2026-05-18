@@ -10,6 +10,9 @@ using Habitus.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Habitus.Api.IntegrationTests;
@@ -21,11 +24,21 @@ public class UsersGdprAuthorizationIntegrationTests : IClassFixture<WebApplicati
     private const string Audience = "habitus-users";
 
     private readonly WebApplicationFactory<Program> _factory;
+    private readonly string _databaseName = $"users-gdpr-auth-tests-{Guid.NewGuid()}";
 
     public UsersGdprAuthorizationIntegrationTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory.WithWebHostBuilder(builder =>
-            builder.UseEnvironment("Development"));
+        {
+            builder.UseEnvironment("Development");
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<DbContextOptions<HabitusDbContext>>();
+                services.RemoveAll<HabitusDbContext>();
+                services.AddDbContext<HabitusDbContext>(options =>
+                    options.UseInMemoryDatabase(_databaseName));
+            });
+        });
     }
 
     private static string CreateToken(string role, Guid userId, Guid? condominiumId = null)
@@ -58,6 +71,7 @@ public class UsersGdprAuthorizationIntegrationTests : IClassFixture<WebApplicati
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HabitusDbContext>();
+        await db.Database.EnsureCreatedAsync();
 
         var user = new User
         {

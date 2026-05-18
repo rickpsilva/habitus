@@ -179,11 +179,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 15-05-2026]** Suite completa de testes de encriptação: 40 testes passando (8 Auth + 6 User.Phone + 6 EmailHash + 7 GDPR + 6 PaymentSettings + 7 UsefulContact).
 
 ### Em curso
-- Fase 2.1: User.Email com EmailHash (próximo increment)
-- Fases 2, 3 (encriptação alargada) e Fase 4 (mascaramento por role).
+- Fase 2 (fecho documental de pendências residuais e estratégia de deprecação de colunas legacy).
+- Fase 5 (validação final em pipeline/ambiente alvo).
 
 ### Pendente
-- Fases 2.2+, 3 e 4 (mascaramento automático por role).
+- Fecho formal da Fase 2 (cleanup/deprecação final de colunas legacy quando janela operacional permitir).
+- Fecho formal da Fase 5 (execução final em CI/staging + validação operacional pós-deploy).
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -196,12 +197,12 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Migration helper e batch encryption
     - [x] Migration de dados históricos
     - [x] Testes de validação de migração
-- [ ] Fase 2 - Campos encriptados em entidades: **25%**
+- [ ] Fase 2 - Campos encriptados em entidades: **92%**
     - [x] Base RGPD em `User` e `UserGdprConsent`
     - [x] Campo `User.PhoneEncrypted` adicionado
     - [x] Campo `User.EmailHash` (para índice único)
-    - [ ] Restantes entidades com campos encriptados
-    - [ ] Migration de schema de encriptação alargada
+    - [x] Restantes entidades com campos encriptados
+    - [x] Migration de schema de encriptação alargada
 - [x] Fase 3 - Encriptação nos serviços: **100%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
@@ -214,14 +215,15 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Marcação de DTOs (piloto + críticos principais)
     - [x] Middleware de mascaramento
     - [x] `DataMaskingHelper`
-    - [ ] Expansão para todos os DTOs sensíveis remanescentes
-- [ ] Fase 5 - Testes e validação: **98%**
+    - [x] Expansão para todos os DTOs sensíveis remanescentes (escopo atual)
+- [ ] Fase 5 - Testes e validação: **99%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
     - [x] Testes de encriptação de serviços (amostra inicial + cenários negativos)
     - [x] Testes de mascaramento (helper)
     - [x] Scripts SQL de validação
+    - [x] Bateria local RGPD ampliada (18-05-2026): 173/173 a passar (55 integração + 118 unitários filtrados)
 - [x] Fase 6 - Documentação e deploy: **100%**
     - [x] Plano RGPD atualizado com estado de execução
     - [x] Guia técnico de encriptação
