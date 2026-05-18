@@ -162,6 +162,21 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
         - `dotnet test ...Habitus.Api.IntegrationTests.csproj --filter CondominiumScopeEnforcementTests` -> **19/19 a passar**.
         - `dotnet test ...Habitus.Tests.csproj --filter SensitiveDataMaskingTests` -> **11/11 a passar**;
         - `dotnet test ...Habitus.Tests.csproj --filter ReservationServiceIsolationTests` -> **8/8 a passar**.
+- **[NOVO - 18-05-2026]** Validacao operacional local RGPD concluida (runbook + SQL):
+    - `docker compose up -d postgres` + `dotnet ef database update` validados localmente (schema atualizado);
+    - scripts SQL executados com sucesso:
+        - `rgpd_validation_01_plaintext_vs_encrypted.sql`
+        - `rgpd_validation_02_legacy_columns_null.sql`
+        - `rgpd_validation_03_integrity_counts.sql`
+    - contadores de plaintext residual (legacy_non_null):
+        - `Condominiums.TaxId = 0` (encrypted_non_null = 3)
+        - `Condominiums.PaymentIban = 0` (encrypted_non_null = 1)
+        - `Invoices.CustomerTaxId = 0` (encrypted_non_null = 1)
+    - baseline de integridade local:
+        - `Condominiums.total = 5`
+        - `Invoices.total = 1`
+        - `UserGdprConsents.total = 7`
+        - `Users.total = 20` (`Users.active = 20`, `Users.deleted = 0`)
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
@@ -216,7 +231,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Middleware de mascaramento
     - [x] `DataMaskingHelper`
     - [x] Expansão para todos os DTOs sensíveis remanescentes (escopo atual)
-- [ ] Fase 5 - Testes e validação: **99%**
+- [x] Fase 5 - Testes e validação: **100%**
     - [x] Testes unitários RGPD (consentimento/eliminação/middleware)
     - [x] Testes de integração de autorização RGPD
     - [x] Testes de integração happy-path RGPD autenticado
@@ -224,6 +239,7 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Testes de mascaramento (helper)
     - [x] Scripts SQL de validação
     - [x] Bateria local RGPD ampliada (18-05-2026): 173/173 a passar (55 integração + 118 unitários filtrados)
+    - [x] Validacao operacional local via runbook/SQL concluida (legacy plaintext residual = 0 nos campos auditados)
 - [x] Fase 6 - Documentação e deploy: **100%**
     - [x] Plano RGPD atualizado com estado de execução
     - [x] Guia técnico de encriptação
