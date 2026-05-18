@@ -23,6 +23,7 @@ Para reduzir erro humano, usar o script unico comentado:
 Fluxo recomendado:
 
 1. Dry-run (valida comandos e pre-requisitos sem executar alteracoes):
+   - `cp scripts/rgpd-release-runbook.env.example .env.rgpd && set -a && source .env.rgpd && set +a`
    - `./scripts/rgpd-release-runbook.sh --api-base-url https://api.seu-dominio.pt --api-bearer-token "$TOKEN_MANAGER" --database-url "$DATABASE_URL" --dry-run`
 2. Execucao real:
    - `./scripts/rgpd-release-runbook.sh --api-base-url https://api.seu-dominio.pt --api-bearer-token "$TOKEN_MANAGER" --database-url "$DATABASE_URL"`
