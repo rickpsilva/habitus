@@ -14,6 +14,29 @@ Executar alteracoes RGPD em producao com risco controlado, incluindo migracao hi
 
 ## Plano de deploy (forward)
 
+### Execucao scriptada (recomendado)
+
+Para reduzir erro humano, usar o script unico comentado:
+
+- `scripts/rgpd-release-runbook.sh`
+
+Fluxo recomendado:
+
+1. Dry-run (valida comandos e pre-requisitos sem executar alteracoes):
+   - `./scripts/rgpd-release-runbook.sh --api-base-url https://api.seu-dominio.pt --api-bearer-token "$TOKEN_MANAGER" --database-url "$DATABASE_URL" --dry-run`
+2. Execucao real:
+   - `./scripts/rgpd-release-runbook.sh --api-base-url https://api.seu-dominio.pt --api-bearer-token "$TOKEN_MANAGER" --database-url "$DATABASE_URL"`
+
+Flags uteis:
+
+- `--skip-tests`
+- `--skip-migrations`
+- `--skip-healthcheck`
+- `--skip-api-maintenance`
+- `--skip-sql-validation`
+
+O script gera artefactos em `/tmp/habitus-rgpd` (ou `RGPD_LOG_DIR`) para auditoria.
+
 ### 1. Preparacao
 
 1. Validar branch/release e changelog RGPD.

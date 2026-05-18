@@ -177,6 +177,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
         - `Invoices.total = 1`
         - `UserGdprConsents.total = 7`
         - `Users.total = 20` (`Users.active = 20`, `Users.deleted = 0`)
+- **[NOVO - 18-05-2026]** Execucao scriptada de rollout RGPD preparada para producao:
+    - script comentado criado: `scripts/rgpd-release-runbook.sh`
+    - fluxo cobre: bateria de testes RGPD, migrations EF, healthcheck, audit/backfill RGPD com polling e validacoes SQL
+    - runbook atualizado com modo `--dry-run` e execucao real para reduzir risco operacional
 - **[NOVO - 15-05-2026]** Testes unitários `EmailHashHelperTests` adicionados (6 testes, todos a passar).
 - **[NOVO - 15-05-2026]** AuthServiceTests ainda a passar com mudanças de EmailHash (14 testes total).
 - **[NOVO - 15-05-2026]** Build sucede com 0 erros (16 warnings não-críticos sobre obsolete Resident entities).
