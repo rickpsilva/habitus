@@ -194,12 +194,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
 - **[NOVO - 15-05-2026]** Suite completa de testes de encriptação: 40 testes passando (8 Auth + 6 User.Phone + 6 EmailHash + 7 GDPR + 6 PaymentSettings + 7 UsefulContact).
 
 ### Em curso
-- Fase 2 (fecho documental de pendências residuais e estratégia de deprecação de colunas legacy).
-- Fase 5 (validação final em pipeline/ambiente alvo).
+- Fase 2 (fecho formal de deprecação de colunas legacy e critérios de remoção controlada).
 
 ### Pendente
-- Fecho formal da Fase 2 (cleanup/deprecação final de colunas legacy quando janela operacional permitir).
-- Fecho formal da Fase 5 (execução final em CI/staging + validação operacional pós-deploy).
+- Fecho formal da Fase 2 (janela operacional para cleanup/deprecação final de colunas legacy e desativação definitiva de fallback onde aplicável).
 
 ### Progresso por Fase (Checklist)
 - [x] Fase 0 - UI e Consentimento: **100%**
@@ -218,6 +216,10 @@ Implementar encriptação completa de dados pessoais e sensíveis no Habitus par
     - [x] Campo `User.EmailHash` (para índice único)
     - [x] Restantes entidades com campos encriptados
     - [x] Migration de schema de encriptação alargada
+    - [ ] Critérios de fecho da fase (pendência operacional):
+        - [ ] Definir data de corte para remoção de leitura de colunas legacy plaintext em produção
+        - [ ] Executar janela de cleanup final das colunas legacy com evidência de rollback plan aprovado
+        - [ ] Atualizar plano de deprecação (colunas/versões) e concluir assinatura operacional de segurança/dados
 - [x] Fase 3 - Encriptação nos serviços: **100%**
     - [x] Fluxos RGPD no `UserService`
     - [x] Encriptação/desencriptação de phone no `UserService` (com hardening em update parcial)
