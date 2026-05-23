@@ -22,6 +22,7 @@ import UnitsPage from './pages/UnitsPage';
 import ProfilePage from './pages/ProfilePage';
 import SharedSpacesPage from './pages/SharedSpacesPage';
 import SuppliersPage from './pages/SuppliersPage';
+import UsefulContactsPage from './pages/UsefulContactsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/assemblies" element={<AssembliesPage />} />
             <Route path="/shared-spaces" element={<SharedSpacesPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/useful-contacts" element={<UsefulContactsPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/condominiums" element={<CondominiumsPage />} />
             <Route path="/billing" element={<BillingPage />} />

@@ -42,6 +42,9 @@ import type {
   SupplierDto,
   CreateSupplierRequest,
   UpdateSupplierRequest,
+  UsefulContactDto,
+  CreateUsefulContactRequest,
+  UpdateUsefulContactRequest,
   PaymentDto,
   CreatePaymentRequest,
   ApprovePaymentRequest,
@@ -160,17 +163,17 @@ export const residentsApi = {
 };
 
 export const unitsApi = {
-  getAll: () => api.get<UnitDto[]>('/units'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<UnitDto>>(`/units/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<UnitDto>(`/units/${id}`),
-  create: (data: CreateUnitRequest) => api.post<UnitDto>('/units', data),
-  update: (id: string, data: Partial<CreateUnitRequest>) => api.put<UnitDto>(`/units/${id}`, data),
-  delete: (id: string) => api.delete(`/units/${id}`),
+  getAll: (condominiumId: string) => api.get<UnitDto[]>(`/condominiums/${condominiumId}/units`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<UnitDto>>(`/condominiums/${condominiumId}/units/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<UnitDto>(`/condominiums/${condominiumId}/units/${id}`),
+  create: (condominiumId: string, data: CreateUnitRequest) => api.post<UnitDto>(`/condominiums/${condominiumId}/units`, data),
+  update: (condominiumId: string, id: string, data: Partial<CreateUnitRequest>) => api.put<UnitDto>(`/condominiums/${condominiumId}/units/${id}`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/units/${id}`),
   importCsv: (condominiumId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post<CsvImportResult>(`/units/import-csv?condominiumId=${condominiumId}`, formData, {
+    return api.post<CsvImportResult>(`/condominiums/${condominiumId}/units/import-csv`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
@@ -223,45 +226,45 @@ export const financialApi = {
 };
 
 export const notificationsApi = {
-  getAll: (page: number = 1, pageSize: number = 10) => 
-    api.get<PaginatedResponse<NotificationDto>>(`/notifications?page=${page}&pageSize=${pageSize}`),
-  markRead: (id: string) => api.put<NotificationDto>(`/notifications/${id}/read`),
-  markAllRead: () => api.put('/notifications/mark-all-read'),
-  clearAll: () => api.delete('/notifications/clear-all'),
-  delete: (id: string) => api.delete(`/notifications/${id}`),
+  getAll: (condominiumId: string, page: number = 1, pageSize: number = 10) => 
+    api.get<PaginatedResponse<NotificationDto>>(`/condominiums/${condominiumId}/notifications?page=${page}&pageSize=${pageSize}`),
+  markRead: (condominiumId: string, id: string) => api.put<NotificationDto>(`/condominiums/${condominiumId}/notifications/${id}/read`),
+  markAllRead: (condominiumId: string) => api.put(`/condominiums/${condominiumId}/notifications/mark-all-read`),
+  clearAll: (condominiumId: string) => api.delete(`/condominiums/${condominiumId}/notifications/clear-all`),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/notifications/${id}`),
 };
 
 export const reservationsApi = {
-  getAll: () => api.get<ReservationDto[]>('/reservations'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<ReservationDto>>(`/reservations/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  create: (data: { spaceId: string; userId: string; startTime: string; endTime: string }) =>
-    api.post<ReservationDto>('/reservations', data),
-  update: (id: string, data: { spaceId: string; startTime: string; endTime: string }) =>
-    api.put<ReservationDto>(`/reservations/${id}`, data),
-  delete: (id: string) => api.delete(`/reservations/${id}`),
-  approve: (id: string, adminComments?: string) =>
-    api.post<ReservationDto>(`/reservations/${id}/approve`, { adminComments: adminComments || '' }),
-  reject: (id: string, adminComments?: string) =>
-    api.post<ReservationDto>(`/reservations/${id}/reject`, { adminComments: adminComments || '' }),
-  requestCancellation: (id: string) =>
-    api.post<ReservationDto>(`/reservations/${id}/request-cancellation`, {}),
-  approveCancellation: (id: string, adminComments?: string) =>
-    api.post<ReservationDto>(`/reservations/${id}/approve-cancellation`, { adminComments: adminComments || '' }),
-  rejectCancellation: (id: string, adminComments?: string) =>
-    api.post<ReservationDto>(`/reservations/${id}/reject-cancellation`, { adminComments: adminComments || '' }),
+  getAll: (condominiumId: string) => api.get<ReservationDto[]>(`/condominiums/${condominiumId}/reservations`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<ReservationDto>>(`/condominiums/${condominiumId}/reservations/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  create: (condominiumId: string, data: { spaceId: string; userId: string; startTime: string; endTime: string }) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations`, data),
+  update: (condominiumId: string, id: string, data: { spaceId: string; startTime: string; endTime: string }) =>
+    api.put<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/reservations/${id}`),
+  approve: (condominiumId: string, id: string, adminComments?: string) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}/approve`, { adminComments: adminComments || '' }),
+  reject: (condominiumId: string, id: string, adminComments?: string) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}/reject`, { adminComments: adminComments || '' }),
+  requestCancellation: (condominiumId: string, id: string) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}/request-cancellation`, {}),
+  approveCancellation: (condominiumId: string, id: string, adminComments?: string) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}/approve-cancellation`, { adminComments: adminComments || '' }),
+  rejectCancellation: (condominiumId: string, id: string, adminComments?: string) =>
+    api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations/${id}/reject-cancellation`, { adminComments: adminComments || '' }),
 };
 
 export const sharedSpacesApi = {
-  getAll: () => api.get<SharedSpaceDto[]>('/shared-spaces'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<SharedSpaceDto>>(`/shared-spaces/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<SharedSpaceDto>(`/shared-spaces/${id}`),
-  create: (data: { name: string; description: string; capacity?: number; condominiumId: string; rules: string; reservationFee?: number; color?: string }) => 
-    api.post<SharedSpaceDto>('/shared-spaces', data),
-  update: (id: string, data: { name: string; description: string; capacity?: number; rules: string; reservationFee?: number; color?: string }) => 
-    api.put<SharedSpaceDto>(`/shared-spaces/${id}`, data),
-  delete: (id: string) => api.delete(`/shared-spaces/${id}`),
+  getAll: (condominiumId: string) => api.get<SharedSpaceDto[]>(`/condominiums/${condominiumId}/shared-spaces`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<SharedSpaceDto>>(`/condominiums/${condominiumId}/shared-spaces/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<SharedSpaceDto>(`/condominiums/${condominiumId}/shared-spaces/${id}`),
+  create: (condominiumId: string, data: { name: string; description: string; capacity?: number; condominiumId: string; rules: string; reservationFee?: number; color?: string }) => 
+    api.post<SharedSpaceDto>(`/condominiums/${condominiumId}/shared-spaces`, data),
+  update: (condominiumId: string, id: string, data: { name: string; description: string; capacity?: number; rules: string; reservationFee?: number; color?: string }) => 
+    api.put<SharedSpaceDto>(`/condominiums/${condominiumId}/shared-spaces/${id}`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/shared-spaces/${id}`),
 };
 
 export const documentsApi = {
@@ -324,13 +327,26 @@ export const assembliesApi = {
 };
 
 export const suppliersApi = {
-  getAll: () => api.get<SupplierDto[]>('/suppliers'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<SupplierDto>>(`/suppliers/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<SupplierDto>(`/suppliers/${id}`),
-  create: (data: CreateSupplierRequest) => api.post<SupplierDto>('/suppliers', data),
-  update: (id: string, data: UpdateSupplierRequest) => api.put<SupplierDto>(`/suppliers/${id}`, data),
-  delete: (id: string) => api.delete(`/suppliers/${id}`),
+  getAll: (condominiumId: string) => api.get<SupplierDto[]>(`/condominiums/${condominiumId}/suppliers`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<SupplierDto>>(`/condominiums/${condominiumId}/suppliers/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<SupplierDto>(`/condominiums/${condominiumId}/suppliers/${id}`),
+  create: (condominiumId: string, data: CreateSupplierRequest) => api.post<SupplierDto>(`/condominiums/${condominiumId}/suppliers`, data),
+  update: (condominiumId: string, id: string, data: UpdateSupplierRequest) => api.put<SupplierDto>(`/condominiums/${condominiumId}/suppliers/${id}`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/suppliers/${id}`),
+};
+
+export const usefulContactsApi = {
+  getAll: (condominiumId: string) =>
+    api.get<UsefulContactDto[]>(`/condominiums/${condominiumId}/useful-contacts`),
+  getById: (condominiumId: string, id: string) =>
+    api.get<UsefulContactDto>(`/condominiums/${condominiumId}/useful-contacts/${id}`),
+  create: (condominiumId: string, data: CreateUsefulContactRequest) =>
+    api.post<UsefulContactDto>(`/condominiums/${condominiumId}/useful-contacts`, data),
+  update: (condominiumId: string, id: string, data: UpdateUsefulContactRequest) =>
+    api.put<UsefulContactDto>(`/condominiums/${condominiumId}/useful-contacts/${id}`, data),
+  delete: (condominiumId: string, id: string) =>
+    api.delete(`/condominiums/${condominiumId}/useful-contacts/${id}`),
 };
 
 export const paymentsApi = {

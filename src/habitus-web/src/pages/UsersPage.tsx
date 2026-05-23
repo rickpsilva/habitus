@@ -92,11 +92,13 @@ export default function UsersPage() {
       setCurrentPage(page);
 
       if (isAdmin) {
-        const unitsResponse = await unitsApi.getAll();
-        setUnits(unitsResponse.data);
         if (condominiumId) {
+          const unitsResponse = await unitsApi.getAll(condominiumId);
+          setUnits(unitsResponse.data);
           const condoResponse = await condominiumsApi.getById(condominiumId);
           setCondominiums([condoResponse.data]);
+        } else {
+          setUnits([]);
         }
       }
       // Manager doesn't need units or condominiums in this view

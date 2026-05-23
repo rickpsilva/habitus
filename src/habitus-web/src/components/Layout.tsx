@@ -17,6 +17,7 @@ import {
   Building2,
   ClipboardList,
   Megaphone,
+  Phone,
   UserCircle,
   CreditCard,
   Settings,
@@ -44,6 +45,7 @@ const navItems: NavItem[] = [
   { to: '/announcements', label: 'Comunicados', icon: Megaphone, featureKey: 'announcements' },
   { to: '/reservations', label: 'Reservas', icon: Calendar, featureKey: 'reservations' },
   { to: '/documents', label: 'Documentos', icon: FileText, featureKey: 'documents' },
+  { to: '/useful-contacts', label: 'Contactos Uteis', icon: Phone, featureKey: 'useful_contacts' },
   { to: '/assemblies', label: 'Assembleias', icon: ClipboardList, featureKey: 'assemblies' },
   { to: '/settings', label: 'Configurações', icon: Settings, managerOrAdminOnly: true },
   { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
@@ -62,6 +64,7 @@ const adminMenuOrder = [
   '/reservations',
   '/payments',
   '/documents',
+  '/useful-contacts',
   '/assemblies',
   '/users',
   '/settings',
@@ -75,6 +78,7 @@ const residentMenuOrder = [
   '/reservations',
   '/maintenance',
   '/documents',
+  '/useful-contacts',
   '/assemblies',
   '/financial',
 ];
@@ -132,7 +136,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const notificationsRes = await notificationsApi.getAll(1, 100);
+        if (!user?.condominiumId) {
+          setUnreadCount(0);
+          setPendingAnnouncementsCount(0);
+          return;
+        }
+
+        const notificationsRes = await notificationsApi.getAll(user.condominiumId, 1, 100);
         const unread = notificationsRes.data.items.filter((n) => !n.isRead).length;
         setUnreadCount(unread);
 

@@ -440,6 +440,29 @@ export interface UpdateSupplierRequest {
   isActive: boolean;
 }
 
+export type UsefulContactCategory = 'Emergency' | 'Service' | 'Administrative' | number;
+
+export interface UsefulContactDto {
+  id: string;
+  name: string;
+  phone: string;
+  category: UsefulContactCategory;
+  condominiumId: string;
+}
+
+export interface CreateUsefulContactRequest {
+  name: string;
+  phone: string;
+  category: UsefulContactCategory;
+  condominiumId?: string;
+}
+
+export interface UpdateUsefulContactRequest {
+  name: string;
+  phone: string;
+  category: UsefulContactCategory;
+}
+
 // Payment types
 export interface PaymentDto {
   id: string;

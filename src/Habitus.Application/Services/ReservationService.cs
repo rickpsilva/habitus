@@ -69,17 +69,24 @@ public class ReservationService
         return true;
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> CreateAsync(CreateReservationRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> CreateAsync(Guid condominiumId, CreateReservationRequest request)
     {
+        if (request.EndTime <= request.StartTime)
+            return (null, "A data de fim deve ser posterior à data de início.");
+
         // Get SharedSpace to obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
         if (space == null)
             return (null, "Espaço comum não encontrado.");
+        if (space.CondominiumId != condominiumId)
+            return (null, "O espaço comum não pertence ao condomínio da rota.");
 
         // Check that the user has an associated unit (fração)
         var user = await _userRepository.GetByIdAsync(request.UserId);
         if (user == null)
             return (null, "Utilizador não encontrado.");
+        if (user.CondominiumId != condominiumId)
+            return (null, "O utilizador não pertence ao condomínio da rota.");
         if (!user.UnitId.HasValue)
             return (null, "Apenas utilizadores com uma fração associada podem efetuar reservas.");
 
@@ -147,16 +154,23 @@ public class ReservationService
         return (MapToDto(entity), null);
     }
 
-    public async Task<(ReservationDto? Dto, string? Error)> UpdateAsync(Guid id, UpdateReservationRequest request)
+    public async Task<(ReservationDto? Dto, string? Error)> UpdateAsync(Guid id, Guid condominiumId, UpdateReservationRequest request)
     {
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null)
             return (null, "Reserva não encontrada.");
+        if (entity.CondominiumId != condominiumId)
+            return (null, "Reserva não encontrada.");
+
+        if (request.EndTime <= request.StartTime)
+            return (null, "A data de fim deve ser posterior à data de início.");
 
         // Get SharedSpace to validate and obtain CondominiumId
         var space = await _spaceRepository.GetByIdAsync(request.SpaceId);
         if (space == null)
             return (null, "Espaço comum não encontrado.");
+        if (space.CondominiumId != condominiumId)
+            return (null, "O espaço comum não pertence ao condomínio da rota.");
 
         // Validate that start time is not in the past
         if (request.StartTime < DateTime.UtcNow)
@@ -178,7 +192,7 @@ public class ReservationService
         entity.SpaceId = request.SpaceId;
         entity.StartTime = request.StartTime;
         entity.EndTime = request.EndTime;
-        entity.CondominiumId = space.CondominiumId;
+        entity.CondominiumId = condominiumId;
 
         _repository.Update(entity);
         await _repository.SaveChangesAsync();

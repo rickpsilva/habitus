@@ -1355,12 +1355,12 @@ function FinancialPlansContent() {
   const loadData = useCallback(async () => {
     try {
       const [unitsRes, plansRes] = await Promise.all([
-        unitsApi.getAll(),
+        unitsApi.getAll(condominiumId!),
         quotaPlansApi.getAll(condominiumId!)
       ]);
 
-      // Filter units by condominium
-      const condoUnits = unitsRes.data.filter(u => u.condominiumId === condominiumId);
+      // Units are already scoped by condominium in API
+      const condoUnits = unitsRes.data;
       setUnits(condoUnits);
 
       // Filter plans by condominium and sort by year desc
@@ -1472,7 +1472,7 @@ function FinancialPlansContent() {
       // Save all unit monthly quotas
       await Promise.all(
         units.map(unit =>
-          unitsApi.update(unit.id, {
+          unitsApi.update(condominiumId!, unit.id, {
             ...unit,
             monthlyQuota: unit.monthlyQuota || 0
           })

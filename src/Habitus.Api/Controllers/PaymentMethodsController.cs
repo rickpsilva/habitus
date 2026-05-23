@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/condominiums/{condominiumId}/payment-methods")]
+[Route("api/condominiums/{condominiumId:guid}/payment-methods")]
 [Authorize] // Accessible to all authenticated users (including residents)
 public class PaymentMethodsController : ControllerBase
 {
@@ -27,7 +27,7 @@ public class PaymentMethodsController : ControllerBase
     /// This endpoint returns only non-sensitive payment information
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetPublicPaymentMethods(Guid condominiumId)
+    public async Task<IActionResult> GetPublicPaymentMethods([FromRoute] Guid condominiumId)
     {
         try
         {

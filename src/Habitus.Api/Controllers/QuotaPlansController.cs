@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/condominiums/{condominiumId}/quota-plans")]
+[Route("api/condominiums/{condominiumId:guid}/quota-plans")]
 [Authorize(Roles = "Manager,Admin")]
 public class QuotaPlansController : ControllerBase
 {
@@ -29,9 +29,9 @@ public class QuotaPlansController : ControllerBase
         _logger = logger;
     }
 
-    // GET: api/condominiums/{condominiumId}/quota-plans
+    // GET: api/condominiums/{condominiumId:guid}/quota-plans
     [HttpGet]
-    public async Task<IActionResult> GetAll(Guid condominiumId)
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
     {
         try
         {
@@ -63,9 +63,9 @@ public class QuotaPlansController : ControllerBase
         }
     }
 
-    // GET: api/condominiums/{condominiumId}/quota-plans/{id}
+    // GET: api/condominiums/{condominiumId:guid}/quota-plans/{id}
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid condominiumId, Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
@@ -117,9 +117,9 @@ public class QuotaPlansController : ControllerBase
         }
     }
 
-    // POST: api/condominiums/{condominiumId}/quota-plans
+    // POST: api/condominiums/{condominiumId:guid}/quota-plans
     [HttpPost]
-    public async Task<IActionResult> Create(Guid condominiumId, [FromBody] CreateQuotaPlanRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreateQuotaPlanRequest request)
     {
         try
         {
@@ -162,9 +162,9 @@ public class QuotaPlansController : ControllerBase
         }
     }
 
-    // PUT: api/condominiums/{condominiumId}/quota-plans/{id}
+    // PUT: api/condominiums/{condominiumId:guid}/quota-plans/{id}
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid condominiumId, Guid id, [FromBody] UpdateQuotaPlanRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateQuotaPlanRequest request)
     {
         try
         {
@@ -205,9 +205,9 @@ public class QuotaPlansController : ControllerBase
         }
     }
 
-    // POST: api/condominiums/{condominiumId}/quota-plans/{id}/apply
+    // POST: api/condominiums/{condominiumId:guid}/quota-plans/{id}/apply
     [HttpPost("{id}/apply")]
-    public async Task<IActionResult> ApplyPlan(Guid condominiumId, Guid id)
+    public async Task<IActionResult> ApplyPlan([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
@@ -269,9 +269,9 @@ public class QuotaPlansController : ControllerBase
         }
     }
 
-    // DELETE: api/condominiums/{condominiumId}/quota-plans/{id}
+    // DELETE: api/condominiums/{condominiumId:guid}/quota-plans/{id}
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid condominiumId, Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {

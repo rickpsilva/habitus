@@ -72,7 +72,7 @@ const documentTypesByContext: Record<string, string[]> = {
 };
 
 export default function DocumentsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
@@ -127,10 +127,15 @@ export default function DocumentsPage() {
   }, []);
 
   const loadUnits = useCallback(() => {
-    unitsApi.getPaged(1, 100)
+    if (!condominiumId) {
+      setUnits([]);
+      return;
+    }
+
+    unitsApi.getPaged(condominiumId, 1, 100)
       .then((r) => setUnits(r.data.items))
       .catch(() => setUnits([]));
-  }, []);
+  }, [condominiumId]);
 
   const loadMaintenanceRequests = useCallback(() => {
     maintenanceApi.getPaged(1, 100)

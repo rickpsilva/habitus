@@ -138,8 +138,12 @@ export default function DashboardPage() {
         : [];
       setMaintenance(scoped);
     }).catch(() => {});
-    notificationsApi.getAll(1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
-    reservationsApi.getAll().then((r) => setReservations(r.data)).catch(() => {});
+    if (condominiumId) {
+      notificationsApi.getAll(condominiumId, 1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
+    }
+    if (condominiumId) {
+      reservationsApi.getAll(condominiumId).then((r) => setReservations(r.data)).catch(() => {});
+    }
     // Load financial dashboard for current year
     if (condominiumId) {
       const currentYear = new Date().getFullYear();

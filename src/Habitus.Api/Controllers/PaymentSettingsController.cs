@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/condominiums/{condominiumId}/payment-settings")]
+[Route("api/condominiums/{condominiumId:guid}/payment-settings")]
 [Authorize(Roles = "Admin,Manager")]
 public class PaymentSettingsController : ControllerBase
 {
@@ -22,7 +22,7 @@ public class PaymentSettingsController : ControllerBase
     /// Get payment settings for a condominium
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Get(Guid condominiumId)
+    public async Task<IActionResult> Get([FromRoute] Guid condominiumId)
     {
         try
         {
@@ -87,7 +87,7 @@ public class PaymentSettingsController : ControllerBase
     /// Update payment settings for a condominium
     /// </summary>
     [HttpPut]
-    public async Task<IActionResult> Update(Guid condominiumId, [FromBody] UpdatePaymentSettingsRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromBody] UpdatePaymentSettingsRequest request)
     {
         try
         {

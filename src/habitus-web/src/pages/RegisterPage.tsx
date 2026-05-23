@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { Building2, Mail, Lock, User, Phone, Home } from 'lucide-react';
-import { authApi, unitsApi } from '../api/services';
+import { authApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { UnitDto, RegisterRequest } from '../types';
 
@@ -20,7 +20,28 @@ export default function RegisterPage() {
       setUnits([]);
       return;
     }
-    unitsApi.getAll().then((r) => setUnits(r.data)).catch(() => {});
+
+    condominiumsApi.getPublic()
+      .then(async (condosResponse) => {
+        const unitsByCondo = await Promise.all(
+          condosResponse.data.map(async (condo) => {
+            const unitsResponse = await condominiumsApi.getUnitsPublic(condo.id);
+            return unitsResponse.data.map((unit) => ({
+              id: unit.id,
+              number: unit.number,
+              floor: unit.floor,
+              apartmentNumber: unit.apartmentNumber,
+              condominiumId: condo.id,
+              type: 0,
+              permillage: 0,
+              monthlyQuota: 0,
+            }));
+          })
+        );
+
+        setUnits(unitsByCondo.flat());
+      })
+      .catch(() => setUnits([]));
   }, [isAdminRegistration]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

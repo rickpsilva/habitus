@@ -129,9 +129,8 @@ export default function MaintenancePage() {
   // Load suppliers
   useEffect(() => {
     if (condominiumId) {
-      suppliersApi.getAll().then((r) => {
-        const filtered = r.data.filter(s => s.condominiumId === condominiumId && s.isActive);
-        setSuppliers(filtered);
+      suppliersApi.getAll(condominiumId).then((r) => {
+        setSuppliers(r.data.filter(s => s.isActive));
       }).catch(console.error);
     }
   }, [condominiumId]);

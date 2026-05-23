@@ -142,6 +142,53 @@ public class NotificationDispatchServiceTests
     }
 
     [Fact]
+    public async Task DispatchAsync_TargetResidentFromDifferentCondominium_DoesNotSendEmail()
+    {
+        var condominiumId = Guid.NewGuid();
+        var otherCondominiumId = Guid.NewGuid();
+        var targetResidentId = Guid.NewGuid();
+
+        var condominium = new Condominium
+        {
+            Id = condominiumId,
+            Name = "Condo Isolation",
+            Email = "condo@habitus.test"
+        };
+
+        var residentFromOtherCondominium = new User
+        {
+            Id = targetResidentId,
+            CondominiumId = otherCondominiumId,
+            Role = UserRole.Resident,
+            IsActive = true,
+            Email = "other-resident@habitus.test"
+        };
+
+        SetupCommonRepositories(condominiumId, condominium, new[] { residentFromOtherCondominium });
+
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            CondominiumId = condominiumId,
+            TargetRole = UserRole.Resident.ToString(),
+            TargetUserId = targetResidentId,
+            Title = "Teste de isolamento",
+            Message = "Nao deve ser enviada para outro condominio"
+        };
+
+        var service = CreateService();
+
+        await service.DispatchAsync(new[] { notification }, sendExternalChannels: true);
+
+        _emailServiceMock.Verify(s => s.SendAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<EmailSenderType>(),
+            It.IsAny<Guid?>()), Times.Never);
+    }
+
+    [Fact]
     public async Task DispatchAsync_WithoutTargetRoleAndTargetUserId_SendsEmailToAllCondominiumUsersExceptManagers()
     {
         var condominiumId = Guid.NewGuid();

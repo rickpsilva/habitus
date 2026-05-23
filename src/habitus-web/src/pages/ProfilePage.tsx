@@ -139,9 +139,9 @@ export default function ProfilePage() {
         }
 
         // Load unit if exists
-        if (currentUser.unitId) {
+        if (currentUser.unitId && currentUser.condominiumId) {
           try {
-            const unitResponse = await unitsApi.getById(currentUser.unitId);
+            const unitResponse = await unitsApi.getById(currentUser.condominiumId, currentUser.unitId);
             setUnit(unitResponse.data);
             
             // Load unit documents
