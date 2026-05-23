@@ -59,10 +59,10 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
 
     public static TheoryData<string> TenantListEndpoints => new()
     {
-        "/api/assemblies/paged",
-        "/api/reservations/paged",
-        "/api/maintenance/paged",
-        "/api/financial/paged",
+        "/api/condominiums/00000000-0000-0000-0000-000000000001/assemblies/paged",
+        "/api/condominiums/00000000-0000-0000-0000-000000000001/reservations/paged",
+        "/api/condominiums/00000000-0000-0000-0000-000000000001/maintenance/paged",
+        "/api/condominiums/00000000-0000-0000-0000-000000000001/financial/paged",
     };
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFact
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", new JwtSecurityTokenHandler().WriteToken(expired));
 
-        var response = await client.GetAsync("/api/assemblies/paged");
+        var response = await client.GetAsync("/api/condominiums/00000000-0000-0000-0000-000000000001/assemblies/paged");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

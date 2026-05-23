@@ -102,13 +102,17 @@ export default function AssembliesPage() {
   const [dragOverAssemblyId, setDragOverAssemblyId] = useState<string | null>(null);
 
   const load = useCallback((page: number = 1) => {
+    if (!condominiumId) {
+      setAssemblies([]);
+      setPagination(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    assembliesApi.getPaged(page, pageSize, debouncedSearch)
+    assembliesApi.getPaged(condominiumId, page, pageSize, debouncedSearch)
       .then((r) => {
-        // Defensive: only show assemblies belonging to the logged-in user's condominium
-        const scoped = condominiumId
-          ? r.data.items.filter((a) => a.condominiumId === condominiumId)
-          : [];
+        const scoped = r.data.items;
         // Sort by most recent scheduled date first
         const sorted = scoped.sort((a, b) => 
           new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
@@ -159,6 +163,11 @@ export default function AssembliesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (editId) {
@@ -168,13 +177,13 @@ export default function AssembliesPage() {
           scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
           location: form.location,
         };
-        await assembliesApi.update(editId, updateData);
+        await assembliesApi.update(condominiumId, editId, updateData);
       } else {
         const createData: CreateAssemblyRequest = {
           ...form,
           scheduledAt: new Date(form.scheduledAt).toISOString(),
         };
-        await assembliesApi.create(createData);
+        await assembliesApi.create(condominiumId, createData);
       }
       setShowForm(false);
       load();
@@ -191,9 +200,9 @@ export default function AssembliesPage() {
   };
 
   const confirmDeleteAssembly = async () => {
-    if (!deleteAssemblyId) return;
+    if (!deleteAssemblyId || !condominiumId) return;
     try {
-      await assembliesApi.delete(deleteAssemblyId);
+      await assembliesApi.delete(condominiumId, deleteAssemblyId);
       load();
     } catch (error) {
       console.error('Erro ao eliminar assembleia:', error);
@@ -221,10 +230,14 @@ export default function AssembliesPage() {
       return;
     }
 
+    if (!condominiumId) {
+      return;
+    }
+
     const timer = setTimeout(async () => {
       setNotesAutoSaving(true);
       try {
-        await assembliesApi.updateNotes(selectedAssembly.id, notes);
+        await assembliesApi.updateNotes(condominiumId, selectedAssembly.id, notes);
         setNotesLastSaved(new Date());
         // Update selectedAssembly to reflect new saved state
         setSelectedAssembly({ ...selectedAssembly, notes });
@@ -236,13 +249,13 @@ export default function AssembliesPage() {
     }, 2000); // 2 seconds debounce
 
     return () => clearTimeout(timer);
-  }, [notes, showNotesModal, selectedAssembly]);
+  }, [condominiumId, notes, showNotesModal, selectedAssembly]);
 
   const handleSaveNotes = async () => {
-    if (!selectedAssembly) return;
+    if (!selectedAssembly || !condominiumId) return;
     setSubmitting(true);
     try {
-      await assembliesApi.updateNotes(selectedAssembly.id, notes);
+      await assembliesApi.updateNotes(condominiumId, selectedAssembly.id, notes);
       setShowNotesModal(false);
       load();
     } catch (error) {
@@ -253,11 +266,23 @@ export default function AssembliesPage() {
     }
   };
 
-  const openMinutes = (assembly: AssemblyDto) => {
-    setSelectedAssembly(assembly);
-    setMinutes(assembly.minutes || '');
-    setMinutesLastSaved(null);
-    setShowMinutesModal(true);
+  const openMinutes = async (assembly: AssemblyDto) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
+    try {
+      const res = await assembliesApi.getById(condominiumId, assembly.id);
+      const latestAssembly = res.data;
+      setSelectedAssembly(latestAssembly);
+      setMinutes(latestAssembly.minutes || '');
+      setMinutesLastSaved(null);
+      setShowMinutesModal(true);
+    } catch (error) {
+      console.error('Erro ao carregar atas da assembleia:', error);
+      toastError('Erro ao carregar o conteúdo das atas.');
+    }
   };
 
   // Auto-save minutes draft (sem completar a assembleia)
@@ -266,10 +291,14 @@ export default function AssembliesPage() {
       return;
     }
 
+    if (!condominiumId) {
+      return;
+    }
+
     const timer = setTimeout(async () => {
       setMinutesAutoSaving(true);
       try {
-        await assembliesApi.updateMinutesDraft(selectedAssembly.id, minutes);
+        await assembliesApi.updateMinutesDraft(condominiumId, selectedAssembly.id, minutes);
         setMinutesLastSaved(new Date());
         // Update selectedAssembly to reflect new saved state
         setSelectedAssembly({ ...selectedAssembly, minutes });
@@ -281,13 +310,13 @@ export default function AssembliesPage() {
     }, 2000); // 2 seconds debounce
 
     return () => clearTimeout(timer);
-  }, [minutes, showMinutesModal, selectedAssembly]);
+  }, [condominiumId, minutes, showMinutesModal, selectedAssembly]);
 
   const handleSaveDraftMinutes = async () => {
-    if (!selectedAssembly) return;
+    if (!selectedAssembly || !condominiumId) return;
     setSubmitting(true);
     try {
-      await assembliesApi.updateMinutesDraft(selectedAssembly.id, minutes);
+      await assembliesApi.updateMinutesDraft(condominiumId, selectedAssembly.id, minutes);
       setMinutesLastSaved(new Date());
       toastSuccess('Draft das atas guardado com sucesso!');
     } catch (error) {
@@ -308,11 +337,11 @@ export default function AssembliesPage() {
   };
 
   const doCompleteAssembly = async () => {
-    if (!selectedAssembly) return;
+    if (!selectedAssembly || !condominiumId) return;
     setConfirmCompleteOpen(false);
     setSubmitting(true);
     try {
-      await assembliesApi.updateMinutes(selectedAssembly.id, minutes);
+      await assembliesApi.updateMinutes(condominiumId, selectedAssembly.id, minutes);
       setShowMinutesModal(false);
       load();
       toastSuccess('Assembleia concluída! As atas foram publicadas e notificações enviadas.');
@@ -331,14 +360,14 @@ export default function AssembliesPage() {
   };
 
   const handleCancel = async () => {
-    if (!selectedAssembly) return;
+    if (!selectedAssembly || !condominiumId) return;
     if (!cancellationReason.trim()) {
       toastError('Por favor insira o motivo do cancelamento.');
       return;
     }
     setSubmitting(true);
     try {
-      await assembliesApi.cancel(selectedAssembly.id, cancellationReason);
+      await assembliesApi.cancel(condominiumId, selectedAssembly.id, cancellationReason);
       setShowCancelModal(false);
       load();
     } catch (error) {
@@ -351,9 +380,11 @@ export default function AssembliesPage() {
 
   // Document management
   const loadAssemblyDocuments = async (assemblyId: string) => {
+    if (!condominiumId) return;
+
     setLoadingDocuments(true);
     try {
-      const response = await documentsApi.getByAssembly(assemblyId);
+      const response = await documentsApi.getByAssembly(condominiumId, assemblyId);
       setAssemblyDocuments(response.data);
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
@@ -371,7 +402,7 @@ export default function AssembliesPage() {
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (uploadFiles.length === 0 || !selectedAssembly) return;
+    if (uploadFiles.length === 0 || !selectedAssembly || !condominiumId) return;
 
     setUploadingDocument(true);
     try {
@@ -386,7 +417,7 @@ export default function AssembliesPage() {
         formData.append('description', uploadForm.description);
       }
 
-      await documentsApi.upload(formData);
+      await documentsApi.upload(condominiumId, formData);
       setShowUploadDocument(false);
       setUploadFiles([]);
       setUploadForm({
@@ -408,9 +439,9 @@ export default function AssembliesPage() {
   };
 
   const confirmDeleteDocument = async () => {
-    if (!deleteDocumentId) return;
+    if (!deleteDocumentId || !condominiumId) return;
     try {
-      await documentsApi.delete(deleteDocumentId);
+      await documentsApi.delete(condominiumId, deleteDocumentId);
       if (selectedAssembly) {
         await loadAssemblyDocuments(selectedAssembly.id);
       }
@@ -423,8 +454,13 @@ export default function AssembliesPage() {
   };
 
   const handleDocumentDownload = async (id: string, fileName: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await documentsApi.download(id, fileName);
+      await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao fazer download do documento.');
@@ -459,7 +495,7 @@ export default function AssembliesPage() {
 
   const handleQuickUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (uploadFiles.length === 0 || !quickUploadAssembly) return;
+    if (uploadFiles.length === 0 || !quickUploadAssembly || !condominiumId) return;
 
     setUploadingDocument(true);
     try {
@@ -473,7 +509,7 @@ export default function AssembliesPage() {
       formData.append('context', 'Assembly');
       formData.append('assemblyId', quickUploadAssembly.id);
 
-      const response = await documentsApi.uploadMultiple(formData);
+      const response = await documentsApi.uploadMultiple(condominiumId, formData);
       
       setShowQuickUploadModal(false);
       setQuickUploadAssembly(null);

@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/assemblies")]
+[Route("api/condominiums/{condominiumId:guid}/assemblies")]
 [Authorize(Roles = "Admin,Resident")]
 [RequireFeature("assemblies")]
 public class AssembliesController : ControllerBase
@@ -30,20 +30,20 @@ public class AssembliesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AssemblyDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<AssemblyDto>>> GetAll([FromRoute] Guid condominiumId)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.GetAllAsync(condominiumId, userRole);
         return Ok(result);
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
@@ -52,10 +52,10 @@ public class AssembliesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<AssemblyDto>> GetById(Guid id)
+    public async Task<ActionResult<AssemblyDto>> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.GetByIdAsync(id, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -63,24 +63,24 @@ public class AssembliesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> Create([FromBody] CreateAssemblyRequest request)
+    public async Task<ActionResult<AssemblyDto>> Create([FromRoute] Guid condominiumId, [FromBody] CreateAssemblyRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         if (request.CondominiumId != condominiumId)
             return Forbid();
 
         var result = await _service.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = result.Id }, result);
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> Update(Guid id, [FromBody] UpdateAssemblyRequest request)
+    public async Task<ActionResult<AssemblyDto>> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateAssemblyRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.UpdateAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -88,10 +88,10 @@ public class AssembliesController : ControllerBase
 
     [HttpPut("{id}/minutes")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> UpdateMinutes(Guid id, [FromBody] UpdateMinutesRequest request)
+    public async Task<ActionResult<AssemblyDto>> UpdateMinutes([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateMinutesRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.UpdateMinutesAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -99,10 +99,10 @@ public class AssembliesController : ControllerBase
 
     [HttpPut("{id}/draft-minutes")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> UpdateMinutesDraft(Guid id, [FromBody] UpdateMinutesRequest request)
+    public async Task<ActionResult<AssemblyDto>> UpdateMinutesDraft([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateMinutesRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.UpdateMinutesDraftAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -110,10 +110,10 @@ public class AssembliesController : ControllerBase
 
     [HttpPut("{id}/notes")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> UpdateNotes(Guid id, [FromBody] UpdateNotesRequest request)
+    public async Task<ActionResult<AssemblyDto>> UpdateNotes([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateNotesRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.UpdateNotesAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -121,10 +121,10 @@ public class AssembliesController : ControllerBase
 
     [HttpPut("{id}/cancel")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<AssemblyDto>> Cancel(Guid id, [FromBody] CancelAssemblyRequest request)
+    public async Task<ActionResult<AssemblyDto>> Cancel([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] CancelAssemblyRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var result = await _service.CancelAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
@@ -132,20 +132,20 @@ public class AssembliesController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var deleted = await _service.DeleteAsync(id, condominiumId, userRole);
         return deleted ? NoContent() : NotFound();
     }
 
     [HttpPost("{id}/attendance")]
-    public async Task<IActionResult> AddAttendance(Guid id, [FromBody] AssemblyAttendance attendance)
+    public async Task<IActionResult> AddAttendance([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] AssemblyAttendance attendance)
     {
-        if (!TryGetScope(out var condominiumId, out _))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out _))
+            return Forbid();
 
         // Validate that the assembly being attended belongs to the user's condominium
         var assembly = await _service.GetByIdAsync(id, condominiumId, "Admin") 
@@ -162,10 +162,10 @@ public class AssembliesController : ControllerBase
 
     [HttpPost("{id}/decisions")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AddDecision(Guid id, [FromBody] AssemblyDecision decision)
+    public async Task<IActionResult> AddDecision([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] AssemblyDecision decision)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole))
-            return Unauthorized("User scope is invalid.");
+        if (!TryGetScope(condominiumId, out var userRole))
+            return Forbid();
 
         var assembly = await _service.GetByIdAsync(id, condominiumId, userRole);
         if (assembly == null) return NotFound();
@@ -178,12 +178,12 @@ public class AssembliesController : ControllerBase
         return Ok(decision);
     }
 
-    private bool TryGetScope(out Guid condominiumId, out string userRole)
+    private bool TryGetScope(Guid routeCondominiumId, out string userRole)
     {
-        condominiumId = Guid.Empty;
         userRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
 
         var condominiumClaim = User.FindFirstValue("CondominiumId");
-        return Guid.TryParse(condominiumClaim, out condominiumId);
+        return Guid.TryParse(condominiumClaim, out var claimCondominiumId)
+            && claimCondominiumId == routeCondominiumId;
     }
 }

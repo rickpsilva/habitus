@@ -136,14 +136,17 @@ export default function MaintenancePage() {
   }, [condominiumId]);
 
   const load = useCallback(() => {
+    if (!condominiumId) {
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    maintenanceApi.getAll()
+    maintenanceApi.getAll(condominiumId)
       .then((r) => {
-        const scopedItems = condominiumId
-          ? r.data
-            .filter((item) => item.condominiumId === condominiumId)
-            .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }))
-          : [];
+        const scopedItems = r.data
+          .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }));
         setRequests(scopedItems);
       })
       .finally(() => setLoading(false));
@@ -154,6 +157,11 @@ export default function MaintenancePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
     
     if (!form.condominiumId || !form.unitId || !form.createdBy) {
       toastError('O utlizador necessita de estar associado a uma fração para registo de manutenção.');
@@ -162,7 +170,7 @@ export default function MaintenancePage() {
     
     setSubmitting(true);
     try {
-      await maintenanceApi.create(form);
+      await maintenanceApi.create(condominiumId, form);
       setShowForm(false);
       // Reset form but keep user data
       setForm({ 
@@ -239,7 +247,12 @@ export default function MaintenancePage() {
 
     setSubmitting(true);
     try {
-      await maintenanceApi.updateStatus(selectedRequest.id, {
+      if (!condominiumId) {
+        toastError('Condomínio não selecionado.');
+        return;
+      }
+
+      await maintenanceApi.updateStatus(condominiumId, selectedRequest.id, {
         status: nextStatus,
         supplierId: statusForm.supplierId || undefined,
         adminComments: statusForm.adminComments || undefined,
@@ -260,8 +273,10 @@ export default function MaintenancePage() {
 
   // Document management functions
   const loadMaintenanceDocuments = async (maintenanceRequestId: string) => {
+    if (!condominiumId) return;
+
     try {
-      const response = await documentsApi.getPaged(1, 100, '', 'Maintenance');
+      const response = await documentsApi.getPaged(condominiumId, 1, 100, '', 'Maintenance');
       const docs = response.data.items.filter(doc => doc.maintenanceRequestId === maintenanceRequestId);
       setMaintenanceDocuments(docs);
     } catch (err) {
@@ -271,7 +286,7 @@ export default function MaintenancePage() {
 
   const handleDocUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !selectedRequest) return;
+    if (!uploadFile || !selectedRequest || !condominiumId) return;
 
     setUploading(true);
     try {
@@ -283,7 +298,7 @@ export default function MaintenancePage() {
       formData.append('description', uploadForm.description);
       formData.append('maintenanceRequestId', selectedRequest.id);
 
-      await documentsApi.upload(formData);
+      await documentsApi.upload(condominiumId, formData);
       setShowDocUploadModal(false);
       setUploadFile(null);
       setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
@@ -302,9 +317,9 @@ export default function MaintenancePage() {
   };
 
   const confirmDocDelete = async () => {
-    if (!deleteDocId || !selectedRequest) return;
+    if (!deleteDocId || !selectedRequest || !condominiumId) return;
     try {
-      await documentsApi.delete(deleteDocId);
+      await documentsApi.delete(condominiumId, deleteDocId);
       loadMaintenanceDocuments(selectedRequest.id);
       success('Documento eliminado.');
     } catch (err) {
@@ -316,8 +331,13 @@ export default function MaintenancePage() {
   };
 
   const handleDocDownload = async (id: string, fileName: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await documentsApi.download(id, fileName);
+      await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
       toastError('Erro ao descarregar o documento. Tente novamente.');
       console.error(error);

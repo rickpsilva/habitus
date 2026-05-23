@@ -114,11 +114,11 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | Condominiums | `/api/condominiums` |
 | Residents | `/api/residents` |
 | Units | `/api/condominiums/{condominiumId}/units` |
-| Documents | `/api/documents` |
-| Maintenance | `/api/maintenance` |
+| Documents | `/api/condominiums/{condominiumId}/documents` |
+| Maintenance | `/api/condominiums/{condominiumId}/maintenance` |
 | Suppliers | `/api/condominiums/{condominiumId}/suppliers` |
-| Financial | `/api/financial` |
-| Assemblies | `/api/assemblies` |
+| Financial | `/api/condominiums/{condominiumId}/financial` |
+| Assemblies | `/api/condominiums/{condominiumId}/assemblies` |
 | Reservations | `/api/condominiums/{condominiumId}/reservations` |
 | Shared Spaces | `/api/condominiums/{condominiumId}/shared-spaces` |
 | Notifications | `/api/condominiums/{condominiumId}/notifications` |

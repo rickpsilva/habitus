@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/documents")]
+[Route("api/condominiums/{condominiumId:guid}/documents")]
 [Authorize]
 [RequireFeature("documents")]
 public class DocumentsController : ControllerBase
@@ -60,8 +60,10 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
 
@@ -71,7 +73,7 @@ public class DocumentsController : ControllerBase
         if (user.Role == UserRole.Admin)
         {
             var allDocuments = (await _repository.GetAllAsync())
-                .Where(d => d.CondominiumId == user.CondominiumId);
+                .Where(d => d.CondominiumId == condominiumId);
             var dtos = allDocuments.Select(d => new
             {
                 id = d.Id.ToString(),
@@ -131,11 +133,14 @@ public class DocumentsController : ControllerBase
 
     [HttpGet("paged")]
     public async Task<IActionResult> GetPaged(
+        [FromRoute] Guid condominiumId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null,
         [FromQuery] DocumentContext? context = null)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
@@ -174,7 +179,7 @@ public class DocumentsController : ControllerBase
         else
         {
             // Admin only sees documents from their condominium
-            documents = documents.Where(d => d.CondominiumId == user.CondominiumId).ToList();
+            documents = documents.Where(d => d.CondominiumId == condominiumId).ToList();
         }
 
         var ordered = documents.OrderByDescending(d => d.UploadedAt).AsEnumerable();
@@ -213,10 +218,13 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var document = await _repository.GetByIdAsync(id);
         if (document == null) return NotFound();
+        if (document.CondominiumId != condominiumId) return NotFound();
 
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
@@ -276,15 +284,17 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("by-context/{context}")]
-    public async Task<IActionResult> GetByContext(DocumentContext context)
+    public async Task<IActionResult> GetByContext([FromRoute] Guid condominiumId, DocumentContext context)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null) return Unauthorized();
 
         var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == context && d.CondominiumId == user.CondominiumId)
+            .Where(d => d.Context == context && d.CondominiumId == condominiumId)
             .OrderByDescending(d => d.UploadedAt)
             .ToList();
 
@@ -331,8 +341,10 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("unit/{unitId}")]
-    public async Task<IActionResult> GetByUnit(Guid unitId)
+    public async Task<IActionResult> GetByUnit([FromRoute] Guid condominiumId, Guid unitId)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
 
@@ -345,7 +357,7 @@ public class DocumentsController : ControllerBase
         }
 
         var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Unit && d.UnitId == unitId && d.CondominiumId == user.CondominiumId)
+            .Where(d => d.Context == DocumentContext.Unit && d.UnitId == unitId && d.CondominiumId == condominiumId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -371,10 +383,16 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("assembly/{assemblyId}")]
-    public async Task<IActionResult> GetByAssembly(Guid assemblyId)
+    public async Task<IActionResult> GetByAssembly([FromRoute] Guid condominiumId, Guid assemblyId)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
         var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Assembly && d.AssemblyId == assemblyId)
+            .Where(d => d.Context == DocumentContext.Assembly && d.AssemblyId == assemblyId && d.CondominiumId == condominiumId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -400,10 +418,16 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("maintenance/{maintenanceRequestId}")]
-    public async Task<IActionResult> GetByMaintenanceRequest(Guid maintenanceRequestId)
+    public async Task<IActionResult> GetByMaintenanceRequest([FromRoute] Guid condominiumId, Guid maintenanceRequestId)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
         var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Maintenance && d.MaintenanceRequestId == maintenanceRequestId)
+            .Where(d => d.Context == DocumentContext.Maintenance && d.MaintenanceRequestId == maintenanceRequestId && d.CondominiumId == condominiumId)
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -432,8 +456,10 @@ public class DocumentsController : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 104857600)] // 100 MB
     [RequestSizeLimit(104857600)] // 100 MB
-    public async Task<IActionResult> Upload([FromForm] UploadDocumentForm request)
+    public async Task<IActionResult> Upload([FromRoute] Guid condominiumId, [FromForm] UploadDocumentForm request)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var file = request.File;
         var name = request.Name;
         var type = request.Type;
@@ -493,6 +519,11 @@ public class DocumentsController : ControllerBase
             return BadRequest("User does not belong to a condominium");
         }
 
+        if (user.CondominiumId.Value != condominiumId)
+        {
+            return Forbid();
+        }
+
         // Validate context-specific IDs
         if (documentContext == DocumentContext.Unit && !unitGuid.HasValue)
         {
@@ -547,7 +578,7 @@ public class DocumentsController : ControllerBase
                 MimeType = file.ContentType,
                 UploadedAt = DateTime.UtcNow,
                 UploadedByUserId = userId,
-                CondominiumId = user.CondominiumId.Value,
+                CondominiumId = condominiumId,
                 UnitId = unitGuid,
                 AssemblyId = assemblyGuid,
                 MaintenanceRequestId = maintenanceGuid,
@@ -557,7 +588,7 @@ public class DocumentsController : ControllerBase
             await _repository.AddAsync(document);
             await _repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { id = document.Id }, document);
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = document.Id }, document);
         }
         catch (Exception ex)
         {
@@ -569,8 +600,10 @@ public class DocumentsController : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB total
     [RequestSizeLimit(524288000)] // 500 MB total
-    public async Task<IActionResult> UploadMultiple([FromForm] UploadMultipleDocumentsForm request)
+    public async Task<IActionResult> UploadMultiple([FromRoute] Guid condominiumId, [FromForm] UploadMultipleDocumentsForm request)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var files = request.Files;
         var context = request.Context;
         var unitId = request.UnitId;
@@ -628,6 +661,11 @@ public class DocumentsController : ControllerBase
             if (!user.CondominiumId.HasValue)
             {
                 return BadRequest("User does not belong to a condominium");
+            }
+
+            if (user.CondominiumId.Value != condominiumId)
+            {
+                return Forbid();
             }
 
             // Validate context-specific IDs
@@ -752,7 +790,7 @@ public class DocumentsController : ControllerBase
                         MimeType = file.ContentType,
                         UploadedAt = DateTime.UtcNow,
                         UploadedByUserId = userId,
-                        CondominiumId = user.CondominiumId.Value,
+                        CondominiumId = condominiumId,
                         UnitId = unitGuid,
                         AssemblyId = assemblyGuid,
                         MaintenanceRequestId = maintenanceGuid,
@@ -789,10 +827,13 @@ public class DocumentsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var document = await _repository.GetByIdAsync(id);
         if (document == null) return NotFound();
+        if (document.CondominiumId != condominiumId) return NotFound();
 
         try
         {
@@ -812,8 +853,10 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpGet("{id}/download")]
-    public async Task<IActionResult> Download(Guid id)
+    public async Task<IActionResult> Download([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!HasCondominiumAccess(condominiumId)) return Forbid();
+
         var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "");
         var user = await _userRepository.GetByIdAsync(userId);
 
@@ -823,10 +866,10 @@ public class DocumentsController : ControllerBase
         if (document == null)
         {
             var legacyProof = (await _paymentRepository.FindAsync(p => p.ProofOfPaymentUrl == id.ToString()))
-                .FirstOrDefault(p => p.CondominiumId == user.CondominiumId);
+                .FirstOrDefault(p => p.CondominiumId == condominiumId);
 
             var paymentById = await _paymentRepository.GetByIdAsync(id);
-            if (legacyProof == null && paymentById?.ProofOfPaymentUrl != null && paymentById.CondominiumId == user.CondominiumId)
+            if (legacyProof == null && paymentById?.ProofOfPaymentUrl != null && paymentById.CondominiumId == condominiumId)
             {
                 legacyProof = paymentById;
             }
@@ -866,6 +909,11 @@ public class DocumentsController : ControllerBase
             {
                 return StatusCode(500, "Error downloading document");
             }
+        }
+
+        if (document.CondominiumId != condominiumId)
+        {
+            return NotFound();
         }
 
         // Check permissions
@@ -911,6 +959,12 @@ public class DocumentsController : ControllerBase
         {
             return StatusCode(500, "Error downloading document");
         }
+    }
+
+    private bool HasCondominiumAccess(Guid condominiumId)
+    {
+        var claim = User.FindFirstValue("CondominiumId");
+        return Guid.TryParse(claim, out var jwtCondominiumId) && jwtCondominiumId == condominiumId;
     }
 }
 

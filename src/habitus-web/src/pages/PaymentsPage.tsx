@@ -54,9 +54,15 @@ export default function PaymentsPage() {
   const currentYear = new Date().getFullYear();
 
   const loadPayments = async () => {
+    if (!condominiumId) {
+      setPayments([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('Loading payments...');
-      const response = await paymentsApi.getMyPayments();
+      const response = await paymentsApi.getMyPayments(condominiumId);
       console.log('Payments loaded:', response.data);
       setPayments(response.data);
     } catch (error) {
@@ -94,6 +100,11 @@ export default function PaymentsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
     
     // Validate amount
     if (!form.amount || form.amount <= 0) {
@@ -130,7 +141,7 @@ export default function PaymentsPage() {
           periodPayload = { quotaPeriodicity: 'Annual', quotaMonthStart: 1, quotaMonthEnd: 12, quotaYear: currentYear };
         }
       }
-      const paymentResponse = await paymentsApi.create({ ...form, ...periodPayload });
+      const paymentResponse = await paymentsApi.create(condominiumId, { ...form, ...periodPayload });
       const paymentId = paymentResponse.data.id;
 
       // 2. Upload proof if provided (required for BankTransfer)
@@ -149,11 +160,11 @@ export default function PaymentsPage() {
         formData.append('description', `Comprovativo de pagamento - ${form.description}`);
         
         try {
-          const uploadResponse = await documentsApi.upload(formData);
+          const uploadResponse = await documentsApi.upload(condominiumId, formData);
           console.log('Upload response:', uploadResponse.data);
           // Store the document ID instead of filePath
           const proofUrl = uploadResponse.data.id;
-          await paymentsApi.uploadProof(paymentId, proofUrl);
+          await paymentsApi.uploadProof(condominiumId, paymentId, proofUrl);
         } catch (uploadError: unknown) {
           if (typeof uploadError === 'object' && uploadError !== null && 'response' in uploadError) {
             console.error('Upload error details:', (uploadError as { response?: { data?: unknown } }).response?.data);
@@ -184,8 +195,13 @@ export default function PaymentsPage() {
   };
 
   const handleCancel = async (paymentId: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await paymentsApi.cancel(paymentId);
+      await paymentsApi.cancel(condominiumId, paymentId);
       loadPayments();
       setSelectedPayment(null);
       setCancelPaymentId(null);
@@ -198,8 +214,13 @@ export default function PaymentsPage() {
   };
 
   const handleDownloadProof = async (paymentId: string, description: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await paymentsApi.downloadProof(paymentId, description);
+      await paymentsApi.downloadProof(condominiumId, paymentId, description);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao descarregar o comprovativo. Tente novamente.');
@@ -207,12 +228,17 @@ export default function PaymentsPage() {
   };
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     if (!payment.receiptNumber || !payment.receiptYear) {
       toastError('Este pagamento ainda não tem recibo emitido.');
       return;
     }
     try {
-      await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
+      await paymentsApi.downloadReceipt(condominiumId, payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
       toastError(getApiErrorMessage(error, 'Erro ao descarregar o recibo.'));

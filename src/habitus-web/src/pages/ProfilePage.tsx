@@ -145,7 +145,7 @@ export default function ProfilePage() {
             setUnit(unitResponse.data);
             
             // Load unit documents
-            loadUnitDocuments(currentUser.unitId);
+            loadUnitDocuments(currentUser.condominiumId, currentUser.unitId);
           } catch (err) {
             console.error('Failed to load unit:', err);
           }
@@ -273,9 +273,9 @@ export default function ProfilePage() {
     }
   };
 
-  const loadUnitDocuments = async (unitId: string) => {
+  const loadUnitDocuments = async (condominiumId: string, unitId: string) => {
     try {
-      const response = await documentsApi.getPaged(1, 100, '', 'Unit');
+      const response = await documentsApi.getPaged(condominiumId, 1, 100, '', 'Unit');
       // Filter documents by unitId
       const unitDocs = response.data.items.filter(doc => doc.unitId === unitId);
       setUnitDocuments(unitDocs);
@@ -286,7 +286,7 @@ export default function ProfilePage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !userData?.unitId) return;
+    if (!uploadFile || !userData?.unitId || !userData.condominiumId) return;
 
     setUploading(true);
     setError('');
@@ -300,13 +300,13 @@ export default function ProfilePage() {
       formData.append('description', uploadForm.description);
       formData.append('unitId', userData.unitId);
 
-      await documentsApi.upload(formData);
+      await documentsApi.upload(userData.condominiumId, formData);
       setSuccess('Documento carregado com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
-      loadUnitDocuments(userData.unitId);
+      loadUnitDocuments(userData.condominiumId, userData.unitId);
     } catch (err) {
       setError('Erro ao carregar documento');
       console.error(err);
@@ -320,12 +320,12 @@ export default function ProfilePage() {
   };
 
   const confirmDeleteDoc = async () => {
-    if (!deleteDocId || !userData?.unitId) return;
+    if (!deleteDocId || !userData?.unitId || !userData.condominiumId) return;
     try {
-      await documentsApi.delete(deleteDocId);
+      await documentsApi.delete(userData.condominiumId, deleteDocId);
       setSuccess('Documento eliminado com sucesso!');
       setTimeout(() => setSuccess(''), 3000);
-      loadUnitDocuments(userData.unitId);
+      loadUnitDocuments(userData.condominiumId, userData.unitId);
     } catch (err) {
       toastError('Erro ao eliminar documento.');
       console.error(err);
@@ -335,8 +335,13 @@ export default function ProfilePage() {
   };
 
   const handleDownload = async (id: string, fileName: string) => {
+    if (!userData?.condominiumId) {
+      setError('Condomínio não identificado.');
+      return;
+    }
+
     try {
-      await documentsApi.download(id, fileName);
+      await documentsApi.download(userData.condominiumId, id, fileName);
     } catch (err) {
       setError('Erro ao baixar documento');
       console.error(err);

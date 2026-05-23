@@ -180,14 +180,14 @@ export const unitsApi = {
 };
 
 export const maintenanceApi = {
-  getAll: () => api.get<MaintenanceRequestDto[]>('/maintenance'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<MaintenanceRequestDto>(`/maintenance/${id}`),
-  create: (data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>('/maintenance', data),
-  update: (id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
-    api.put<MaintenanceRequestDto>(`/maintenance/${id}`, data),
-  updateStatus: (id: string, data: { 
+  getAll: (condominiumId: string) => api.get<MaintenanceRequestDto[]>(`/condominiums/${condominiumId}/maintenance`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`),
+  create: (condominiumId: string, data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance`, data),
+  update: (condominiumId: string, id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
+    api.put<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`, data),
+  updateStatus: (condominiumId: string, id: string, data: { 
     status: string; 
     supplierId?: string; 
     adminComments?: string;
@@ -195,34 +195,34 @@ export const maintenanceApi = {
     expenseAmount?: number;
     invoiceDocumentId?: string;
   }) =>
-    api.put<MaintenanceRequestDto>(`/maintenance/${id}/status`, data),
-  delete: (id: string) => api.delete(`/maintenance/${id}`),
+    api.put<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}/status`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/maintenance/${id}`),
 };
 
 export const financialApi = {
-  getAll: () => api.get<FinancialRecordDto[]>('/financial'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<FinancialRecordDto>>(`/financial/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getSummary: (condominiumId: string) => api.get<FinancialSummaryDto>(`/financial/summary/${condominiumId}`),
+  getAll: (condominiumId: string) => api.get<FinancialRecordDto[]>(`/condominiums/${condominiumId}/financial`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getSummary: (condominiumId: string) => api.get<FinancialSummaryDto>(`/condominiums/${condominiumId}/financial/summary`),
   getDashboard: (condominiumId: string, fiscalYear?: number) =>
-    api.get<FinancialDashboardDto>(`/financial/dashboard/${condominiumId}${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
-  getFiscalYears: (condominiumId: string) => api.get<number[]>(`/financial/fiscal-years/${condominiumId}`),
+    api.get<FinancialDashboardDto>(`/condominiums/${condominiumId}/financial/dashboard${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
+  getFiscalYears: (condominiumId: string) => api.get<number[]>(`/condominiums/${condominiumId}/financial/fiscal-years`),
   getByYear: (condominiumId: string, fiscalYear: number, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<FinancialRecordDto>>(`/financial/by-year/${condominiumId}?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  create: (data: CreateFinancialRecordRequest) => api.post<FinancialRecordDto>('/financial', data),
-  delete: (id: string) => api.delete(`/financial/${id}`),
+    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/by-year?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  create: (condominiumId: string, data: CreateFinancialRecordRequest) => api.post<FinancialRecordDto>(`/condominiums/${condominiumId}/financial`, data),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/financial/${id}`),
   
   // Reserve Fund
   getReserveFund: (condominiumId: string, fiscalYear?: number) =>
-    api.get<ReserveFundDto>(`/financial/reserve-fund/${condominiumId}${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
+    api.get<ReserveFundDto>(`/condominiums/${condominiumId}/financial/reserve-fund${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
   getCurrentReserveFund: (condominiumId: string) =>
-    api.get<ReserveFundDto>(`/financial/reserve-fund/${condominiumId}/current`),
+    api.get<ReserveFundDto>(`/condominiums/${condominiumId}/financial/reserve-fund/current`),
   getReserveFundHistory: (condominiumId: string) =>
-    api.get<ReserveFundDto[]>(`/financial/reserve-fund/${condominiumId}/history`),
+    api.get<ReserveFundDto[]>(`/condominiums/${condominiumId}/financial/reserve-fund/history`),
   addDeposit: (condominiumId: string, amount: number) =>
-    api.post<ReserveFundDto>(`/financial/reserve-fund/${condominiumId}/deposit`, { deposits: amount }),
+    api.post<ReserveFundDto>(`/condominiums/${condominiumId}/financial/reserve-fund/deposit`, { deposits: amount }),
   addWithdrawal: (condominiumId: string, amount: number) =>
-    api.post<ReserveFundDto>(`/financial/reserve-fund/${condominiumId}/withdrawal`, { withdrawals: amount }),
+    api.post<ReserveFundDto>(`/condominiums/${condominiumId}/financial/reserve-fund/withdrawal`, { withdrawals: amount }),
 };
 
 export const notificationsApi = {
@@ -268,22 +268,22 @@ export const sharedSpacesApi = {
 };
 
 export const documentsApi = {
-  getAll: () => api.get<DocumentDto[]>('/documents'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string, context?: string) =>
-    api.get<PaginatedResponse<DocumentDto>>(`/documents/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${context ? `&context=${context}` : ''}`),
-  getById: (id: string) => api.get<DocumentDto>(`/documents/${id}`),
-  getByContext: (context: string) => api.get<DocumentDto[]>(`/documents/by-context/${context}`),
-  getByUnit: (unitId: string) => api.get<DocumentDto[]>(`/documents/unit/${unitId}`),
-  getByAssembly: (assemblyId: string) => api.get<DocumentDto[]>(`/documents/assembly/${assemblyId}`),
-  getByMaintenance: (maintenanceId: string) => api.get<DocumentDto[]>(`/documents/maintenance/${maintenanceId}`),
-  upload: (formData: FormData) => api.post<DocumentDto>('/documents/upload', formData, {
+  getAll: (condominiumId: string) => api.get<DocumentDto[]>(`/condominiums/${condominiumId}/documents`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string, context?: string) =>
+    api.get<PaginatedResponse<DocumentDto>>(`/condominiums/${condominiumId}/documents/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${context ? `&context=${context}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<DocumentDto>(`/condominiums/${condominiumId}/documents/${id}`),
+  getByContext: (condominiumId: string, context: string) => api.get<DocumentDto[]>(`/condominiums/${condominiumId}/documents/by-context/${context}`),
+  getByUnit: (condominiumId: string, unitId: string) => api.get<DocumentDto[]>(`/condominiums/${condominiumId}/documents/unit/${unitId}`),
+  getByAssembly: (condominiumId: string, assemblyId: string) => api.get<DocumentDto[]>(`/condominiums/${condominiumId}/documents/assembly/${assemblyId}`),
+  getByMaintenance: (condominiumId: string, maintenanceId: string) => api.get<DocumentDto[]>(`/condominiums/${condominiumId}/documents/maintenance/${maintenanceId}`),
+  upload: (condominiumId: string, formData: FormData) => api.post<DocumentDto>(`/condominiums/${condominiumId}/documents/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  uploadMultiple: (formData: FormData) => api.post<{ success: number; failed: number; documents: DocumentDto[]; errors: string[] }>('/documents/upload-multiple', formData, {
+  uploadMultiple: (condominiumId: string, formData: FormData) => api.post<{ success: number; failed: number; documents: DocumentDto[]; errors: string[] }>(`/condominiums/${condominiumId}/documents/upload-multiple`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  download: async (id: string, fileName: string) => {
-    const response = await api.get(`/documents/${id}/download`, {
+  download: async (condominiumId: string, id: string, fileName: string) => {
+    const response = await api.get(`/condominiums/${condominiumId}/documents/${id}/download`, {
       responseType: 'blob',
     });
     // Get the content type from response headers
@@ -309,21 +309,21 @@ export const documentsApi = {
     link.remove();
     window.URL.revokeObjectURL(url);
   },
-  delete: (id: string) => api.delete(`/documents/${id}`),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/documents/${id}`),
 };
 
 export const assembliesApi = {
-  getAll: () => api.get<AssemblyDto[]>('/assemblies'),
-  getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<AssemblyDto>>(`/assemblies/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<AssemblyDto>(`/assemblies/${id}`),
-  create: (data: CreateAssemblyRequest) => api.post<AssemblyDto>('/assemblies', data),
-  update: (id: string, data: UpdateAssemblyRequest) => api.put<AssemblyDto>(`/assemblies/${id}`, data),
-  updateMinutes: (id: string, minutes: string) => api.put<AssemblyDto>(`/assemblies/${id}/minutes`, { minutes }),
-  updateMinutesDraft: (id: string, minutes: string) => api.put<AssemblyDto>(`/assemblies/${id}/draft-minutes`, { minutes }),
-  updateNotes: (id: string, notes: string) => api.put<AssemblyDto>(`/assemblies/${id}/notes`, { notes }),
-  cancel: (id: string, cancellationReason: string) => api.put<AssemblyDto>(`/assemblies/${id}/cancel`, { cancellationReason }),
-  delete: (id: string) => api.delete(`/assemblies/${id}`),
+  getAll: (condominiumId: string) => api.get<AssemblyDto[]>(`/condominiums/${condominiumId}/assemblies`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
+    api.get<PaginatedResponse<AssemblyDto>>(`/condominiums/${condominiumId}/assemblies/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (condominiumId: string, id: string) => api.get<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}`),
+  create: (condominiumId: string, data: CreateAssemblyRequest) => api.post<AssemblyDto>(`/condominiums/${condominiumId}/assemblies`, data),
+  update: (condominiumId: string, id: string, data: UpdateAssemblyRequest) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}`, data),
+  updateMinutes: (condominiumId: string, id: string, minutes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/minutes`, { minutes }),
+  updateMinutesDraft: (condominiumId: string, id: string, minutes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/draft-minutes`, { minutes }),
+  updateNotes: (condominiumId: string, id: string, notes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/notes`, { notes }),
+  cancel: (condominiumId: string, id: string, cancellationReason: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/cancel`, { cancellationReason }),
+  delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/assemblies/${id}`),
 };
 
 export const suppliersApi = {
@@ -351,12 +351,12 @@ export const usefulContactsApi = {
 
 export const paymentsApi = {
   // Resident endpoints
-  create: (data: CreatePaymentRequest) => api.post<PaymentDto>('/payments', data),
-  getMyPayments: () => api.get<PaymentDto[]>('/payments'),
-  getById: (id: string) => api.get<PaymentDto>(`/payments/${id}`),
-  uploadProof: (id: string, proofUrl: string) => api.post(`/payments/${id}/proof`, { proofUrl }),
-  downloadProof: async (id: string, description: string) => {
-    const response = await api.get(`/payments/${id}/proof/download`, {
+  create: (condominiumId: string, data: CreatePaymentRequest) => api.post<PaymentDto>(`/condominiums/${condominiumId}/payments`, data),
+  getMyPayments: (condominiumId: string) => api.get<PaymentDto[]>(`/condominiums/${condominiumId}/payments`),
+  getById: (condominiumId: string, id: string) => api.get<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}`),
+  uploadProof: (condominiumId: string, id: string, proofUrl: string) => api.post(`/condominiums/${condominiumId}/payments/${id}/proof`, { proofUrl }),
+  downloadProof: async (condominiumId: string, id: string, description: string) => {
+    const response = await api.get(`/condominiums/${condominiumId}/payments/${id}/proof/download`, {
       responseType: 'blob',
     });
 
@@ -381,17 +381,17 @@ export const paymentsApi = {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   },
-  cancel: (id: string) => api.put<PaymentDto>(`/payments/${id}/cancel`),
+  cancel: (condominiumId: string, id: string) => api.put<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}/cancel`),
   
   // Admin endpoints
-  getPending: () => api.get<PaymentDto[]>('/payments/pending'),
-  getPaged: (page: number = 1, pageSize: number = 10) =>
-    api.get<PaginatedResponse<PaymentDto>>(`/payments/paged?page=${page}&pageSize=${pageSize}`),
-  approve: (id: string, data?: ApprovePaymentRequest) => api.put<PaymentDto>(`/payments/${id}/approve`, data || {}),
-  reject: (id: string, data: RejectPaymentRequest) => api.put<PaymentDto>(`/payments/${id}/reject`, data),
-  issueReceipt: (id: string) => api.post(`/payments/${id}/issue-receipt`),
-  downloadReceipt: async (id: string, receiptNumber: number, receiptYear: number) => {
-    const response = await api.get(`/payments/${id}/receipt`, { responseType: 'blob' });
+  getPending: (condominiumId: string) => api.get<PaymentDto[]>(`/condominiums/${condominiumId}/payments/pending`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10) =>
+    api.get<PaginatedResponse<PaymentDto>>(`/condominiums/${condominiumId}/payments/paged?page=${page}&pageSize=${pageSize}`),
+  approve: (condominiumId: string, id: string, data?: ApprovePaymentRequest) => api.put<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}/approve`, data || {}),
+  reject: (condominiumId: string, id: string, data: RejectPaymentRequest) => api.put<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}/reject`, data),
+  issueReceipt: (condominiumId: string, id: string) => api.post(`/condominiums/${condominiumId}/payments/${id}/issue-receipt`),
+  downloadReceipt: async (condominiumId: string, id: string, receiptNumber: number, receiptYear: number) => {
+    const response = await api.get(`/condominiums/${condominiumId}/payments/${id}/receipt`, { responseType: 'blob' });
     const blob = new Blob([response.data], { type: 'application/pdf' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -467,6 +467,10 @@ export const announcementsApi = {
   uploadAttachment: (condominiumId: string, id: string, formData: FormData) =>
     api.post<AnnouncementAttachmentDto>(`/condominiums/${condominiumId}/announcements/${id}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  downloadAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
+    api.get(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}/download`, {
+      responseType: 'blob',
     }),
   deleteAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
     api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}`),

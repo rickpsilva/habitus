@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/payments")]
+[Route("api/condominiums/{condominiumId:guid}/payments")]
 [Authorize]
 public class PaymentsController : ControllerBase
 {
@@ -35,22 +35,24 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Resident,Admin")]
-    public async Task<IActionResult> Create([FromBody] CreatePaymentRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreatePaymentRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (IsAdminWithoutAssignedUnit())
                 return Forbid();
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var unitId = Guid.Parse(User.FindFirstValue("UnitId")!);
-            var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
 
             var result = await _service.CreateAsync(request, userId, unitId, condominiumId);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = result.Id }, result);
         }
         catch (Exception ex)
         {
@@ -62,12 +64,18 @@ public class PaymentsController : ControllerBase
     /// Get payment by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             var payment = await _service.GetByIdAsync(id);
             if (payment == null)
+                return NotFound();
+
+            if (payment.CondominiumId != condominiumId)
                 return NotFound();
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -90,16 +98,19 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpGet]
     [Authorize(Roles = "Resident,Admin")]
-    public async Task<IActionResult> GetMyPayments()
+    public async Task<IActionResult> GetMyPayments([FromRoute] Guid condominiumId)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (IsAdminWithoutAssignedUnit())
                 return Forbid();
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var payments = await _service.GetByResidentAsync(userId);
-            return Ok(payments);
+            return Ok(payments.Where(p => p.CondominiumId == condominiumId));
         }
         catch (Exception ex)
         {
@@ -112,11 +123,13 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpGet("pending")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetPending()
+    public async Task<IActionResult> GetPending([FromRoute] Guid condominiumId)
     {
         try
         {
-            var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             var payments = await _service.GetPendingAsync(condominiumId);
             return Ok(payments);
         }
@@ -131,14 +144,16 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpGet("paged")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (page < 1) page = 1;
             if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-            var condominiumId = Guid.Parse(User.FindFirstValue("CondominiumId")!);
             var result = await _service.GetPagedAsync(condominiumId, page, pageSize);
             return Ok(result);
         }
@@ -153,10 +168,17 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPut("{id}/approve")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Approve(Guid id, [FromBody] ApprovePaymentRequest? request)
+    public async Task<IActionResult> Approve([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] ApprovePaymentRequest? request)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null || payment.CondominiumId != condominiumId)
+                return NotFound();
+
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var result = await _service.ApproveAsync(id, userId, request);
             return Ok(result);
@@ -176,12 +198,19 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPut("{id}/reject")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectPaymentRequest request)
+    public async Task<IActionResult> Reject([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] RejectPaymentRequest request)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null || payment.CondominiumId != condominiumId)
+                return NotFound();
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var result = await _service.RejectAsync(id, userId, request);
@@ -202,12 +231,19 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPut("{id}/cancel")]
     [Authorize(Roles = "Resident,Admin")]
-    public async Task<IActionResult> Cancel(Guid id)
+    public async Task<IActionResult> Cancel([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (IsAdminWithoutAssignedUnit())
                 return Forbid();
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null || payment.CondominiumId != condominiumId)
+                return NotFound(new { message = "Pagamento não encontrado." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var result = await _service.CancelAsync(id, userId);
@@ -236,15 +272,22 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPost("{id}/proof")]
     [Authorize(Roles = "Resident,Admin")]
-    public async Task<IActionResult> UploadProof(Guid id, [FromBody] UploadProofRequest request)
+    public async Task<IActionResult> UploadProof([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UploadProofRequest request)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (string.IsNullOrWhiteSpace(request.ProofUrl))
                 return BadRequest(new { message = "O comprovativo de pagamento é obrigatório." });
 
             if (IsAdminWithoutAssignedUnit())
                 return Forbid();
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null || payment.CondominiumId != condominiumId)
+                return NotFound(new { message = "Pagamento não encontrado ou não pode ser atualizado." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var success = await _service.UpdateProofOfPaymentAsync(id, request.ProofUrl, userId);
@@ -265,15 +308,21 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpGet("{id}/proof/download")]
     [Authorize(Roles = "Resident,Admin")]
-    public async Task<IActionResult> DownloadProof(Guid id)
+    public async Task<IActionResult> DownloadProof([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             if (IsAdminWithoutAssignedUnit())
                 return Forbid();
 
             var payment = await _service.GetByIdAsync(id);
             if (payment == null)
+                return NotFound(new { message = "Pagamento não encontrado." });
+
+            if (payment.CondominiumId != condominiumId)
                 return NotFound(new { message = "Pagamento não encontrado." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -325,19 +374,26 @@ public class PaymentsController : ControllerBase
     /// </summary>
     [HttpPost("{id}/issue-receipt")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> IssueReceipt(Guid id)
+    public async Task<IActionResult> IssueReceipt([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
+            var payment = await _service.GetByIdAsync(id);
+            if (payment == null || payment.CondominiumId != condominiumId)
+                return NotFound();
+
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var pdfPath = await _receiptService.GenerateReceiptPdfAsync(id, userId);
             
             // Refresh payment to get updated receipt info
-            var payment = await _service.GetByIdAsync(id);
+            var updatedPayment = await _service.GetByIdAsync(id);
             return Ok(new { message = "Recibo emitido com sucesso.", receipt = new { 
-                number = payment?.ReceiptNumber, 
-                year = payment?.ReceiptYear,
-                issuedDate = payment?.ReceiptIssuedDate,
+                number = updatedPayment?.ReceiptNumber, 
+                year = updatedPayment?.ReceiptYear,
+                issuedDate = updatedPayment?.ReceiptIssuedDate,
                 pdfPath = pdfPath
             }});
         }
@@ -355,12 +411,18 @@ public class PaymentsController : ControllerBase
     /// Download receipt PDF for a payment
     /// </summary>
     [HttpGet("{id}/receipt")]
-    public async Task<IActionResult> DownloadReceipt(Guid id)
+    public async Task<IActionResult> DownloadReceipt([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         try
         {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
             var payment = await _service.GetByIdAsync(id);
             if (payment == null)
+                return NotFound(new { message = "Pagamento não encontrado." });
+
+            if (payment.CondominiumId != condominiumId)
                 return NotFound(new { message = "Pagamento não encontrado." });
 
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -368,6 +430,9 @@ public class PaymentsController : ControllerBase
 
             // Residents can only download their own receipts
             if (!isAdmin && payment.ResidentId != userId)
+                return Forbid();
+
+            if (isAdmin && !HasCondominiumAccess(condominiumId))
                 return Forbid();
 
             if (string.IsNullOrEmpty(payment.ReceiptPdfPath) || !payment.ReceiptNumber.HasValue)
@@ -392,6 +457,12 @@ public class PaymentsController : ControllerBase
     private bool IsAdminWithoutAssignedUnit()
     {
         return User.IsInRole("Admin") && !Guid.TryParse(User.FindFirstValue("UnitId"), out _);
+    }
+
+    private bool HasCondominiumAccess(Guid condominiumId)
+    {
+        return Guid.TryParse(User.FindFirstValue("CondominiumId"), out var claimCondominiumId)
+            && claimCondominiumId == condominiumId;
     }
 }
 

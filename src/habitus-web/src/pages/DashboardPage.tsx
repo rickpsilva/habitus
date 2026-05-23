@@ -132,12 +132,11 @@ export default function DashboardPage() {
     // Get current user ID
     usersApi.getMe().then((r) => setUserId(r.data.id)).catch(() => {});
     
-    maintenanceApi.getAll().then((r) => {
-      const scoped = condominiumId
-        ? r.data.filter((m) => m.condominiumId === condominiumId)
-        : [];
-      setMaintenance(scoped);
-    }).catch(() => {});
+    if (condominiumId) {
+      maintenanceApi.getAll(condominiumId).then((r) => {
+        setMaintenance(r.data);
+      }).catch(() => {});
+    }
     if (condominiumId) {
       notificationsApi.getAll(condominiumId, 1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
     }
