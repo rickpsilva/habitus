@@ -260,7 +260,7 @@ export default function ProfilePage() {
   };
 
   const handleStartProviderLink = (provider: 'google' | 'microsoft') => {
-    window.location.href = `/api/auth/external/${provider}/link`;
+    window.location.href = `/api/platform/auth/external/${provider}/link`;
   };
 
   const handleUnlinkProvider = async (provider: 'google' | 'microsoft') => {

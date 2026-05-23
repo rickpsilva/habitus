@@ -88,39 +88,39 @@ import type {
 } from '../types';
 
 export const authApi = {
-  login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
-  completeTwoFactorLogin: (data: CompleteTwoFactorLoginRequest) => api.post<AuthResponse>('/auth/login/2fa', data),
-  register: (data: RegisterRequest) => api.post<AuthResponse>('/auth/register', data),
-  forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
+  login: (data: LoginRequest) => api.post<AuthResponse>('/platform/auth/login', data),
+  completeTwoFactorLogin: (data: CompleteTwoFactorLoginRequest) => api.post<AuthResponse>('/platform/auth/login/2fa', data),
+  register: (data: RegisterRequest) => api.post<AuthResponse>('/platform/auth/register', data),
+  forgotPassword: (data: { email: string }) => api.post('/platform/auth/forgot-password', data),
   resetPassword: (data: { email: string; token: string; newPassword: string }) =>
-    api.post('/auth/reset-password', data),
-  getSecurityOverview: () => api.get<TwoFactorSecurityResponse>('/auth/security'),
-  setupTwoFactor: () => api.post<TwoFactorSetupResponse>('/auth/2fa/setup'),
+    api.post('/platform/auth/reset-password', data),
+  getSecurityOverview: () => api.get<TwoFactorSecurityResponse>('/platform/auth/security'),
+  setupTwoFactor: () => api.post<TwoFactorSetupResponse>('/platform/auth/2fa/setup'),
   verifyTwoFactorSetup: (data: VerifyTwoFactorSetupRequest) =>
-    api.post<TwoFactorSetupCompleteResponse>('/auth/2fa/verify-setup', data),
-  disableTwoFactor: (data: DisableTwoFactorRequest) => api.post('/auth/2fa/disable', data),
+    api.post<TwoFactorSetupCompleteResponse>('/platform/auth/2fa/verify-setup', data),
+  disableTwoFactor: (data: DisableTwoFactorRequest) => api.post('/platform/auth/2fa/disable', data),
   regenerateRecoveryCodes: (data: RegenerateRecoveryCodesRequest) =>
-    api.post<RecoveryCodesResponse>('/auth/2fa/recovery-codes/regenerate', data),
-  unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/auth/providers/${provider}`),
+    api.post<RecoveryCodesResponse>('/platform/auth/2fa/recovery-codes/regenerate', data),
+  unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/platform/auth/providers/${provider}`),
 };
 
 // New users API
 export const usersApi = {
-  getAll: () => api.get<UserDto[]>('/users'),
+  getAll: () => api.get<UserDto[]>('/platform/users'),
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<UserDto>>(`/users/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getByCondominium: (condominiumId: string) => api.get<UserDto[]>(`/users/condominium/${condominiumId}`),
+    api.get<PaginatedResponse<UserDto>>(`/platform/users/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getByCondominium: (condominiumId: string) => api.get<UserDto[]>(`/platform/users/condominium/${condominiumId}`),
   getByCondominiumPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<UserDto>>(`/users/condominium/${condominiumId}/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getMe: () => api.get<UserDto>('/users/me'),
-  getById: (id: string) => api.get<UserDto>(`/users/${id}`),
+    api.get<PaginatedResponse<UserDto>>(`/platform/users/condominium/${condominiumId}/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getMe: () => api.get<UserDto>('/platform/users/me'),
+  getById: (id: string) => api.get<UserDto>(`/platform/users/${id}`),
   create: (data: CreateUserRequest) => {
     // Convert role to string if it's a number
     const payload = {
       ...data,
       role: typeof data.role === 'number' ? data.role.toString() : data.role,
     };
-    return api.post<UserDto>('/users', payload);
+    return api.post<UserDto>('/platform/users', payload);
   },
   update: (id: string, data: UpdateUserRequest) => {
     // Convert role to string if it's a number for backend compatibility
@@ -128,30 +128,30 @@ export const usersApi = {
       ...data,
       role: typeof data.role === 'number' ? data.role.toString() : data.role,
     };
-    return api.put<UserDto>(`/users/${id}`, payload);
+    return api.put<UserDto>(`/platform/users/${id}`, payload);
   },
   updatePassword: (id: string, data: { currentPassword: string; newPassword: string }) =>
-    api.put(`/users/${id}/password`, data),
+    api.put(`/platform/users/${id}/password`, data),
   getActiveLastMonthByCondominium: () =>
-    api.get<CondominiumActiveUsersDto[]>('/users/active-last-month-by-condominium'),
-  delete: (id: string) => api.delete(`/users/${id}`),
+    api.get<CondominiumActiveUsersDto[]>('/platform/users/active-last-month-by-condominium'),
+  delete: (id: string) => api.delete(`/platform/users/${id}`),
 };
 
 // New condominiums API
 export const condominiumsApi = {
-  getAll: () => api.get<CondominiumDto[]>('/condominiums'),
-  getPublic: () => api.get<CondominiumPublicDto[]>('/condominiums/public'),
+  getAll: () => api.get<CondominiumDto[]>('/platform/condominiums'),
+  getPublic: () => api.get<CondominiumPublicDto[]>('/platform/condominiums/public'),
   getUnitsPublic: (condominiumId: string) =>
-    api.get<UnitPublicDto[]>(`/condominiums/${condominiumId}/units/public`),
+    api.get<UnitPublicDto[]>(`/platform/condominiums/${condominiumId}/units/public`),
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<CondominiumDto>>(`/condominiums/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getById: (id: string) => api.get<CondominiumDto>(`/condominiums/${id}`),
-  create: (data: CreateCondominiumRequest) => api.post<CondominiumDto>('/condominiums', data),
+    api.get<PaginatedResponse<CondominiumDto>>(`/platform/condominiums/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getById: (id: string) => api.get<CondominiumDto>(`/platform/condominiums/${id}`),
+  create: (data: CreateCondominiumRequest) => api.post<CondominiumDto>('/platform/condominiums', data),
   update: (id: string, data: UpdateCondominiumRequest) =>
-    api.put<CondominiumDto>(`/condominiums/${id}`, data),
+    api.put<CondominiumDto>(`/platform/condominiums/${id}`, data),
   updateEmail: (id: string, email?: string) =>
-    api.put<CondominiumDto>(`/condominiums/${id}/email`, { email }),
-  delete: (id: string) => api.delete(`/condominiums/${id}`),
+    api.put<CondominiumDto>(`/platform/condominiums/${id}/email`, { email }),
+  delete: (id: string) => api.delete(`/platform/condominiums/${id}`),
 };
 
 // Deprecated - use usersApi instead
@@ -477,57 +477,57 @@ export const announcementsApi = {
 };
 
 export const subscriptionsApi = {
-  getPlans: () => api.get<SubscriptionPlanDto[]>('/subscriptions/plans'),
-  getPlanById: (id: string) => api.get<SubscriptionPlanDto>(`/subscriptions/plans/${id}`),
-  getFeatureCatalog: () => api.get<FeatureCatalogItemDto[]>('/subscriptions/features/catalog'),
-  createPlan: (data: CreateSubscriptionPlanRequest) => api.post<SubscriptionPlanDto>('/subscriptions/plans', data),
-  updatePlan: (id: string, data: UpdateSubscriptionPlanRequest) => api.put<SubscriptionPlanDto>(`/subscriptions/plans/${id}`, data),
-  resetDefaultPlans: () => api.post<SubscriptionPlanDto[]>('/subscriptions/plans/reset-defaults', {}),
-  getAll: () => api.get<CondominiumSubscriptionDto[]>('/subscriptions'),
-  getStats: () => api.get<SubscriptionStatsDto>('/subscriptions/stats'),
-  getMy: () => api.get<CondominiumSubscriptionDto>('/subscriptions/my'),
-  assign: (data: AssignSubscriptionRequest) => api.post<CondominiumSubscriptionDto>('/subscriptions', data),
-  cancel: (id: string) => api.delete(`/subscriptions/${id}`),
+  getPlans: () => api.get<SubscriptionPlanDto[]>('/platform/subscriptions/plans'),
+  getPlanById: (id: string) => api.get<SubscriptionPlanDto>(`/platform/subscriptions/plans/${id}`),
+  getFeatureCatalog: () => api.get<FeatureCatalogItemDto[]>('/platform/subscriptions/features/catalog'),
+  createPlan: (data: CreateSubscriptionPlanRequest) => api.post<SubscriptionPlanDto>('/platform/subscriptions/plans', data),
+  updatePlan: (id: string, data: UpdateSubscriptionPlanRequest) => api.put<SubscriptionPlanDto>(`/platform/subscriptions/plans/${id}`, data),
+  resetDefaultPlans: () => api.post<SubscriptionPlanDto[]>('/platform/subscriptions/plans/reset-defaults', {}),
+  getAll: () => api.get<CondominiumSubscriptionDto[]>('/platform/subscriptions'),
+  getStats: () => api.get<SubscriptionStatsDto>('/platform/subscriptions/stats'),
+  getMy: () => api.get<CondominiumSubscriptionDto>('/platform/subscriptions/my'),
+  assign: (data: AssignSubscriptionRequest) => api.post<CondominiumSubscriptionDto>('/platform/subscriptions', data),
+  cancel: (id: string) => api.delete(`/platform/subscriptions/${id}`),
 };
 
 export const userRegistrationApi = {
   registerResident: (condominiumId: string, data: RegisterResidentRequest) =>
-    api.post<{ message: string }>(`/user/register/${condominiumId}/resident`, data),
-  getPendingUsers: () => api.get<PendingUserDto[]>('/user/pending'),
-  approveUser: (userId: string) => api.post<{ message: string }>(`/user/pending/${userId}/approve`, {}),
-  rejectUser: (userId: string) => api.delete<{ message: string }>(`/user/pending/${userId}/reject`),
+    api.post<{ message: string }>(`/platform/userregistration/register/${condominiumId}/resident`, data),
+  getPendingUsers: () => api.get<PendingUserDto[]>('/platform/userregistration/pending'),
+  approveUser: (userId: string) => api.post<{ message: string }>(`/platform/userregistration/pending/${userId}/approve`, {}),
+  rejectUser: (userId: string) => api.delete<{ message: string }>(`/platform/userregistration/pending/${userId}/reject`),
 };
 
 export const invoicesApi = {
   list: (condominiumId: string) =>
-    api.get<InvoiceDto[]>(`/invoices/${condominiumId}`),
+    api.get<InvoiceDto[]>(`/platform/invoices/${condominiumId}`),
   get: (invoiceId: string) =>
-    api.get<InvoiceDto>(`/invoices/detail/${invoiceId}`),
+    api.get<InvoiceDto>(`/platform/invoices/detail/${invoiceId}`),
   markPaid: (invoiceId: string, data: MarkInvoicePaidRequest) =>
-    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/mark-paid`, data),
+    api.post<InvoiceDto>(`/platform/invoices/detail/${invoiceId}/mark-paid`, data),
   cancel: (invoiceId: string, data: CancelInvoiceRequest) =>
-    api.post<InvoiceDto>(`/invoices/detail/${invoiceId}/cancel`, data),
+    api.post<InvoiceDto>(`/platform/invoices/detail/${invoiceId}/cancel`, data),
   generateDue: () =>
-    api.post<{ message: string }>('/invoices/generate-due', {}),
+    api.post<{ message: string }>('/platform/invoices/generate-due', {}),
   initiatePayment: (invoiceId: string) =>
-    api.post<InitiateInvoicePaymentResponse>(`/invoices/detail/${invoiceId}/initiate-payment`, {}),
+    api.post<InitiateInvoicePaymentResponse>(`/platform/invoices/detail/${invoiceId}/initiate-payment`, {}),
   exportSaftJson: (condominiumId: string, year: number) =>
-    api.get(`/invoices/${condominiumId}/saft?year=${year}`),
+    api.get(`/platform/invoices/${condominiumId}/saft?year=${year}`),
   saftXmlUrl: (condominiumId: string, year: number) =>
-    `/api/invoices/${condominiumId}/saft?year=${year}&format=xml`,
+    `/api/platform/invoices/${condominiumId}/saft?year=${year}&format=xml`,
 };
 
 export const platformBillingSettingsApi = {
-  get: () => api.get<PlatformBillingSettingsDto>('/platform/billing-settings'),
+  get: () => api.get<PlatformBillingSettingsDto>('/platform/platformbillingsettings'),
   update: (data: UpdatePlatformBillingSettingsRequest) =>
-    api.put<PlatformBillingSettingsDto>('/platform/billing-settings', data),
+    api.put<PlatformBillingSettingsDto>('/platform/platformbillingsettings', data),
 };
 
 
 
 export const systemEmailSettingsApi = {
-  get: () => api.get<SystemEmailSettingsDto>('/platform/system-email-settings'),
+  get: () => api.get<SystemEmailSettingsDto>('/platform/systememailsettings'),
   update: (data: UpdateSystemEmailSettingsRequest) =>
-    api.put<SystemEmailSettingsDto>('/platform/system-email-settings', data),
-  test: () => api.post<{ message: string }>('/platform/system-email-settings/test', {}),
+    api.put<SystemEmailSettingsDto>('/platform/systememailsettings', data),
+  test: () => api.post<{ message: string }>('/platform/systememailsettings/test', {}),
 };

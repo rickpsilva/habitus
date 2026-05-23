@@ -109,9 +109,9 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 
 | Controller | Base Path |
 |-----------|-----------|
-| Auth | `/api/auth` |
-| Users | `/api/users` |
-| Condominiums | `/api/condominiums` |
+| Auth | `/api/platform/auth` |
+| Users | `/api/platform/users` |
+| Condominiums | `/api/platform/condominiums` |
 | Residents | `/api/residents` |
 | Units | `/api/condominiums/{condominiumId}/units` |
 | Documents | `/api/condominiums/{condominiumId}/documents` |
@@ -123,9 +123,9 @@ Copy `src/Habitus.Api/appsettings.json` and set the following via environment va
 | Shared Spaces | `/api/condominiums/{condominiumId}/shared-spaces` |
 | Notifications | `/api/condominiums/{condominiumId}/notifications` |
 | Useful Contacts | `/api/condominiums/{condominiumId}/useful-contacts` |
-| User Registration | `/api/user` |
-| Subscriptions | `/api/subscriptions` |
-| Invoices | `/api/invoices` |
+| User Registration | `/api/platform/userregistration` |
+| Subscriptions | `/api/platform/subscriptions` |
+| Invoices | `/api/platform/invoices` |
 
 Full interactive documentation is available via Swagger at `/swagger`.
 

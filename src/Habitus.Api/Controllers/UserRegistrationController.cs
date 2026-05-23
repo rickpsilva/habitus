@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/user")]
+[Route("api/platform/[controller]")]
 public class UserRegistrationController : ControllerBase
 {
     private readonly AuthService _authService;

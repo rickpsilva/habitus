@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/platform/billing-settings")]
+[Route("api/platform/[controller]")]
 [Authorize(Roles = "Manager")]
 public class PlatformBillingSettingsController : ControllerBase
 {
