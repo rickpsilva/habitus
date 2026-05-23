@@ -1,5 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, X, FileText, AlertCircle } from 'lucide-react';
+import {
+  DEFAULT_MAX_UPLOAD_SIZE_BYTES,
+  formatUploadSizeLabel,
+  getPlatformMaxUploadSizeBytes,
+  isFileSizeWithinLimit,
+} from '../utils/uploadLimits';
 
 interface MultipleFileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -14,7 +20,7 @@ interface MultipleFileUploadProps {
 export default function MultipleFileUpload({
   onFilesSelect,
   accept = '*/*',
-  maxSizeMB = 100,
+  maxSizeMB,
   disabled = false,
   currentFiles = [],
   removeFile,
@@ -22,7 +28,30 @@ export default function MultipleFileUpload({
 }: MultipleFileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [platformMaxSizeBytes, setPlatformMaxSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPlatformMaxUploadSizeBytes().then((value) => {
+      if (!mounted) return;
+      setPlatformMaxSizeBytes(value);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const effectiveMaxSizeBytes = useMemo(() => {
+    if (typeof maxSizeMB !== 'number' || Number.isNaN(maxSizeMB) || maxSizeMB <= 0) {
+      return platformMaxSizeBytes;
+    }
+
+    const propLimitBytes = maxSizeMB * 1024 * 1024;
+    return Math.min(propLimitBytes, platformMaxSizeBytes);
+  }, [maxSizeMB, platformMaxSizeBytes]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,11 +68,10 @@ export default function MultipleFileUpload({
   const validateFiles = (files: FileList | File[]): { valid: File[]; errors: string[] } => {
     const validFiles: File[] = [];
     const errors: string[] = [];
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
     Array.from(files).forEach((file) => {
-      if (file.size > maxSizeBytes) {
-        errors.push(`${file.name}: Excede ${maxSizeMB}MB`);
+      if (!isFileSizeWithinLimit(file, effectiveMaxSizeBytes)) {
+        errors.push(`${file.name}: Excede ${formatUploadSizeLabel(effectiveMaxSizeBytes)}`);
         return;
       }
 
@@ -204,7 +232,7 @@ export default function MultipleFileUpload({
             </p>
             {!error && (
               <p className="text-xs text-gray-500 mt-1">
-                Máximo: {maxSizeMB}MB por ficheiro • {maxFiles} ficheiros no total
+                Máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)} por ficheiro • {maxFiles} ficheiros no total
               </p>
             )}
             {currentFiles.length > 0 && !error && (

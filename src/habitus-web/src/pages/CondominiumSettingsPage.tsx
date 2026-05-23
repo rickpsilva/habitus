@@ -9,15 +9,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi } from '../api/services';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
   PlatformBillingSettingsDto,
   UpdatePlatformBillingSettingsRequest,
+  PlatformUploadSettingsDto,
+  UpdatePlatformUploadSettingsRequest,
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
 } from '../types';
+import { formatUploadSizeLabel, invalidatePlatformUploadSizeCache } from '../utils/uploadLimits';
 import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
@@ -33,7 +36,7 @@ const templateToEditorHtml = (value: string) => {
   return isHtmlTemplate(trimmed) ? trimmed : (marked.parse(trimmed) as string);
 };
 
-type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'system-email';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email';
 
 interface Tab {
   key: TabKey;
@@ -53,6 +56,7 @@ const adminTabs: Tab[] = [
 
 const managerTabs: Tab[] = [
   { key: 'platform-billing', label: 'Gateway de Pagamento', icon: KeyRound },
+  { key: 'platform-upload', label: 'Limites de Upload', icon: FileText },
   { key: 'system-email', label: 'Email de Sistema', icon: Server },
 ];
 
@@ -116,6 +120,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'payments' && <PaymentMethodsContent />}
           {activeTab === 'communication' && <CommunicationChannelsContent />}
           {activeTab === 'platform-billing' && <PlatformBillingContent />}
+          {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
         </div>
       </div>
@@ -406,6 +411,133 @@ function PlatformBillingContent() {
           >
             <Save className="w-4 h-4 inline mr-2" />
             {saving ? 'A guardar...' : 'Guardar Configurações'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlatformUploadContent() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const minSizeKb = 50;
+  const maxSizeKb = 512000;
+  const [settings, setSettings] = useState<PlatformUploadSettingsDto | null>(null);
+  const [form, setForm] = useState<UpdatePlatformUploadSettingsRequest>({
+    maxUploadSizeBytes: 600 * 1024,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await uploadSettingsApi.get();
+        setSettings(response.data);
+        setForm({ maxUploadSizeBytes: response.data.maxUploadSizeBytes });
+      } catch (error) {
+        console.error('Error loading upload settings:', error);
+        toastError('Erro ao carregar configurações de upload.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [toastError]);
+
+  const handleSave = async () => {
+    const normalizedBytes = Math.round(form.maxUploadSizeBytes);
+    const minBytes = minSizeKb * 1024;
+    const maxBytes = maxSizeKb * 1024;
+
+    if (!Number.isFinite(normalizedBytes) || normalizedBytes < minBytes || normalizedBytes > maxBytes) {
+      toastError(`O tamanho máximo deve estar entre ${formatUploadSizeLabel(minBytes)} e ${formatUploadSizeLabel(maxBytes)}.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await uploadSettingsApi.update({ maxUploadSizeBytes: normalizedBytes });
+      setSettings(response.data);
+      setForm({ maxUploadSizeBytes: response.data.maxUploadSizeBytes });
+      invalidatePlatformUploadSizeCache();
+      toastSuccess('Limite de upload guardado com sucesso!');
+    } catch (error: unknown) {
+      console.error('Error saving upload settings:', error);
+      const apiMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+
+      toastError(apiMessage || 'Erro ao guardar limite de upload.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">Limites de Upload</h3>
+        <p className="text-sm text-gray-500">Configure o tamanho máximo de ficheiros enviados para o sistema.</p>
+      </div>
+
+      <div className="space-y-4 max-w-2xl">
+        <div className="border border-gray-200 rounded-lg p-4 bg-white space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho máximo por ficheiro (KB)</label>
+            <input
+              type="number"
+              min={minSizeKb}
+              max={maxSizeKb}
+              step={1}
+              value={Math.round(form.maxUploadSizeBytes / 1024)}
+              onChange={(e) => {
+                const valueInKb = Number(e.target.value);
+                const normalizedKb = Number.isNaN(valueInKb)
+                  ? 0
+                  : Math.min(maxSizeKb, Math.max(minSizeKb, Math.round(valueInKb)));
+                const nextBytes = normalizedKb * 1024;
+                setForm({ maxUploadSizeBytes: nextBytes });
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Intervalo permitido: {formatUploadSizeLabel(minSizeKb * 1024)} a {formatUploadSizeLabel(maxSizeKb * 1024)}.
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Valor atual: {formatUploadSizeLabel(form.maxUploadSizeBytes)}</p>
+          </div>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            Este limite é aplicado na API e no frontend para todos os uploads de ficheiros, imagens e anexos.
+          </div>
+
+          {settings && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              Última atualização: {new Date(settings.updatedAt).toLocaleString('pt-PT')}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Save className="w-4 h-4 inline mr-2" />
+            {saving ? 'A guardar...' : 'Guardar Limite'}
           </button>
         </div>
       </div>

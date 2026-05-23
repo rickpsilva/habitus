@@ -43,6 +43,7 @@ public class DocumentsController : ControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<MaintenanceRequest> _maintenanceRepository;
     private readonly IRepository<Payment> _paymentRepository;
+    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
     private readonly IBlobStorageService _blobStorage;
 
     public DocumentsController(
@@ -50,12 +51,14 @@ public class DocumentsController : ControllerBase
         IRepository<User> userRepository,
         IRepository<MaintenanceRequest> maintenanceRepository,
         IRepository<Payment> paymentRepository,
+        IRepository<PlatformUploadSettings> platformUploadSettingsRepository,
         IBlobStorageService blobStorage)
     {
         _repository = repository;
         _userRepository = userRepository;
         _maintenanceRepository = maintenanceRepository;
         _paymentRepository = paymentRepository;
+        _platformUploadSettingsRepository = platformUploadSettingsRepository;
         _blobStorage = blobStorage;
     }
 
@@ -454,8 +457,8 @@ public class DocumentsController : ControllerBase
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [RequestFormLimits(MultipartBodyLengthLimit = 104857600)] // 100 MB
-    [RequestSizeLimit(104857600)] // 100 MB
+    [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB
+    [RequestSizeLimit(524288000)] // 500 MB
     public async Task<IActionResult> Upload([FromRoute] Guid condominiumId, [FromForm] UploadDocumentForm request)
     {
         if (!HasCondominiumAccess(condominiumId)) return Forbid();
@@ -472,7 +475,13 @@ public class DocumentsController : ControllerBase
 
         if (file == null || file.Length == 0)
         {
-            return BadRequest("No file uploaded");
+            return BadRequest("No file was uploaded.");
+        }
+
+        var maxUploadSizeBytes = await GetMaxUploadSizeBytesAsync();
+        if (file.Length > maxUploadSizeBytes)
+        {
+            return BadRequest($"O ficheiro excede o limite máximo de {FormatFileSize(maxUploadSizeBytes)}.");
         }
 
         // Parse enums and GUIDs
@@ -711,10 +720,10 @@ public class DocumentsController : ControllerBase
             {
                 if (file.Length == 0) continue;
 
-                // Validate file size (100MB max per file)
-                if (file.Length > 104857600)
+                var maxUploadSizeBytes = await GetMaxUploadSizeBytesAsync();
+                if (file.Length > maxUploadSizeBytes)
                 {
-                    errors.Add($"{file.FileName}: File size exceeds 100MB");
+                    errors.Add($"{file.FileName}: File size exceeds the limit of {FormatFileSize(maxUploadSizeBytes)}");
                     continue;
                 }
 
@@ -965,6 +974,24 @@ public class DocumentsController : ControllerBase
     {
         var claim = User.FindFirstValue("CondominiumId");
         return Guid.TryParse(claim, out var jwtCondominiumId) && jwtCondominiumId == condominiumId;
+    }
+    private async Task<int> GetMaxUploadSizeBytesAsync()
+    {
+        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        const double kb = 1024;
+        const double mb = 1024 * 1024;
+
+        if (bytes >= mb)
+        {
+            return $"{bytes / mb:0.##} MB";
+        }
+
+        return $"{bytes / kb:0.##} KB";
     }
 }
 

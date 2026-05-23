@@ -8,6 +8,12 @@ import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
+import {
+  DEFAULT_MAX_UPLOAD_SIZE_BYTES,
+  formatUploadSizeLabel,
+  getPlatformMaxUploadSizeBytes,
+  isFileSizeWithinLimit,
+} from '../utils/uploadLimits';
 
 const unitTypeLabels: Record<number, string> = {
   0: 'Apartamento',
@@ -22,6 +28,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [csvImporting, setCsvImporting] = useState(false);
+  const [maxUploadSizeBytes, setMaxUploadSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
   
   // Guard: Only Admin can access
   useEffect(() => {
@@ -83,6 +90,19 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   useEffect(() => {
     load(1);
   }, [load]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPlatformMaxUploadSizeBytes().then((value) => {
+      if (!mounted) return;
+      setMaxUploadSizeBytes(value);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const openCreate = () => {
     setEditId(null);
@@ -238,6 +258,12 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!isFileSizeWithinLimit(file, maxUploadSizeBytes)) {
+      toastError(`O ficheiro excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+      if (csvInputRef.current) csvInputRef.current.value = '';
+      return;
+    }
     
     const activeCondominiumId = condominiumId || '';
     if (!activeCondominiumId) {
@@ -339,6 +365,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           className="hidden"
           onChange={handleCsvImport}
         />
+        <span className="text-xs text-gray-500">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
       </div>
 
       {/* Form modal */}

@@ -6,6 +6,12 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
+import {
+  DEFAULT_MAX_UPLOAD_SIZE_BYTES,
+  formatUploadSizeLabel,
+  getPlatformMaxUploadSizeBytes,
+  isFileSizeWithinLimit,
+} from '../utils/uploadLimits';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -48,6 +54,7 @@ export default function PaymentsPage() {
   });
   const [quotaPeriodicity, setQuotaPeriodicity] = useState<'Monthly' | 'Quarterly' | 'Annual'>('Monthly');
   const [trimestralStart, setTrimestralStart] = useState<number>(1);
+  const [maxUploadSizeBytes, setMaxUploadSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
 
   const PT_MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const currentMonth = new Date().getMonth(); // 0-indexed
@@ -98,6 +105,19 @@ export default function PaymentsPage() {
     }
   }, [condominiumId, loadPaymentMethods]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    getPlatformMaxUploadSizeBytes().then((value) => {
+      if (!mounted) return;
+      setMaxUploadSizeBytes(value);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -122,6 +142,11 @@ export default function PaymentsPage() {
     const requiresProof = form.method === 'BankTransfer';
     if (requiresProof && !proofFile) {
       toastError('Por favor, anexe o comprovativo de pagamento para transferências bancárias.');
+      return;
+    }
+
+    if (proofFile && !isFileSizeWithinLimit(proofFile, maxUploadSizeBytes)) {
+      toastError(`O comprovativo excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
       return;
     }
 
@@ -569,6 +594,11 @@ export default function PaymentsPage() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          if (!isFileSizeWithinLimit(file, maxUploadSizeBytes)) {
+                            toastError(`O comprovativo excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+                            setProofFile(null);
+                            return;
+                          }
                           setProofFile(file);
                         }
                       }}
@@ -590,7 +620,7 @@ export default function PaymentsPage() {
                       ) : (
                         <div className="text-sm text-gray-600">
                           <p className="font-medium">Clique para selecionar</p>
-                          <p className="text-xs text-gray-500">PDF ou Imagem (máx. 10MB)</p>
+                          <p className="text-xs text-gray-500">PDF ou Imagem (máx. {formatUploadSizeLabel(maxUploadSizeBytes)})</p>
                         </div>
                       )}
                     </label>
