@@ -43,7 +43,7 @@ public class UsefulContactsController : ControllerBase
         if (!CanAccessCondominium(condominiumId)) return Forbid();
 
         var contacts = await _repository.FindAsync(c => c.CondominiumId == condominiumId);
-        return Ok(contacts);
+        return Ok(contacts.Select(MapContact).ToList());
     }
 
     [HttpGet("{id:guid}")]
@@ -53,7 +53,7 @@ public class UsefulContactsController : ControllerBase
 
         var result = await _repository.GetByIdAsync(id);
         if (result != null && result.CondominiumId != condominiumId) return NotFound();
-        return result == null ? NotFound() : Ok(result);
+        return result == null ? NotFound() : Ok(MapContact(result));
     }
 
     [HttpPost]
@@ -79,7 +79,7 @@ public class UsefulContactsController : ControllerBase
 
         await _repository.AddAsync(contact);
         await _repository.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { condominiumId, id = contact.Id }, contact);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = contact.Id }, MapContact(contact));
     }
 
     [HttpPut("{id:guid}")]
@@ -99,7 +99,7 @@ public class UsefulContactsController : ControllerBase
         existing.Category = request.Category;
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
-        return Ok(existing);
+        return Ok(MapContact(existing));
     }
 
     [HttpDelete("{id:guid}")]
@@ -113,5 +113,17 @@ public class UsefulContactsController : ControllerBase
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static object MapContact(UsefulContact contact)
+    {
+        return new
+        {
+            id = contact.Id,
+            name = contact.Name,
+            phone = contact.Phone,
+            category = contact.Category,
+            condominiumId = contact.CondominiumId,
+        };
     }
 }

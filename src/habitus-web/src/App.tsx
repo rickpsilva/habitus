@@ -9,6 +9,7 @@ import ResidentRegisterPage from './pages/ResidentRegisterPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import InactiveCondominiumPage from './pages/InactiveCondominiumPage';
 import DashboardPage from './pages/DashboardPage';
 import MaintenancePage from './pages/MaintenancePage';
 import FinancialPage from './pages/FinancialPage';
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/user/register/:condominiumId/admin" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/condominium-inactive" element={<InactiveCondominiumPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/maintenance" element={<MaintenancePage />} />

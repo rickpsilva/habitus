@@ -33,7 +33,10 @@ public class UnitsController : ControllerBase
         if (!CanAccessCondominium(condominiumId)) return Forbid();
 
         var units = await _repository.GetAllAsync();
-        return Ok(units.Where(u => u.CondominiumId == condominiumId));
+        return Ok(units
+            .Where(u => u.CondominiumId == condominiumId)
+            .Select(MapUnit)
+            .ToList());
     }
 
     [HttpGet("paged")]
@@ -59,7 +62,7 @@ public class UnitsController : ControllerBase
             ).OrderBy(u => u.Number);
         }
         
-        return Ok(PaginationHelper.Paginate(ordered, page, pageSize));
+        return Ok(PaginationHelper.Paginate(ordered.Select(MapUnit), page, pageSize));
     }
 
     [HttpGet("{id}")]
@@ -70,7 +73,7 @@ public class UnitsController : ControllerBase
 
         var result = await _repository.GetByIdAsync(id);
         if (result != null && result.CondominiumId != condominiumId) return NotFound();
-        return result == null ? NotFound() : Ok(result);
+        return result == null ? NotFound() : Ok(MapUnit(result));
     }
 
     [HttpPost]
@@ -97,7 +100,7 @@ public class UnitsController : ControllerBase
         
         await _repository.AddAsync(unit);
         await _repository.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { condominiumId, id = unit.Id }, unit);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = unit.Id }, MapUnit(unit));
     }
 
     [HttpPost("import-csv")]
@@ -243,7 +246,7 @@ public class UnitsController : ControllerBase
         
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
-        return Ok(existing);
+        return Ok(MapUnit(existing));
     }
 
     [HttpDelete("{id}")]
@@ -258,5 +261,21 @@ public class UnitsController : ControllerBase
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static object MapUnit(Unit unit)
+    {
+        return new
+        {
+            id = unit.Id,
+            condominiumId = unit.CondominiumId,
+            number = unit.Number,
+            building = unit.Building,
+            floor = unit.Floor,
+            type = unit.Type,
+            apartmentNumber = unit.ApartmentNumber,
+            permillage = unit.Permillage,
+            monthlyQuota = unit.MonthlyQuota,
+        };
     }
 }

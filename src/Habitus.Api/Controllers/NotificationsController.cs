@@ -1,5 +1,6 @@
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
+using Habitus.Application.DTOs.Common;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,19 @@ namespace Habitus.Api.Controllers;
 [Authorize(Roles = "Admin,Resident")]
 public class NotificationsController : ControllerBase
 {
+    public sealed class NotificationResponse
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public NotificationType Type { get; set; }
+        public string TargetRole { get; set; } = string.Empty;
+        public Guid? TargetUserId { get; set; }
+        public Guid CondominiumId { get; set; }
+        public DateTime SentAt { get; set; }
+        public bool IsRead { get; set; }
+    }
+
     public sealed class CreateNotificationRequest
     {
         public string Title { get; set; } = string.Empty;
@@ -64,7 +78,16 @@ public class NotificationsController : ControllerBase
         if (userId == Guid.Empty) return Unauthorized("Invalid user scope.");
         
         var paginatedResult = await _notificationService.GetPagedAsync(page, pageSize, condominiumId, userRole, userId);
-        return Ok(paginatedResult);
+        var response = new PaginatedResponse<NotificationResponse>
+        {
+            Items = paginatedResult.Items.Select(MapNotification).ToList(),
+            Page = paginatedResult.Page,
+            PageSize = paginatedResult.PageSize,
+            TotalItems = paginatedResult.TotalItems,
+            TotalPages = paginatedResult.TotalPages,
+        };
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
@@ -74,7 +97,7 @@ public class NotificationsController : ControllerBase
 
         var result = await _notificationService.GetByIdAsync(id);
         if (result != null && result.CondominiumId != condominiumId) return NotFound();
-        return result == null ? NotFound() : Ok(result);
+        return result == null ? NotFound() : Ok(MapNotification(result));
     }
 
     [HttpPost]
@@ -114,7 +137,7 @@ public class NotificationsController : ControllerBase
         await _repository.AddAsync(notification);
         await _repository.SaveChangesAsync();
         await _notificationDispatchService.DispatchAsync([notification], sendExternalChannels: true);
-        return CreatedAtAction(nameof(GetById), new { condominiumId, id = notification.Id }, notification);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = notification.Id }, MapNotification(notification));
     }
 
     [HttpPut("{id:guid}/read")]
@@ -164,5 +187,21 @@ public class NotificationsController : ControllerBase
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static NotificationResponse MapNotification(Notification notification)
+    {
+        return new NotificationResponse
+        {
+            Id = notification.Id,
+            Title = notification.Title,
+            Message = notification.Message,
+            Type = notification.Type,
+            TargetRole = notification.TargetRole,
+            TargetUserId = notification.TargetUserId,
+            CondominiumId = notification.CondominiumId,
+            SentAt = notification.SentAt,
+            IsRead = notification.IsRead,
+        };
     }
 }
