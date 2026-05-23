@@ -13,7 +13,6 @@ import {
   Eye,
   Edit,
   Trash2,
-  Upload,
   Image as ImageIcon,
   FileText,
 } from 'lucide-react';
@@ -26,6 +25,7 @@ import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import type {
   AnnouncementDto,
+  AnnouncementAttachmentDto,
   AnnouncementStatsDto,
   CreateAnnouncementRequest,
   UpdateAnnouncementRequest,
@@ -83,10 +83,6 @@ function highlightText(text: string, query: string) {
   );
 }
 
-function attachmentUrl(condominiumId: string, announcementId: string, attachmentId: string) {
-  return `/api/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}/download`;
-}
-
 export default function AnnouncementsPage() {
   const { condominiumId, isAdmin } = useAuth();
   const { error: toastError } = useToast();
@@ -111,6 +107,7 @@ export default function AnnouncementsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -218,6 +215,81 @@ export default function AnnouncementsPage() {
   }, [searchParams, announcements, condominiumId, selected?.id, loadData]);
 
   useEffect(() => {
+    let active = true;
+    const urlsToRevoke: string[] = [];
+
+    const loadAttachmentPreviews = async () => {
+      if (!selected || !condominiumId) {
+        setAttachmentPreviewUrls({});
+        return;
+      }
+
+      const imageAttachments = selected.attachments.filter((att) =>
+        att.type === 'Image' || (att.contentType?.startsWith('image/') ?? false)
+      );
+
+      if (imageAttachments.length === 0) {
+        setAttachmentPreviewUrls({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        imageAttachments.map(async (att) => {
+          try {
+            const response = await announcementsApi.downloadAttachment(condominiumId, selected.id, att.id);
+            const contentType = response.headers['content-type'] || att.contentType || 'application/octet-stream';
+            const blob = new Blob([response.data], { type: contentType });
+            const blobUrl = URL.createObjectURL(blob);
+            urlsToRevoke.push(blobUrl);
+            return [att.id, blobUrl] as const;
+          } catch {
+            return [att.id, ''] as const;
+          }
+        })
+      );
+
+      if (!active) {
+        urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+
+      setAttachmentPreviewUrls(Object.fromEntries(entries.filter(([, url]) => !!url)));
+    };
+
+    loadAttachmentPreviews();
+
+    return () => {
+      active = false;
+      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [selected, condominiumId]);
+
+  const openAttachment = async (announcementId: string, attachment: AnnouncementAttachmentDto) => {
+    if (!condominiumId) return;
+
+    try {
+      const response = await announcementsApi.downloadAttachment(condominiumId, announcementId, attachment.id);
+      const contentType = response.headers['content-type'] || attachment.contentType || 'application/octet-stream';
+      const blob = new Blob([response.data], { type: contentType });
+      const objectUrl = URL.createObjectURL(blob);
+
+      const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = attachment.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch {
+      toastError('Não foi possível abrir o anexo.');
+    }
+  };
+
+  useEffect(() => {
     const next = new URLSearchParams(searchParams);
 
     if (debouncedSearchText.trim()) next.set('q', debouncedSearchText.trim());
@@ -279,6 +351,20 @@ export default function AnnouncementsPage() {
           validUntil: form.validUntil,
         };
         await announcementsApi.update(condominiumId, editing.id, payload);
+
+        if (files.length > 0) {
+          setUploadingFiles(true);
+          try {
+            for (const file of files) {
+              const fd = new FormData();
+              fd.append('file', file);
+              await announcementsApi.uploadAttachment(condominiumId, editing.id, fd);
+            }
+          } finally {
+            setUploadingFiles(false);
+          }
+        }
+
         if (publishImmediately) {
           await announcementsApi.publish(condominiumId, editing.id);
         }
@@ -613,21 +699,22 @@ export default function AnnouncementsPage() {
 
             <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder="Escreve o conteúdo do comunicado..." height="240px" />
 
-            {!editing && (
-              <div className="border border-gray-200 rounded-lg p-3">
-                <p className="text-sm font-medium text-gray-800 mb-2">Anexos (máx. 5 imagens + 2 documentos)</p>
-                <input
-                  type="file"
-                  multiple
-                  accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
-                  className="block w-full text-sm"
-                />
-                {files.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">{files.length} ficheiro(s) selecionado(s)</p>
-                )}
-              </div>
-            )}
+            <div className="border border-gray-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-gray-800 mb-2">Anexos (máx. 5 imagens + 2 documentos)</p>
+              {editing && editing.attachments.length > 0 && (
+                <p className="text-xs text-gray-500 mb-2">Rascunho atual: {editing.attachments.length} anexo(s) já guardado(s)</p>
+              )}
+              <input
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                className="block w-full text-sm"
+              />
+              {files.length > 0 && (
+                <p className="text-xs text-gray-500 mt-2">{files.length} ficheiro(s) selecionado(s)</p>
+              )}
+            </div>
 
             <div className="flex justify-end gap-2">
               <button onClick={() => { setShowEditor(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Cancelar</button>
@@ -677,23 +764,35 @@ export default function AnnouncementsPage() {
                 <h3 className="text-sm font-semibold text-gray-800">Anexos</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {selected.attachments.map((att) => {
-                    const isImage = att.type === 'Image';
-                    const url = attachmentUrl(condominiumId, selected.id, att.id);
+                    const isImage = att.type === 'Image' || (att.contentType?.startsWith('image/') ?? false);
+                    const previewUrl = attachmentPreviewUrls[att.id];
                     return (
                       <div key={att.id} className="border border-gray-200 rounded-lg p-3">
                         <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
                           {isImage ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                           <span className="truncate">{att.fileName}</span>
                         </div>
-                        {isImage ? (
-                          <a href={url} target="_blank" rel="noreferrer" className="block">
-                            <img src={url} alt={att.fileName} className="w-full h-36 object-cover rounded border border-gray-200" />
-                          </a>
+                        {isImage && previewUrl ? (
+                          <button type="button" onClick={() => openAttachment(selected.id, att)} className="block w-full text-left">
+                            <img src={previewUrl} alt={att.fileName} className="w-full h-36 object-cover rounded border border-gray-200" />
+                          </button>
+                        ) : isImage ? (
+                          <button
+                            type="button"
+                            onClick={() => openAttachment(selected.id, att)}
+                            className="w-full h-36 rounded border border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center justify-center"
+                          >
+                            Pré-visualização indisponível
+                          </button>
                         ) : (
-                          <a href={url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline text-sm inline-flex items-center gap-1">
-                            <Upload className="w-4 h-4" />
-                            Abrir ficheiro
-                          </a>
+                          <button
+                            type="button"
+                            onClick={() => openAttachment(selected.id, att)}
+                            className="w-full h-36 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors flex flex-col items-center justify-center gap-2"
+                          >
+                            <FileText className="w-7 h-7" />
+                            <span className="text-sm">Abrir ficheiro</span>
+                          </button>
                         )}
                       </div>
                     );

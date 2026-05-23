@@ -22,7 +22,7 @@ function parseNotificationMessage(message: string) {
 }
 
 export default function NotificationsPage() {
-  const { isAdmin, isManager } = useAuth();
+  const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
   const { success, error } = useToast();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
@@ -33,20 +33,29 @@ export default function NotificationsPage() {
   const pageSize = 10;
 
   const load = useCallback((page: number = 1) => {
+    if (!condominiumId) {
+      setPagination(null);
+      setNotifications([]);
+      setCurrentPage(page);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    notificationsApi.getAll(page, pageSize).then((r) => {
+    notificationsApi.getAll(condominiumId, page, pageSize).then((r) => {
       setPagination(r.data);
       setNotifications(r.data.items);
       setCurrentPage(page);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [condominiumId]);
 
   useEffect(() => {
     load(1);
   }, [load]);
 
   const markRead = async (id: string) => {
-    await notificationsApi.markRead(id);
+    if (!condominiumId) return;
+    await notificationsApi.markRead(condominiumId, id);
     load(currentPage);
   };
 
@@ -54,15 +63,18 @@ export default function NotificationsPage() {
     if (!confirmAction) return;
     try {
       if (confirmAction === 'markAll') {
-        await notificationsApi.markAllRead();
+        if (!condominiumId) return;
+        await notificationsApi.markAllRead(condominiumId);
         success('Todas as notificações marcadas como lidas.');
         load(currentPage);
       } else if (confirmAction === 'clearAll') {
-        await notificationsApi.clearAll();
+        if (!condominiumId) return;
+        await notificationsApi.clearAll(condominiumId);
         success('Notificações eliminadas.');
         load(1);
       } else {
-        await notificationsApi.delete(confirmAction);
+        if (!condominiumId) return;
+        await notificationsApi.delete(condominiumId, confirmAction);
         success('Notificação eliminada.');
         load(currentPage);
       }

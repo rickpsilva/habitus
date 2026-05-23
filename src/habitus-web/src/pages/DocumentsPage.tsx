@@ -72,7 +72,7 @@ const documentTypesByContext: Record<string, string[]> = {
 };
 
 export default function DocumentsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [searchParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
@@ -110,33 +110,55 @@ export default function DocumentsPage() {
   const pageSize = 10;
 
   const load = useCallback((page: number = 1) => {
+    if (!condominiumId) {
+      setDocuments([]);
+      setPagination(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    documentsApi.getPaged(page, pageSize, debouncedSearch, activeTab)
+    documentsApi.getPaged(condominiumId, page, pageSize, debouncedSearch, activeTab)
       .then((r) => {
         setPagination(r.data);
         setDocuments(r.data.items);
         setCurrentPage(page);
       })
       .finally(() => setLoading(false));
-  }, [activeTab, debouncedSearch, pageSize]);
+  }, [activeTab, condominiumId, debouncedSearch, pageSize]);
 
   const loadAssemblies = useCallback(() => {
-    assembliesApi.getPaged(1, 100)
+    if (!condominiumId) {
+      setAssemblies([]);
+      return;
+    }
+
+    assembliesApi.getPaged(condominiumId, 1, 100)
       .then((r) => setAssemblies(r.data.items))
       .catch(() => setAssemblies([]));
-  }, []);
+  }, [condominiumId]);
 
   const loadUnits = useCallback(() => {
-    unitsApi.getPaged(1, 100)
+    if (!condominiumId) {
+      setUnits([]);
+      return;
+    }
+
+    unitsApi.getPaged(condominiumId, 1, 100)
       .then((r) => setUnits(r.data.items))
       .catch(() => setUnits([]));
-  }, []);
+  }, [condominiumId]);
 
   const loadMaintenanceRequests = useCallback(() => {
-    maintenanceApi.getPaged(1, 100)
+    if (!condominiumId) {
+      setMaintenanceRequests([]);
+      return;
+    }
+
+    maintenanceApi.getPaged(condominiumId, 1, 100)
       .then((r) => setMaintenanceRequests(r.data.items))
       .catch(() => setMaintenanceRequests([]));
-  }, []);
+  }, [condominiumId]);
 
   useEffect(() => {
     load(1);
@@ -150,9 +172,9 @@ export default function DocumentsPage() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId || !condominiumId) return;
     try {
-      await documentsApi.delete(deleteId);
+      await documentsApi.delete(condominiumId, deleteId);
       load();
     } catch {
       toastError('Erro ao eliminar documento.');
@@ -162,8 +184,13 @@ export default function DocumentsPage() {
   };
 
   const handleDownload = async (id: string, fileName: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await documentsApi.download(id, fileName);
+      await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao fazer download do documento.');
@@ -172,7 +199,7 @@ export default function DocumentsPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile) return;
+    if (!uploadFile || !condominiumId) return;
 
     setUploading(true);
     try {
@@ -200,7 +227,7 @@ export default function DocumentsPage() {
         formData.append('year', uploadForm.year);
       }
 
-      await documentsApi.upload(formData);
+      await documentsApi.upload(condominiumId, formData);
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadForm({

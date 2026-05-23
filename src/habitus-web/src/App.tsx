@@ -9,6 +9,7 @@ import ResidentRegisterPage from './pages/ResidentRegisterPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import InactiveCondominiumPage from './pages/InactiveCondominiumPage';
 import DashboardPage from './pages/DashboardPage';
 import MaintenancePage from './pages/MaintenancePage';
 import FinancialPage from './pages/FinancialPage';
@@ -22,6 +23,7 @@ import UnitsPage from './pages/UnitsPage';
 import ProfilePage from './pages/ProfilePage';
 import SharedSpacesPage from './pages/SharedSpacesPage';
 import SuppliersPage from './pages/SuppliersPage';
+import UsefulContactsPage from './pages/UsefulContactsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import CondominiumSettingsPage from './pages/CondominiumSettingsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
@@ -42,6 +44,7 @@ export default function App() {
           <Route path="/user/register/:condominiumId/admin" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/condominium-inactive" element={<InactiveCondominiumPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/maintenance" element={<MaintenancePage />} />
@@ -53,6 +56,7 @@ export default function App() {
             <Route path="/assemblies" element={<AssembliesPage />} />
             <Route path="/shared-spaces" element={<SharedSpacesPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/useful-contacts" element={<UsefulContactsPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/condominiums" element={<CondominiumsPage />} />
             <Route path="/billing" element={<BillingPage />} />

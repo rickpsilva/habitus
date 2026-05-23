@@ -17,7 +17,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const code = error.response?.data?.code;
+
+    if (status === 423 || code === 'condominium_inactive') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/condominium-inactive') {
+        window.location.href = '/condominium-inactive';
+      }
+      return Promise.reject(error);
+    }
+
+    if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

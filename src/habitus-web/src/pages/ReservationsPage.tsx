@@ -84,28 +84,43 @@ export default function ReservationsPage() {
     return sunday;
   });
 
+  const toDateTimeLocalValue = (date: Date) => {
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
       // Get current user data
       const userData = await usersApi.getMe();
       const userId = userData.data.id;
-      const condominiumId = userData.data.condominiumId;
+      const scopedCondominiumId = userData.data.condominiumId;
       
       setCurrentUserId(userId);
+
+      if (!scopedCondominiumId) {
+        setReservations([]);
+        setSpaces([]);
+        setUsers([userData.data]);
+        setUnits([]);
+        setPagination(null);
+        setCurrentPage(page);
+        return;
+      }
       
       // Load reservations and spaces (always needed)
       const [reservationsRes, spacesRes, unitsRes] = await Promise.all([
-        reservationsApi.getPaged(page, pageSize, debouncedSearch),
-        sharedSpacesApi.getAll(),
-        unitsApi.getAll()
+        reservationsApi.getPaged(scopedCondominiumId, page, pageSize, debouncedSearch),
+        sharedSpacesApi.getAll(scopedCondominiumId),
+        unitsApi.getAll(scopedCondominiumId)
       ]);
       
       // Load users based on role - only Admin can access getByCondominium
       let usersData = [userData.data]; // At minimum, we have the current user
       if (isAdmin) {
         try {
-          const usersRes = await usersApi.getByCondominium(condominiumId!);
+          const usersRes = await usersApi.getByCondominium(scopedCondominiumId);
           usersData = usersRes.data;
         } catch (error) {
           console.warn('Could not load all users, using current user only:', error);
@@ -113,9 +128,9 @@ export default function ReservationsPage() {
       }
       
       // Filter by condominium
-      const filteredSpaces = spacesRes.data.filter(s => s.condominiumId === condominiumId);
-      const filteredUnits = unitsRes.data.filter(u => u.condominiumId === condominiumId);
-      let filteredReservations = reservationsRes.data.items.filter(r => r.condominiumId === condominiumId);
+      const filteredSpaces = spacesRes.data;
+      const filteredUnits = unitsRes.data;
+      let filteredReservations = reservationsRes.data.items.filter(r => r.condominiumId === scopedCondominiumId);
       
       // Moradores only see their own reservations, Admins see all
       if (!isAdmin) {
@@ -128,7 +143,7 @@ export default function ReservationsPage() {
       setCurrentPage(page);
       setUsers(usersData);
       setUnits(filteredUnits);
-      setForm(prev => ({ ...prev, userId, condominiumId: condominiumId || '' }));
+      setForm(prev => ({ ...prev, userId, condominiumId: scopedCondominiumId || '' }));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -161,8 +176,13 @@ export default function ReservationsPage() {
     
     // Validate that start time is not in the past
     const now = new Date();
-    if (startDate < now) {
+    if (startDate.getTime() < now.getTime() - 60000) {
       toastError('A data de início deve ser igual ou posterior à data atual.');
+      return;
+    }
+
+    if (!form.condominiumId) {
+      toastError('Condomínio não identificado.');
       return;
     }
     
@@ -177,7 +197,7 @@ export default function ReservationsPage() {
           endTime: new Date(form.endTime).toISOString(),
         };
         
-        await reservationsApi.update(editingId, updateData);
+        await reservationsApi.update(form.condominiumId, editingId, updateData);
       } else {
         // Create new reservation
         const createData = {
@@ -187,7 +207,7 @@ export default function ReservationsPage() {
           endTime: new Date(form.endTime).toISOString(),
         };
         
-        await reservationsApi.create(createData);
+        await reservationsApi.create(form.condominiumId, createData);
       }
       
       setShowForm(false);
@@ -224,8 +244,8 @@ export default function ReservationsPage() {
     setEditingId(reservation.id);
     
     // Format dates for datetime-local input (YYYY-MM-DDTHH:mm)
-    const startTime = new Date(reservation.startTime).toISOString().slice(0, 16);
-    const endTime = new Date(reservation.endTime).toISOString().slice(0, 16);
+    const startTime = toDateTimeLocalValue(new Date(reservation.startTime));
+    const endTime = toDateTimeLocalValue(new Date(reservation.endTime));
     
     setForm({
       spaceId: reservation.spaceId,
@@ -260,7 +280,12 @@ export default function ReservationsPage() {
     if (!deleteReservationId) return;
     
     try {
-      await reservationsApi.delete(deleteReservationId);
+      if (!form.condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
+
+      await reservationsApi.delete(form.condominiumId, deleteReservationId);
       setShowDeleteModal(false);
       setDeleteReservationId(null);
       load();
@@ -357,6 +382,11 @@ export default function ReservationsPage() {
     
     try {
       const { type, id } = commentAction;
+
+      if (!form.condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
       
       // Build comment with timestamp for history
       let finalComment = adminComment.trim();
@@ -387,16 +417,16 @@ export default function ReservationsPage() {
       
       switch (type) {
         case 'approve':
-          await reservationsApi.approve(id, finalComment || undefined);
+          await reservationsApi.approve(form.condominiumId, id, finalComment || undefined);
           break;
         case 'reject':
-          await reservationsApi.reject(id, finalComment || undefined);
+          await reservationsApi.reject(form.condominiumId, id, finalComment || undefined);
           break;
         case 'approveCancellation':
-          await reservationsApi.approveCancellation(id, finalComment || undefined);
+          await reservationsApi.approveCancellation(form.condominiumId, id, finalComment || undefined);
           break;
         case 'rejectCancellation':
-          await reservationsApi.rejectCancellation(id, finalComment || undefined);
+          await reservationsApi.rejectCancellation(form.condominiumId, id, finalComment || undefined);
           break;
       }
       
@@ -424,7 +454,12 @@ export default function ReservationsPage() {
   const confirmCancellation = async () => {
     if (!cancelId) return;
     try {
-      await reservationsApi.requestCancellation(cancelId);
+      if (!form.condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
+
+      await reservationsApi.requestCancellation(form.condominiumId, cancelId);
       load();
     } catch (error: unknown) {
       const errorMessage =
@@ -558,8 +593,8 @@ export default function ReservationsPage() {
       spaceId: spaces.length > 0 ? spaces[0].id : '',
       userId: currentUserId,
       condominiumId: form.condominiumId,
-      startTime: startTime.toISOString().slice(0, 16),
-      endTime: endTime.toISOString().slice(0, 16),
+      startTime: toDateTimeLocalValue(startTime),
+      endTime: toDateTimeLocalValue(endTime),
     });
     setEditingId(null);
     setShowForm(true);

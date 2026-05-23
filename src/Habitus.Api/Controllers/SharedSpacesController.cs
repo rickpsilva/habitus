@@ -5,53 +5,59 @@ using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/shared-spaces")]
+[Route("api/condominiums/{condominiumId:guid}/shared-spaces")]
 [Authorize]
 public class SharedSpacesController : ControllerBase
 {
     private readonly IRepository<SharedSpace> _repository;
     public SharedSpacesController(IRepository<SharedSpace> repository) => _repository = repository;
 
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    private bool CanAccessCondominium(Guid condominiumId)
     {
-        var spaces = await _repository.GetAllAsync();
-        var dtos = spaces.Select(s => new SharedSpaceDto
-        {
-            Id = s.Id,
-            Name = s.Name,
-            Description = s.Description,
-            Capacity = s.Capacity,
-            CondominiumId = s.CondominiumId,
-            Rules = s.Rules,
-            ReservationFee = s.ReservationFee,
-            Color = s.Color
-        });
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (role == "Manager") return true;
+
+        var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+        return Guid.TryParse(userCondominiumId, out var userCondominiumGuid) && userCondominiumGuid == condominiumId;
+    }
+
+    private static SharedSpaceDto MapToDto(SharedSpace space) => new()
+    {
+        Id = space.Id,
+        Name = space.Name,
+        Description = space.Description,
+        Capacity = space.Capacity,
+        CondominiumId = space.CondominiumId,
+        Rules = space.Rules,
+        ReservationFee = space.ReservationFee,
+        Color = space.Color
+    };
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
+    {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
+        var spaces = await _repository.FindAsync(s => s.CondominiumId == condominiumId);
+        var dtos = spaces.Select(MapToDto);
         return Ok(dtos);
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
         
-        var spaces = await _repository.GetAllAsync();
-        var dtos = spaces.Select(s => new SharedSpaceDto
-        {
-            Id = s.Id,
-            Name = s.Name,
-            Description = s.Description,
-            Capacity = s.Capacity,
-            CondominiumId = s.CondominiumId,
-            Rules = s.Rules,
-            ReservationFee = s.ReservationFee,
-            Color = s.Color
-        }).OrderBy(s => s.Name);
+        var spaces = await _repository.FindAsync(s => s.CondominiumId == condominiumId);
+        var dtos = spaces.Select(MapToDto).OrderBy(s => s.Name);
         
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -66,36 +72,32 @@ public class SharedSpacesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var space = await _repository.GetByIdAsync(id);
-        if (space == null) return NotFound();
-        
-        var dto = new SharedSpaceDto
-        {
-            Id = space.Id,
-            Name = space.Name,
-            Description = space.Description,
-            Capacity = space.Capacity,
-            CondominiumId = space.CondominiumId,
-            Rules = space.Rules,
-            ReservationFee = space.ReservationFee,
-            Color = space.Color
-        };
-        return Ok(dto);
+        if (space == null || space.CondominiumId != condominiumId) return NotFound();
+
+        return Ok(MapToDto(space));
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] CreateSharedSpaceRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreateSharedSpaceRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
+        if (request.CondominiumId != Guid.Empty && request.CondominiumId != condominiumId)
+            return BadRequest(new { message = "O condominiumId no corpo do pedido não coincide com o da rota." });
+
         var space = new SharedSpace
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
             Description = request.Description,
             Capacity = request.Capacity,
-            CondominiumId = request.CondominiumId,
+            CondominiumId = condominiumId,
             Rules = request.Rules,
             ReservationFee = request.ReservationFee,
             Color = request.Color
@@ -103,28 +105,18 @@ public class SharedSpacesController : ControllerBase
         
         await _repository.AddAsync(space);
         await _repository.SaveChangesAsync();
-        
-        var dto = new SharedSpaceDto
-        {
-            Id = space.Id,
-            Name = space.Name,
-            Description = space.Description,
-            Capacity = space.Capacity,
-            CondominiumId = space.CondominiumId,
-            Rules = space.Rules,
-            ReservationFee = space.ReservationFee,
-            Color = space.Color
-        };
-        
-        return CreatedAtAction(nameof(GetById), new { id = dto.Id }, dto);
+
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = space.Id }, MapToDto(space));
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSharedSpaceRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateSharedSpaceRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var existing = await _repository.GetByIdAsync(id);
-        if (existing == null) return NotFound();
+        if (existing == null || existing.CondominiumId != condominiumId) return NotFound();
         
         existing.Name = request.Name;
         existing.Description = request.Description;
@@ -135,28 +127,18 @@ public class SharedSpacesController : ControllerBase
         
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
-        
-        var dto = new SharedSpaceDto
-        {
-            Id = existing.Id,
-            Name = existing.Name,
-            Description = existing.Description,
-            Capacity = existing.Capacity,
-            CondominiumId = existing.CondominiumId,
-            Rules = existing.Rules,
-            ReservationFee = existing.ReservationFee,
-            Color = existing.Color
-        };
-        
-        return Ok(dto);
+
+        return Ok(MapToDto(existing));
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return NotFound();
+        if (entity == null || entity.CondominiumId != condominiumId) return NotFound();
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();

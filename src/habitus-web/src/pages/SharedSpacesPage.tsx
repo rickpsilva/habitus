@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Building } from 'lucide-react';
-import { sharedSpacesApi, usersApi } from '../api/services';
+import { sharedSpacesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -10,7 +10,7 @@ import SearchBar from '../components/SearchBar';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
 export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,17 +41,18 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const userData = await usersApi.getMe();
-      const condominiumId = userData.data.condominiumId || '';
-      
-      const response = await sharedSpacesApi.getPaged(page, pageSize, debouncedSearch);
-      // Filter by condominium if admin
-      const filtered = isAdmin 
-        ? response.data.items.filter(s => s.condominiumId === condominiumId)
-        : response.data.items;
-      
+      if (!condominiumId) {
+        setPagination(null);
+        setSpaces([]);
+        setCurrentPage(page);
+        setForm(prev => ({ ...prev, condominiumId: '' }));
+        return;
+      }
+
+      const response = await sharedSpacesApi.getPaged(condominiumId, page, pageSize, debouncedSearch);
+
       setPagination(response.data);
-      setSpaces(filtered);
+      setSpaces(response.data.items);
       setCurrentPage(page);
       setForm(prev => ({ ...prev, condominiumId }));
     } catch (error) {
@@ -59,7 +60,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, debouncedSearch]);
+  }, [condominiumId, debouncedSearch]);
 
   useEffect(() => { 
     load(1); 
@@ -68,7 +69,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.condominiumId) {
+    if (!condominiumId) {
       alert('Condomínio não identificado. Por favor, recarregue a página.');
       return;
     }
@@ -88,13 +89,13 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         description: form.description,
         capacity: form.capacity ? parseInt(form.capacity) : undefined,
         rules: form.rules,
-        condominiumId: form.condominiumId,
+        condominiumId,
         reservationFee: parseFloat(form.reservationFee) || 0,
         color: form.color,
       };
       
       if (editingId) {
-        await sharedSpacesApi.update(editingId, {
+        await sharedSpacesApi.update(condominiumId, editingId, {
           name: data.name,
           description: data.description,
           capacity: data.capacity,
@@ -103,7 +104,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           color: data.color,
         });
       } else {
-        await sharedSpacesApi.create(data);
+        await sharedSpacesApi.create(condominiumId, data);
       }
       
       setShowForm(false);
@@ -156,7 +157,12 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await sharedSpacesApi.delete(deleteId);
+      if (!condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
+
+      await sharedSpacesApi.delete(condominiumId, deleteId);
       load();
     } catch (error: unknown) {
       const errorMessage =

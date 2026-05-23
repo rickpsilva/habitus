@@ -85,7 +85,7 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
         options.SignInScheme = "External";
         options.ClientId = googleClientId;
         options.ClientSecret = googleClientSecret;
-        options.CallbackPath = "/api/auth/external/google/callback";
+        options.CallbackPath = "/api/platform/auth/external/google/callback";
     });
 }
 
@@ -98,7 +98,7 @@ if (!string.IsNullOrWhiteSpace(microsoftClientId) && !string.IsNullOrWhiteSpace(
         options.SignInScheme = "External";
         options.ClientId = microsoftClientId;
         options.ClientSecret = microsoftClientSecret;
-        options.CallbackPath = "/api/auth/external/microsoft/callback";
+        options.CallbackPath = "/api/platform/auth/external/microsoft/callback";
     });
 }
 
@@ -151,6 +151,7 @@ app.UseCors();
 app.UseHttpsRedirection();
 app.UseIpRateLimiting();  // ⬅️ Rate limiting middleware (antes de auth)
 app.UseAuthentication();
+app.UseMiddleware<CondominiumAccessGuardMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

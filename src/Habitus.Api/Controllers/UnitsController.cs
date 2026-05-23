@@ -5,30 +5,53 @@ using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/units")]
+[Route("api/condominiums/{condominiumId:guid}/[controller]")]
 [Authorize]
 public class UnitsController : ControllerBase
 {
     private readonly IRepository<Unit> _repository;
     public UnitsController(IRepository<Unit> repository) => _repository = repository;
 
+    private bool CanAccessCondominium(Guid condominiumId)
+    {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (role == "Manager") return true;
+
+        var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+        return Guid.TryParse(userCondominiumId, out var userCondominiumGuid) && userCondominiumGuid == condominiumId;
+    }
+
     [HttpGet]
     [Authorize(Roles = "Admin,Resident")]
-    public async Task<IActionResult> GetAll() => Ok(await _repository.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
+    {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
+        var units = await _repository.GetAllAsync();
+        return Ok(units
+            .Where(u => u.CondominiumId == condominiumId)
+            .Select(MapUnit)
+            .ToList());
+    }
 
     [HttpGet("paged")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
         
         var units = await _repository.GetAllAsync();
-        var ordered = units.OrderBy(u => u.Number);
+        var ordered = units
+            .Where(u => u.CondominiumId == condominiumId)
+            .OrderBy(u => u.Number);
         
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -39,25 +62,33 @@ public class UnitsController : ControllerBase
             ).OrderBy(u => u.Number);
         }
         
-        return Ok(PaginationHelper.Paginate(ordered, page, pageSize));
+        return Ok(PaginationHelper.Paginate(ordered.Select(MapUnit), page, pageSize));
     }
 
     [HttpGet("{id}")]
     [Authorize(Roles = "Admin,Resident")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var result = await _repository.GetByIdAsync(id);
-        return result == null ? NotFound() : Ok(result);
+        if (result != null && result.CondominiumId != condominiumId) return NotFound();
+        return result == null ? NotFound() : Ok(MapUnit(result));
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] CreateUnitRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreateUnitRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
+        if (request.CondominiumId != Guid.Empty && request.CondominiumId != condominiumId)
+            return BadRequest(new { message = "O condominiumId no corpo do pedido não coincide com o da rota." });
+
         var unit = new Unit
         {
             Id = Guid.NewGuid(),
-            CondominiumId = request.CondominiumId,
+            CondominiumId = condominiumId,
             Number = request.Number,
             Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim(),
             Floor = request.Floor,
@@ -69,13 +100,15 @@ public class UnitsController : ControllerBase
         
         await _repository.AddAsync(unit);
         await _repository.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = unit.Id }, unit);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = unit.Id }, MapUnit(unit));
     }
 
     [HttpPost("import-csv")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> ImportCsv([FromQuery] Guid condominiumId, IFormFile file)
+    public async Task<IActionResult> ImportCsv([FromRoute] Guid condominiumId, IFormFile file)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Ficheiro CSV não fornecido." });
 
@@ -192,12 +225,17 @@ public class UnitsController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] CreateUnitRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] CreateUnitRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var existing = await _repository.GetByIdAsync(id);
         if (existing == null) return NotFound();
+        if (existing.CondominiumId != condominiumId) return NotFound();
+        if (request.CondominiumId != Guid.Empty && request.CondominiumId != condominiumId)
+            return BadRequest(new { message = "O condominiumId no corpo do pedido não coincide com o da rota." });
         
-        existing.CondominiumId = request.CondominiumId;
+        existing.CondominiumId = condominiumId;
         existing.Number = request.Number;
         existing.Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim();
         existing.Floor = request.Floor;
@@ -208,17 +246,36 @@ public class UnitsController : ControllerBase
         
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
-        return Ok(existing);
+        return Ok(MapUnit(existing));
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+
         var entity = await _repository.GetByIdAsync(id);
         if (entity == null) return NotFound();
+        if (entity.CondominiumId != condominiumId) return NotFound();
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static object MapUnit(Unit unit)
+    {
+        return new
+        {
+            id = unit.Id,
+            condominiumId = unit.CondominiumId,
+            number = unit.Number,
+            building = unit.Building,
+            floor = unit.Floor,
+            type = unit.Type,
+            apartmentNumber = unit.ApartmentNumber,
+            permillage = unit.Permillage,
+            monthlyQuota = unit.MonthlyQuota,
+        };
     }
 }

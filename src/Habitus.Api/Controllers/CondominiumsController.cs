@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/condominiums")]
+[Route("api/platform/[controller]")]
 [Authorize]
 public class CondominiumsController : ControllerBase
 {

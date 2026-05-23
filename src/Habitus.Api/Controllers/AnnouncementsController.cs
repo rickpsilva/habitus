@@ -12,7 +12,7 @@ namespace Habitus.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/condominiums/{condominiumId}/[controller]")]
+[Route("api/condominiums/{condominiumId:guid}/[controller]")]
 [RequireFeature("announcements")]
 public class AnnouncementsController : ControllerBase
 {
@@ -29,9 +29,9 @@ public class AnnouncementsController : ControllerBase
 
     private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    // GET: api/condominiums/{condominiumId}/announcements
+    // GET: api/condominiums/{condominiumId:guid}/announcements
     [HttpGet]
-    public async Task<ActionResult<List<AnnouncementDto>>> GetAll(Guid condominiumId, [FromQuery] string? status = null)
+    public async Task<ActionResult<List<AnnouncementDto>>> GetAll([FromRoute] Guid condominiumId, [FromQuery] string? status = null)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -78,9 +78,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(dtos);
     }
 
-    // GET: api/condominiums/{condominiumId}/announcements/{id}
+    // GET: api/condominiums/{condominiumId:guid}/announcements/{id}
     [HttpGet("{id}")]
-    public async Task<ActionResult<AnnouncementDto>> GetById(Guid condominiumId, Guid id)
+    public async Task<ActionResult<AnnouncementDto>> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -129,9 +129,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(MapToDto(announcement, userId));
     }
 
-    // GET: api/condominiums/{condominiumId}/announcements/stats
+    // GET: api/condominiums/{condominiumId:guid}/announcements/stats
     [HttpGet("stats")]
-    public async Task<ActionResult<AnnouncementStatsDto>> GetStats(Guid condominiumId)
+    public async Task<ActionResult<AnnouncementStatsDto>> GetStats([FromRoute] Guid condominiumId)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -160,9 +160,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(stats);
     }
 
-    // GET: api/condominiums/{condominiumId}/announcements/settings
+    // GET: api/condominiums/{condominiumId:guid}/announcements/settings
     [HttpGet("settings")]
-    public async Task<IActionResult> GetSettings(Guid condominiumId)
+    public async Task<IActionResult> GetSettings([FromRoute] Guid condominiumId)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -178,9 +178,9 @@ public class AnnouncementsController : ControllerBase
         });
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements
+    // POST: api/condominiums/{condominiumId:guid}/announcements
     [HttpPost]
-    public async Task<ActionResult<AnnouncementDto>> Create(Guid condominiumId, [FromBody] CreateAnnouncementRequest request)
+    public async Task<ActionResult<AnnouncementDto>> Create([FromRoute] Guid condominiumId, [FromBody] CreateAnnouncementRequest request)
     {
         var userId = GetUserId();
         var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
@@ -219,9 +219,9 @@ public class AnnouncementsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { condominiumId, id = announcement.Id }, MapToDto(announcement, userId));
     }
 
-    // PUT: api/condominiums/{condominiumId}/announcements/{id}
+    // PUT: api/condominiums/{condominiumId:guid}/announcements/{id}
     [HttpPut("{id}")]
-    public async Task<ActionResult<AnnouncementDto>> Update(Guid condominiumId, Guid id, [FromBody] UpdateAnnouncementRequest request)
+    public async Task<ActionResult<AnnouncementDto>> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateAnnouncementRequest request)
     {
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(id);
@@ -250,9 +250,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(MapToDto(announcement, userId));
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements/{id}/publish
+    // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/publish
     [HttpPost("{id}/publish")]
-    public async Task<IActionResult> Publish(Guid condominiumId, Guid id)
+    public async Task<IActionResult> Publish([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(id);
@@ -274,9 +274,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(new { message = "Comunicado submetido para aprovação." });
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements/{id}/approve
+    // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/approve
     [HttpPost("{id}/approve")]
-    public async Task<IActionResult> Approve(Guid condominiumId, Guid id, [FromBody] ApproveAnnouncementRequest request)
+    public async Task<IActionResult> Approve([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] ApproveAnnouncementRequest request)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -342,9 +342,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements/{id}/pin
+    // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/pin
     [HttpPost("{id}/pin")]
-    public async Task<IActionResult> TogglePin(Guid condominiumId, Guid id)
+    public async Task<IActionResult> TogglePin([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -363,9 +363,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(new { isPinned = announcement.IsPinned });
     }
 
-    // DELETE: api/condominiums/{condominiumId}/announcements/{id}
+    // DELETE: api/condominiums/{condominiumId:guid}/announcements/{id}
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid condominiumId, Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -398,9 +398,9 @@ public class AnnouncementsController : ControllerBase
         return NoContent();
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements/{id}/comments
+    // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/comments
     [HttpPost("{id}/comments")]
-    public async Task<ActionResult<AnnouncementCommentDto>> AddComment(Guid condominiumId, Guid id, [FromBody] CreateAnnouncementCommentRequest request)
+    public async Task<ActionResult<AnnouncementCommentDto>> AddComment([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] CreateAnnouncementCommentRequest request)
     {
         var userId = GetUserId();
         var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
@@ -457,9 +457,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(MapCommentToDto(comment, user));
     }
 
-    // DELETE: api/condominiums/{condominiumId}/announcements/{announcementId}/comments/{commentId}
+    // DELETE: api/condominiums/{condominiumId:guid}/announcements/{announcementId}/comments/{commentId}
     [HttpDelete("{announcementId}/comments/{commentId}")]
-    public async Task<IActionResult> DeleteComment(Guid condominiumId, Guid announcementId, Guid commentId)
+    public async Task<IActionResult> DeleteComment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid commentId)
     {
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
@@ -478,9 +478,9 @@ public class AnnouncementsController : ControllerBase
         return NoContent();
     }
 
-    // POST: api/condominiums/{condominiumId}/announcements/{id}/attachments
+    // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/attachments
     [HttpPost("{id}/attachments")]
-    public async Task<ActionResult<AnnouncementAttachmentDto>> UploadAttachment(Guid condominiumId, Guid id, IFormFile file)
+    public async Task<ActionResult<AnnouncementAttachmentDto>> UploadAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid id, IFormFile file)
     {
         var userId = GetUserId();
         var announcement = await _context.Announcements
@@ -549,9 +549,9 @@ public class AnnouncementsController : ControllerBase
         return Ok(MapAttachmentToDto(attachment));
     }
 
-    // DELETE: api/condominiums/{condominiumId}/announcements/{announcementId}/attachments/{attachmentId}
+    // DELETE: api/condominiums/{condominiumId:guid}/announcements/{announcementId}/attachments/{attachmentId}
     [HttpDelete("{announcementId}/attachments/{attachmentId}")]
-    public async Task<IActionResult> DeleteAttachment(Guid condominiumId, Guid announcementId, Guid attachmentId)
+    public async Task<IActionResult> DeleteAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid attachmentId)
     {
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(announcementId);
@@ -574,12 +574,12 @@ public class AnnouncementsController : ControllerBase
         return NoContent();
     }
 
-    // GET: api/condominiums/{condominiumId}/announcements/{announcementId}/attachments/{attachmentId}/download
+    // GET: api/condominiums/{condominiumId:guid}/announcements/{announcementId}/attachments/{attachmentId}/download
     // AllowAnonymous: browsers cannot send Bearer tokens for <img src> requests.
     // Security is provided by 3 unguessable GUIDs in the URL.
     [AllowAnonymous]
     [HttpGet("{announcementId}/attachments/{attachmentId}/download")]
-    public async Task<IActionResult> DownloadAttachment(Guid condominiumId, Guid announcementId, Guid attachmentId)
+    public async Task<IActionResult> DownloadAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid attachmentId)
     {
 
         var attachment = await _context.AnnouncementAttachments

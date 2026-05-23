@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Truck, Mail, Phone, MapPin, Building2, Edit2, Trash2 } from 'lucide-react';
-import { suppliersApi, usersApi } from '../api/services';
+import { suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -23,7 +23,7 @@ const initialSupplierForm: SupplierForm = {
 };
 
 export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,6 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterActive, setFilterActive] = useState<string>('all');
-  const [condominiumId, setCondominiumId] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<SupplierDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,22 +44,17 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const [form, setForm] = useState<SupplierForm>(initialSupplierForm);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const response = await usersApi.getMe();
-        setCondominiumId(response.data.condominiumId || '');
-      } catch (error) {
-        console.error('Failed to load user data:', error);
-      }
-    };
-    loadUserData();
-  }, []);
-
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const response = await suppliersApi.getPaged(page, pageSize, debouncedSearch);
+      if (!condominiumId) {
+        setPagination(null);
+        setSuppliers([]);
+        setCurrentPage(page);
+        return;
+      }
+
+      const response = await suppliersApi.getPaged(condominiumId, page, pageSize, debouncedSearch);
       setPagination(response.data);
       setSuppliers(response.data.items);
       setCurrentPage(page);
@@ -69,7 +63,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [condominiumId, debouncedSearch]);
 
   useEffect(() => { load(1); }, [load]);
 
@@ -93,7 +87,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           specialty: form.specialty,
           isActive: form.isActive,
         };
-        await suppliersApi.update(editingId, updatePayload);
+        await suppliersApi.update(condominiumId, editingId, updatePayload);
       } else {
         const createPayload: CreateSupplierRequest = {
           name: form.name,
@@ -104,7 +98,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           specialty: form.specialty,
           condominiumId,
         };
-        await suppliersApi.create(createPayload);
+        await suppliersApi.create(condominiumId, createPayload);
       }
       
       setShowForm(false);
@@ -141,7 +135,12 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await suppliersApi.delete(deleteId);
+      if (!condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
+
+      await suppliersApi.delete(condominiumId, deleteId);
       load();
     } catch (error) {
       console.error('Erro ao eliminar fornecedor:', error);
@@ -151,9 +150,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     }
   };
 
-  const filteredSuppliers = suppliers
-    .filter(s => s.condominiumId === condominiumId)
-    .filter(s => {
+  const filteredSuppliers = suppliers.filter(s => {
       if (filterActive === 'active') return s.isActive;
       if (filterActive === 'inactive') return !s.isActive;
       return true;

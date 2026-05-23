@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/platform/[controller]")]
 [Authorize]
 public class SubscriptionsController : ControllerBase
 {

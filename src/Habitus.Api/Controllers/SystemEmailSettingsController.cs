@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/platform/system-email-settings")]
+[Route("api/platform/[controller]")]
 [Authorize(Roles = "Manager")]
 public class SystemEmailSettingsController : ControllerBase
 {

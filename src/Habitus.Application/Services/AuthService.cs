@@ -19,6 +19,14 @@ public enum InitialManagerBootstrapStatus
     Created,
 }
 
+public sealed class InactiveCondominiumAccessException : Exception
+{
+    public InactiveCondominiumAccessException()
+        : base("Condominium is inactive.")
+    {
+    }
+}
+
 public class AuthService
 {
     private const int MaxFailedLoginAttempts = 5;
@@ -72,6 +80,11 @@ public class AuthService
             return null;
         }
 
+        if (!await IsCondominiumActiveForUserAsync(user))
+        {
+            throw new InactiveCondominiumAccessException();
+        }
+
         if (user.LockoutUntil.HasValue && user.LockoutUntil.Value > DateTime.UtcNow)
         {
             return null;
@@ -122,6 +135,11 @@ public class AuthService
         if (!user.TwoFactorEnabled)
         {
             return null;
+        }
+
+        if (!await IsCondominiumActiveForUserAsync(user))
+        {
+            throw new InactiveCondominiumAccessException();
         }
 
         var valid = request.UseRecoveryCode
@@ -327,6 +345,11 @@ public class AuthService
             return null;
         }
 
+        if (!await IsCondominiumActiveForUserAsync(user))
+        {
+            throw new InactiveCondominiumAccessException();
+        }
+
         user.LastLoginAt = DateTime.UtcNow;
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
@@ -504,6 +527,9 @@ public class AuthService
         var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
         if (condominium == null)
             return (null, "Condomínio não encontrado.");
+
+        if (!condominium.IsActive)
+            return (null, "Este condomínio está inativo. Contacte o administrador do condomínio.");
 
         var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
         if (existing.Any())
@@ -787,5 +813,16 @@ Habitus Team
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private async Task<bool> IsCondominiumActiveForUserAsync(User user)
+    {
+        if (user.Role == UserRole.Manager || !user.CondominiumId.HasValue)
+        {
+            return true;
+        }
+
+        var condominium = await _condominiumRepository.GetByIdAsync(user.CondominiumId.Value);
+        return condominium?.IsActive == true;
     }
 }

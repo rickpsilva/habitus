@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/financial")]
+[Route("api/condominiums/{condominiumId:guid}/financial")]
 [Authorize(Roles = "Admin,Resident")]
 [RequireFeature("financial")]
 public class FinancialController : ControllerBase
@@ -23,46 +23,50 @@ public class FinancialController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
     {
-        if (!TryGetCondominiumId(out var condominiumId))
-            return Unauthorized("User scope is invalid.");
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
+
         return Ok(await _service.GetAllAsync(condominiumId));
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
-        if (!TryGetCondominiumId(out var condominiumId))
-            return Unauthorized("User scope is invalid.");
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
         return Ok(await _service.GetPagedAsync(page, pageSize, condominiumId, search));
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetCondominiumId(out var condominiumId))
-            return Unauthorized("User scope is invalid.");
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
+
         var result = await _service.GetByIdAsync(id, condominiumId);
         return result == null ? NotFound() : Ok(result);
     }
 
-    [HttpGet("summary/{condominiumId}")]
-    public async Task<IActionResult> GetSummary(Guid condominiumId)
+    [HttpGet("summary")]
+    public async Task<IActionResult> GetSummary([FromRoute] Guid condominiumId)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         return Ok(await _service.GetSummaryAsync(condominiumId));
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create([FromBody] CreateFinancialRecordRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreateFinancialRecordRequest request)
     {
-        if (!TryGetCondominiumId(out var condominiumId))
-            return Unauthorized("User scope is invalid.");
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
 
         if (request.CondominiumId != condominiumId)
             return Forbid();
@@ -75,7 +79,7 @@ public class FinancialController : ControllerBase
             }
             
             var result = await _service.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = result.Id }, result);
         }
         catch (Exception ex)
         {
@@ -85,83 +89,91 @@ public class FinancialController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetCondominiumId(out var condominiumId))
-            return Unauthorized("User scope is invalid.");
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
+
         var success = await _service.DeleteAsync(id, condominiumId);
         return success ? NoContent() : NotFound();
     }
 
     // Dashboard with fiscal year filtering
-    [HttpGet("dashboard/{condominiumId}")]
-    public async Task<IActionResult> GetDashboard(Guid condominiumId, [FromQuery] int? fiscalYear = null)
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard([FromRoute] Guid condominiumId, [FromQuery] int? fiscalYear = null)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         return Ok(await _service.GetDashboardAsync(condominiumId, fiscalYear));
     }
 
     // Get available fiscal years
-    [HttpGet("fiscal-years/{condominiumId}")]
-    public async Task<IActionResult> GetFiscalYears(Guid condominiumId)
+    [HttpGet("fiscal-years")]
+    public async Task<IActionResult> GetFiscalYears([FromRoute] Guid condominiumId)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         return Ok(await _service.GetAvailableFiscalYearsAsync(condominiumId));
     }
 
     // Get records by fiscal year
-    [HttpGet("by-year/{condominiumId}")]
+    [HttpGet("by-year")]
     public async Task<IActionResult> GetByYear(
-        Guid condominiumId, 
+        [FromRoute] Guid condominiumId,
         [FromQuery] int fiscalYear, 
         [FromQuery] int page = 1, 
         [FromQuery] int pageSize = 10, 
         [FromQuery] string? search = null)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
         return Ok(await _service.GetPagedByYearAsync(condominiumId, fiscalYear, page, pageSize, search));
     }
 
     // Reserve Fund endpoints
-    [HttpGet("reserve-fund/{condominiumId}")]
-    public async Task<IActionResult> GetReserveFund(Guid condominiumId, [FromQuery] int? fiscalYear = null)
+    [HttpGet("reserve-fund")]
+    public async Task<IActionResult> GetReserveFund([FromRoute] Guid condominiumId, [FromQuery] int? fiscalYear = null)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         var year = fiscalYear ?? DateTime.UtcNow.Year;
         var fund = await _reserveFundService.GetByYearAsync(condominiumId, year);
         return fund == null ? NotFound() : Ok(fund);
     }
 
-    [HttpGet("reserve-fund/{condominiumId}/current")]
-    public async Task<IActionResult> GetCurrentReserveFund(Guid condominiumId)
+    [HttpGet("reserve-fund/current")]
+    public async Task<IActionResult> GetCurrentReserveFund([FromRoute] Guid condominiumId)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         return Ok(await _reserveFundService.GetOrCreateCurrentYearAsync(condominiumId));
     }
 
-    [HttpGet("reserve-fund/{condominiumId}/history")]
-    public async Task<IActionResult> GetReserveFundHistory(Guid condominiumId)
+    [HttpGet("reserve-fund/history")]
+    public async Task<IActionResult> GetReserveFundHistory([FromRoute] Guid condominiumId)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         return Ok(await _reserveFundService.GetHistoryAsync(condominiumId));
     }
 
-    [HttpPost("reserve-fund/{condominiumId}/deposit")]
+    [HttpPost("reserve-fund/deposit")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddDeposit(
-        Guid condominiumId, 
+        [FromRoute] Guid condominiumId,
         [FromBody] UpdateReserveFundRequest request)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         if (!request.Deposits.HasValue || request.Deposits.Value <= 0)
             return BadRequest(new { message = "Valor de depósito inválido" });
 
@@ -175,14 +187,15 @@ public class FinancialController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("reserve-fund/{condominiumId}/withdrawal")]
+    [HttpPost("reserve-fund/withdrawal")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddWithdrawal(
-        Guid condominiumId, 
+        [FromRoute] Guid condominiumId,
         [FromBody] UpdateReserveFundRequest request)
     {
-        if (!TryGetCondominiumId(out var jwtCondominiumId) || jwtCondominiumId != condominiumId)
+        if (!HasCondominiumAccess(condominiumId))
             return Forbid();
+
         if (!request.Withdrawals.HasValue || request.Withdrawals.Value <= 0)
             return BadRequest(new { message = "Valor de levantamento inválido" });
 
@@ -203,10 +216,9 @@ public class FinancialController : ControllerBase
         }
     }
 
-    private bool TryGetCondominiumId(out Guid condominiumId)
+    private bool HasCondominiumAccess(Guid condominiumId)
     {
-        condominiumId = Guid.Empty;
         var claim = User.FindFirstValue("CondominiumId");
-        return Guid.TryParse(claim, out condominiumId);
+        return Guid.TryParse(claim, out var jwtCondominiumId) && jwtCondominiumId == condominiumId;
     }
 }

@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/maintenance")]
+[Route("api/condominiums/{condominiumId:guid}/maintenance")]
 [Authorize(Roles = "Admin,Resident")]
 [RequireFeature("maintenance")]
 public class MaintenanceController : ControllerBase
@@ -18,22 +18,22 @@ public class MaintenanceController : ControllerBase
     public MaintenanceController(MaintenanceService service) => _service = service;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         return Ok(await _service.GetAllAsync(condominiumId, userRole, userId, unitId));
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         if (page < 1) page = 1;
@@ -42,11 +42,11 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         var result = await _service.GetByIdAsync(id, condominiumId, userRole, userId, unitId);
@@ -54,11 +54,11 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateMaintenanceRequest request)
+    public async Task<IActionResult> Create([FromRoute] Guid condominiumId, [FromBody] CreateMaintenanceRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         if (request.CondominiumId != condominiumId)
@@ -73,15 +73,15 @@ public class MaintenanceController : ControllerBase
         }
 
         var result = await _service.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        return CreatedAtAction(nameof(GetById), new { condominiumId, id = result.Id }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMaintenanceRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateMaintenanceRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         var result = await _service.UpdateAsync(id, request, condominiumId, userRole, userId, unitId);
@@ -89,11 +89,11 @@ public class MaintenanceController : ControllerBase
     }
     [HttpPut("{id}/status")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<MaintenanceRequestDto>> UpdateStatus(Guid id, [FromBody] UpdateMaintenanceStatusRequest request)
+    public async Task<ActionResult<MaintenanceRequestDto>> UpdateStatus([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateMaintenanceStatusRequest request)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         var result = await _service.UpdateStatusAsync(id, request, condominiumId, userRole, userId, unitId);
@@ -101,20 +101,19 @@ public class MaintenanceController : ControllerBase
     }
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
-        if (!TryGetScope(out var condominiumId, out var userRole, out var userId, out var unitId))
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
-            return Unauthorized("User scope is invalid.");
+            return Forbid();
         }
 
         var success = await _service.DeleteAsync(id, condominiumId, userRole, userId, unitId);
         return success ? NoContent() : NotFound();
     }
 
-    private bool TryGetScope(out Guid condominiumId, out string userRole, out Guid userId, out Guid? unitId)
+    private bool TryGetScope(Guid routeCondominiumId, out string userRole, out Guid userId, out Guid? unitId)
     {
-        condominiumId = Guid.Empty;
         userId = Guid.Empty;
         userRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
         unitId = null;
@@ -123,10 +122,19 @@ public class MaintenanceController : ControllerBase
         var condominiumClaim = User.FindFirstValue("CondominiumId");
         var unitClaim = User.FindFirstValue("UnitId");
 
-        var valid = Guid.TryParse(userIdClaim, out userId)
-            && Guid.TryParse(condominiumClaim, out condominiumId);
+        var valid = Guid.TryParse(userIdClaim, out userId);
 
         if (!valid) return false;
+
+        if (!Guid.TryParse(condominiumClaim, out var claimCondominiumId))
+        {
+            return false;
+        }
+
+        if (claimCondominiumId != routeCondominiumId)
+        {
+            return false;
+        }
 
         if (Guid.TryParse(unitClaim, out var parsedUnitId))
         {

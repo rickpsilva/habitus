@@ -91,7 +91,7 @@ export default function LoginPage() {
   };
 
   const startSocialLogin = (provider: 'google' | 'microsoft') => {
-    window.location.href = `/api/auth/external/${provider}/start`;
+    window.location.href = `/api/platform/auth/external/${provider}/start`;
   };
 
   const resetTwoFactorState = () => {

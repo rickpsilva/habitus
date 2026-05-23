@@ -171,6 +171,11 @@ export default function FinancialPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!condominiumId) {
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      return;
+    }
     
     if (!form.condominiumId) {
       toastError('Condomínio não identificado. Por favor, recarregue a página.');
@@ -199,7 +204,7 @@ export default function FinancialPage() {
         receiptUrl: undefined,
       };
       
-      await financialApi.create(requestData);
+      await financialApi.create(condominiumId, requestData);
       setShowForm(false);
       setForm({ 
         type: 'Expense', 
@@ -233,9 +238,9 @@ export default function FinancialPage() {
   };
 
   const confirmDeleteRecord = async () => {
-    if (!deleteRecordId) return;
+    if (!deleteRecordId || !condominiumId) return;
     try {
-      await financialApi.delete(deleteRecordId);
+      await financialApi.delete(condominiumId, deleteRecordId);
       if (condominiumId) {
         const [dashboardRes, fundRes] = await Promise.all([
           financialApi.getDashboard(condominiumId, selectedYear),
@@ -254,8 +259,13 @@ export default function FinancialPage() {
   };
 
   const handleDownloadProof = async (paymentId: string, description: string) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     try {
-      await paymentsApi.downloadProof(paymentId, description);
+      await paymentsApi.downloadProof(condominiumId, paymentId, description);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
       toastError('Erro ao fazer download do comprovativo.');
@@ -299,7 +309,7 @@ export default function FinancialPage() {
 
   const handleDocumentUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile) return;
+    if (!uploadFile || !condominiumId) return;
 
     setUploading(true);
     try {
@@ -314,7 +324,7 @@ export default function FinancialPage() {
         formData.append('description', uploadForm.description);
       }
 
-      await documentsApi.upload(formData);
+      await documentsApi.upload(condominiumId, formData);
       setShowDocumentModal(false);
       setUploadFile(null);
       setUploadForm({
@@ -348,7 +358,7 @@ export default function FinancialPage() {
     if (!isAdmin || !condominiumId) return;
     try {
       // Load all payments (up to 500)
-      const response = await paymentsApi.getPaged(1, 500);
+      const response = await paymentsApi.getPaged(condominiumId, 1, 500);
       setAllPayments(response.data.items);
     } catch (error) {
       console.error('Error loading payments:', error);
@@ -360,9 +370,9 @@ export default function FinancialPage() {
   };
 
   const confirmApprovePayment = async () => {
-    if (!approvePaymentId) return;
+    if (!approvePaymentId || !condominiumId) return;
     try {
-      await paymentsApi.approve(approvePaymentId);
+      await paymentsApi.approve(condominiumId, approvePaymentId);
       loadAllPayments();
       toastSuccess('Pagamento aprovado com sucesso!');
     } catch (error: unknown) {
@@ -374,12 +384,12 @@ export default function FinancialPage() {
   };
 
   const handleRejectPayment = async () => {
-    if (!selectedPayment || !rejectionReason.trim()) {
+    if (!selectedPayment || !rejectionReason.trim() || !condominiumId) {
       toastError('Por favor insira o motivo da rejeição.');
       return;
     }
     try {
-      await paymentsApi.reject(selectedPayment.id, { rejectionReason });
+      await paymentsApi.reject(condominiumId, selectedPayment.id, { rejectionReason });
       setShowRejectModal(false);
       setSelectedPayment(null);
       setRejectionReason('');
@@ -396,9 +406,9 @@ export default function FinancialPage() {
   };
 
   const confirmIssueReceipt = async () => {
-    if (!issueReceiptId) return;
+    if (!issueReceiptId || !condominiumId) return;
     try {
-      await paymentsApi.issueReceipt(issueReceiptId);
+      await paymentsApi.issueReceipt(condominiumId, issueReceiptId);
       loadAllPayments();
       toastSuccess('Recibo emitido com sucesso!');
     } catch (error: unknown) {
@@ -410,12 +420,17 @@ export default function FinancialPage() {
   };
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
+    if (!condominiumId) {
+      toastError('Condomínio não selecionado.');
+      return;
+    }
+
     if (!payment.receiptNumber || !payment.receiptYear) {
       toastError('Este pagamento ainda não tem recibo emitido.');
       return;
     }
     try {
-      await paymentsApi.downloadReceipt(payment.id, payment.receiptNumber, payment.receiptYear);
+      await paymentsApi.downloadReceipt(condominiumId, payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
       toastError(getApiErrorMessage(error, 'Erro ao baixar recibo'));
@@ -1355,12 +1370,12 @@ function FinancialPlansContent() {
   const loadData = useCallback(async () => {
     try {
       const [unitsRes, plansRes] = await Promise.all([
-        unitsApi.getAll(),
+        unitsApi.getAll(condominiumId!),
         quotaPlansApi.getAll(condominiumId!)
       ]);
 
-      // Filter units by condominium
-      const condoUnits = unitsRes.data.filter(u => u.condominiumId === condominiumId);
+      // Units are already scoped by condominium in API
+      const condoUnits = unitsRes.data;
       setUnits(condoUnits);
 
       // Filter plans by condominium and sort by year desc
@@ -1472,7 +1487,7 @@ function FinancialPlansContent() {
       // Save all unit monthly quotas
       await Promise.all(
         units.map(unit =>
-          unitsApi.update(unit.id, {
+          unitsApi.update(condominiumId!, unit.id, {
             ...unit,
             monthlyQuota: unit.monthlyQuota || 0
           })

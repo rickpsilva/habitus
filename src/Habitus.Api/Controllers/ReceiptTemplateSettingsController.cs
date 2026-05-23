@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/condominiums/{condominiumId}/receipt-template-settings")]
+[Route("api/condominiums/{condominiumId:guid}/receipt-template-settings")]
 [Authorize(Roles = "Admin,Manager")]
 public class ReceiptTemplateSettingsController : ControllerBase
 {
@@ -22,7 +22,7 @@ public class ReceiptTemplateSettingsController : ControllerBase
     /// Get receipt template settings for a condominium
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Get(Guid condominiumId)
+    public async Task<IActionResult> Get([FromRoute] Guid condominiumId)
     {
         try
         {
@@ -89,7 +89,7 @@ public class ReceiptTemplateSettingsController : ControllerBase
     /// Update receipt template settings for a condominium
     /// </summary>
     [HttpPut]
-    public async Task<IActionResult> Update(Guid condominiumId, [FromBody] UpdateReceiptTemplateSettingsRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid condominiumId, [FromBody] UpdateReceiptTemplateSettingsRequest request)
     {
         try
         {

@@ -124,4 +124,26 @@ public class ReservationServiceIsolationTests
         dto.Should().BeNull();
         error.Should().NotBeNullOrEmpty();
     }
+
+    [Fact]
+    public async Task CreateAsync_WhenEndTimeIsBeforeOrEqualStartTime_ReturnsError()
+    {
+        var now = DateTime.UtcNow;
+        var request = new CreateReservationRequest
+        {
+            SpaceId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            StartTime = now.AddHours(2),
+            EndTime = now.AddHours(2)
+        };
+
+        var (dto, error) = await _service.CreateAsync(_condominiumA, request);
+
+        dto.Should().BeNull();
+        error.Should().Be("A data de fim deve ser posterior à data de início.");
+
+        _spaceRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
+        _userRepositoryMock.Verify(r => r.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
+        _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Reservation>()), Times.Never);
+    }
 }

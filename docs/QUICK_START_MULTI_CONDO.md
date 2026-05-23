@@ -103,12 +103,12 @@ curl -X POST http://localhost:5000/api/users \
 ### 6. Criar uma Fração (Unit)
 
 ```bash
-# Criar via UnitsController (endpoint existente)
-curl -X POST http://localhost:5000/api/units \
+# Criar via UnitsController no escopo do condomínio
+curl -X POST http://localhost:5000/api/condominiums/GUID_DO_CONDOMINIO/units \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer SEU_TOKEN_JWT" \
   -d '{
-    "buildingId": "GUID_DO_CONDOMINIO",
+    "condominiumId": "GUID_DO_CONDOMINIO",
     "number": "1A",
     "floor": 1,
     "type": "Apartment",

@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace Habitus.Api.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route("api/platform/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
@@ -34,17 +34,39 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var result = await _authService.LoginAsync(request, GetIpAddress(), GetUserAgent());
-        if (result == null) return Unauthorized("Invalid credentials.");
-        return Ok(result);
+        try
+        {
+            var result = await _authService.LoginAsync(request, GetIpAddress(), GetUserAgent());
+            if (result == null) return Unauthorized("Invalid credentials.");
+            return Ok(result);
+        }
+        catch (InactiveCondominiumAccessException)
+        {
+            return StatusCode(StatusCodes.Status423Locked, new
+            {
+                code = "condominium_inactive",
+                message = "Condominium is inactive. Please contact your condominium administrator."
+            });
+        }
     }
 
     [HttpPost("login/2fa")]
     public async Task<IActionResult> CompleteTwoFactorLogin([FromBody] CompleteTwoFactorLoginRequest request)
     {
-        var result = await _authService.CompleteTwoFactorLoginAsync(request, GetIpAddress(), GetUserAgent());
-        if (result == null) return Unauthorized("Invalid or expired authentication challenge.");
-        return Ok(result);
+        try
+        {
+            var result = await _authService.CompleteTwoFactorLoginAsync(request, GetIpAddress(), GetUserAgent());
+            if (result == null) return Unauthorized("Invalid or expired authentication challenge.");
+            return Ok(result);
+        }
+        catch (InactiveCondominiumAccessException)
+        {
+            return StatusCode(StatusCodes.Status423Locked, new
+            {
+                code = "condominium_inactive",
+                message = "Condominium is inactive. Please contact your condominium administrator."
+            });
+        }
     }
 
     [HttpPost("forgot-password")]
@@ -230,7 +252,16 @@ public class AuthController : ControllerBase
             return Redirect(BuildFrontendProfileRedirect(linked ? $"linked_{normalizedProvider.ToLowerInvariant()}" : "link_failed"));
         }
 
-        var result = await _authService.LoginWithExternalProviderAsync(externalProvider, providerUserId, providerEmail, GetIpAddress(), GetUserAgent());
+        AuthResponse? result;
+        try
+        {
+            result = await _authService.LoginWithExternalProviderAsync(externalProvider, providerUserId, providerEmail, GetIpAddress(), GetUserAgent());
+        }
+        catch (InactiveCondominiumAccessException)
+        {
+            return Redirect(BuildFrontendInactiveCondominiumRedirect());
+        }
+
         if (result == null)
         {
             return Redirect(BuildFrontendErrorRedirect("external_login_denied"));
@@ -354,6 +385,11 @@ public class AuthController : ControllerBase
     private string BuildFrontendProfileRedirect(string status)
     {
         return $"{GetFrontendBaseUrl()}/profile?securityStatus={Uri.EscapeDataString(status)}";
+    }
+
+    private string BuildFrontendInactiveCondominiumRedirect()
+    {
+        return $"{GetFrontendBaseUrl()}/condominium-inactive";
     }
 
     private string GetFrontendBaseUrl()

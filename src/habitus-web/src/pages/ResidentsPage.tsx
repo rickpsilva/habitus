@@ -19,7 +19,7 @@ const roleColors: Record<string, string> = {
 };
 
 export default function ResidentsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [residents, setResidents] = useState<ResidentDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
@@ -30,9 +30,16 @@ export default function ResidentsPage() {
 
   const load = () => {
     setLoading(true);
+    if (!condominiumId) {
+      setResidents([]);
+      setUnits([]);
+      setLoading(false);
+      return;
+    }
+
     Promise.all([
       residentsApi.getAll().then((r) => setResidents(r.data)),
-      unitsApi.getAll().then((r) => setUnits(r.data)),
+      unitsApi.getAll(condominiumId).then((r) => setUnits(r.data)),
     ]).finally(() => setLoading(false));
   };
 

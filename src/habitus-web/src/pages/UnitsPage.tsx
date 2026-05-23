@@ -60,13 +60,15 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
     try {
-      const unitsResponse = await unitsApi.getPaged(page, pageSize, debouncedSearch);
-      let unitsData = unitsResponse.data.items;
-      
-      // Filter by condominium if user is Admin
-      if (isAdmin && condominiumId) {
-        unitsData = unitsData.filter(u => u.condominiumId === condominiumId);
+      if (!condominiumId) {
+        setPagination(null);
+        setUnits([]);
+        setCurrentPage(page);
+        return;
       }
+
+      const unitsResponse = await unitsApi.getPaged(condominiumId, page, pageSize, debouncedSearch);
+      const unitsData = unitsResponse.data.items;
       
       setPagination(unitsResponse.data);
       setUnits(unitsData);
@@ -143,8 +145,8 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     }
 
     try {
-      const response = await unitsApi.getAll();
-      const condominiumUnits = response.data.filter((u) => u.condominiumId === condominiumId);
+      const response = await unitsApi.getAll(condominiumId);
+      const condominiumUnits = response.data;
 
       const header = 'floor,number,type,apartmentNumber,permillage,monthlyQuota,building';
       let rows: string[];
@@ -192,10 +194,15 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     setSaving(true);
     setError('');
     try {
+      if (!condominiumId) {
+        setError('Condomínio não identificado');
+        return;
+      }
+
       if (editId) {
-        await unitsApi.update(editId, form);
+        await unitsApi.update(condominiumId, editId, form);
       } else {
-        await unitsApi.create(form);
+        await unitsApi.create(condominiumId, form);
       }
       setShowForm(false);
       load();
@@ -213,7 +220,12 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await unitsApi.delete(deleteId);
+      if (!condominiumId) {
+        toastError('Condomínio não identificado.');
+        return;
+      }
+
+      await unitsApi.delete(condominiumId, deleteId);
       load();
     } catch (error) {
       console.error('Erro ao remover fração:', error);
