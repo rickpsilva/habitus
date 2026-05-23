@@ -23,6 +23,12 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
+import {
+  DEFAULT_MAX_UPLOAD_SIZE_BYTES,
+  formatUploadSizeLabel,
+  getPlatformMaxUploadSizeBytes,
+  isFileSizeWithinLimit,
+} from '../utils/uploadLimits';
 import type {
   AnnouncementDto,
   AnnouncementAttachmentDto,
@@ -131,6 +137,20 @@ export default function AnnouncementsPage() {
 
   const [files, setFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [maxUploadSizeBytes, setMaxUploadSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPlatformMaxUploadSizeBytes().then((value) => {
+      if (!mounted) return;
+      setMaxUploadSizeBytes(value);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filteredAnnouncements = useMemo(() => {
     const query = debouncedSearchText.trim().toLowerCase();
@@ -340,6 +360,13 @@ export default function AnnouncementsPage() {
 
   const submitForm = async (publishImmediately: boolean) => {
     if (!condominiumId) return;
+
+    const oversizedFile = files.find((file) => !isFileSizeWithinLimit(file, maxUploadSizeBytes));
+    if (oversizedFile) {
+      toastError(`O ficheiro ${oversizedFile.name} excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (editing) {
@@ -708,9 +735,23 @@ export default function AnnouncementsPage() {
                 type="file"
                 multiple
                 accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                onChange={(e) => {
+                  const selectedFiles = Array.from(e.target.files || []);
+                  const oversizedFile = selectedFiles.find((file) => !isFileSizeWithinLimit(file, maxUploadSizeBytes));
+
+                  if (oversizedFile) {
+                    toastError(`O ficheiro ${oversizedFile.name} excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+                    setFiles([]);
+                    return;
+                  }
+
+                  setFiles(selectedFiles);
+                }}
                 className="block w-full text-sm"
               />
+              <p className="text-xs text-gray-500 mt-2">
+                Tamanho máximo por ficheiro: {formatUploadSizeLabel(maxUploadSizeBytes)}
+              </p>
               {files.length > 0 && (
                 <p className="text-xs text-gray-500 mt-2">{files.length} ficheiro(s) selecionado(s)</p>
               )}

@@ -18,12 +18,18 @@ public class AnnouncementsController : ControllerBase
 {
     private readonly HabitusDbContext _context;
     private readonly IWebHostEnvironment _env;
+    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
     private readonly INotificationDispatchService _notificationDispatchService;
 
-    public AnnouncementsController(HabitusDbContext context, IWebHostEnvironment env, INotificationDispatchService notificationDispatchService)
+    public AnnouncementsController(
+        HabitusDbContext context,
+        IWebHostEnvironment env,
+        IRepository<PlatformUploadSettings> platformUploadSettingsRepository,
+        INotificationDispatchService notificationDispatchService)
     {
         _context = context;
         _env = env;
+        _platformUploadSettingsRepository = platformUploadSettingsRepository;
         _notificationDispatchService = notificationDispatchService;
     }
 
@@ -480,6 +486,8 @@ public class AnnouncementsController : ControllerBase
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/attachments
     [HttpPost("{id}/attachments")]
+    [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB
+    [RequestSizeLimit(524288000)] // 500 MB
     public async Task<ActionResult<AnnouncementAttachmentDto>> UploadAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid id, IFormFile file)
     {
         var userId = GetUserId();
@@ -490,7 +498,7 @@ public class AnnouncementsController : ControllerBase
         if (announcement == null) return NotFound();
         if (announcement.AuthorId != userId) return Forbid();
         if (announcement.Status != AnnouncementStatus.Draft) 
-            return BadRequest("Can only upload attachments to draft announcements");
+            return BadRequest("Só é possível carregar anexos em comunicados em rascunho.");
 
         // Validate file
         var allowedImageTypes = new[] { ".jpg", ".jpeg", ".png", ".gif" };
@@ -502,22 +510,22 @@ public class AnnouncementsController : ControllerBase
         {
             attachmentType = AttachmentType.Image;
             var imageCount = announcement.Attachments.Count(a => a.Type == AttachmentType.Image);
-            if (imageCount >= 5) return BadRequest("Maximum 5 images allowed");
+            if (imageCount >= 5) return BadRequest("Máximo de 5 imagens permitido.");
         }
         else if (allowedDocTypes.Contains(ext))
         {
             attachmentType = AttachmentType.Document;
             var docCount = announcement.Attachments.Count(a => a.Type == AttachmentType.Document);
-            if (docCount >= 2) return BadRequest("Maximum 2 documents allowed");
+            if (docCount >= 2) return BadRequest("Máximo de 2 documentos permitido.");
         }
         else
         {
             return BadRequest("Invalid file type");
         }
 
-        // Max 10MB
-        if (file.Length > 10 * 1024 * 1024)
-            return BadRequest("File too large (max 10MB)");
+        var maxUploadSizeBytes = await GetMaxUploadSizeBytesAsync();
+        if (file.Length > maxUploadSizeBytes)
+            return BadRequest($"File is too large. Maximum upload size (max. {FormatFileSize(maxUploadSizeBytes)}).");
 
         // Save file
         var uploadsFolder = Path.Combine(_env.ContentRootPath, "announcements");
@@ -699,5 +707,24 @@ public class AnnouncementsController : ControllerBase
             CreatedAt = comment.CreatedAt,
             UpdatedAt = comment.UpdatedAt
         };
+    }
+
+    private async Task<int> GetMaxUploadSizeBytesAsync()
+    {
+        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        const double kb = 1024;
+        const double mb = 1024 * 1024;
+
+        if (bytes >= mb)
+        {
+            return $"{bytes / mb:0.##} MB";
+        }
+
+        return $"{bytes / kb:0.##} KB";
     }
 }

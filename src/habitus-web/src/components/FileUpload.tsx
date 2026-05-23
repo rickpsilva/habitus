@@ -1,5 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  DEFAULT_MAX_UPLOAD_SIZE_BYTES,
+  formatUploadSizeLabel,
+  getPlatformMaxUploadSizeBytes,
+  isFileSizeWithinLimit,
+} from '../utils/uploadLimits';
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -13,14 +19,37 @@ interface FileUploadProps {
 export default function FileUpload({
   onFileSelect,
   accept = '*/*',
-  maxSizeMB = 100,
+  maxSizeMB,
   disabled = false,
   currentFile,
   removeFile
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [platformMaxSizeBytes, setPlatformMaxSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPlatformMaxUploadSizeBytes().then((value) => {
+      if (!mounted) return;
+      setPlatformMaxSizeBytes(value);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const effectiveMaxSizeBytes = useMemo(() => {
+    if (typeof maxSizeMB !== 'number' || Number.isNaN(maxSizeMB) || maxSizeMB <= 0) {
+      return platformMaxSizeBytes;
+    }
+
+    const propLimitBytes = maxSizeMB * 1024 * 1024;
+    return Math.min(propLimitBytes, platformMaxSizeBytes);
+  }, [maxSizeMB, platformMaxSizeBytes]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -35,10 +64,8 @@ export default function FileUpload({
   };
 
   const validateFile = (file: File): string | null => {
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    
-    if (file.size > maxSizeBytes) {
-      return `File size exceeds ${maxSizeMB}MB limit`;
+    if (!isFileSizeWithinLimit(file, effectiveMaxSizeBytes)) {
+      return `O ficheiro excede o limite de ${formatUploadSizeLabel(effectiveMaxSizeBytes)}`;
     }
 
     // Validate accept pattern if specified
@@ -180,7 +207,7 @@ export default function FileUpload({
               </p>
               {!error && (
                 <p className="text-sm text-gray-500 mt-1">
-                  Maximum file size: {maxSizeMB}MB
+                  Tamanho máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)}
                 </p>
               )}
             </div>

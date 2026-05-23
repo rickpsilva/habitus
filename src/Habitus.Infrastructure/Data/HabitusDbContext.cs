@@ -47,6 +47,7 @@ public class HabitusDbContext : DbContext
     public DbSet<NotificationDispatchDelivery> NotificationDispatchDeliveries => Set<NotificationDispatchDelivery>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
+    public DbSet<PlatformUploadSettings> PlatformUploadSettings => Set<PlatformUploadSettings>();
     public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
     
     // Deprecated entities (kept for migration compatibility)
@@ -310,6 +311,12 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(p => p.Id);
             entity.Property(p => p.GatewayProvider).IsRequired();
+        });
+
+        modelBuilder.Entity<PlatformUploadSettings>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.MaxUploadSizeBytes).IsRequired();
         });
 
         // Configure CommunicationSettings relationships

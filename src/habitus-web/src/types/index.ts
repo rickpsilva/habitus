@@ -639,6 +639,17 @@ export interface UpdatePlatformBillingSettingsRequest {
   merchantDisplayName?: string;
 }
 
+export interface PlatformUploadSettingsDto {
+  id: string;
+  maxUploadSizeBytes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePlatformUploadSettingsRequest {
+  maxUploadSizeBytes: number;
+}
+
 // Communication Settings
 export interface CommunicationSettingsDto {
   id: string;

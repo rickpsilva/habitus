@@ -15,7 +15,15 @@ namespace Habitus.Api.Controllers;
 public class UnitsController : ControllerBase
 {
     private readonly IRepository<Unit> _repository;
-    public UnitsController(IRepository<Unit> repository) => _repository = repository;
+    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
+
+    public UnitsController(
+        IRepository<Unit> repository,
+        IRepository<PlatformUploadSettings> platformUploadSettingsRepository)
+    {
+        _repository = repository;
+        _platformUploadSettingsRepository = platformUploadSettingsRepository;
+    }
 
     private bool CanAccessCondominium(Guid condominiumId)
     {
@@ -47,12 +55,12 @@ public class UnitsController : ControllerBase
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
-        
+
         var units = await _repository.GetAllAsync();
         var ordered = units
             .Where(u => u.CondominiumId == condominiumId)
             .OrderBy(u => u.Number);
-        
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLower();
@@ -61,7 +69,7 @@ public class UnitsController : ControllerBase
                 (u.ApartmentNumber ?? "").ToLower().Contains(searchLower)
             ).OrderBy(u => u.Number);
         }
-        
+
         return Ok(PaginationHelper.Paginate(ordered.Select(MapUnit), page, pageSize));
     }
 
@@ -97,7 +105,7 @@ public class UnitsController : ControllerBase
             Permillage = request.Permillage,
             MonthlyQuota = request.MonthlyQuota
         };
-        
+
         await _repository.AddAsync(unit);
         await _repository.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { condominiumId, id = unit.Id }, MapUnit(unit));
@@ -105,12 +113,18 @@ public class UnitsController : ControllerBase
 
     [HttpPost("import-csv")]
     [Authorize(Roles = "Admin")]
+    [RequestFormLimits(MultipartBodyLengthLimit = 524288000)] // 500 MB
+    [RequestSizeLimit(524288000)] // 500 MB
     public async Task<IActionResult> ImportCsv([FromRoute] Guid condominiumId, IFormFile file)
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
 
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Ficheiro CSV não fornecido." });
+
+        var maxUploadSizeBytes = await GetMaxUploadSizeBytesAsync();
+        if (file.Length > maxUploadSizeBytes)
+            return BadRequest(new { message = $"O ficheiro excede o limite máximo de {FormatFileSize(maxUploadSizeBytes)}." });
 
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { message = "Apenas ficheiros CSV são aceites." });
@@ -234,7 +248,7 @@ public class UnitsController : ControllerBase
         if (existing.CondominiumId != condominiumId) return NotFound();
         if (request.CondominiumId != Guid.Empty && request.CondominiumId != condominiumId)
             return BadRequest(new { message = "O condominiumId no corpo do pedido não coincide com o da rota." });
-        
+
         existing.CondominiumId = condominiumId;
         existing.Number = request.Number;
         existing.Building = string.IsNullOrWhiteSpace(request.Building) ? null : request.Building.Trim();
@@ -243,7 +257,7 @@ public class UnitsController : ControllerBase
         existing.ApartmentNumber = request.ApartmentNumber;
         existing.Permillage = request.Permillage;
         existing.MonthlyQuota = request.MonthlyQuota;
-        
+
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
         return Ok(MapUnit(existing));
@@ -261,6 +275,25 @@ public class UnitsController : ControllerBase
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task<int> GetMaxUploadSizeBytesAsync()
+    {
+        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        const double kb = 1024;
+        const double mb = 1024 * 1024;
+
+        if (bytes >= mb)
+        {
+            return $"{bytes / mb:0.##} MB";
+        }
+
+        return $"{bytes / kb:0.##} KB";
     }
 
     private static object MapUnit(Unit unit)

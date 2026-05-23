@@ -56,6 +56,8 @@ import type {
   UpdateReceiptTemplateSettingsRequest,
   PlatformBillingSettingsDto,
   UpdatePlatformBillingSettingsRequest,
+  PlatformUploadSettingsDto,
+  UpdatePlatformUploadSettingsRequest,
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
   QuotaPlanDto,
@@ -530,4 +532,10 @@ export const systemEmailSettingsApi = {
   update: (data: UpdateSystemEmailSettingsRequest) =>
     api.put<SystemEmailSettingsDto>('/platform/systememailsettings', data),
   test: () => api.post<{ message: string }>('/platform/systememailsettings/test', {}),
+};
+
+export const uploadSettingsApi = {
+  get: () => api.get<PlatformUploadSettingsDto>('/platform/uploadsettings'),
+  update: (data: UpdatePlatformUploadSettingsRequest) =>
+    api.put<PlatformUploadSettingsDto>('/platform/uploadsettings', data),
 };
