@@ -3,6 +3,7 @@ using Habitus.Application.DTOs.Users;
 using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
+using System.Linq.Expressions;
 
 namespace Habitus.Application.Services;
 
@@ -39,22 +40,7 @@ public class UserService
 
     public async Task<PaginatedResponse<UserResponse>> GetPagedUsersAsync(int page, int pageSize, string? search = null)
     {
-        var users = await _userRepository.FindWithIncludesAsync(
-            u => true,
-            "Condominium", "Unit");
-        
-        var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
-        
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(u =>
-                u.Name.ToLower().Contains(searchLower) ||
-                u.Email.ToLower().Contains(searchLower)
-            ).OrderBy(u => u.Name);
-        }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+        return await GetPaginatedUsersAsync(u => true, page, pageSize, search);
     }
 
     public async Task<IEnumerable<UserResponse>> GetUsersByCondominiumAsync(Guid condominiumId)
@@ -68,22 +54,7 @@ public class UserService
 
     public async Task<PaginatedResponse<UserResponse>> GetUsersByCondominiumPagedAsync(Guid condominiumId, int page = 1, int pageSize = 10, string? search = null)
     {
-        var users = await _userRepository.FindWithIncludesAsync(
-            u => u.CondominiumId == condominiumId,
-            "Condominium", "Unit");
-        
-        var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
-        
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(u =>
-                u.Name.ToLower().Contains(searchLower) ||
-                u.Email.ToLower().Contains(searchLower)
-            ).OrderBy(u => u.Name);
-        }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+        return await GetPaginatedUsersAsync(u => u.CondominiumId == condominiumId, page, pageSize, search);
     }
 
     public async Task<UserResponse?> GetUserByIdAsync(Guid id)
@@ -122,7 +93,13 @@ public class UserService
         }
 
         // Check if email already exists
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var requestEmailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == requestEmailHash);
+        if (!existing.Any())
+        {
+            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
+            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
+        }
         if (existing.Any())
         {
             throw new InvalidOperationException($"User with email {request.Email} already exists.");
@@ -156,7 +133,9 @@ public class UserService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = request.Email,
+            Email = string.Empty,
+            EmailEncrypted = EncryptEmail(request.Email),
+            EmailHash = requestEmailHash,
             Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
@@ -208,7 +187,26 @@ public class UserService
 
         // Update properties
         user.Name = request.Name;
-        user.Email = request.Email;
+
+        var requestEmailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        if (!string.Equals(user.EmailHash, requestEmailHash, StringComparison.Ordinal))
+        {
+            var existing = await _userRepository.FindAsync(u => u.Id != user.Id && u.EmailHash == requestEmailHash);
+            if (!existing.Any())
+            {
+                var normalizedEmail = EmailHashHelper.Normalize(request.Email);
+                existing = await _userRepository.FindAsync(u => u.Id != user.Id && (u.Email == normalizedEmail || u.Email == request.Email));
+            }
+
+            if (existing.Any())
+            {
+                throw new InvalidOperationException($"User with email {request.Email} already exists.");
+            }
+        }
+
+        user.Email = string.Empty;
+        user.EmailEncrypted = EncryptEmail(request.Email);
+        user.EmailHash = requestEmailHash;
         user.Phone = string.Empty;
         user.PhoneEncrypted = EncryptPhone(request.Phone);
         user.Role = userRole;
@@ -318,7 +316,7 @@ public class UserService
         {
             Id = user.Id,
             Name = user.Name,
-            Email = user.Email,
+            Email = DecryptEmail(user),
             Phone = DecryptPhone(user),
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
@@ -346,7 +344,7 @@ public class UserService
         {
             Id = u.Id,
             Name = u.Name,
-            Email = u.Email,
+            Email = DecryptEmail(u),
             Phone = DecryptPhone(u),
             UnitId = u.UnitId,
             UnitNumber = u.Unit?.Number,
@@ -415,6 +413,46 @@ public class UserService
         return string.IsNullOrWhiteSpace(phone)
             ? string.Empty
             : _encryptionService.Encrypt(phone.Trim());
+    }
+
+    private string EncryptEmail(string? email)
+    {
+        var normalized = EmailHashHelper.Normalize(email ?? string.Empty);
+        return string.IsNullOrEmpty(normalized)
+            ? string.Empty
+            : _encryptionService.Encrypt(normalized);
+    }
+
+    private async Task<PaginatedResponse<UserResponse>> GetPaginatedUsersAsync(
+        Expression<Func<User, bool>> predicate,
+        int page,
+        int pageSize,
+        string? search = null)
+    {
+        var users = await _userRepository.FindWithIncludesAsync(predicate, "Condominium", "Unit");
+
+        var dtos = users.Select(MapToResponse).OrderBy(u => u.Name);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            dtos = dtos.Where(u =>
+                u.Name.ToLower().Contains(searchLower) ||
+                u.Email.ToLower().Contains(searchLower)
+            ).OrderBy(u => u.Name);
+        }
+
+        return PaginationHelper.Paginate(dtos, page, pageSize);
+    }
+
+    private string DecryptEmail(User user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
+        {
+            return _encryptionService.Decrypt(user.EmailEncrypted);
+        }
+
+        return user.Email;
     }
 
     private string DecryptPhone(User user)

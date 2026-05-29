@@ -44,7 +44,7 @@ public class UserServicePhoneEncryptionTests
     }
 
     [Fact]
-    public async Task CreateUserAsync_ShouldEncryptPhoneAndClearLegacyField()
+    public async Task CreateUserAsync_ShouldEncryptSensitiveFieldsAndClearLegacyFields()
     {
         User? createdUser = null;
 
@@ -66,8 +66,12 @@ public class UserServicePhoneEncryptionTests
         });
 
         createdUser.Should().NotBeNull();
+        createdUser!.Email.Should().BeEmpty();
+        createdUser.EmailEncrypted.Should().Be("enc:utilizador@test.com");
+        createdUser.EmailHash.Should().NotBeNullOrWhiteSpace();
         createdUser!.Phone.Should().BeEmpty();
         createdUser.PhoneEncrypted.Should().Be("enc:+351910000000");
+        result.Email.Should().Be("utilizador@test.com");
         result.Phone.Should().Be("+351910000000");
     }
 
@@ -79,7 +83,8 @@ public class UserServicePhoneEncryptionTests
         {
             Id = userId,
             Name = "Utilizador Teste",
-            Email = "utilizador@test.com",
+            Email = string.Empty,
+            EmailEncrypted = "enc:utilizador@test.com",
             Phone = string.Empty,
             PhoneEncrypted = "enc:+351911112222",
             PasswordHash = "hash",
@@ -94,6 +99,7 @@ public class UserServicePhoneEncryptionTests
         var result = await _service.GetUserByIdAsync(userId);
 
         result.Should().NotBeNull();
+        result!.Email.Should().Be("utilizador@test.com");
         result!.Phone.Should().Be("+351911112222");
     }
 
@@ -121,5 +127,154 @@ public class UserServicePhoneEncryptionTests
 
         result.Should().NotBeNull();
         result!.Phone.Should().Be("+351933344455");
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_ShouldThrow_WhenAnotherUserHasSameEmailHash()
+    {
+        var userId = Guid.NewGuid();
+        var request = new UpdateUserRequest
+        {
+            Id = userId,
+            Name = "Updated Name",
+            Email = "conflict@test.com",
+            Phone = "+351900000001",
+            Role = "Admin",
+            IsActive = true
+        };
+
+        var existingUser = new User
+        {
+            Id = userId,
+            Name = "Original",
+            Email = string.Empty,
+            EmailEncrypted = "enc:original@test.com",
+            EmailHash = "SOME_OLD_HASH",
+            Phone = string.Empty,
+            PhoneEncrypted = "enc:+351900000000",
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        var anotherUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Other",
+            EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash("conflict@test.com"),
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(existingUser);
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { anotherUser }.Where(predicate.Compile()).ToList());
+
+        var action = async () => await _service.UpdateUserAsync(request);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already exists*");
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_ShouldThrow_WhenAnotherUserHasSameLegacyPlainEmail()
+    {
+        var userId = Guid.NewGuid();
+        var request = new UpdateUserRequest
+        {
+            Id = userId,
+            Name = "Updated Name",
+            Email = "legacy-conflict@test.com",
+            Phone = "+351900000001",
+            Role = "Admin",
+            IsActive = true
+        };
+
+        var existingUser = new User
+        {
+            Id = userId,
+            Name = "Original",
+            Email = string.Empty,
+            EmailEncrypted = "enc:original@test.com",
+            EmailHash = "SOME_OLD_HASH",
+            Phone = string.Empty,
+            PhoneEncrypted = "enc:+351900000000",
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        var legacyUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Legacy",
+            Email = "legacy-conflict@test.com",
+            EmailHash = null,
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        var firstFind = true;
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(existingUser);
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) =>
+            {
+                if (firstFind)
+                {
+                    firstFind = false;
+                    return Array.Empty<User>();
+                }
+
+                return new[] { legacyUser }.Where(predicate.Compile()).ToList();
+            });
+
+        var action = async () => await _service.UpdateUserAsync(request);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already exists*");
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_ShouldAllow_WhenEmailHashBelongsToSameUser()
+    {
+        var userId = Guid.NewGuid();
+        var sameEmail = "same@test.com";
+        var sameEmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(sameEmail);
+
+        var request = new UpdateUserRequest
+        {
+            Id = userId,
+            Name = "Updated Name",
+            Email = sameEmail,
+            Phone = "+351900000001",
+            Role = "Admin",
+            IsActive = true
+        };
+
+        var existingUser = new User
+        {
+            Id = userId,
+            Name = "Original",
+            Email = string.Empty,
+            EmailEncrypted = "enc:same@test.com",
+            EmailHash = sameEmailHash,
+            Phone = string.Empty,
+            PhoneEncrypted = "enc:+351900000000",
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        };
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(existingUser);
+
+        var result = await _service.UpdateUserAsync(request);
+
+        result.Should().NotBeNull();
+        result.Email.Should().Be(sameEmail);
+        _userRepositoryMock.Verify(r => r.Update(It.IsAny<User>()), Times.Once);
     }
 }

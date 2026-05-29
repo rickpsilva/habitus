@@ -122,7 +122,7 @@ public class CondominiumService
         {
             Id = u.Id,
             Name = u.Name,
-            Email = u.Email,
+            Email = string.IsNullOrEmpty(u.EmailEncrypted) ? u.Email : _encryptionService.Decrypt(u.EmailEncrypted),
             Role = u.Role.ToString()
         }).ToList();
 

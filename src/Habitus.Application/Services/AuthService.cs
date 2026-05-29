@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Habitus.Application.DTOs.Auth;
+using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -70,9 +71,24 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request, string? ipAddress = null, string? userAgent = null)
     {
+        var loginEmailHash = EmailHashHelper.GenerateEmailHash(request.Email);
         var users = await _userRepository.FindWithIncludesAsync(
-            u => u.Email == request.Email,
+            u => u.EmailHash == loginEmailHash,
             "UserCondominiums.Condominium");
+
+        if (!users.Any())
+        {
+            users = await _userRepository.FindWithIncludesAsync(
+                u => u.Email == EmailHashHelper.Normalize(request.Email),
+                "UserCondominiums.Condominium");
+        }
+
+        if (!users.Any())
+        {
+            users = await _userRepository.FindWithIncludesAsync(
+                u => u.Email == request.Email,
+                "UserCondominiums.Condominium");
+        }
 
         var user = users.FirstOrDefault();
         if (user == null || !user.IsActive)
@@ -177,7 +193,7 @@ public class AuthService
         await _userRepository.SaveChangesAsync();
 
         var issuer = Uri.EscapeDataString("Habitus");
-        var label = Uri.EscapeDataString($"Habitus:{user.Email}");
+        var label = Uri.EscapeDataString($"Habitus:{GetUserEmail(user)}");
         var otpauthUri = $"otpauth://totp/{label}?secret={manualEntryKey}&issuer={issuer}&digits=6";
 
         return new TwoFactorSetupResponse
@@ -330,8 +346,22 @@ public class AuthService
         else
         {
             user = (await _userRepository.FindWithIncludesAsync(
-                u => u.Email == providerEmail,
+                u => u.EmailHash == EmailHashHelper.GenerateEmailHash(providerEmail),
                 "UserCondominiums.Condominium")).FirstOrDefault();
+            if (user == null)
+            {
+                user = (await _userRepository.FindWithIncludesAsync(
+                    u => u.Email == EmailHashHelper.Normalize(providerEmail),
+                    "UserCondominiums.Condominium")).FirstOrDefault();
+            }
+
+            if (user == null)
+            {
+                user = (await _userRepository.FindWithIncludesAsync(
+                    u => u.Email == providerEmail,
+                    "UserCondominiums.Condominium")).FirstOrDefault();
+            }
+
             if (user == null || !user.IsActive)
             {
                 return null;
@@ -420,7 +450,12 @@ public class AuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
+        if (!existing.Any())
+        {
+            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
+            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
+        }
         if (existing.Any()) return null;
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
@@ -450,7 +485,9 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = request.Email,
+            Email = string.Empty,
+            EmailEncrypted = EncryptEmail(request.Email),
+            EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
             Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
@@ -498,7 +535,12 @@ public class AuthService
             return InitialManagerBootstrapStatus.ManagerAlreadyExists;
         }
 
-        var existingEmail = await _userRepository.FindAsync(u => u.Email == email);
+        var existingEmail = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(email));
+        if (!existingEmail.Any())
+        {
+            var normalizedEmail = EmailHashHelper.Normalize(email);
+            existingEmail = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == email);
+        }
         if (existingEmail.Any())
         {
             return InitialManagerBootstrapStatus.EmailAlreadyExists;
@@ -508,7 +550,9 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Email = email,
+            Email = string.Empty,
+            EmailEncrypted = EncryptEmail(email),
+            EmailHash = EmailHashHelper.GenerateEmailHash(email),
             Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(phone),
             Role = UserRole.Manager,
@@ -533,7 +577,12 @@ public class AuthService
         if (!condominium.IsActive)
             return (null, "Este condomínio está inativo. Contacte o administrador do condomínio.");
 
-        var existing = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var existing = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
+        if (!existing.Any())
+        {
+            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
+            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
+        }
         if (existing.Any())
             return (null, "Este email já está registado.");
 
@@ -545,7 +594,9 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = request.Email,
+            Email = string.Empty,
+            EmailEncrypted = EncryptEmail(request.Email),
+            EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
             Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = UserRole.Resident,
@@ -573,11 +624,12 @@ public class AuthService
         var admins = await _userRepository.FindAsync(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive);
         foreach (var admin in admins)
         {
+            var adminEmail = GetUserEmail(admin);
             await _emailService.SendAsync(
-                admin.Email,
+                adminEmail,
                 "Novo pedido de registo pendente – Habitus",
                 $"Olá {admin.Name},\n\n" +
-                $"O utilizador {user.Name} ({user.Email}) submeteu um pedido de registo para a fração {unit.Number}.\n\n" +
+                $"O utilizador {user.Name} ({GetUserEmail(user)}) submeteu um pedido de registo para a fração {unit.Number}.\n\n" +
                 $"Aceda à plataforma para aprovar ou recusar o pedido.\n\nEquipa Habitus");
         }
 
@@ -596,7 +648,16 @@ public class AuthService
 
     public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var users = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
+        if (!users.Any())
+        {
+            users = await _userRepository.FindAsync(u => u.Email == EmailHashHelper.Normalize(request.Email));
+        }
+
+        if (!users.Any())
+        {
+            users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        }
         var user = users.FirstOrDefault();
         if (user == null) return false;
 
@@ -608,7 +669,8 @@ public class AuthService
         await _userRepository.SaveChangesAsync();
 
         var frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
-        var resetLink = $"{frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email)}&token={Uri.EscapeDataString(resetToken)}";
+        var userEmail = GetUserEmail(user);
+        var resetLink = $"{frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(userEmail)}&token={Uri.EscapeDataString(resetToken)}";
         var emailBody = $@"
 Hello {user.Name},
 
@@ -624,7 +686,7 @@ Best regards,
 Habitus Team
 ";
         await _emailService.SendAsync(
-            user.Email,
+            userEmail,
             "Password Reset Request",
             emailBody,
             EmailSenderType.System);
@@ -633,7 +695,16 @@ Habitus Team
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        var users = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
+        if (!users.Any())
+        {
+            users = await _userRepository.FindAsync(u => u.Email == EmailHashHelper.Normalize(request.Email));
+        }
+
+        if (!users.Any())
+        {
+            users = await _userRepository.FindAsync(u => u.Email == request.Email);
+        }
         var user = users.FirstOrDefault();
 
         if (user == null || user.PasswordResetToken != request.Token || user.PasswordResetTokenExpiry < DateTime.UtcNow)
@@ -680,7 +751,7 @@ Habitus Team
 
         return new AuthResponse
         {
-            Email = user.Email,
+            Email = GetUserEmail(user),
             Name = user.Name,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
@@ -697,7 +768,7 @@ Habitus Team
         return new AuthResponse
         {
             Token = GenerateToken(user),
-            Email = user.Email,
+            Email = GetUserEmail(user),
             Name = user.Name,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
@@ -800,7 +871,7 @@ Habitus Team
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Email, GetUserEmail(user)),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
@@ -834,5 +905,23 @@ Habitus Team
 
         var condominium = await _condominiumRepository.GetByIdAsync(user.CondominiumId.Value);
         return condominium?.IsActive == true;
+    }
+
+    private string EncryptEmail(string? email)
+    {
+        var normalized = EmailHashHelper.Normalize(email ?? string.Empty);
+        return string.IsNullOrEmpty(normalized)
+            ? string.Empty
+            : _encryptionService.Encrypt(normalized);
+    }
+
+    private string GetUserEmail(User user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
+        {
+            return _encryptionService.Decrypt(user.EmailEncrypted);
+        }
+
+        return user.Email;
     }
 }

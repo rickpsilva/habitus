@@ -319,7 +319,9 @@ public class AuthServiceTests
         result.Should().Be(InitialManagerBootstrapStatus.Created);
         createdUser.Should().NotBeNull();
         createdUser!.Role.Should().Be(UserRole.Manager);
-        createdUser.Email.Should().Be("ricardopsilva@hotmail.com");
+        createdUser.Email.Should().BeEmpty();
+        createdUser.EmailEncrypted.Should().Be("enc:ricardopsilva@hotmail.com");
+        createdUser.EmailHash.Should().NotBeNullOrWhiteSpace();
         createdUser.Phone.Should().BeEmpty();
         createdUser.PhoneEncrypted.Should().Be("enc:+351910000000");
         BCrypt.Net.BCrypt.Verify("StrongPassword!123", createdUser.PasswordHash).Should().BeTrue();
