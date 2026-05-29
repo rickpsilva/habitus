@@ -19,6 +19,7 @@ public class NotificationDispatchService : INotificationDispatchService
     private readonly IRepository<NotificationDispatchDelivery> _dispatchDeliveryRepository;
     private readonly IEmailService _emailService;
     private readonly IWhatsAppService _whatsAppService;
+    private readonly IEncryptionService _encryptionService;
 
     public NotificationDispatchService(
         IRepository<User> userRepository,
@@ -26,7 +27,8 @@ public class NotificationDispatchService : INotificationDispatchService
         IRepository<CommunicationSettings> settingsRepository,
         IRepository<NotificationDispatchDelivery> dispatchDeliveryRepository,
         IEmailService emailService,
-        IWhatsAppService whatsAppService)
+        IWhatsAppService whatsAppService,
+        IEncryptionService encryptionService)
     {
         _userRepository = userRepository;
         _condominiumRepository = condominiumRepository;
@@ -34,6 +36,7 @@ public class NotificationDispatchService : INotificationDispatchService
         _dispatchDeliveryRepository = dispatchDeliveryRepository;
         _emailService = emailService;
         _whatsAppService = whatsAppService;
+        _encryptionService = encryptionService;
     }
 
     public async Task DispatchAsync(IEnumerable<Notification> notifications, bool sendExternalChannels = true)
@@ -191,7 +194,7 @@ public class NotificationDispatchService : INotificationDispatchService
         return users;
     }
 
-    private static Dictionary<string, List<Notification>> ResolveEmailNotifications(
+    private Dictionary<string, List<Notification>> ResolveEmailNotifications(
         List<Notification> notifications,
         Condominium? condominium,
         IReadOnlyDictionary<Guid, User> activeUsersById)
@@ -237,7 +240,7 @@ public class NotificationDispatchService : INotificationDispatchService
                 continue;
             }
 
-            AddNotificationForRecipient(notificationsByEmail, targetUser.Email, notification);
+            AddNotificationForRecipient(notificationsByEmail, GetUserEmail(targetUser), notification);
         }
 
         return notificationsByEmail;
@@ -278,7 +281,7 @@ public class NotificationDispatchService : INotificationDispatchService
         recipientNotifications.Add(notification);
     }
 
-    private static void AddNotificationForAllCondominiumUsersExceptManagers(
+    private void AddNotificationForAllCondominiumUsersExceptManagers(
         Dictionary<string, List<Notification>> notificationsByEmail,
         IEnumerable<User> activeUsers,
         Notification notification)
@@ -290,8 +293,18 @@ public class NotificationDispatchService : INotificationDispatchService
                 continue;
             }
 
-            AddNotificationForRecipient(notificationsByEmail, user.Email, notification);
+            AddNotificationForRecipient(notificationsByEmail, GetUserEmail(user), notification);
         }
+    }
+
+    private string GetUserEmail(User user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
+        {
+            return _encryptionService.Decrypt(user.EmailEncrypted);
+        }
+
+        return user.Email;
     }
 
     private static string BuildDispatchKeyPrefix(Guid condominiumId, List<Notification> notifications)

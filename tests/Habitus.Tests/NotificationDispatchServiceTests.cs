@@ -14,6 +14,14 @@ public class NotificationDispatchServiceTests
     private readonly Mock<IRepository<NotificationDispatchDelivery>> _deliveryRepositoryMock = new();
     private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<IWhatsAppService> _whatsAppServiceMock = new();
+    private readonly Mock<IEncryptionService> _encryptionServiceMock = new();
+
+    public NotificationDispatchServiceTests()
+    {
+        _encryptionServiceMock
+            .Setup(e => e.Decrypt(It.IsAny<string>()))
+            .Returns((string ciphertext) => ciphertext.StartsWith("enc:") ? ciphertext[4..] : ciphertext);
+    }
 
     [Fact]
     public async Task DispatchAsync_TargetRoleAdmin_SendsEmailToCondominiumWithCommunicationSettings()
@@ -273,7 +281,8 @@ public class NotificationDispatchServiceTests
             _settingsRepositoryMock.Object,
             _deliveryRepositoryMock.Object,
             _emailServiceMock.Object,
-            _whatsAppServiceMock.Object);
+            _whatsAppServiceMock.Object,
+            _encryptionServiceMock.Object);
     }
 
     private void SetupCommonRepositories(Guid condominiumId, Condominium condominium, IEnumerable<User> activeUsers)

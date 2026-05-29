@@ -12,23 +12,37 @@ public class ReservationServiceTests
 {
     private readonly Mock<IRepository<Reservation>> _repositoryMock;
     private readonly Mock<IRepository<SharedSpace>> _spaceRepoMock;
+    private readonly Mock<IRepository<User>> _userRepoMock;
+    private readonly Mock<IRepository<FinancialRecord>> _financialRepoMock;
+    private readonly Mock<IRepository<Notification>> _notificationRepoMock;
+    private readonly Mock<INotificationDispatchService> _dispatchServiceMock;
     private readonly ReservationService _service;
 
     public ReservationServiceTests()
     {
         _repositoryMock = new Mock<IRepository<Reservation>>();
         _spaceRepoMock = new Mock<IRepository<SharedSpace>>();
-        var userRepoMock = new Mock<IRepository<User>>();
-        var financialRepoMock = new Mock<IRepository<FinancialRecord>>();
-        var notificationRepoMock = new Mock<IRepository<Notification>>();
-        var dispatchServiceMock = new Mock<INotificationDispatchService>();
+        _userRepoMock = new Mock<IRepository<User>>();
+        _financialRepoMock = new Mock<IRepository<FinancialRecord>>();
+        _notificationRepoMock = new Mock<IRepository<Notification>>();
+        _dispatchServiceMock = new Mock<INotificationDispatchService>();
+
+        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _financialRepoMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _notificationRepoMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _financialRepoMock.Setup(r => r.AddAsync(It.IsAny<FinancialRecord>())).Returns(Task.CompletedTask);
+        _notificationRepoMock.Setup(r => r.AddAsync(It.IsAny<Notification>())).Returns(Task.CompletedTask);
+        _dispatchServiceMock
+            .Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+
         _service = new ReservationService(
             _repositoryMock.Object,
             _spaceRepoMock.Object,
-            userRepoMock.Object,
-            financialRepoMock.Object,
-            notificationRepoMock.Object,
-            dispatchServiceMock.Object);
+            _userRepoMock.Object,
+            _financialRepoMock.Object,
+            _notificationRepoMock.Object,
+            _dispatchServiceMock.Object);
     }
 
     [Fact(Skip = "Legacy test - DTO fields updated. See ReservationServiceIsolationTests.")]
@@ -57,14 +71,15 @@ public class ReservationServiceTests
             EndTime = DateTime.UtcNow.AddHours(2)
         };
         _spaceRepoMock.Setup(r => r.GetByIdAsync(spaceId))
-            .ReturnsAsync(new SharedSpace { Id = spaceId, CondominiumId = condominiumId });
+            .ReturnsAsync(new SharedSpace { Id = spaceId, CondominiumId = condominiumId, Name = "Sala", ReservationFee = 0 });
+        _userRepoMock.Setup(r => r.GetByIdAsync(request.UserId))
+            .ReturnsAsync(new User { Id = request.UserId, CondominiumId = condominiumId, UnitId = Guid.NewGuid() });
         _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Reservation, bool>>>()))
             .ReturnsAsync(new List<Reservation>());
         _repositoryMock.Setup(r => r.AddAsync(It.IsAny<Reservation>())).Returns(Task.CompletedTask);
-        _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
 
         // Act
-        var (dto, error) = await _service.CreateAsync(request);
+        var (dto, error) = await _service.CreateAsync(condominiumId, request);
 
         // Assert
         error.Should().BeNull();
@@ -76,6 +91,7 @@ public class ReservationServiceTests
     public async Task CreateAsync_WhenSpaceNotFound_ReturnsError()
     {
         // Arrange
+        var condominiumId = Guid.NewGuid();
         var request = new CreateReservationRequest
         {
             SpaceId = Guid.NewGuid(),
@@ -87,7 +103,7 @@ public class ReservationServiceTests
             .ReturnsAsync((SharedSpace?)null);
 
         // Act
-        var (dto, error) = await _service.CreateAsync(request);
+        var (dto, error) = await _service.CreateAsync(condominiumId, request);
 
         // Assert
         error.Should().NotBeNull();

@@ -64,8 +64,10 @@ public class HabitusDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(u => u.Id);
-            entity.HasIndex(u => u.Email).IsUnique();
+            entity.HasIndex(u => u.EmailHash).IsUnique();
             entity.Property(u => u.Email).IsRequired();
+            entity.Property(u => u.EmailEncrypted).HasMaxLength(2048);
+            entity.Property(u => u.EmailHash).HasMaxLength(64);
             entity.Property(u => u.Name).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.PhoneEncrypted).HasMaxLength(2048);

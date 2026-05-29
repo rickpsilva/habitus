@@ -1,4 +1,5 @@
 using Habitus.Application.Interfaces;
+using Habitus.Application.Helpers;
 using Habitus.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,15 +29,45 @@ public class UserPhoneEncryptionMigrationHostedService : IHostedService
         try
         {
             var usersToMigrate = await userRepository.FindAsync(
-                u => string.IsNullOrEmpty(u.PhoneEncrypted) && !string.IsNullOrEmpty(u.Phone));
+                u =>
+                    (string.IsNullOrEmpty(u.PhoneEncrypted) && !string.IsNullOrEmpty(u.Phone)) ||
+                    (string.IsNullOrEmpty(u.EmailEncrypted) && !string.IsNullOrEmpty(u.Email)) ||
+                    string.IsNullOrEmpty(u.EmailHash));
 
             var migratedCount = 0;
             foreach (var user in usersToMigrate)
             {
-                user.PhoneEncrypted = encryptionService.Encrypt(user.Phone.Trim());
-                user.Phone = string.Empty;
-                userRepository.Update(user);
-                migratedCount++;
+                var changed = false;
+
+                if (string.IsNullOrEmpty(user.PhoneEncrypted) && !string.IsNullOrEmpty(user.Phone))
+                {
+                    user.PhoneEncrypted = encryptionService.Encrypt(user.Phone.Trim());
+                    user.Phone = string.Empty;
+                    changed = true;
+                }
+
+                if (string.IsNullOrEmpty(user.EmailEncrypted) && !string.IsNullOrEmpty(user.Email))
+                {
+                    user.EmailEncrypted = encryptionService.Encrypt(EmailHashHelper.Normalize(user.Email));
+                    user.Email = string.Empty;
+                    changed = true;
+                }
+
+                if (string.IsNullOrEmpty(user.EmailHash))
+                {
+                    var emailForHash = string.IsNullOrWhiteSpace(user.EmailEncrypted)
+                        ? user.Email
+                        : encryptionService.Decrypt(user.EmailEncrypted);
+
+                    user.EmailHash = EmailHashHelper.GenerateEmailHash(emailForHash);
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    userRepository.Update(user);
+                    migratedCount++;
+                }
             }
 
             if (migratedCount > 0)

@@ -12,6 +12,8 @@ public class User
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? EmailEncrypted { get; set; }
+    public string? EmailHash { get; set; }
     public string Phone { get; set; } = string.Empty;
     public string? PhoneEncrypted { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
