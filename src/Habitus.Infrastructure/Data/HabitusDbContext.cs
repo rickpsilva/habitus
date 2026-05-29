@@ -68,6 +68,7 @@ public class HabitusDbContext : DbContext
             entity.Property(u => u.Email).IsRequired();
             entity.Property(u => u.Name).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.PhoneEncrypted).HasMaxLength(2048);
             entity.Property(u => u.TwoFactorSecretEncrypted).HasMaxLength(2048);
             
             entity.HasOne(u => u.Condominium)
