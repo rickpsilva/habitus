@@ -128,32 +128,39 @@ export default function ProfilePage() {
           phone: currentUser.phone,
         });
 
-        // Load condominium if exists
+        // Render profile content as soon as the core user payload is available.
+        setLoading(false);
+
+        const backgroundRequests: Promise<unknown>[] = [];
+
         if (currentUser.condominiumId) {
-          try {
-            const condoResponse = await condominiumsApi.getById(currentUser.condominiumId);
-            setCondominium(condoResponse.data);
-          } catch (err) {
-            console.error('Failed to load condominium:', err);
-          }
+          backgroundRequests.push(
+            condominiumsApi.getById(currentUser.condominiumId)
+              .then((condoResponse) => setCondominium(condoResponse.data))
+              .catch((err) => {
+                console.error('Failed to load condominium:', err);
+              })
+          );
         }
 
-        // Load unit if exists
         if (currentUser.unitId && currentUser.condominiumId) {
-          try {
-            const unitResponse = await unitsApi.getById(currentUser.condominiumId, currentUser.unitId);
-            setUnit(unitResponse.data);
-            
-            // Load unit documents
-            loadUnitDocuments(currentUser.condominiumId, currentUser.unitId);
-          } catch (err) {
-            console.error('Failed to load unit:', err);
-          }
+          backgroundRequests.push(
+            unitsApi.getById(currentUser.condominiumId, currentUser.unitId)
+              .then((unitResponse) => setUnit(unitResponse.data))
+              .catch((err) => {
+                console.error('Failed to load unit:', err);
+              })
+          );
+
+          backgroundRequests.push(loadUnitDocuments(currentUser.condominiumId, currentUser.unitId));
+        }
+
+        if (backgroundRequests.length > 0) {
+          await Promise.allSettled(backgroundRequests);
         }
       } catch (error) {
         console.error('Failed to load user data:', error);
         setError('Erro ao carregar dados do utilizador');
-      } finally {
         setLoading(false);
       }
     };

@@ -39,6 +39,15 @@ public class Repository<T> : IRepository<T> where T : class
 
     public async Task<IEnumerable<T>> GetAllAsync() => await _dbSet.ToListAsync();
 
+    public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+        => await _dbSet.FirstOrDefaultAsync(predicate);
+
+    public async Task<T?> FirstOrDefaultNoTrackingAsync(Expression<Func<T, bool>> predicate)
+        => await _dbSet.AsNoTracking().FirstOrDefaultAsync(predicate);
+
+    public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
+        => await _dbSet.AnyAsync(predicate);
+
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
 
