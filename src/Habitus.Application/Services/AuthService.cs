@@ -71,26 +71,7 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request, string? ipAddress = null, string? userAgent = null)
     {
-        var loginEmailHash = EmailHashHelper.GenerateEmailHash(request.Email);
-        var users = await _userRepository.FindWithIncludesAsync(
-            u => u.EmailHash == loginEmailHash,
-            "UserCondominiums.Condominium");
-
-        if (!users.Any())
-        {
-            users = await _userRepository.FindWithIncludesAsync(
-                u => u.Email == EmailHashHelper.Normalize(request.Email),
-                "UserCondominiums.Condominium");
-        }
-
-        if (!users.Any())
-        {
-            users = await _userRepository.FindWithIncludesAsync(
-                u => u.Email == request.Email,
-                "UserCondominiums.Condominium");
-        }
-
-        var user = users.FirstOrDefault();
+        var user = await FindUserByEmailAsync(request.Email);
         if (user == null || !user.IsActive)
         {
             return null;
@@ -332,8 +313,8 @@ public class AuthService
 
     public async Task<AuthResponse?> LoginWithExternalProviderAsync(ExternalAuthProvider provider, string providerUserId, string providerEmail, string? ipAddress = null, string? userAgent = null)
     {
-        var existingLink = (await _userAuthProviderRepository.FindAsync(
-            p => p.ProviderType == provider && p.ProviderUserId == providerUserId)).FirstOrDefault();
+        var existingLink = await _userAuthProviderRepository.FirstOrDefaultAsync(
+            p => p.ProviderType == provider && p.ProviderUserId == providerUserId);
 
         User? user;
         if (existingLink != null)
@@ -345,22 +326,7 @@ public class AuthService
         }
         else
         {
-            user = (await _userRepository.FindWithIncludesAsync(
-                u => u.EmailHash == EmailHashHelper.GenerateEmailHash(providerEmail),
-                "UserCondominiums.Condominium")).FirstOrDefault();
-            if (user == null)
-            {
-                user = (await _userRepository.FindWithIncludesAsync(
-                    u => u.Email == EmailHashHelper.Normalize(providerEmail),
-                    "UserCondominiums.Condominium")).FirstOrDefault();
-            }
-
-            if (user == null)
-            {
-                user = (await _userRepository.FindWithIncludesAsync(
-                    u => u.Email == providerEmail,
-                    "UserCondominiums.Condominium")).FirstOrDefault();
-            }
+            user = await FindUserByEmailAsync(providerEmail);
 
             if (user == null || !user.IsActive)
             {
@@ -400,15 +366,15 @@ public class AuthService
             return false;
         }
 
-        var currentLink = (await _userAuthProviderRepository.FindAsync(
-            p => p.ProviderType == provider && p.ProviderUserId == providerUserId)).FirstOrDefault();
+        var currentLink = await _userAuthProviderRepository.FirstOrDefaultAsync(
+            p => p.ProviderType == provider && p.ProviderUserId == providerUserId);
         if (currentLink != null && currentLink.UserId != userId)
         {
             return false;
         }
 
-        var existingForUser = (await _userAuthProviderRepository.FindAsync(
-            p => p.UserId == userId && p.ProviderType == provider)).FirstOrDefault();
+        var existingForUser = await _userAuthProviderRepository.FirstOrDefaultAsync(
+            p => p.UserId == userId && p.ProviderType == provider);
         if (existingForUser == null)
         {
             existingForUser = new UserAuthProvider
@@ -437,7 +403,8 @@ public class AuthService
 
     public async Task<bool> UnlinkExternalProviderAsync(Guid userId, ExternalAuthProvider provider)
     {
-        var link = (await _userAuthProviderRepository.FindAsync(p => p.UserId == userId && p.ProviderType == provider)).FirstOrDefault();
+        var link = await _userAuthProviderRepository.FirstOrDefaultAsync(
+            p => p.UserId == userId && p.ProviderType == provider);
         if (link == null)
         {
             return false;
@@ -450,13 +417,7 @@ public class AuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        var existing = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
-        if (!existing.Any())
-        {
-            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
-            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
-        }
-        if (existing.Any()) return null;
+        if (await EmailExistsAsync(request.Email)) return null;
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
         {
@@ -529,19 +490,13 @@ public class AuthService
             return InitialManagerBootstrapStatus.MissingConfiguration;
         }
 
-        var existingManagers = await _userRepository.FindAsync(u => u.Role == UserRole.Manager);
-        if (existingManagers.Any())
+        var managerExists = await _userRepository.ExistsAsync(u => u.Role == UserRole.Manager);
+        if (managerExists)
         {
             return InitialManagerBootstrapStatus.ManagerAlreadyExists;
         }
 
-        var existingEmail = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(email));
-        if (!existingEmail.Any())
-        {
-            var normalizedEmail = EmailHashHelper.Normalize(email);
-            existingEmail = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == email);
-        }
-        if (existingEmail.Any())
+        if (await EmailExistsAsync(email))
         {
             return InitialManagerBootstrapStatus.EmailAlreadyExists;
         }
@@ -577,13 +532,7 @@ public class AuthService
         if (!condominium.IsActive)
             return (null, "Este condomínio está inativo. Contacte o administrador do condomínio.");
 
-        var existing = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
-        if (!existing.Any())
-        {
-            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
-            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
-        }
-        if (existing.Any())
+        if (await EmailExistsAsync(request.Email))
             return (null, "Este email já está registado.");
 
         var unit = await _unitRepository.GetByIdAsync(request.UnitId);
@@ -648,17 +597,7 @@ public class AuthService
 
     public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
-        if (!users.Any())
-        {
-            users = await _userRepository.FindAsync(u => u.Email == EmailHashHelper.Normalize(request.Email));
-        }
-
-        if (!users.Any())
-        {
-            users = await _userRepository.FindAsync(u => u.Email == request.Email);
-        }
-        var user = users.FirstOrDefault();
+        var user = await FindUserByEmailAsync(request.Email);
         if (user == null) return false;
 
         var resetToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -695,17 +634,7 @@ Habitus Team
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        var users = await _userRepository.FindAsync(u => u.EmailHash == EmailHashHelper.GenerateEmailHash(request.Email));
-        if (!users.Any())
-        {
-            users = await _userRepository.FindAsync(u => u.Email == EmailHashHelper.Normalize(request.Email));
-        }
-
-        if (!users.Any())
-        {
-            users = await _userRepository.FindAsync(u => u.Email == request.Email);
-        }
-        var user = users.FirstOrDefault();
+        var user = await FindUserByEmailAsync(request.Email);
 
         if (user == null || user.PasswordResetToken != request.Token || user.PasswordResetTokenExpiry < DateTime.UtcNow)
         {
@@ -749,9 +678,11 @@ Habitus Team
         await _authChallengeRepository.AddAsync(newChallenge);
         await _authChallengeRepository.SaveChangesAsync();
 
+        var userEmail = GetUserEmail(user);
+
         return new AuthResponse
         {
-            Email = GetUserEmail(user),
+            Email = userEmail,
             Name = user.Name,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
@@ -765,15 +696,18 @@ Habitus Team
 
     private async Task<AuthResponse> CreateAuthenticatedResponseAsync(User user)
     {
+        var userEmail = GetUserEmail(user);
+        var accessibleCondominiums = await GetAccessibleCondominiumsAsync(user);
+
         return new AuthResponse
         {
-            Token = GenerateToken(user),
-            Email = GetUserEmail(user),
+            Token = GenerateToken(user, userEmail),
+            Email = userEmail,
             Name = user.Name,
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
             UnitId = user.UnitId,
-            AccessibleCondominiums = await GetAccessibleCondominiumsAsync(user),
+            AccessibleCondominiums = accessibleCondominiums,
             RequiresTwoFactor = false,
         };
     }
@@ -782,11 +716,24 @@ Habitus Team
     {
         if (user.UserCondominiums.Count > 0)
         {
-            return user.UserCondominiums.Select(uc => uc.CondominiumId).ToList();
+            return user.UserCondominiums
+                .Select(uc => uc.CondominiumId)
+                .Distinct()
+                .ToList();
         }
 
-        var loadedUser = await _userRepository.GetByIdWithIncludesAsync(user.Id, "UserCondominiums.Condominium");
-        return loadedUser?.UserCondominiums.Select(uc => uc.CondominiumId).ToList() ?? [];
+        var userCondominiums = await _userCondominiumRepository.FindAsync(uc => uc.UserId == user.Id);
+        var accessibleCondominiums = userCondominiums
+            .Select(uc => uc.CondominiumId)
+            .Distinct()
+            .ToList();
+
+        if (accessibleCondominiums.Count == 0 && user.CondominiumId.HasValue)
+        {
+            accessibleCondominiums.Add(user.CondominiumId.Value);
+        }
+
+        return accessibleCondominiums;
     }
 
     private bool ValidateTotpCode(User user, string code)
@@ -859,7 +806,7 @@ Habitus Team
         return recoveryCodes;
     }
 
-    private string GenerateToken(User user)
+    private string GenerateToken(User user, string userEmail)
     {
         var secretKey = _configuration["JwtSettings:SecretKey"]
             ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
@@ -871,7 +818,7 @@ Habitus Team
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, GetUserEmail(user)),
+            new Claim(ClaimTypes.Email, userEmail),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
@@ -923,5 +870,30 @@ Habitus Team
         }
 
         return user.Email;
+    }
+
+    private async Task<User?> FindUserByEmailAsync(string email)
+    {
+        var emailHash = EmailHashHelper.GenerateEmailHash(email);
+        var user = await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
+        if (user != null)
+        {
+            return user;
+        }
+
+        var normalizedEmail = EmailHashHelper.Normalize(email);
+        return await _userRepository.FirstOrDefaultAsync(u => u.Email == normalizedEmail || u.Email == email);
+    }
+
+    private async Task<bool> EmailExistsAsync(string email)
+    {
+        var emailHash = EmailHashHelper.GenerateEmailHash(email);
+        if (await _userRepository.ExistsAsync(u => u.EmailHash == emailHash))
+        {
+            return true;
+        }
+
+        var normalizedEmail = EmailHashHelper.Normalize(email);
+        return await _userRepository.ExistsAsync(u => u.Email == normalizedEmail || u.Email == email);
     }
 }
