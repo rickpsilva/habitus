@@ -451,7 +451,8 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
-            Phone = request.Phone,
+            Phone = string.Empty,
+            PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
             UnitId = request.UnitId,
@@ -508,7 +509,8 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = name,
             Email = email,
-            Phone = phone,
+            Phone = string.Empty,
+            PhoneEncrypted = EncryptPhone(phone),
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             IsActive = true,
@@ -544,7 +546,8 @@ public class AuthService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
-            Phone = request.Phone,
+            Phone = string.Empty,
+            PhoneEncrypted = EncryptPhone(request.Phone),
             Role = UserRole.Resident,
             CondominiumId = condominiumId,
             UnitId = request.UnitId,
@@ -582,6 +585,13 @@ public class AuthService
         {
             Message = "Registo submetido com sucesso. Aguarda aprovação pelo administrador ou por um residente da mesma fração."
         }, null);
+    }
+
+    private string EncryptPhone(string? phone)
+    {
+        return string.IsNullOrWhiteSpace(phone)
+            ? string.Empty
+            : _encryptionService.Encrypt(phone.Trim());
     }
 
     public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)

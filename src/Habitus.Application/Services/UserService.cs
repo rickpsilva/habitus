@@ -12,17 +12,20 @@ public class UserService
     private readonly IRepository<UserCondominium> _userCondominiumRepository;
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<Unit> _unitRepository;
+    private readonly IEncryptionService _encryptionService;
 
     public UserService(
         IRepository<User> userRepository,
         IRepository<UserCondominium> userCondominiumRepository,
         IRepository<Condominium> condominiumRepository,
-        IRepository<Unit> unitRepository)
+        IRepository<Unit> unitRepository,
+        IEncryptionService encryptionService)
     {
         _userRepository = userRepository;
         _userCondominiumRepository = userCondominiumRepository;
         _condominiumRepository = condominiumRepository;
         _unitRepository = unitRepository;
+        _encryptionService = encryptionService;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
@@ -154,7 +157,8 @@ public class UserService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
-            Phone = request.Phone,
+            Phone = string.Empty,
+            PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
             UnitId = request.UnitId,
@@ -205,7 +209,8 @@ public class UserService
         // Update properties
         user.Name = request.Name;
         user.Email = request.Email;
-        user.Phone = request.Phone;
+        user.Phone = string.Empty;
+        user.PhoneEncrypted = EncryptPhone(request.Phone);
         user.Role = userRole;
         user.CondominiumId = request.CondominiumId;
         user.UnitId = request.UnitId;
@@ -314,7 +319,7 @@ public class UserService
             Id = user.Id,
             Name = user.Name,
             Email = user.Email,
-            Phone = user.Phone,
+            Phone = DecryptPhone(user),
             Role = (int)user.Role,
             CondominiumId = user.CondominiumId,
             CondominiumName = user.Condominium?.Name,
@@ -342,7 +347,7 @@ public class UserService
             Id = u.Id,
             Name = u.Name,
             Email = u.Email,
-            Phone = u.Phone,
+            Phone = DecryptPhone(u),
             UnitId = u.UnitId,
             UnitNumber = u.Unit?.Number,
             CondominiumId = u.CondominiumId,
@@ -403,5 +408,22 @@ public class UserService
             return pendingUser.UnitId == approverUnitId;
 
         return false;
+    }
+
+    private string EncryptPhone(string? phone)
+    {
+        return string.IsNullOrWhiteSpace(phone)
+            ? string.Empty
+            : _encryptionService.Encrypt(phone.Trim());
+    }
+
+    private string DecryptPhone(User user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.PhoneEncrypted))
+        {
+            return _encryptionService.Decrypt(user.PhoneEncrypted);
+        }
+
+        return user.Phone;
     }
 }

@@ -34,6 +34,13 @@ public class AuthServiceTests
         _emailServiceMock = new Mock<IEmailService>();
         _encryptionServiceMock = new Mock<IEncryptionService>();
 
+        _encryptionServiceMock
+            .Setup(e => e.Encrypt(It.IsAny<string>()))
+            .Returns((string plaintext) => $"enc:{plaintext}");
+        _encryptionServiceMock
+            .Setup(e => e.Decrypt(It.IsAny<string>()))
+            .Returns((string ciphertext) => ciphertext.StartsWith("enc:") ? ciphertext[4..] : ciphertext);
+
         _userRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
         _userCondominiumRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
         _userAuthProviderRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
@@ -313,6 +320,8 @@ public class AuthServiceTests
         createdUser.Should().NotBeNull();
         createdUser!.Role.Should().Be(UserRole.Manager);
         createdUser.Email.Should().Be("ricardopsilva@hotmail.com");
+        createdUser.Phone.Should().BeEmpty();
+        createdUser.PhoneEncrypted.Should().Be("enc:+351910000000");
         BCrypt.Net.BCrypt.Verify("StrongPassword!123", createdUser.PasswordHash).Should().BeTrue();
 
         _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
