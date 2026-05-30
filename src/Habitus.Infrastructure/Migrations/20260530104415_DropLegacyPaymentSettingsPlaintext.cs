@@ -11,26 +11,28 @@ namespace Habitus.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("""
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1
-                        FROM "PaymentSettings"
-                        WHERE
-                            "BankTransferIban" IS NOT NULL OR
-                            "BankTransferAccountHolder" IS NOT NULL OR
-                            "PaymentInstructions" IS NOT NULL OR
-                            "MBReferenceEntity" IS NOT NULL OR
-                            "MBReferenceReference" IS NOT NULL OR
-                            "MBWayPhoneNumber" IS NOT NULL OR
-                            "MBWayMerchantId" IS NOT NULL OR
-                            "CardSecretKey" IS NOT NULL OR
-                            "CardMerchantId" IS NOT NULL
-                    ) THEN
-                        RAISE EXCEPTION 'Cannot drop legacy plaintext payment columns: migrate/encrypt plaintext data first.';
-                    END IF;
-                END
-                $$;
+                UPDATE "PaymentSettings"
+                SET
+                    "BankTransferIbanEncrypted" = COALESCE(NULLIF("BankTransferIbanEncrypted", ''), NULLIF(BTRIM("BankTransferIban"), '')),
+                    "BankTransferAccountHolderEncrypted" = COALESCE(NULLIF("BankTransferAccountHolderEncrypted", ''), NULLIF(BTRIM("BankTransferAccountHolder"), '')),
+                    "PaymentInstructionsEncrypted" = COALESCE(NULLIF("PaymentInstructionsEncrypted", ''), NULLIF(BTRIM("PaymentInstructions"), '')),
+                    "MBReferenceEntityEncrypted" = COALESCE(NULLIF("MBReferenceEntityEncrypted", ''), NULLIF(BTRIM("MBReferenceEntity"), '')),
+                    "MBReferenceReferenceEncrypted" = COALESCE(NULLIF("MBReferenceReferenceEncrypted", ''), NULLIF(BTRIM("MBReferenceReference"), '')),
+                    "MBWayPhoneNumberEncrypted" = COALESCE(NULLIF("MBWayPhoneNumberEncrypted", ''), NULLIF(BTRIM("MBWayPhoneNumber"), '')),
+                    "MBWayMerchantIdEncrypted" = COALESCE(NULLIF("MBWayMerchantIdEncrypted", ''), NULLIF(BTRIM("MBWayMerchantId"), '')),
+                    "CardSecretKeyEncrypted" = COALESCE(NULLIF("CardSecretKeyEncrypted", ''), NULLIF(BTRIM("CardSecretKey"), '')),
+                    "CardMerchantIdEncrypted" = COALESCE(NULLIF("CardMerchantIdEncrypted", ''), NULLIF(BTRIM("CardMerchantId"), '')),
+                    "UpdatedAt" = NOW()
+                WHERE
+                    "BankTransferIban" IS NOT NULL OR
+                    "BankTransferAccountHolder" IS NOT NULL OR
+                    "PaymentInstructions" IS NOT NULL OR
+                    "MBReferenceEntity" IS NOT NULL OR
+                    "MBReferenceReference" IS NOT NULL OR
+                    "MBWayPhoneNumber" IS NOT NULL OR
+                    "MBWayMerchantId" IS NOT NULL OR
+                    "CardSecretKey" IS NOT NULL OR
+                    "CardMerchantId" IS NOT NULL;
                 """);
 
             migrationBuilder.DropColumn(
