@@ -10,18 +10,6 @@ public class Condominium
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     
-    // Payment Methods
-    public string? PaymentIban { get; set; } = string.Empty; // Will be deprecated, use PaymentIbanEncrypted
-    public string? PaymentIbanEncrypted { get; set; } = string.Empty; // Encrypted IBAN (new field)
-    public string? PaymentInstructions { get; set; }
-    public string? PaymentMbWay { get; set; }
-    public string? PaymentMbReference { get; set; }
-    
-    // Payment Methods Availability (for residents)
-    public bool PaymentBankTransferEnabled { get; set; } = true;
-    public bool PaymentMbWayEnabled { get; set; } = false;
-    public bool PaymentCardEnabled { get; set; } = false;
-    
     // Navigation properties
     public ICollection<Unit> Units { get; set; } = new List<Unit>();
     public ICollection<User> Users { get; set; } = new List<User>();

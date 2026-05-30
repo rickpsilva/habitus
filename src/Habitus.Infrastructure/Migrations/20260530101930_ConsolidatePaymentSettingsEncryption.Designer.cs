@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530101930_ConsolidatePaymentSettingsEncryption")]
+    partial class ConsolidatePaymentSettingsEncryption
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1089,17 +1092,26 @@ namespace Habitus.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("BankTransferAccountHolder")
+                        .HasColumnType("text");
+
                     b.Property<string>("BankTransferAccountHolderEncrypted")
                         .HasColumnType("text");
 
                     b.Property<bool>("BankTransferEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("BankTransferIban")
+                        .HasColumnType("text");
+
                     b.Property<string>("BankTransferIbanEncrypted")
                         .HasColumnType("text");
 
                     b.Property<bool>("CardEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("CardMerchantId")
+                        .HasColumnType("text");
 
                     b.Property<string>("CardMerchantIdEncrypted")
                         .HasColumnType("text");
@@ -1108,6 +1120,9 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("CardPublicKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CardSecretKey")
                         .HasColumnType("text");
 
                     b.Property<string>("CardSecretKeyEncrypted")
@@ -1122,7 +1137,13 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<bool>("MBReferenceEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MBReferenceEntity")
+                        .HasColumnType("text");
+
                     b.Property<string>("MBReferenceEntityEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MBReferenceReference")
                         .HasColumnType("text");
 
                     b.Property<string>("MBReferenceReferenceEncrypted")
@@ -1131,10 +1152,19 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<bool>("MBWayEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MBWayMerchantId")
+                        .HasColumnType("text");
+
                     b.Property<string>("MBWayMerchantIdEncrypted")
                         .HasColumnType("text");
 
+                    b.Property<string>("MBWayPhoneNumber")
+                        .HasColumnType("text");
+
                     b.Property<string>("MBWayPhoneNumberEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentInstructions")
                         .HasColumnType("text");
 
                     b.Property<string>("PaymentInstructionsEncrypted")
