@@ -9,27 +9,26 @@ public class PaymentSettings
     
     // Bank Transfer Configuration
     public bool BankTransferEnabled { get; set; } = true;
-    public string? BankTransferIban { get; set; } // Will be deprecated, use BankTransferIbanEncrypted
     public string? BankTransferIbanEncrypted { get; set; } // Encrypted IBAN (new field)
-    public string? BankTransferAccountHolder { get; set; }
+    public string? BankTransferAccountHolderEncrypted { get; set; }
+    public string? PaymentInstructionsEncrypted { get; set; }
     
     // MB Reference Configuration
     public bool MBReferenceEnabled { get; set; } = false;
-    public string? MBReferenceEntity { get; set; }  // 5 digits
-    public string? MBReferenceReference { get; set; }  // 9 digits
+    public string? MBReferenceEntityEncrypted { get; set; }
+    public string? MBReferenceReferenceEncrypted { get; set; }
     
     // MB Way Configuration
     public bool MBWayEnabled { get; set; } = false;
-    public string? MBWayPhoneNumber { get; set; }
-    public string? MBWayMerchantId { get; set; }
+    public string? MBWayPhoneNumberEncrypted { get; set; }
+    public string? MBWayMerchantIdEncrypted { get; set; }
     
     // Card Payment Configuration
     public bool CardEnabled { get; set; } = false;
     public string? CardProvider { get; set; }  // stripe, easypay, sibs, paypal, ifthenpay
     public string? CardPublicKey { get; set; }
-    public string? CardSecretKey { get; set; }  // Will be deprecated, use CardSecretKeyEncrypted
     public string? CardSecretKeyEncrypted { get; set; }  // Encrypted secret key (new field)
-    public string? CardMerchantId { get; set; }
+    public string? CardMerchantIdEncrypted { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

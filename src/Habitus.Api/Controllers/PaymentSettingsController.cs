@@ -12,10 +12,17 @@ namespace Habitus.Api.Controllers;
 public class PaymentSettingsController : ControllerBase
 {
     private readonly IRepository<PaymentSettings> _repository;
+    private readonly IEncryptionService _encryptionService;
+    private readonly ILogger<PaymentSettingsController> _logger;
 
-    public PaymentSettingsController(IRepository<PaymentSettings> repository)
+    public PaymentSettingsController(
+        IRepository<PaymentSettings> repository,
+        IEncryptionService encryptionService,
+        ILogger<PaymentSettingsController> logger)
     {
         _repository = repository;
+        _encryptionService = encryptionService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -26,8 +33,7 @@ public class PaymentSettingsController : ControllerBase
     {
         try
         {
-            var settings = await _repository.FindAsync(ps => ps.CondominiumId == condominiumId);
-            var paymentSettings = settings.FirstOrDefault();
+            var paymentSettings = await _repository.FirstOrDefaultNoTrackingAsync(ps => ps.CondominiumId == condominiumId);
 
             if (paymentSettings == null)
             {
@@ -59,18 +65,18 @@ public class PaymentSettingsController : ControllerBase
                 Id = paymentSettings.Id,
                 CondominiumId = paymentSettings.CondominiumId,
                 BankTransferEnabled = paymentSettings.BankTransferEnabled,
-                BankTransferIban = paymentSettings.BankTransferIban,
-                BankTransferAccountHolder = paymentSettings.BankTransferAccountHolder,
+                BankTransferIban = DecryptIfPresent(paymentSettings.BankTransferIbanEncrypted),
+                BankTransferAccountHolder = DecryptIfPresent(paymentSettings.BankTransferAccountHolderEncrypted),
                 MBReferenceEnabled = paymentSettings.MBReferenceEnabled,
-                MBReferenceEntity = paymentSettings.MBReferenceEntity,
-                MBReferenceReference = paymentSettings.MBReferenceReference,
+                MBReferenceEntity = DecryptIfPresent(paymentSettings.MBReferenceEntityEncrypted),
+                MBReferenceReference = DecryptIfPresent(paymentSettings.MBReferenceReferenceEncrypted),
                 MBWayEnabled = paymentSettings.MBWayEnabled,
-                MBWayPhoneNumber = paymentSettings.MBWayPhoneNumber,
-                MBWayMerchantId = paymentSettings.MBWayMerchantId,
+                MBWayPhoneNumber = DecryptIfPresent(paymentSettings.MBWayPhoneNumberEncrypted),
+                MBWayMerchantId = DecryptIfPresent(paymentSettings.MBWayMerchantIdEncrypted),
                 CardEnabled = paymentSettings.CardEnabled,
                 CardProvider = paymentSettings.CardProvider,
                 CardPublicKey = paymentSettings.CardPublicKey,
-                CardMerchantId = paymentSettings.CardMerchantId,
+                CardMerchantId = DecryptIfPresent(paymentSettings.CardMerchantIdEncrypted),
                 CreatedAt = paymentSettings.CreatedAt,
                 UpdatedAt = paymentSettings.UpdatedAt
             };
@@ -79,7 +85,8 @@ public class PaymentSettingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = ex.Message });
+            _logger.LogError(ex, "Failed to get payment settings for condominium {CondominiumId}", condominiumId);
+            return StatusCode(500, new { message = "Unable to fetch payment settings." });
         }
     }
 
@@ -94,8 +101,7 @@ public class PaymentSettingsController : ControllerBase
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var settings = await _repository.FindAsync(ps => ps.CondominiumId == condominiumId);
-            var paymentSettings = settings.FirstOrDefault();
+            var paymentSettings = await _repository.FirstOrDefaultAsync(ps => ps.CondominiumId == condominiumId);
 
             bool isNew = false;
             if (paymentSettings == null)
@@ -112,16 +118,16 @@ public class PaymentSettingsController : ControllerBase
 
             // Update fields
             paymentSettings.BankTransferEnabled = request.BankTransferEnabled;
-            paymentSettings.BankTransferIban = request.BankTransferIban;
-            paymentSettings.BankTransferAccountHolder = request.BankTransferAccountHolder;
+            paymentSettings.BankTransferIbanEncrypted = EncryptIfPresent(request.BankTransferIban);
+            paymentSettings.BankTransferAccountHolderEncrypted = EncryptIfPresent(request.BankTransferAccountHolder);
             
             paymentSettings.MBReferenceEnabled = request.MBReferenceEnabled;
-            paymentSettings.MBReferenceEntity = request.MBReferenceEntity;
-            paymentSettings.MBReferenceReference = request.MBReferenceReference;
+            paymentSettings.MBReferenceEntityEncrypted = EncryptIfPresent(request.MBReferenceEntity);
+            paymentSettings.MBReferenceReferenceEncrypted = EncryptIfPresent(request.MBReferenceReference);
             
             paymentSettings.MBWayEnabled = request.MBWayEnabled;
-            paymentSettings.MBWayPhoneNumber = request.MBWayPhoneNumber;
-            paymentSettings.MBWayMerchantId = request.MBWayMerchantId;
+            paymentSettings.MBWayPhoneNumberEncrypted = EncryptIfPresent(request.MBWayPhoneNumber);
+            paymentSettings.MBWayMerchantIdEncrypted = EncryptIfPresent(request.MBWayMerchantId);
             
             paymentSettings.CardEnabled = request.CardEnabled;
             paymentSettings.CardProvider = request.CardProvider;
@@ -130,11 +136,10 @@ public class PaymentSettingsController : ControllerBase
             // Only update secret key if provided
             if (!string.IsNullOrWhiteSpace(request.CardSecretKey))
             {
-                // TODO: Encrypt the secret key before storing in production
-                paymentSettings.CardSecretKey = request.CardSecretKey;
+                paymentSettings.CardSecretKeyEncrypted = EncryptIfPresent(request.CardSecretKey);
             }
             
-            paymentSettings.CardMerchantId = request.CardMerchantId;
+            paymentSettings.CardMerchantIdEncrypted = EncryptIfPresent(request.CardMerchantId);
             paymentSettings.UpdatedAt = DateTime.UtcNow;
 
             if (isNew)
@@ -153,18 +158,18 @@ public class PaymentSettingsController : ControllerBase
                 Id = paymentSettings.Id,
                 CondominiumId = paymentSettings.CondominiumId,
                 BankTransferEnabled = paymentSettings.BankTransferEnabled,
-                BankTransferIban = paymentSettings.BankTransferIban,
-                BankTransferAccountHolder = paymentSettings.BankTransferAccountHolder,
+                BankTransferIban = DecryptIfPresent(paymentSettings.BankTransferIbanEncrypted),
+                BankTransferAccountHolder = DecryptIfPresent(paymentSettings.BankTransferAccountHolderEncrypted),
                 MBReferenceEnabled = paymentSettings.MBReferenceEnabled,
-                MBReferenceEntity = paymentSettings.MBReferenceEntity,
-                MBReferenceReference = paymentSettings.MBReferenceReference,
+                MBReferenceEntity = DecryptIfPresent(paymentSettings.MBReferenceEntityEncrypted),
+                MBReferenceReference = DecryptIfPresent(paymentSettings.MBReferenceReferenceEncrypted),
                 MBWayEnabled = paymentSettings.MBWayEnabled,
-                MBWayPhoneNumber = paymentSettings.MBWayPhoneNumber,
-                MBWayMerchantId = paymentSettings.MBWayMerchantId,
+                MBWayPhoneNumber = DecryptIfPresent(paymentSettings.MBWayPhoneNumberEncrypted),
+                MBWayMerchantId = DecryptIfPresent(paymentSettings.MBWayMerchantIdEncrypted),
                 CardEnabled = paymentSettings.CardEnabled,
                 CardProvider = paymentSettings.CardProvider,
                 CardPublicKey = paymentSettings.CardPublicKey,
-                CardMerchantId = paymentSettings.CardMerchantId,
+                CardMerchantId = DecryptIfPresent(paymentSettings.CardMerchantIdEncrypted),
                 CreatedAt = paymentSettings.CreatedAt,
                 UpdatedAt = paymentSettings.UpdatedAt
             };
@@ -173,7 +178,37 @@ public class PaymentSettingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = ex.Message });
+            _logger.LogError(ex, "Failed to update payment settings for condominium {CondominiumId}", condominiumId);
+            return StatusCode(500, new { message = "Unable to update payment settings." });
+        }
+    }
+
+    private string? EncryptIfPresent(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return _encryptionService.Encrypt(value.Trim());
+    }
+
+    private string? DecryptIfPresent(string? encryptedValue)
+    {
+        if (string.IsNullOrWhiteSpace(encryptedValue))
+        {
+            return null;
+        }
+
+        try
+        {
+            return _encryptionService.Decrypt(encryptedValue);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Unable to decrypt payment settings field for condominium {CondominiumId}. Returning null for this field.",
+                RouteData.Values["condominiumId"]);
+            return null;
         }
     }
 }

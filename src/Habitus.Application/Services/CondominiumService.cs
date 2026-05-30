@@ -269,45 +269,38 @@ public class CondominiumService
         var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
         if (condominium == null) return null;
 
-        // Try to get payment settings first (new structure)
-        var paymentSettings = await _paymentSettingsRepository.FindAsync(ps => ps.CondominiumId == condominiumId);
-        var settings = paymentSettings.FirstOrDefault();
-
-        if (settings != null)
+        var settings = await _paymentSettingsRepository.FirstOrDefaultAsync(ps => ps.CondominiumId == condominiumId);
+        if (settings == null)
         {
-            // Use new PaymentSettings structure
-            var decryptedIban = string.IsNullOrEmpty(settings.BankTransferIbanEncrypted)
-                ? settings.BankTransferIban
-                : _encryptionService.Decrypt(settings.BankTransferIbanEncrypted);
-
             return new PaymentMethodsDto
             {
-                Iban = decryptedIban,
-                Instructions = null, // Not in new structure, could be added if needed
-                MbWay = settings.MBWayPhoneNumber,
-                MbReference = settings.MBReferenceEntity != null && settings.MBReferenceReference != null
-                    ? $"{settings.MBReferenceEntity} | {settings.MBReferenceReference}"
-                    : null,
-                BankTransferEnabled = settings.BankTransferEnabled,
-                MbWayEnabled = settings.MBWayEnabled,
-                CardEnabled = settings.CardEnabled
+                Iban = null,
+                Instructions = null,
+                MbWay = null,
+                MbReference = null,
+                BankTransferEnabled = true,
+                MbWayEnabled = false,
+                CardEnabled = false
             };
         }
 
-        // Fallback to old Condominium fields (for backward compatibility)
-        var decryptedCondoIban = string.IsNullOrEmpty(condominium.PaymentIbanEncrypted)
-            ? condominium.PaymentIban
-            : _encryptionService.Decrypt(condominium.PaymentIbanEncrypted);
+        var decryptedIban = DecryptIfPresent(settings.BankTransferIbanEncrypted);
+        var decryptedInstructions = DecryptIfPresent(settings.PaymentInstructionsEncrypted);
+        var decryptedMbWay = DecryptIfPresent(settings.MBWayPhoneNumberEncrypted);
+        var decryptedMbReferenceEntity = DecryptIfPresent(settings.MBReferenceEntityEncrypted);
+        var decryptedMbReferenceReference = DecryptIfPresent(settings.MBReferenceReferenceEncrypted);
 
         return new PaymentMethodsDto
         {
-            Iban = decryptedCondoIban,
-            Instructions = condominium.PaymentInstructions,
-            MbWay = condominium.PaymentMbWay,
-            MbReference = condominium.PaymentMbReference,
-            BankTransferEnabled = condominium.PaymentBankTransferEnabled,
-            MbWayEnabled = condominium.PaymentMbWayEnabled,
-            CardEnabled = condominium.PaymentCardEnabled
+            Iban = decryptedIban,
+            Instructions = decryptedInstructions,
+            MbWay = decryptedMbWay,
+            MbReference = !string.IsNullOrWhiteSpace(decryptedMbReferenceEntity) && !string.IsNullOrWhiteSpace(decryptedMbReferenceReference)
+                ? $"{decryptedMbReferenceEntity} | {decryptedMbReferenceReference}"
+                : null,
+            BankTransferEnabled = settings.BankTransferEnabled,
+            MbWayEnabled = settings.MBWayEnabled,
+            CardEnabled = settings.CardEnabled
         };
     }
 
@@ -317,32 +310,51 @@ public class CondominiumService
         if (condominium == null)
             throw new InvalidOperationException($"Condominium with ID {condominiumId} not found.");
 
-        condominium.PaymentIban = request.Iban;  // Keep old field for backward compatibility
-        condominium.PaymentIbanEncrypted = string.IsNullOrEmpty(request.Iban) ? null : _encryptionService.Encrypt(request.Iban);
-        condominium.PaymentInstructions = request.Instructions;
-        condominium.PaymentMbWay = request.MbWay;
-        condominium.PaymentMbReference = request.MbReference;
-        condominium.PaymentBankTransferEnabled = request.BankTransferEnabled;
-        condominium.PaymentMbWayEnabled = request.MbWayEnabled;
-        condominium.PaymentCardEnabled = request.CardEnabled;
+        var settings = await _paymentSettingsRepository.FirstOrDefaultAsync(ps => ps.CondominiumId == condominiumId);
+        if (settings == null)
+        {
+            settings = new PaymentSettings
+            {
+                Id = Guid.NewGuid(),
+                CondominiumId = condominiumId,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _paymentSettingsRepository.AddAsync(settings);
+        }
 
-        _condominiumRepository.Update(condominium);
-        await _condominiumRepository.SaveChangesAsync();
+        SplitMbReference(request.MbReference, out var mbReferenceEntity, out var mbReferenceReference);
 
-        // Return decrypted IBAN in the response
-        var decryptedIban = string.IsNullOrEmpty(condominium.PaymentIbanEncrypted)
-            ? condominium.PaymentIban
-            : _encryptionService.Decrypt(condominium.PaymentIbanEncrypted);
+        settings.BankTransferEnabled = request.BankTransferEnabled;
+        settings.BankTransferIbanEncrypted = EncryptIfPresent(request.Iban);
+        settings.PaymentInstructionsEncrypted = EncryptIfPresent(request.Instructions);
+        settings.MBWayEnabled = request.MbWayEnabled;
+        settings.MBWayPhoneNumberEncrypted = EncryptIfPresent(request.MbWay);
+        settings.MBReferenceEnabled = !string.IsNullOrWhiteSpace(mbReferenceEntity) && !string.IsNullOrWhiteSpace(mbReferenceReference);
+        settings.MBReferenceEntityEncrypted = EncryptIfPresent(mbReferenceEntity);
+        settings.MBReferenceReferenceEncrypted = EncryptIfPresent(mbReferenceReference);
+        settings.CardEnabled = request.CardEnabled;
+        settings.UpdatedAt = DateTime.UtcNow;
+
+        _paymentSettingsRepository.Update(settings);
+        await _paymentSettingsRepository.SaveChangesAsync();
+
+        var decryptedIban = DecryptIfPresent(settings.BankTransferIbanEncrypted);
+        var decryptedInstructions = DecryptIfPresent(settings.PaymentInstructionsEncrypted);
+        var decryptedMbWay = DecryptIfPresent(settings.MBWayPhoneNumberEncrypted);
+        var decryptedMbReferenceEntity = DecryptIfPresent(settings.MBReferenceEntityEncrypted);
+        var decryptedMbReferenceReference = DecryptIfPresent(settings.MBReferenceReferenceEncrypted);
 
         return new PaymentMethodsDto
         {
             Iban = decryptedIban,
-            Instructions = condominium.PaymentInstructions,
-            MbWay = condominium.PaymentMbWay,
-            MbReference = condominium.PaymentMbReference,
-            BankTransferEnabled = condominium.PaymentBankTransferEnabled,
-            MbWayEnabled = condominium.PaymentMbWayEnabled,
-            CardEnabled = condominium.PaymentCardEnabled
+            Instructions = decryptedInstructions,
+            MbWay = decryptedMbWay,
+            MbReference = !string.IsNullOrWhiteSpace(decryptedMbReferenceEntity) && !string.IsNullOrWhiteSpace(decryptedMbReferenceReference)
+                ? $"{decryptedMbReferenceEntity} | {decryptedMbReferenceReference}"
+                : null,
+            BankTransferEnabled = settings.BankTransferEnabled,
+            MbWayEnabled = settings.MBWayEnabled,
+            CardEnabled = settings.CardEnabled
         };
     }
 
@@ -385,5 +397,51 @@ public class CondominiumService
         return string.IsNullOrEmpty(encryptedTaxId)
             ? null
             : _encryptionService.Decrypt(encryptedTaxId);
+    }
+
+    private string? EncryptIfPresent(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return _encryptionService.Encrypt(value.Trim());
+    }
+
+    private string? DecryptIfPresent(string? encryptedValue)
+    {
+        if (!string.IsNullOrWhiteSpace(encryptedValue))
+        {
+            return _encryptionService.Decrypt(encryptedValue);
+        }
+
+        return null;
+    }
+
+    private static void SplitMbReference(string? value, out string? entity, out string? reference)
+    {
+        entity = null;
+        reference = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var parts = value.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            entity = parts[0];
+            reference = parts[1];
+            return;
+        }
+
+        var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
+        if (digitsOnly.Length >= 14)
+        {
+            entity = digitsOnly[..5];
+            reference = digitsOnly.Substring(5, 9);
+        }
     }
 }
