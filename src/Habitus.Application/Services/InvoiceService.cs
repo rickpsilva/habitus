@@ -60,9 +60,7 @@ public class InvoiceService
             Name    = condominium.Name,
             Address = condominium.Address,
             Email   = condominium.Email,
-            TaxId   = !string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-                        ? _encryptionService.Decrypt(condominium.TaxIdEncrypted)
-                        : condominium.TaxId
+            TaxId   = DecryptTaxId(condominium.TaxIdEncrypted)
         };
     }
 
@@ -141,11 +139,6 @@ public class InvoiceService
         // Get next invoice number for this condominium and year
         var invoiceNumber = await GetNextInvoiceNumberAsync(condominium.Id);
 
-        // Encrypt the tax ID
-        var encryptedTaxId = !string.IsNullOrEmpty(condominium.TaxId)
-            ? _encryptionService.Encrypt(condominium.TaxId)
-            : condominium.TaxId;
-
         // Create invoice
         var invoice = new Invoice
         {
@@ -158,7 +151,7 @@ public class InvoiceService
             DueDate = now.AddDays(30), // 30 days payment term
             CondominiumId = condominium.Id,
             CustomerName = condominium.Name,
-            CustomerTaxIdEncrypted = encryptedTaxId,
+            CustomerTaxIdEncrypted = condominium.TaxIdEncrypted,
             CustomerAddress = condominium.Address,
             SubscriptionId = subscriptionId,
             PlanName = plan.Name,
@@ -428,6 +421,13 @@ public class InvoiceService
             return taxId;
 
         return new string('*', taxId.Length - 4) + taxId.Substring(taxId.Length - 4);
+    }
+
+    private string? DecryptTaxId(string? encryptedTaxId)
+    {
+        return string.IsNullOrEmpty(encryptedTaxId)
+            ? null
+            : _encryptionService.Decrypt(encryptedTaxId);
     }
 
     /// <summary>

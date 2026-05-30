@@ -6,7 +6,6 @@ public class Condominium
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string? Email { get; set; }  // Contact email for notifications
-    public string? TaxId { get; set; }  // NIF or NIPC - will be deprecated, use TaxIdEncrypted
     public string? TaxIdEncrypted { get; set; }  // Encrypted NIF or NIPC (new field)
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;

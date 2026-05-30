@@ -39,10 +39,7 @@ public class CondominiumService
             var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
             var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
 
-            // Decrypt TaxId if encrypted, otherwise use old field
-            var decryptedTaxId = string.IsNullOrEmpty(condo.TaxIdEncrypted)
-                ? condo.TaxId
-                : _encryptionService.Decrypt(condo.TaxIdEncrypted);
+            var decryptedTaxId = DecryptTaxId(condo.TaxIdEncrypted);
 
             responses.Add(new CondominiumResponse
             {
@@ -71,10 +68,7 @@ public class CondominiumService
             var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
             var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
 
-            // Decrypt TaxId if encrypted, otherwise use old field
-            var decryptedTaxId = string.IsNullOrEmpty(condo.TaxIdEncrypted)
-                ? condo.TaxId
-                : _encryptionService.Decrypt(condo.TaxIdEncrypted);
+            var decryptedTaxId = DecryptTaxId(condo.TaxIdEncrypted);
 
             responses.Add(new CondominiumResponse
             {
@@ -113,10 +107,7 @@ public class CondominiumService
         var users = await _userRepository.FindAsync(u => u.CondominiumId == id);
         var units = await _unitRepository.FindAsync(u => u.CondominiumId == id);
 
-        // Decrypt TaxId if encrypted, otherwise use old field
-        var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
-            : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+        var decryptedTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
 
         var admins = users.Where(u => u.Role == UserRole.Admin).Select(u => new UserSummary
         {
@@ -157,7 +148,6 @@ public class CondominiumService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Address = request.Address,
-            TaxId = request.TaxId,  // Keep old field for backward compatibility
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId),
             CreatedAt = DateTime.UtcNow,
@@ -167,10 +157,7 @@ public class CondominiumService
         await _condominiumRepository.AddAsync(condominium);
         await _condominiumRepository.SaveChangesAsync();
 
-        // Return decrypted TaxId in the response
-        var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted) 
-            ? condominium.TaxId 
-            : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+        var decryptedTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
         {
@@ -196,7 +183,6 @@ public class CondominiumService
 
         condominium.Name = request.Name;
         condominium.Address = request.Address;
-        condominium.TaxId = request.TaxId;  // Keep old field for backward compatibility
         condominium.TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId);
         if (request.Email != null)
         {
@@ -210,10 +196,7 @@ public class CondominiumService
         var users = await _userRepository.FindAsync(u => u.CondominiumId == condominium.Id);
         var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominium.Id);
 
-        // Return decrypted TaxId in the response
-        var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
-            : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+        var decryptedTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
         {
@@ -245,9 +228,7 @@ public class CondominiumService
         var users = await _userRepository.FindAsync(u => u.CondominiumId == condominium.Id);
         var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominium.Id);
 
-        var decryptedTaxId = string.IsNullOrEmpty(condominium.TaxIdEncrypted)
-            ? condominium.TaxId
-            : _encryptionService.Decrypt(condominium.TaxIdEncrypted);
+        var decryptedTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
 
         return new CondominiumResponse
         {
@@ -397,5 +378,12 @@ public class CondominiumService
                 Floor = u.Floor,
                 ApartmentNumber = u.ApartmentNumber
             });
+    }
+
+    private string? DecryptTaxId(string? encryptedTaxId)
+    {
+        return string.IsNullOrEmpty(encryptedTaxId)
+            ? null
+            : _encryptionService.Decrypt(encryptedTaxId);
     }
 }
