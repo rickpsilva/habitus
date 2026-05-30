@@ -476,15 +476,10 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<bool>("PaymentMbWayEnabled")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("TaxId")
-                        .HasColumnType("text");
-
                     b.Property<string>("TaxIdEncrypted")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TaxId");
 
                     b.ToTable("Condominiums");
                 });

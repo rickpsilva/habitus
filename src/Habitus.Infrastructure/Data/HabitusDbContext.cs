@@ -130,7 +130,6 @@ public class HabitusDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).IsRequired();
             entity.Property(c => c.Address).IsRequired();
-            entity.HasIndex(c => c.TaxId);
         });
 
         // Configure UserCondominium (many-to-many)

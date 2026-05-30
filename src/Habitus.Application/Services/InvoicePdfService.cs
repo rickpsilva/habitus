@@ -155,7 +155,7 @@ public class InvoicePdfService
                 });
 
                 page.Footer().AlignCenter().PaddingTop(10).Text(
-                    $"NIF da Empresa: {invoice.Condominium?.TaxId ?? "N/A"} | Documento gerado by HABITUS em {DateTime.UtcNow:dd/MM/yyyy HH:mm}"
+                    $"NIF da Empresa: {companyNif} | Documento gerado by HABITUS em {DateTime.UtcNow:dd/MM/yyyy HH:mm}"
                 ).FontSize(7);
             });
         }).GeneratePdf();
