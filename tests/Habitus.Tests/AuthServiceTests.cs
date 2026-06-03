@@ -68,8 +68,8 @@ public class AuthServiceTests
         user.FailedLoginCount = 4;
 
         _userRepositoryMock
-            .Setup(r => r.FindWithIncludesAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<string[]>()))
-            .ReturnsAsync([user]);
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { user }.FirstOrDefault(predicate.Compile()));
 
         var result = await _service.LoginAsync(new LoginRequest
         {
@@ -105,8 +105,8 @@ public class AuthServiceTests
         AuthChallenge? createdChallenge = null;
 
         _userRepositoryMock
-            .Setup(r => r.FindWithIncludesAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<string[]>()))
-            .ReturnsAsync([user]);
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { user }.FirstOrDefault(predicate.Compile()));
 
         _authChallengeRepositoryMock
             .Setup(r => r.FindAsync(It.IsAny<Expression<Func<AuthChallenge, bool>>>()))
@@ -227,8 +227,8 @@ public class AuthServiceTests
 
         _userRepositoryMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
         _userAuthProviderRepositoryMock
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UserAuthProvider, bool>>>()))
-            .ReturnsAsync((Expression<Func<UserAuthProvider, bool>> predicate) => existingLinks.Where(predicate.Compile()).ToList());
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<UserAuthProvider, bool>>>()))
+            .ReturnsAsync((Expression<Func<UserAuthProvider, bool>> predicate) => existingLinks.FirstOrDefault(predicate.Compile()));
 
         var result = await _service.LinkExternalProviderAsync(
             user.Id,
@@ -342,8 +342,8 @@ public class AuthServiceTests
         });
 
         _userRepositoryMock
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
-            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { existingManager }.Where(predicate.Compile()).ToList());
+            .Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { existingManager }.Any(predicate.Compile()));
 
         var result = await service.EnsureInitialManagerAsync();
 
