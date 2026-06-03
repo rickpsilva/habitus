@@ -41,7 +41,10 @@ public class CondominiumServiceAddressEncryptionTests
             Name = "Condominio Central",
             Address = "  Rua Principal 123  ",
             TaxId = "501234567",
-            Email = "  geral@condominio.pt  "
+            Email = "  geral@condominio.pt  ",
+            PostalCode = " 4000-123 ",
+            Locality = " Porto ",
+            ContactPhone = " +351 220 000 000 "
         };
 
         Condominium? savedCondominium = null;
@@ -56,6 +59,15 @@ public class CondominiumServiceAddressEncryptionTests
             .Setup(e => e.Encrypt("geral@condominio.pt"))
             .Returns("enc-email");
         _encryptionService
+            .Setup(e => e.Encrypt("4000-123"))
+            .Returns("enc-postal");
+        _encryptionService
+            .Setup(e => e.Encrypt("Porto"))
+            .Returns("enc-locality");
+        _encryptionService
+            .Setup(e => e.Encrypt("+351 220 000 000"))
+            .Returns("enc-phone");
+        _encryptionService
             .Setup(e => e.Decrypt("enc-address"))
             .Returns("Rua Principal 123");
         _encryptionService
@@ -64,6 +76,15 @@ public class CondominiumServiceAddressEncryptionTests
         _encryptionService
             .Setup(e => e.Decrypt("enc-email"))
             .Returns("geral@condominio.pt");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-postal"))
+            .Returns("4000-123");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-locality"))
+            .Returns("Porto");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-phone"))
+            .Returns("+351 220 000 000");
 
         _condominiumRepository
             .Setup(r => r.AddAsync(It.IsAny<Condominium>()))
@@ -81,10 +102,16 @@ public class CondominiumServiceAddressEncryptionTests
         savedCondominium.Address.Should().BeEmpty();
         savedCondominium.EmailEncrypted.Should().Be("enc-email");
         savedCondominium.Email.Should().BeEmpty();
+        savedCondominium.PostalCodeEncrypted.Should().Be("enc-postal");
+        savedCondominium.LocalityEncrypted.Should().Be("enc-locality");
+        savedCondominium.ContactPhoneEncrypted.Should().Be("enc-phone");
 
         result.Address.Should().Be("Rua Principal 123");
         result.TaxId.Should().Be("501234567");
         result.Email.Should().Be("geral@condominio.pt");
+        result.PostalCode.Should().Be("4000-123");
+        result.Locality.Should().Be("Porto");
+        result.ContactPhone.Should().Be("+351 220 000 000");
     }
 
     [Fact]
@@ -96,6 +123,9 @@ public class CondominiumServiceAddressEncryptionTests
             Name = "Condominio Norte",
             Address = "legacy-address",
             AddressEncrypted = "enc-address",
+            PostalCodeEncrypted = "enc-postal",
+            LocalityEncrypted = "enc-locality",
+            ContactPhoneEncrypted = "enc-phone",
             Email = "legacy@email.pt",
             EmailEncrypted = "enc-email",
             CreatedAt = DateTime.UtcNow,
@@ -120,12 +150,24 @@ public class CondominiumServiceAddressEncryptionTests
         _encryptionService
             .Setup(e => e.Decrypt("enc-email"))
             .Returns("novo@email.pt");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-postal"))
+            .Returns("4000-123");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-locality"))
+            .Returns("Porto");
+        _encryptionService
+            .Setup(e => e.Decrypt("enc-phone"))
+            .Returns("+351 220 000 000");
 
         var result = (await _service.GetAllCondominiumsAsync()).ToList();
 
         result.Should().HaveCount(1);
         result[0].Address.Should().Be("Avenida Nova 999");
         result[0].Email.Should().Be("novo@email.pt");
+        result[0].PostalCode.Should().Be("4000-123");
+        result[0].Locality.Should().Be("Porto");
+        result[0].ContactPhone.Should().Be("+351 220 000 000");
     }
 
     [Fact]

@@ -100,29 +100,15 @@ public class CondominiumsController : ControllerBase
     }
 
     /// <summary>
-    /// Update condominium (Manager can update any, Admin can update their own)
+    /// Update condominium (Manager only)
     /// </summary>
     [HttpPut("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Manager")]
     public async Task<IActionResult> UpdateCondominium(Guid id, [FromBody] UpdateCondominiumRequest request)
     {
         try
         {
             if (id != request.Id) return BadRequest("ID mismatch.");
-
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
-
-            // If Admin, they can only update their own condominium
-            if (userRole == "Admin" && userCondominiumId != id.ToString())
-            {
-                return Forbid("Admins can only update their own condominium.");
-            }
-
-            if (userRole == "Manager" && request.Email != null)
-            {
-                return Forbid("Only admins can change condominium email.");
-            }
 
             var condominium = await _condominiumService.UpdateCondominiumAsync(request);
             return Ok(condominium);
@@ -149,6 +135,30 @@ public class CondominiumsController : ControllerBase
             }
 
             var condominium = await _condominiumService.UpdateCondominiumEmailAsync(id, request.Email);
+            return Ok(condominium);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update condominium contact phone (Admin of the condominium only)
+    /// </summary>
+    [HttpPut("{id}/contact-phone")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateCondominiumContactPhone(Guid id, [FromBody] UpdateCondominiumContactPhoneRequest request)
+    {
+        try
+        {
+            var userCondominiumId = User.FindFirst("CondominiumId")?.Value;
+            if (userCondominiumId != id.ToString())
+            {
+                return Forbid("Admins can only update the contact phone of their own condominium.");
+            }
+
+            var condominium = await _condominiumService.UpdateCondominiumContactPhoneAsync(id, request.ContactPhone);
             return Ok(condominium);
         }
         catch (Exception ex)

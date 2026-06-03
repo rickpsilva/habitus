@@ -129,10 +129,13 @@ export default function CondominiumSettingsPage() {
 }
 
 function GeneralCondominiumContent() {
-  const { condominiumId } = useAuth();
+  const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const [condominiumData, setCondominiumData] = useState<{ name: string; address: string; taxId: string; isActive: boolean } | null>(null);
   const [email, setEmail] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [locality, setLocality] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [condominiumName, setCondominiumName] = useState('');
@@ -145,6 +148,9 @@ function GeneralCondominiumContent() {
         const response = await condominiumsApi.getById(condominiumId);
         setCondominiumName(response.data.name);
         setEmail(response.data.email || '');
+        setPostalCode(response.data.postalCode || '');
+        setLocality(response.data.locality || '');
+        setContactPhone(response.data.contactPhone || '');
         setCondominiumData({
           name: response.data.name,
           address: response.data.address,
@@ -166,18 +172,27 @@ function GeneralCondominiumContent() {
     if (!condominiumId || !condominiumData) return;
     setSaving(true);
     try {
-      await condominiumsApi.update(condominiumId, {
-        id: condominiumId,
-        name: condominiumData.name,
-        address: condominiumData.address,
-        taxId: condominiumData.taxId,
-        email: email.trim() || '',
-        isActive: condominiumData.isActive,
-      });
-      toastSuccess('Email do condomínio guardado com sucesso!');
+      if (isAdmin) {
+        // Admins may only update email and contact phone from this page
+        await condominiumsApi.updateEmail(condominiumId, email.trim() || '');
+        await condominiumsApi.updateContactPhone(condominiumId, contactPhone.trim() || '');
+      } else {
+        await condominiumsApi.update(condominiumId, {
+          id: condominiumId,
+          name: condominiumData.name,
+          address: condominiumData.address,
+          taxId: condominiumData.taxId,
+          email: email.trim() || '',
+          postalCode: postalCode.trim() || '',
+          locality: locality.trim() || '',
+          contactPhone: contactPhone.trim() || '',
+          isActive: condominiumData.isActive,
+        });
+      }
+      toastSuccess('Dados do condomínio guardados com sucesso!');
     } catch (error) {
-      console.error('Error saving condominium email:', error);
-      toastError('Erro ao guardar email do condomínio.');
+      console.error('Error saving condominium data:', error);
+      toastError('Erro ao guardar dados do condomínio.');
     } finally {
       setSaving(false);
     }
@@ -191,7 +206,7 @@ function GeneralCondominiumContent() {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Gerais</h3>
-        <p className="text-sm text-gray-500">Gerir o email de contacto visível aos moradores e usado nas notificações de faturação</p>
+        <p className="text-sm text-gray-500">Gerir contactos e localização usados nos recibos e nas informações do condomínio</p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
@@ -206,6 +221,49 @@ function GeneralCondominiumContent() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
+            <textarea
+              value={condominiumData?.address || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              rows={3}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">NIPC</label>
+            <input
+              type="text"
+              value={condominiumData?.taxId || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <input
+                type="text"
+                value={postalCode}
+                disabled
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="4000-123"
+                className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+              <input
+                type="text"
+                value={locality}
+                disabled
+                onChange={(e) => setLocality(e.target.value)}
+                placeholder="Porto"
+                className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              />
+            </div>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
             <input
               type="email"
@@ -216,6 +274,17 @@ function GeneralCondominiumContent() {
             />
             <p className="text-xs text-gray-500 mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone de Contacto</label>
+            <input
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              placeholder="+351 220 000 000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
@@ -225,7 +294,7 @@ function GeneralCondominiumContent() {
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Email'}
+            {saving ? 'A guardar...' : 'Guardar Dados'}
           </button>
         </div>
       </div>
@@ -565,13 +634,6 @@ function ReceiptTemplateContent() {
   const { success: toastSuccess, error: toastError } = useToast();
   const [activeTemplateType, setActiveTemplateType] = useState<'monthlyFee' | 'monthlyFeeQuarterly' | 'monthlyFeeAnnual' | 'reservation' | 'other'>('monthlyFee');
   const [template, setTemplate] = useState({
-    companyName: '',
-    address: '',
-    postalCode: '',
-    locality: '',
-    taxId: '',
-    email: '',
-    phone: '',
     template: '',
     templateMonthlyFee: '',
     templateMonthlyFeeQuarterly: '',
@@ -579,6 +641,13 @@ function ReceiptTemplateContent() {
     templateExtraordinaryFee: '',
     templateReservation: '',
     templateOther: '',
+    includeCondominiumName: true,
+    includeTaxId: true,
+    includeAddress: true,
+    includePostalCode: true,
+    includeLocality: true,
+    includeEmail: true,
+    includeContactPhone: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -690,6 +759,26 @@ function ReceiptTemplateContent() {
     other: 'templateOther',
   } as const;
 
+  const receiptInfoToggleOptions: Array<{
+    key:
+      | 'includeCondominiumName'
+      | 'includeTaxId'
+      | 'includeAddress'
+      | 'includePostalCode'
+      | 'includeLocality'
+      | 'includeEmail'
+      | 'includeContactPhone';
+    label: string;
+  }> = [
+    { key: 'includeCondominiumName', label: 'Nome do condomínio' },
+    { key: 'includeTaxId', label: 'NIPC' },
+    { key: 'includeAddress', label: 'Morada' },
+    { key: 'includePostalCode', label: 'Código Postal' },
+    { key: 'includeLocality', label: 'Localidade' },
+    { key: 'includeEmail', label: 'Email' },
+    { key: 'includeContactPhone', label: 'Telefone de Contacto' },
+  ];
+
   const activeTemplateField = templateFieldByType[activeTemplateType];
   const knownTagTokens = new Set(tagDefinitions.map((definition) => definition.token.toLowerCase()));
   const unknownTags = useMemo(() => {
@@ -723,13 +812,6 @@ function ReceiptTemplateContent() {
       try {
         const response = await receiptTemplateSettingsApi.get(condominiumId);
         setTemplate({
-          companyName: response.data.companyName || '',
-          address: response.data.address || '',
-          postalCode: response.data.postalCode || '',
-          locality: response.data.locality || '',
-          taxId: response.data.taxId || '',
-          email: response.data.email || '',
-          phone: response.data.phone || '',
           template: response.data.template || '',
           templateMonthlyFee: templateToEditorHtml(response.data.templateMonthlyFee || response.data.template || ''),
           templateMonthlyFeeQuarterly: templateToEditorHtml(response.data.templateMonthlyFeeQuarterly || response.data.templateMonthlyFee || response.data.template || ''),
@@ -737,6 +819,13 @@ function ReceiptTemplateContent() {
           templateExtraordinaryFee: templateToEditorHtml(response.data.templateExtraordinaryFee || response.data.template || ''),
           templateReservation: templateToEditorHtml(response.data.templateReservation || response.data.template || ''),
           templateOther: templateToEditorHtml(response.data.templateOther || response.data.template || ''),
+          includeCondominiumName: response.data.includeCondominiumName ?? true,
+          includeTaxId: response.data.includeTaxId ?? true,
+          includeAddress: response.data.includeAddress ?? true,
+          includePostalCode: response.data.includePostalCode ?? true,
+          includeLocality: response.data.includeLocality ?? true,
+          includeEmail: response.data.includeEmail ?? true,
+          includeContactPhone: response.data.includeContactPhone ?? true,
         });
       } catch (error) {
         console.error('Error loading receipt template settings:', error);
@@ -775,13 +864,6 @@ function ReceiptTemplateContent() {
     setSaving(true);
     try {
       await receiptTemplateSettingsApi.update(condominiumId, {
-        companyName: template.companyName || undefined,
-        address: template.address || undefined,
-        postalCode: template.postalCode || undefined,
-        locality: template.locality || undefined,
-        taxId: template.taxId || undefined,
-        email: template.email || undefined,
-        phone: template.phone || undefined,
         template: template.templateMonthlyFee || template.template || undefined,
         templateMonthlyFee: template.templateMonthlyFee || undefined,
         templateMonthlyFeeQuarterly: template.templateMonthlyFeeQuarterly || undefined,
@@ -789,6 +871,13 @@ function ReceiptTemplateContent() {
         templateExtraordinaryFee: template.templateExtraordinaryFee || undefined,
         templateReservation: template.templateReservation || undefined,
         templateOther: template.templateOther || undefined,
+        includeCondominiumName: template.includeCondominiumName,
+        includeTaxId: template.includeTaxId,
+        includeAddress: template.includeAddress,
+        includePostalCode: template.includePostalCode,
+        includeLocality: template.includeLocality,
+        includeEmail: template.includeEmail,
+        includeContactPhone: template.includeContactPhone,
       });
       toastSuccess('Template de recibos guardado com sucesso!');
     } catch (error) {
@@ -820,87 +909,32 @@ function ReceiptTemplateContent() {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Template de Recibos</h3>
-        <p className="text-sm text-gray-500">Configure as informações que aparecem nos recibos gerados</p>
+        <p className="text-sm text-gray-500">Escolha quais dados do condomínio (definidos em Geral) devem aparecer no cabeçalho dos recibos</p>
       </div>
 
       <form className="space-y-4 max-w-2xl" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Empresa</label>
-            <input
-              type="text"
-              value={template.companyName}
-              onChange={(e) => setTemplate({ ...template, companyName: e.target.value })}
-              placeholder="Condominio Jardins do Sol"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">NIPC</label>
-            <input
-              type="text"
-              value={template.taxId}
-              onChange={(e) => setTemplate({ ...template, taxId: e.target.value })}
-              placeholder="509876543"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <p className="text-sm font-medium text-gray-900">Informações do condomínio no cabeçalho</p>
+          <p className="text-xs text-gray-600">Os valores são geridos na tab Geral. Aqui decide apenas o que incluir no recibo.</p>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
-          <input
-            type="text"
-            value={template.address}
-            onChange={(e) => setTemplate({ ...template, address: e.target.value })}
-            placeholder="Rua das Flores, 120, 4000-123 Porto"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
-            <input
-              type="text"
-              value={template.postalCode}
-              onChange={(e) => setTemplate({ ...template, postalCode: e.target.value })}
-              placeholder="4000-123"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
-            <input
-              type="text"
-              value={template.locality}
-              onChange={(e) => setTemplate({ ...template, locality: e.target.value })}
-              placeholder="Porto"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={template.email}
-              onChange={(e) => setTemplate({ ...template, email: e.target.value })}
-              placeholder="geral@jardinsdosol.pt"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-            <input
-              type="tel"
-              value={template.phone}
-              onChange={(e) => setTemplate({ ...template, phone: e.target.value })}
-              placeholder="+351 220 000 000"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          <div className="space-y-2">
+            {receiptInfoToggleOptions.map((item) => (
+              <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
+                <span className="text-sm text-gray-800">{item.label}</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={template[item.key]}
+                    onChange={(e) => setTemplate({
+                      ...template,
+                      [item.key]: e.target.checked,
+                    })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+            ))}
           </div>
         </div>
 

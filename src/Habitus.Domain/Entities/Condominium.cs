@@ -8,6 +8,9 @@ public class Condominium
     public string? AddressEncrypted { get; set; }
     public string? Email { get; set; } = string.Empty;  // Legacy plaintext column (kept for fallback)
     public string? EmailEncrypted { get; set; }
+    public string? PostalCodeEncrypted { get; set; }
+    public string? LocalityEncrypted { get; set; }
+    public string? ContactPhoneEncrypted { get; set; }
     public string? TaxIdEncrypted { get; set; }  // Encrypted NIF or NIPC (new field)
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;

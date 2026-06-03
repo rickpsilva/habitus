@@ -153,6 +153,8 @@ export const condominiumsApi = {
     api.put<CondominiumDto>(`/platform/condominiums/${id}`, data),
   updateEmail: (id: string, email?: string) =>
     api.put<CondominiumDto>(`/platform/condominiums/${id}/email`, { email }),
+  updateContactPhone: (id: string, contactPhone?: string) =>
+    api.put<CondominiumDto>(`/platform/condominiums/${id}/contact-phone`, { contactPhone }),
   delete: (id: string) => api.delete(`/platform/condominiums/${id}`),
 };
 
