@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, Building, FileText, Upload, Download, Trash2 } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2 } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';

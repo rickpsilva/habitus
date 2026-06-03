@@ -289,10 +289,10 @@ export const documentsApi = {
       responseType: 'blob',
     });
     // Get the content type from response headers
-    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const contentType = String(response.headers['content-type'] || 'application/octet-stream');
     
     // Try to extract filename from Content-Disposition header if available
-    const contentDisposition = response.headers['content-disposition'];
+    const contentDisposition = String(response.headers['content-disposition'] || '');
     let downloadFileName = fileName;
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -362,8 +362,8 @@ export const paymentsApi = {
       responseType: 'blob',
     });
 
-    const contentType = response.headers['content-type'] || 'application/octet-stream';
-    const contentDisposition = response.headers['content-disposition'];
+    const contentType = String(response.headers['content-type'] || 'application/octet-stream');
+    const contentDisposition = String(response.headers['content-disposition'] || '');
     let fileName = `Comprovativo - ${description}.pdf`;
 
     if (contentDisposition) {
