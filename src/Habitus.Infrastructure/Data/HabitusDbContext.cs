@@ -130,6 +130,8 @@ public class HabitusDbContext : DbContext
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).IsRequired();
             entity.Property(c => c.Address).IsRequired();
+            entity.Property(c => c.AddressEncrypted).HasMaxLength(1024);
+            entity.Property(c => c.EmailEncrypted).HasMaxLength(2048);
         });
 
         // Configure UserCondominium (many-to-many)

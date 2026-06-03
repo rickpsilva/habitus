@@ -58,8 +58,8 @@ public class InvoiceService
         {
             Id      = condominium.Id,
             Name    = condominium.Name,
-            Address = condominium.Address,
-            Email   = condominium.Email,
+            Address = DecryptAddress(condominium.AddressEncrypted),
+            Email   = DecryptEmail(condominium.EmailEncrypted),
             TaxId   = DecryptTaxId(condominium.TaxIdEncrypted)
         };
     }
@@ -152,7 +152,7 @@ public class InvoiceService
             CondominiumId = condominium.Id,
             CustomerName = condominium.Name,
             CustomerTaxIdEncrypted = condominium.TaxIdEncrypted,
-            CustomerAddress = condominium.Address,
+            CustomerAddress = DecryptAddress(condominium.AddressEncrypted),
             SubscriptionId = subscriptionId,
             PlanName = plan.Name,
             PeriodStartDate = periodStart,
@@ -430,6 +430,20 @@ public class InvoiceService
             : _encryptionService.Decrypt(encryptedTaxId);
     }
 
+    private string DecryptAddress(string? encryptedAddress)
+    {
+        return string.IsNullOrEmpty(encryptedAddress)
+            ? string.Empty
+            : _encryptionService.Decrypt(encryptedAddress);
+    }
+
+    private string? DecryptEmail(string? encryptedEmail)
+    {
+        return string.IsNullOrEmpty(encryptedEmail)
+            ? string.Empty
+            : _encryptionService.Decrypt(encryptedEmail);
+    }
+
     /// <summary>
     /// Send invoice notification email to the condominium's contact address.
     /// Fire-and-forget: exceptions are logged but don't block invoice creation.
@@ -438,7 +452,8 @@ public class InvoiceService
     {
         try
         {
-            if (string.IsNullOrEmpty(condominium.Email))
+            var recipientEmail = DecryptEmail(condominium.EmailEncrypted);
+            if (string.IsNullOrWhiteSpace(recipientEmail))
             {
                 _logger.LogWarning("Invoice {InvoiceId}: condominium {CondominiumId} has no email address",
                     invoice.Id, condominium.Id);
@@ -450,13 +465,13 @@ public class InvoiceService
             var htmlBody    = BuildInvoiceEmailHtml(invoice, condominium, invoiceRef);
 
             await _emailService.SendAsync(
-                condominium.Email,
+                recipientEmail,
                 subject,
                 htmlBody,
                 EmailSenderType.System);
 
             _logger.LogInformation("Invoice email sent to {Email} for invoice {InvoiceRef}",
-                condominium.Email, invoiceRef);
+                recipientEmail, invoiceRef);
         }
         catch (Exception ex)
         {

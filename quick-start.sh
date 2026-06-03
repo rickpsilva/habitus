@@ -48,14 +48,14 @@ echo -e "${BLUE}3. Criando e aplicando migrações...${NC}"
 INFRA_DIR="$PROJECT_ROOT/src/Habitus.Infrastructure"
 if [ ! -d "$INFRA_DIR/Migrations" ]; then
     echo -e "${BLUE}ℹ Criando migração inicial...${NC}"
-    dotnet ef migrations add InitialCreate --project "$INFRA_DIR" >/dev/null 2>&1
+    dotnet ef migrations add InitialCreate --project "$INFRA_DIR" --startup-project "$API_DIR" >/dev/null 2>&1
 fi
 
 # Aplica as migrations
-if ! dotnet ef database update; then
+if ! dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR"; then
     echo -e "${RED}Tentando novamente em 2 segundos...${NC}"
     sleep 2
-    dotnet ef database update
+    dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR"
 fi
 echo -e "${GREEN}✓ Migrações aplicadas${NC}"
 echo ""

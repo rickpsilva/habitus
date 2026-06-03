@@ -207,7 +207,7 @@ public class NotificationDispatchService : INotificationDispatchService
 
             if (targetRole == UserRole.Admin)
             {
-                AddNotificationForRecipient(notificationsByEmail, condominium?.Email, notification);
+                AddNotificationForRecipient(notificationsByEmail, GetCondominiumEmail(condominium), notification);
                 continue;
             }
 
@@ -295,6 +295,21 @@ public class NotificationDispatchService : INotificationDispatchService
 
             AddNotificationForRecipient(notificationsByEmail, GetUserEmail(user), notification);
         }
+    }
+
+    private string? GetCondominiumEmail(Condominium? condominium)
+    {
+        if (condominium == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(condominium.EmailEncrypted))
+        {
+            return _encryptionService.Decrypt(condominium.EmailEncrypted);
+        }
+
+        return condominium.Email;
     }
 
     private string GetUserEmail(User user)
