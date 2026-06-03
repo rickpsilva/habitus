@@ -102,7 +102,7 @@ public class ReceiptService
         int receiptYear)
     {
         var companyName = templateSettings?.CompanyName ?? condominium.Name;
-        var companyAddress = templateSettings?.Address ?? condominium.Address;
+        var companyAddress = templateSettings?.Address ?? DecryptAddress(condominium.AddressEncrypted, condominium.Address);
         var companyPostalCode = templateSettings?.PostalCode;
         var companyLocality = templateSettings?.Locality;
         var companyLocationLine = FormatPostalCodeAndLocality(companyPostalCode, companyLocality);
@@ -579,6 +579,16 @@ public class ReceiptService
         return string.IsNullOrEmpty(encryptedTaxId)
             ? null
             : _encryptionService.Decrypt(encryptedTaxId);
+    }
+
+    private string DecryptAddress(string? encryptedAddress, string? legacyAddress)
+    {
+        if (!string.IsNullOrWhiteSpace(encryptedAddress))
+        {
+            return _encryptionService.Decrypt(encryptedAddress);
+        }
+
+        return legacyAddress ?? string.Empty;
     }
 
     private enum BlockAlignment

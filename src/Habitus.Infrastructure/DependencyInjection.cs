@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
         services.AddHostedService<UserPhoneEncryptionMigrationHostedService>();
+        services.AddHostedService<CondominiumAddressEncryptionMigrationHostedService>();
 
         // Encryption service for sensitive data
         services.AddScoped<IEncryptionService, EncryptionService>();
