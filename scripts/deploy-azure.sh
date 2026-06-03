@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 API_PROJECT="$ROOT_DIR/src/Habitus.Api/Habitus.Api.csproj"
 WEB_DIR="$ROOT_DIR/src/habitus-web"
+API_RUNTIME_STACK=""
 
 PREFIX="habitus"
 ENVIRONMENT_NAME="prod"
@@ -149,6 +150,27 @@ normalize_dash() {
 
 normalize_compact() {
     printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9'
+}
+
+detect_api_runtime_stack() {
+    local tfm
+    local runtime_version
+
+    tfm="$(sed -nE 's#.*<TargetFramework>(net[0-9]+\.[0-9]+)</TargetFramework>.*#\1#p' "$API_PROJECT" | head -n1)"
+    if [[ -z "$tfm" ]]; then
+        tfm="$(sed -nE 's#.*<TargetFrameworks>([^<]+)</TargetFrameworks>.*#\1#p' "$API_PROJECT" | head -n1 | cut -d';' -f1)"
+    fi
+
+    if [[ -z "$tfm" ]]; then
+        fail "Could not determine TargetFramework from $API_PROJECT"
+    fi
+
+    runtime_version="${tfm#net}"
+    if [[ "$runtime_version" == "$tfm" ]]; then
+        fail "Unsupported TargetFramework '$tfm' in $API_PROJECT"
+    fi
+
+    printf 'DOTNETCORE|%s' "$runtime_version"
 }
 
 trim_trailing_dash() {
@@ -395,6 +417,8 @@ if [[ "$FRONTEND_ON_API" == "true" && "$SKIP_API" == "true" && "$SKIP_FRONTEND" 
     fail "--frontend-on-api requires API deployment. Remove --skip-api or also pass --skip-frontend."
 fi
 
+API_RUNTIME_STACK="$(detect_api_runtime_stack)"
+
 ensure_provider_registered "Microsoft.Storage"
 ensure_provider_registered "Microsoft.KeyVault"
 ensure_provider_registered "Microsoft.DBforPostgreSQL"
@@ -425,6 +449,7 @@ FRONTDOOR_CUSTOM_DOMAIN="${FRONTDOOR_CUSTOM_DOMAIN:-frontend-domain}"
 success "Habitus Azure deployment"
 printf '  Resource group : %s\n' "$RESOURCE_GROUP"
 printf '  API app        : %s\n' "$API_APP_NAME"
+printf '  API runtime    : %s\n' "$API_RUNTIME_STACK"
 printf '  PostgreSQL     : %s\n' "$POSTGRES_SERVER"
 printf '  Storage        : %s\n' "$STORAGE_ACCOUNT"
 printf '  Key Vault      : %s\n' "$KEY_VAULT_NAME"
@@ -596,11 +621,18 @@ if ! webapp_exists "$API_APP_NAME"; then
         --resource-group "$RESOURCE_GROUP" \
         --plan "$APP_SERVICE_PLAN" \
         --name "$API_APP_NAME" \
-        --runtime 'DOTNETCORE|8.0' \
+        --runtime "$API_RUNTIME_STACK" \
         --output none
 else
     success "API Web App already exists"
 fi
+
+log "Applying API runtime stack $API_RUNTIME_STACK"
+az webapp config set \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$API_APP_NAME" \
+    --linux-fx-version "$API_RUNTIME_STACK" \
+    --output none >/dev/null
 
 az webapp update \
     --resource-group "$RESOURCE_GROUP" \

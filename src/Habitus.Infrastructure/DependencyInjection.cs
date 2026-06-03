@@ -116,8 +116,9 @@ public static class DependencyInjection
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
-        services.AddHostedService<UserPhoneEncryptionMigrationHostedService>();
-        services.AddHostedService<CondominiumAddressEncryptionMigrationHostedService>();
+        // TODO: Remove after migration is complete
+        // services.AddHostedService<UserPhoneEncryptionMigrationHostedService>();
+        // services.AddHostedService<CondominiumAddressEncryptionMigrationHostedService>();
 
         // Encryption service for sensitive data
         services.AddScoped<IEncryptionService, EncryptionService>();
