@@ -257,7 +257,7 @@ export default function AnnouncementsPage() {
         imageAttachments.map(async (att) => {
           try {
             const response = await announcementsApi.downloadAttachment(condominiumId, selected.id, att.id);
-            const contentType = response.headers['content-type'] || att.contentType || 'application/octet-stream';
+            const contentType = String(response.headers['content-type'] || att.contentType || 'application/octet-stream');
             const blob = new Blob([response.data], { type: contentType });
             const blobUrl = URL.createObjectURL(blob);
             urlsToRevoke.push(blobUrl);
@@ -289,7 +289,7 @@ export default function AnnouncementsPage() {
 
     try {
       const response = await announcementsApi.downloadAttachment(condominiumId, announcementId, attachment.id);
-      const contentType = response.headers['content-type'] || attachment.contentType || 'application/octet-stream';
+      const contentType = String(response.headers['content-type'] || attachment.contentType || 'application/octet-stream');
       const blob = new Blob([response.data], { type: contentType });
       const objectUrl = URL.createObjectURL(blob);
 

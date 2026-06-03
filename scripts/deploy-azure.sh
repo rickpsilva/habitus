@@ -25,6 +25,10 @@ ENABLE_FRONT_DOOR="false"
 FRONTEND_DOMAIN="${FRONTEND_DOMAIN:-}"
 DOMAIN_ROOT="${DOMAIN_ROOT:-}"
 
+# Optional automation: attempt to auto-fix npm audit issues during deploy
+AUTO_FIX_AUDIT="${AUTO_FIX_AUDIT:-false}"         # set to 'true' to run `npm audit fix` automatically
+AUTO_FIX_AUDIT_FORCE="${AUTO_FIX_AUDIT_FORCE:-false}" # set to 'true' to add --force to audit fix
+
 RESOURCE_GROUP=""
 APP_SERVICE_PLAN=""
 API_APP_NAME=""
@@ -209,6 +213,50 @@ get_secret_value() {
         -o tsv 2>/dev/null || true
 }
 
+# Check npm audit in a directory and optionally attempt to fix vulnerabilities.
+# Returns 0 on success (no vulns or fixed), non-zero on failure.
+check_and_fix_npm_audit() {
+    local dir="$1"
+    if [[ ! -d "$dir" ]]; then
+        return 0
+    fi
+
+    log "Checking npm audit in $dir"
+    local audit_json
+    audit_json="$(cd "$dir" && npm audit --json 2>/dev/null || true)"
+
+    local vulns
+    vulns="$(printf '%s' "$audit_json" | node -e "let s=''; process.stdin.on('data',d=>s+=d); process.stdin.on('end',()=>{try{const j=JSON.parse(s||'{}');const m=j.metadata&&j.metadata.vulnerabilities?Object.values(j.metadata.vulnerabilities).reduce((a,b)=>a+b,0):0;console.log(m);}catch(e){console.log(0);} });")"
+    if [[ -z "$vulns" ]]; then
+        vulns=0
+    fi
+
+    if [[ "$vulns" -eq 0 ]]; then
+        success "No npm vulnerabilities in $dir"
+        return 0
+    fi
+
+    warn "Found $vulns npm vulnerabilities in $dir"
+    if [[ "${AUTO_FIX_AUDIT:-false}" != "true" ]]; then
+        fail "Run 'npm audit fix' in $dir or set AUTO_FIX_AUDIT=true to attempt automatic fixes."
+    fi
+
+    log "Attempting 'npm audit fix' in $dir"
+    (cd "$dir" && npm audit fix ${AUTO_FIX_AUDIT_FORCE:+--force})
+
+    # Re-check after attempted fix
+    audit_json="$(cd "$dir" && npm audit --json 2>/dev/null || true)"
+    vulns="$(printf '%s' "$audit_json" | node -e "let s=''; process.stdin.on('data',d=>s+=d); process.stdin.on('end',()=>{try{const j=JSON.parse(s||'{}');const m=j.metadata&&j.metadata.vulnerabilities?Object.values(j.metadata.vulnerabilities).reduce((a,b)=>a+b,0):0;console.log(m);}catch(e){console.log(0);} });")"
+
+    if [[ -n "$vulns" && "$vulns" -gt 0 ]]; then
+        warn "After auto-fix, $vulns vulnerabilities remain in $dir. Please review and commit changes."
+        return 1
+    fi
+
+    success "npm vulnerabilities fixed in $dir. If files changed, commit them."
+    return 0
+}
+
 webapp_exists() {
     az webapp show --resource-group "$RESOURCE_GROUP" --name "$1" --only-show-errors >/dev/null 2>&1
 }
@@ -388,6 +436,7 @@ done
 require_command az
 require_command dotnet
 require_command npm
+require_command node
 require_command zip
 require_command sha1sum
 require_command openssl
@@ -927,6 +976,7 @@ if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_API" == "false" ]]; then
         log "Building frontend to be served by API Web App"
         (
             cd "$WEB_DIR"
+            check_and_fix_npm_audit "$WEB_DIR"
             npm ci
             VITE_API_BASE_URL="/api" npm run build
         )
@@ -965,6 +1015,7 @@ if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_FRONTEND" == "false" ]]; then
         log "Building frontend with Azure API URL"
         (
             cd "$WEB_DIR"
+            check_and_fix_npm_audit "$WEB_DIR"
             npm ci
             VITE_API_BASE_URL="${api_url}/api" npm run build
         )
