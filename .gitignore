@@ -45,3 +45,5 @@ tools/
 .continue/
 
 *.lscache
+
+**/bin\\Debug

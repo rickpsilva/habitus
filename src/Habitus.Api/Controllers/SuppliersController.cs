@@ -5,6 +5,7 @@ using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 
 namespace Habitus.Api.Controllers;
@@ -15,7 +16,15 @@ namespace Habitus.Api.Controllers;
 public class SuppliersController : ControllerBase
 {
     private readonly IRepository<Supplier> _repository;
-    public SuppliersController(IRepository<Supplier> repository) => _repository = repository;
+    private readonly IEncryptionService _encryptionService;
+    private readonly ILogger<SuppliersController> _logger;
+
+    public SuppliersController(IRepository<Supplier> repository, IEncryptionService encryptionService, ILogger<SuppliersController> logger)
+    {
+        _repository = repository;
+        _encryptionService = encryptionService;
+        _logger = logger;
+    }
 
     private bool CanAccessCondominium(Guid condominiumId)
     {
@@ -26,18 +35,32 @@ public class SuppliersController : ControllerBase
         return Guid.TryParse(userCondominiumId, out var userCondominiumGuid) && userCondominiumGuid == condominiumId;
     }
 
-    private static SupplierDto MapToDto(Supplier supplier) => new()
+    private SupplierDto MapToDto(Supplier supplier)
     {
-        Id = supplier.Id.ToString(),
-        Name = supplier.Name,
-        Contact = supplier.Contact,
-        Email = supplier.Email,
-        Phone = supplier.Phone,
-        Address = supplier.Address,
-        Specialty = supplier.Specialty,
-        IsActive = supplier.IsActive,
-        CondominiumId = supplier.CondominiumId.ToString()
-    };
+        string? email = string.IsNullOrEmpty(supplier.EmailEncrypted)
+            ? supplier.Email
+            : DecryptIfPresent(supplier.EmailEncrypted);
+
+        string? phone = string.IsNullOrEmpty(supplier.PhoneEncrypted)
+            ? supplier.Phone
+            : DecryptIfPresent(supplier.PhoneEncrypted);
+
+        string? address = string.IsNullOrEmpty(supplier.AddressEncrypted)
+            ? supplier.Address
+            : DecryptIfPresent(supplier.AddressEncrypted);
+
+        return new SupplierDto
+        {
+            Id = supplier.Id.ToString(),
+            Name = supplier.Name,
+            Email = email ?? string.Empty,
+            Phone = phone ?? string.Empty,
+            Address = address ?? string.Empty,
+            Specialty = supplier.Specialty,
+            IsActive = supplier.IsActive,
+            CondominiumId = supplier.CondominiumId.ToString()
+        };
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
@@ -65,7 +88,6 @@ public class SuppliersController : ControllerBase
             var searchLower = search.ToLower();
             dtos = dtos.Where(s =>
                 s.Name.ToLower().Contains(searchLower) ||
-                (s.Contact ?? "").ToLower().Contains(searchLower) ||
                 (s.Email ?? "").ToLower().Contains(searchLower) ||
                 (s.Specialty ?? "").ToLower().Contains(searchLower)
             ).OrderBy(s => s.Name);
@@ -102,10 +124,12 @@ public class SuppliersController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Contact = request.Contact,
-            Email = request.Email,
-            Phone = request.Phone,
-            Address = request.Address,
+            Email = string.Empty,
+            EmailEncrypted = EncryptIfPresent(request.Email),
+            Phone = string.Empty,
+            PhoneEncrypted = EncryptIfPresent(request.Phone),
+            Address = string.Empty,
+            AddressEncrypted = EncryptIfPresent(request.Address),
             Specialty = request.Specialty,
             CondominiumId = condominiumId,
             IsActive = true
@@ -127,10 +151,12 @@ public class SuppliersController : ControllerBase
         if (existing == null || existing.CondominiumId != condominiumId) return NotFound();
         
         existing.Name = request.Name;
-        existing.Contact = request.Contact;
-        existing.Email = request.Email;
-        existing.Phone = request.Phone;
-        existing.Address = request.Address;
+        existing.EmailEncrypted = EncryptIfPresent(request.Email);
+        existing.Email = string.Empty;
+        existing.PhoneEncrypted = EncryptIfPresent(request.Phone);
+        existing.Phone = string.Empty;
+        existing.AddressEncrypted = EncryptIfPresent(request.Address);
+        existing.Address = string.Empty;
         existing.Specialty = request.Specialty;
         existing.IsActive = request.IsActive;
         
@@ -151,5 +177,26 @@ public class SuppliersController : ControllerBase
         _repository.Remove(entity);
         await _repository.SaveChangesAsync();
         return NoContent();
+    }
+
+    private string? EncryptIfPresent(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return _encryptionService.Encrypt(value.Trim());
+    }
+
+    private string? DecryptIfPresent(string? encryptedValue)
+    {
+        if (string.IsNullOrWhiteSpace(encryptedValue)) return null;
+
+        try
+        {
+            return _encryptionService.Decrypt(encryptedValue);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Unable to decrypt supplier field. Returning null.");
+            return null;
+        }
     }
 }
