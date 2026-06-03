@@ -5,14 +5,7 @@ public class ReceiptTemplateSettings
     public Guid Id { get; set; }
     public Guid CondominiumId { get; set; }
     public Condominium? Condominium { get; set; }
-    
-    public string? CompanyName { get; set; }
-    public string? Address { get; set; }
-    public string? PostalCode { get; set; }
-    public string? Locality { get; set; }
-    public string? TaxId { get; set; }
-    public string? Email { get; set; }
-    public string? Phone { get; set; }
+
     public string? Template { get; set; }
     public string? TemplateMonthlyFee { get; set; }
     public string? TemplateMonthlyFeeQuarterly { get; set; }
@@ -20,6 +13,13 @@ public class ReceiptTemplateSettings
     public string? TemplateExtraordinaryFee { get; set; }
     public string? TemplateReservation { get; set; }
     public string? TemplateOther { get; set; }
+    public bool IncludeCondominiumName { get; set; } = true;
+    public bool IncludeTaxId { get; set; } = true;
+    public bool IncludeAddress { get; set; } = true;
+    public bool IncludePostalCode { get; set; } = true;
+    public bool IncludeLocality { get; set; } = true;
+    public bool IncludeEmail { get; set; } = true;
+    public bool IncludeContactPhone { get; set; } = true;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

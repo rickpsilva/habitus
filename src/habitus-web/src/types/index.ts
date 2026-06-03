@@ -171,6 +171,9 @@ export interface CondominiumDto {
   name: string;
   address: string;
   taxId: string;
+  postalCode?: string;
+  locality?: string;
+  contactPhone?: string;
   phone?: string;
   email?: string;
   isActive: boolean;
@@ -181,6 +184,9 @@ export interface CreateCondominiumRequest {
   address: string;
   taxId: string;
   email?: string;
+  postalCode?: string;
+  locality?: string;
+  contactPhone?: string;
 }
 
 export interface UpdateCondominiumRequest {
@@ -189,6 +195,9 @@ export interface UpdateCondominiumRequest {
   address: string;
   taxId: string;
   email?: string;
+  postalCode?: string;
+  locality?: string;
+  contactPhone?: string;
   isActive: boolean;
 }
 
@@ -580,13 +589,6 @@ export interface UpdatePaymentSettingsRequest {
 export interface ReceiptTemplateSettingsDto {
   id: string;
   condominiumId: string;
-  companyName?: string;
-  address?: string;
-  postalCode?: string;
-  locality?: string;
-  taxId?: string;
-  email?: string;
-  phone?: string;
   template?: string;
   templateMonthlyFee?: string;
   templateMonthlyFeeQuarterly?: string;
@@ -594,18 +596,18 @@ export interface ReceiptTemplateSettingsDto {
   templateExtraordinaryFee?: string;
   templateReservation?: string;
   templateOther?: string;
+  includeCondominiumName: boolean;
+  includeTaxId: boolean;
+  includeAddress: boolean;
+  includePostalCode: boolean;
+  includeLocality: boolean;
+  includeEmail: boolean;
+  includeContactPhone: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface UpdateReceiptTemplateSettingsRequest {
-  companyName?: string;
-  address?: string;
-  postalCode?: string;
-  locality?: string;
-  taxId?: string;
-  email?: string;
-  phone?: string;
   template?: string;
   templateMonthlyFee?: string;
   templateMonthlyFeeQuarterly?: string;
@@ -613,6 +615,13 @@ export interface UpdateReceiptTemplateSettingsRequest {
   templateExtraordinaryFee?: string;
   templateReservation?: string;
   templateOther?: string;
+  includeCondominiumName: boolean;
+  includeTaxId: boolean;
+  includeAddress: boolean;
+  includePostalCode: boolean;
+  includeLocality: boolean;
+  includeEmail: boolean;
+  includeContactPhone: boolean;
 }
 
 export interface PlatformBillingSettingsDto {

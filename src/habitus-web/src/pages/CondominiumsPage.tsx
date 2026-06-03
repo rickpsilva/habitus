@@ -43,6 +43,9 @@ export default function CondominiumsPage() {
     address: '',
     taxId: '',
     email: '',
+    postalCode: '',
+    locality: '',
+    contactPhone: '',
   });
   const [isActive, setIsActive] = useState(true);
 
@@ -97,6 +100,9 @@ export default function CondominiumsPage() {
       address: condo.address,
       taxId: condo.taxId,
       email: condo.email || '',
+      postalCode: condo.postalCode || '',
+      locality: condo.locality || '',
+      contactPhone: condo.contactPhone || '',
     });
     setIsActive(condo.isActive);
     setShowModal(true);
@@ -238,15 +244,24 @@ export default function CondominiumsPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-start gap-2 text-gray-600">
                   <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span className="flex-1">{condo.address}</span>
+                  <div className="flex-1">
+                    <div>{condo.address}</div>
+                    <div className="text-sm text-gray-600">{condo.postalCode} {condo.locality}</div>
+                  </div>
                 </div>
+                
                 <div className="flex items-center gap-2 text-gray-600">
-                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">NIF: {condo.taxId}</span>
+                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">NIPC: {condo.taxId}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Mail className="w-4 h-4 shrink-0" />
                   <span className="text-sm">{condo.email || 'Sem email configurado'}</span>
                 </div>
+                {condo.contactPhone && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span className="text-sm">Telefone: {condo.contactPhone}</span>
+                  </div>
+                )}
                 {visibleLinkCondoId === condo.id && (
                   <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5">
                     <p className="text-xs font-medium text-emerald-800 mb-1">Link de registo para Admin</p>
@@ -300,7 +315,7 @@ export default function CondominiumsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Endereço *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Morada *</label>
                 <input
                   type="text"
                   required
@@ -309,8 +324,28 @@ export default function CondominiumsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.postalCode}
+                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">NIF *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Localidade *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.locality}
+                  onChange={(e) => setFormData({ ...formData, locality: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">NIPC *</label>
                 <input
                   type="text"
                   required
@@ -327,7 +362,6 @@ export default function CondominiumsPage() {
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={!!editingId}
                   placeholder="geral@condominio.pt"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${editingId ? 'border-gray-200 bg-gray-50 text-gray-500' : 'border-gray-300'}`}
                 />
@@ -336,6 +370,16 @@ export default function CondominiumsPage() {
                     ? 'Depois de criado, o email é editado apenas pelo admin em Configurações.'
                     : 'Pode definir já o email de contacto do condomínio no momento da criação.'}
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone de Contacto</label>
+                <input
+                  type="tel"
+                  value={formData.contactPhone || ''}
+                  placeholder="+351 220 000 000"
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+                />
               </div>
               {editingId && (
                 <div className="flex items-center gap-2">

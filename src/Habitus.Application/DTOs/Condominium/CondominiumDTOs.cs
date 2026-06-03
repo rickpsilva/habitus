@@ -1,11 +1,27 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Habitus.Application.DTOs.Condominium;
 
 public class CreateCondominiumRequest
 {
+    [Required]
     public string Name { get; set; } = string.Empty;
+
+    [Required]
     public string Address { get; set; } = string.Empty;
+
+    [Required]
     public string? TaxId { get; set; }
+
     public string? Email { get; set; }
+
+    [Required]
+    public string? PostalCode { get; set; }
+
+    [Required]
+    public string? Locality { get; set; }
+
+    public string? ContactPhone { get; set; }
 }
 
 public class UpdateCondominiumRequest
@@ -15,12 +31,20 @@ public class UpdateCondominiumRequest
     public string Address { get; set; } = string.Empty;
     public string? TaxId { get; set; }
     public string? Email { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Locality { get; set; }
+    public string? ContactPhone { get; set; }
     public bool IsActive { get; set; }
 }
 
 public class UpdateCondominiumEmailRequest
 {
     public string? Email { get; set; }
+}
+
+public class UpdateCondominiumContactPhoneRequest
+{
+    public string? ContactPhone { get; set; }
 }
 
 public class CondominiumResponse
@@ -30,6 +54,9 @@ public class CondominiumResponse
     public string Address { get; set; } = string.Empty;
     public string? TaxId { get; set; }
     public string? Email { get; set; }
+    public string? PostalCode { get; set; }
+    public string? Locality { get; set; }
+    public string? ContactPhone { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
     public int TotalUnits { get; set; }

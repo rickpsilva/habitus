@@ -101,12 +101,24 @@ public class ReceiptService
         int receiptNumber,
         int receiptYear)
     {
-        var companyName = templateSettings?.CompanyName ?? condominium.Name;
-        var companyAddress = templateSettings?.Address ?? DecryptAddress(condominium.AddressEncrypted, condominium.Address);
-        var companyPostalCode = templateSettings?.PostalCode;
-        var companyLocality = templateSettings?.Locality;
+        var companyName = condominium.Name;
+        var companyAddress = DecryptAddress(condominium.AddressEncrypted, condominium.Address);
+        var companyPostalCode = DecryptIfPresent(condominium.PostalCodeEncrypted);
+        var companyLocality = DecryptIfPresent(condominium.LocalityEncrypted);
         var companyLocationLine = FormatPostalCodeAndLocality(companyPostalCode, companyLocality);
-        var companyTaxId = templateSettings?.TaxId ?? DecryptTaxId(condominium.TaxIdEncrypted);
+        var companyTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
+        var companyEmail = DecryptIfPresent(condominium.EmailEncrypted);
+        var companyContactPhone = DecryptIfPresent(condominium.ContactPhoneEncrypted);
+        var includeCondominiumName = templateSettings?.IncludeCondominiumName ?? true;
+        var includeTaxId = templateSettings?.IncludeTaxId ?? true;
+        var includeAddress = templateSettings?.IncludeAddress ?? true;
+        var includePostalCode = templateSettings?.IncludePostalCode ?? true;
+        var includeLocality = templateSettings?.IncludeLocality ?? true;
+        var includeEmail = templateSettings?.IncludeEmail ?? true;
+        var includeContactPhone = templateSettings?.IncludeContactPhone ?? true;
+        var displayPostalCode = includePostalCode ? companyPostalCode : null;
+        var displayLocality = includeLocality ? companyLocality : null;
+        companyLocationLine = FormatPostalCodeAndLocality(displayPostalCode, displayLocality);
         var templateBody = BuildReceiptBody(payment, resident, unit, condominium, templateSettings);
 
         var document = QuestPDF.Fluent.Document.Create(container =>
@@ -123,15 +135,21 @@ public class ReceiptService
                     column.Spacing(15);
 
                     // Header: Condominium Info
-                    column.Item().Text(text =>
+                    if (includeCondominiumName)
                     {
-                        text.Span(companyName.ToUpperInvariant()).Bold().FontSize(14);
-                    });
+                        column.Item().Text(text =>
+                        {
+                            text.Span(companyName.ToUpperInvariant()).Bold().FontSize(14);
+                        });
+                    }
 
-                    column.Item().Text(text =>
+                    if (includeAddress)
                     {
-                        text.Span(companyAddress).FontSize(10);
-                    });
+                        column.Item().Text(text =>
+                        {
+                            text.Span(companyAddress).FontSize(10);
+                        });
+                    }
 
                     if (!string.IsNullOrWhiteSpace(companyLocationLine))
                     {
@@ -141,11 +159,27 @@ public class ReceiptService
                         });
                     }
                     
-                    if (!string.IsNullOrEmpty(companyTaxId))
+                    if (includeTaxId && !string.IsNullOrEmpty(companyTaxId))
                     {
                         column.Item().Text(text =>
                         {
                             text.Span($"NIPC: {companyTaxId}").FontSize(10);
+                        });
+                    }
+
+                    if (includeEmail && !string.IsNullOrWhiteSpace(companyEmail))
+                    {
+                        column.Item().Text(text =>
+                        {
+                            text.Span($"Email: {companyEmail}").FontSize(10);
+                        });
+                    }
+
+                    if (includeContactPhone && !string.IsNullOrWhiteSpace(companyContactPhone))
+                    {
+                        column.Item().Text(text =>
+                        {
+                            text.Span($"Telefone: {companyContactPhone}").FontSize(10);
                         });
                     }
 
@@ -579,6 +613,13 @@ public class ReceiptService
         return string.IsNullOrEmpty(encryptedTaxId)
             ? null
             : _encryptionService.Decrypt(encryptedTaxId);
+    }
+
+    private string? DecryptIfPresent(string? encryptedValue)
+    {
+        return string.IsNullOrWhiteSpace(encryptedValue)
+            ? null
+            : _encryptionService.Decrypt(encryptedValue);
     }
 
     private string DecryptAddress(string? encryptedAddress, string? legacyAddress)
