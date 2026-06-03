@@ -657,12 +657,7 @@ export default function MaintenancePage() {
                               <span>{selectedSupplier.address}</span>
                             </div>
                           )}
-                          {selectedSupplier.contact && (
-                            <div className="flex items-center gap-2 text-sm text-blue-700">
-                              <Building className="w-4 h-4" />
-                              <span>{selectedSupplier.contact}</span>
-                            </div>
-                          )}
+                          
                         </div>
                       ) : null;
                     })()
@@ -872,12 +867,7 @@ export default function MaintenancePage() {
                                 <span>{supplier.address}</span>
                               </div>
                             )}
-                            {supplier.contact && (
-                              <div className="flex items-center gap-2 text-sm text-blue-700">
-                                <Building className="w-4 h-4" />
-                                <span>{supplier.contact}</span>
-                              </div>
-                            )}
+                            
                           </div>
                         </div>
                       ) : null;

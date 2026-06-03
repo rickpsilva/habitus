@@ -411,7 +411,6 @@ export interface UpdateAssemblyRequest {
 export interface SupplierDto {
   id: string;
   name: string;
-  contact: string;
   email: string;
   phone: string;
   address: string;
@@ -422,7 +421,6 @@ export interface SupplierDto {
 
 export interface CreateSupplierRequest {
   name: string;
-  contact: string;
   email: string;
   phone: string;
   address: string;
@@ -432,7 +430,6 @@ export interface CreateSupplierRequest {
 
 export interface UpdateSupplierRequest {
   name: string;
-  contact: string;
   email: string;
   phone: string;
   address: string;

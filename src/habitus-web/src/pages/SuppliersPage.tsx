@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Truck, Mail, Phone, MapPin, Building2, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -13,7 +13,6 @@ type SupplierForm = CreateSupplierRequest & { isActive: boolean };
 
 const initialSupplierForm: SupplierForm = {
   name: '',
-  contact: '',
   email: '',
   phone: '',
   address: '',
@@ -80,7 +79,6 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       if (editingId) {
         const updatePayload: UpdateSupplierRequest = {
           name: form.name,
-          contact: form.contact,
           email: form.email,
           phone: form.phone,
           address: form.address,
@@ -91,7 +89,6 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       } else {
         const createPayload: CreateSupplierRequest = {
           name: form.name,
-          contact: form.contact,
           email: form.email,
           phone: form.phone,
           address: form.address,
@@ -117,7 +114,6 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     setEditingId(supplier.id);
     setForm({
       name: supplier.name,
-      contact: supplier.contact,
       email: supplier.email,
       phone: supplier.phone,
       address: supplier.address,
@@ -264,18 +260,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contacto Principal
-              </label>
-              <input
-                type="text"
-                value={form.contact}
-                onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Nome do contacto"
-              />
-            </div>
+            
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -410,12 +395,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 </div>
 
                 <div className="space-y-2 text-sm">
-                  {supplier.contact && (
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Building2 className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{supplier.contact}</span>
-                    </div>
-                  )}
+                  
                   <div className="flex items-center gap-2 text-gray-600">
                     <Phone className="w-4 h-4 flex-shrink-0" />
                     <a href={`tel:${supplier.phone}`} className="hover:text-indigo-600">
