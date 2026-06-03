@@ -76,6 +76,8 @@ export default function CondominiumsPage() {
           name: formData.name,
           address: formData.address,
           taxId: formData.taxId,
+          postalCode: formData.postalCode,
+          locality: formData.locality,
           isActive: isActive,
         };
         await condominiumsApi.update(editingId, updateRequest);
@@ -84,7 +86,7 @@ export default function CondominiumsPage() {
       }
       setShowModal(false);
       setEditingId(null);
-      setFormData({ name: '', address: '', taxId: '', email: '' });
+      setFormData({ name: '', address: '', taxId: '', email: '', postalCode: '', locality: '', contactPhone: '' });
       setIsActive(true);
       load();
     } catch (error) {
@@ -127,7 +129,7 @@ export default function CondominiumsPage() {
 
   const handleNew = () => {
     setEditingId(null);
-    setFormData({ name: '', address: '', taxId: '', email: '' });
+    setFormData({ name: '', address: '', taxId: '', email: '', postalCode: '', locality: '', contactPhone: '' });
     setIsActive(true);
     setShowModal(true);
   };
