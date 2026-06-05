@@ -294,10 +294,22 @@ public class HabitusDbContext : DbContext
             entity.HasKey(d => d.Id);
             entity.Property(d => d.Channel).HasMaxLength(32).IsRequired();
             entity.Property(d => d.DispatchKey).HasMaxLength(128).IsRequired();
-            entity.Property(d => d.Recipient).HasMaxLength(256).IsRequired();
+            entity.Property(d => d.RecipientExternalId).HasMaxLength(256);
             entity.Property(d => d.Status).HasMaxLength(32).IsRequired();
             entity.Property(d => d.LastError).HasMaxLength(2000);
-            entity.HasIndex(d => new { d.Channel, d.DispatchKey, d.Recipient }).IsUnique();
+            
+            // Foreign key to User for email channel deliveries
+            entity.HasOne(d => d.RecipientUser)
+                .WithMany()
+                .HasForeignKey(d => d.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Unique constraint: Channel + DispatchKey + (RecipientUserId or RecipientExternalId)
+            // This ensures no duplicate deliveries for the same dispatch to the same recipient
+            entity.HasIndex(d => new { d.Channel, d.DispatchKey, d.RecipientUserId, d.RecipientExternalId })
+                .IsUnique()
+                .HasName("IX_NotificationDispatchDelivery_Unique_Delivery");
+            
             entity.HasIndex(d => d.CondominiumId);
         });
 
