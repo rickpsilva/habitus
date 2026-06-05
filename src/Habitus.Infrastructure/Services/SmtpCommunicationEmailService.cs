@@ -41,7 +41,7 @@ public class SmtpCommunicationEmailService : IEmailService
 
         using var message = new MailMessage
         {
-            From = new MailAddress(configuration.FromAddress, configuration.FromName),
+            From = new MailAddress(configuration.Username ?? string.Empty, string.Empty),
             Subject = subject,
             Body = body,
             IsBodyHtml = LooksLikeHtml(body)
@@ -95,8 +95,6 @@ public class SmtpCommunicationEmailService : IEmailService
             settings.SmtpPort > 0 ? settings.SmtpPort : 587,
             settings.Username?.Trim(),
             password,
-            settings.FromAddress.Trim(),
-            string.IsNullOrWhiteSpace(settings.FromName) ? "Habitus" : settings.FromName.Trim(),
             settings.UseSsl);
     }
 
@@ -115,9 +113,6 @@ public class SmtpCommunicationEmailService : IEmailService
         if (string.IsNullOrWhiteSpace(settings.EmailSmtpHost))
             throw new InvalidOperationException("Condominium SMTP host is not configured.");
 
-        if (string.IsNullOrWhiteSpace(settings.EmailFromAddress))
-            throw new InvalidOperationException("Condominium sender email is not configured.");
-
         string? password = settings.EmailPassword;
         if (!string.IsNullOrWhiteSpace(password) && _encryptionService.IsEncrypted(password))
         {
@@ -132,6 +127,20 @@ public class SmtpCommunicationEmailService : IEmailService
             }
         }
 
+        string? username = settings.EmailUsernameEncrypted;
+        if (!string.IsNullOrWhiteSpace(username) && _encryptionService.IsEncrypted(username))
+        {
+            try
+            {
+                username = _encryptionService.Decrypt(username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to decrypt condominium SMTP username for condominium {CondominiumId}.", condominiumId.Value);
+                throw new InvalidOperationException("Condominium SMTP username is invalid.");
+            }
+        }
+
         var smtpPort = settings.EmailSmtpPort.GetValueOrDefault(587);
         if (smtpPort <= 0)
         {
@@ -141,10 +150,8 @@ public class SmtpCommunicationEmailService : IEmailService
         return new SmtpConfiguration(
             settings.EmailSmtpHost.Trim(),
             smtpPort,
-            settings.EmailUsername?.Trim(),
+            username?.Trim(),
             password,
-            settings.EmailFromAddress.Trim(),
-            string.IsNullOrWhiteSpace(settings.EmailFromName) ? "Habitus" : settings.EmailFromName.Trim(),
             settings.EmailUseSsl);
     }
 
@@ -164,7 +171,5 @@ public class SmtpCommunicationEmailService : IEmailService
         int Port,
         string? Username,
         string? Password,
-        string FromAddress,
-        string FromName,
         bool UseSsl);
 }

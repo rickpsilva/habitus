@@ -47,8 +47,6 @@ public class CommunicationSettingsController : ControllerBase
                     EmailSmtpHost = null,
                     EmailSmtpPort = 587,
                     EmailUsername = null,
-                    EmailFromAddress = null,
-                    EmailFromName = null,
                     EmailUseSsl = true,
                     WhatsAppEnabled = false,
                     WhatsAppPhoneNumber = null,
@@ -70,9 +68,9 @@ public class CommunicationSettingsController : ControllerBase
                 EmailEnabled = communicationSettings.EmailEnabled,
                 EmailSmtpHost = communicationSettings.EmailSmtpHost,
                 EmailSmtpPort = communicationSettings.EmailSmtpPort,
-                EmailUsername = communicationSettings.EmailUsername,
-                EmailFromAddress = communicationSettings.EmailFromAddress,
-                EmailFromName = communicationSettings.EmailFromName,
+                EmailUsername = !string.IsNullOrWhiteSpace(communicationSettings.EmailUsernameEncrypted)
+                    ? _encryptionService.Decrypt(communicationSettings.EmailUsernameEncrypted)
+                    : string.Empty,
                 EmailUseSsl = communicationSettings.EmailUseSsl,
                 WhatsAppEnabled = communicationSettings.WhatsAppEnabled,
                 WhatsAppPhoneNumber = communicationSettings.WhatsAppPhoneNumber,
@@ -126,9 +124,13 @@ public class CommunicationSettingsController : ControllerBase
             communicationSettings.EmailEnabled = request.EmailEnabled;
             communicationSettings.EmailSmtpHost = request.EmailSmtpHost;
             communicationSettings.EmailSmtpPort = request.EmailSmtpPort;
-            communicationSettings.EmailUsername = request.EmailUsername;
-            communicationSettings.EmailFromAddress = request.EmailFromAddress;
-            communicationSettings.EmailFromName = request.EmailFromName;
+            // Store username encrypted when provided. Keep legacy plaintext for fallback.
+            if (request.EmailUsername != null)
+            {
+                communicationSettings.EmailUsernameEncrypted = string.IsNullOrWhiteSpace(request.EmailUsername)
+                    ? null
+                    : _encryptionService.Encrypt(request.EmailUsername.Trim());
+            }
             communicationSettings.EmailUseSsl = request.EmailUseSsl;
             
             // Only update password if provided
@@ -183,9 +185,9 @@ public class CommunicationSettingsController : ControllerBase
                 EmailEnabled = communicationSettings.EmailEnabled,
                 EmailSmtpHost = communicationSettings.EmailSmtpHost,
                 EmailSmtpPort = communicationSettings.EmailSmtpPort,
-                EmailUsername = communicationSettings.EmailUsername,
-                EmailFromAddress = communicationSettings.EmailFromAddress,
-                EmailFromName = communicationSettings.EmailFromName,
+                EmailUsername = !string.IsNullOrWhiteSpace(communicationSettings.EmailUsernameEncrypted)
+                    ? _encryptionService.Decrypt(communicationSettings.EmailUsernameEncrypted)
+                    : string.Empty,
                 EmailUseSsl = communicationSettings.EmailUseSsl,
                 WhatsAppEnabled = communicationSettings.WhatsAppEnabled,
                 WhatsAppPhoneNumber = communicationSettings.WhatsAppPhoneNumber,
