@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260605213326_RemoveEmailFromAddressAndFromNameFieldsComunicationSetting")]
+    partial class RemoveEmailFromAddressAndFromNameFieldsComunicationSetting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -383,7 +386,7 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<bool>("EmailUseSsl")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("EmailUsernameEncrypted")
+                    b.Property<string>("EmailUsername")
                         .HasColumnType("text");
 
                     b.Property<string>("SmsApiKey")

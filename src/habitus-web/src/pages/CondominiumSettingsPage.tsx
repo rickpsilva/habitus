@@ -1461,8 +1461,6 @@ function CommunicationChannelsContent() {
         emailSmtpPort: settings.emailSmtpPort,
         emailUsername: settings.emailUsername,
         emailPassword: emailPassword || undefined,
-        emailFromAddress: settings.emailFromAddress,
-        emailFromName: settings.emailFromName,
         emailUseSsl: settings.emailUseSsl,
         whatsAppEnabled: settings.whatsAppEnabled,
         whatsAppPhoneNumber: settings.whatsAppPhoneNumber,
@@ -1570,7 +1568,7 @@ function CommunicationChannelsContent() {
             <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-gray-700">SMTP: {settings.emailSmtpHost || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Remetente: {settings.emailFromAddress || 'Não configurado'}</p>
+                <p className="text-xs text-gray-500 mt-1">Username: {settings.emailUsername || 'Não configurado'}</p>
               </div>
               <button type="button" onClick={() => setActiveChannelModal('email')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1679,16 +1677,6 @@ function CommunicationChannelsContent() {
                 <p className="text-xs text-gray-500 mt-1">Gmail: use App Password (não a senha normal)</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Remetente</label>
-                <input type="email" value={settings.emailFromAddress || ''} onChange={(e) => setSettings({ ...settings, emailFromAddress: e.target.value })} placeholder="noreply@condominio.pt" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Remetente</label>
-                <input type="text" value={settings.emailFromName || ''} onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })} placeholder="Condomínio XYZ" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-            </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="emailUseSslModal" checked={settings.emailUseSsl} onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })} className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
               <label htmlFor="emailUseSslModal" className="text-sm text-gray-700">Usar SSL/TLS (recomendado)</label>
@@ -1748,8 +1736,6 @@ function SystemEmailContent() {
     smtpPort: 587,
     username: '',
     password: '',
-    fromAddress: 'no-reply@habituscond.pt',
-    fromName: 'Habitus',
     useSsl: true,
   });
   const [loading, setLoading] = useState(true);
@@ -1768,8 +1754,6 @@ function SystemEmailContent() {
           smtpPort: response.data.smtpPort || 587,
           username: response.data.username || '',
           password: '',
-          fromAddress: response.data.fromAddress || 'no-reply@habituscond.pt',
-          fromName: response.data.fromName || 'Habitus',
           useSsl: response.data.useSsl,
         });
       } catch (error) {
@@ -1904,29 +1888,6 @@ function SystemEmailContent() {
                 placeholder={settings?.hasPassword ? 'Já configurada. Preencha para substituir.' : 'Palavra-passe do servidor SMTP'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email de Origem</label>
-                <input
-                  type="email"
-                  value={form.fromAddress}
-                  onChange={(e) => setForm({ ...form, fromAddress: e.target.value })}
-                  placeholder="no-reply@habituscond.pt"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome de Origem</label>
-                <input
-                  type="text"
-                  value={form.fromName}
-                  onChange={(e) => setForm({ ...form, fromName: e.target.value })}
-                  placeholder="Habitus"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
             </div>
 
             <div className="flex items-center gap-2">

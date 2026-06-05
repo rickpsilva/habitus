@@ -665,8 +665,6 @@ export interface CommunicationSettingsDto {
   emailSmtpHost?: string;
   emailSmtpPort?: number;
   emailUsername?: string;
-  emailFromAddress?: string;
-  emailFromName?: string;
   emailUseSsl: boolean;
   // WhatsApp Configuration
   whatsAppEnabled: boolean;
@@ -690,8 +688,6 @@ export interface UpdateCommunicationSettingsRequest {
   emailSmtpPort?: number;
   emailUsername?: string;
   emailPassword?: string;
-  emailFromAddress?: string;
-  emailFromName?: string;
   emailUseSsl: boolean;
   // WhatsApp Configuration
   whatsAppEnabled: boolean;
@@ -968,8 +964,6 @@ export interface SystemEmailSettingsDto {
   smtpPort: number;
   username?: string;
   hasPassword: boolean;
-  fromAddress: string;
-  fromName: string;
   useSsl: boolean;
   createdAt: string;
   updatedAt: string;
@@ -981,8 +975,6 @@ export interface UpdateSystemEmailSettingsRequest {
   smtpPort: number;
   username?: string;
   password?: string;
-  fromAddress: string;
-  fromName: string;
   useSsl: boolean;
 }
 

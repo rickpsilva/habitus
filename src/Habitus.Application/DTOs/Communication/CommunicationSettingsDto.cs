@@ -10,8 +10,6 @@ public class CommunicationSettingsDto
     public string? EmailSmtpHost { get; set; }
     public int? EmailSmtpPort { get; set; }
     public string? EmailUsername { get; set; }
-    public string? EmailFromAddress { get; set; }
-    public string? EmailFromName { get; set; }
     public bool EmailUseSsl { get; set; }
     
     // WhatsApp Configuration
@@ -40,8 +38,6 @@ public class UpdateCommunicationSettingsRequest
     public int? EmailSmtpPort { get; set; }
     public string? EmailUsername { get; set; }
     public string? EmailPassword { get; set; }  // Only sent when updating password
-    public string? EmailFromAddress { get; set; }
-    public string? EmailFromName { get; set; }
     public bool EmailUseSsl { get; set; }
     
     // WhatsApp Configuration

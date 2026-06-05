@@ -10,10 +10,8 @@ public class CommunicationSettings
     public bool EmailEnabled { get; set; } = false;
     public string? EmailSmtpHost { get; set; }
     public int? EmailSmtpPort { get; set; }
-    public string? EmailUsername { get; set; }
+    public string? EmailUsernameEncrypted { get; set; } // Encrypted username (preferred)
     public string? EmailPassword { get; set; }  // Should be encrypted in production
-    public string? EmailFromAddress { get; set; }
-    public string? EmailFromName { get; set; }
     public bool EmailUseSsl { get; set; } = true;
     
     // WhatsApp Configuration
