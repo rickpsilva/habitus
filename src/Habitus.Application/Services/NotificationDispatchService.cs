@@ -55,15 +55,51 @@ public class NotificationDispatchService : INotificationDispatchService
 
         if (settings.EmailEnabled)
         {
-            var activeUsersById = await GetActiveUsersByIdAsync(condominiumId);
-            var notificationsByEmail = ResolveEmailNotifications(batch, condominium, activeUsersById);
-
-            foreach (var item in notificationsByEmail)
+            // Handle Admin role notifications (sent to condominium email)
+            var adminNotifications = batch.Where(n => ParseRole(n.TargetRole) == UserRole.Admin).ToList();
+            if (adminNotifications.Count > 0 && condominium != null)
             {
-                var recipientEmail = item.Key;
+                var condominiumEmail = GetCondominiumEmail(condominium);
+                if (!string.IsNullOrWhiteSpace(condominiumEmail))
+                {
+                    var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, adminNotifications);
+                    var condominiumEmailHash = ComputeEmailHash(condominiumEmail);
+                    var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, null, condominiumEmailHash);
+                    if (delivery != null)
+                    {
+                        var subject = adminNotifications.Count == 1
+                            ? adminNotifications[0].Title
+                            : $"{adminNotifications.Count} novas notificacoes";
+                        var body = BuildEmailBody(adminNotifications);
+
+                        try
+                        {
+                            await _emailService.SendAsync(
+                                condominiumEmail,
+                                subject,
+                                body,
+                                EmailSenderType.Condominium,
+                                condominiumId);
+                            await MarkDeliverySentAsync(delivery);
+                        }
+                        catch (Exception ex)
+                        {
+                            await MarkDeliveryFailedAsync(delivery, ex.Message);
+                        }
+                    }
+                }
+            }
+
+            // Handle Resident/other user notifications
+            var activeUsersById = await GetActiveUsersByIdAsync(condominiumId);
+            var notificationsByUserId = ResolveEmailNotifications(batch, condominium, activeUsersById);
+
+            foreach (var item in notificationsByUserId)
+            {
+                var recipientUserId = item.Key;
                 var recipientNotifications = item.Value;
                 var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, recipientNotifications);
-                var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, recipientEmail);
+                var delivery = await TryReserveDeliveryAsync(condominiumId, "email", dispatchKeyPrefix, recipientUserId, null);
                 if (delivery == null) continue;
 
                 var subject = recipientNotifications.Count == 1
@@ -73,6 +109,9 @@ public class NotificationDispatchService : INotificationDispatchService
 
                 try
                 {
+                    var user = activeUsersById[recipientUserId];
+                    var recipientEmail = GetUserEmail(user);
+                    
                     await _emailService.SendAsync(
                         recipientEmail,
                         subject,
@@ -92,7 +131,7 @@ public class NotificationDispatchService : INotificationDispatchService
         {
             var groupId = settings.WhatsAppGroupId!.Trim();
             var dispatchKeyPrefix = BuildDispatchKeyPrefix(condominiumId, batch);
-            var delivery = await TryReserveDeliveryAsync(condominiumId, "whatsapp", dispatchKeyPrefix, groupId);
+            var delivery = await TryReserveDeliveryAsync(condominiumId, "whatsapp", dispatchKeyPrefix, null, groupId);
             if (delivery != null)
             {
                 var message = BuildWhatsAppBody(batch);
@@ -109,14 +148,15 @@ public class NotificationDispatchService : INotificationDispatchService
         }
     }
 
-    private async Task<NotificationDispatchDelivery?> TryReserveDeliveryAsync(Guid condominiumId, string channel, string dispatchKey, string recipient)
+    private async Task<NotificationDispatchDelivery?> TryReserveDeliveryAsync(Guid condominiumId, string channel, string dispatchKey, Guid? recipientUserId, string? recipientExternalId)
     {
         var now = DateTime.UtcNow;
 
         var existing = (await _dispatchDeliveryRepository.FindAsync(d =>
             d.Channel == channel &&
             d.DispatchKey == dispatchKey &&
-            d.Recipient == recipient)).FirstOrDefault();
+            d.RecipientUserId == recipientUserId &&
+            d.RecipientExternalId == recipientExternalId)).FirstOrDefault();
 
         if (existing != null)
         {
@@ -145,7 +185,8 @@ public class NotificationDispatchService : INotificationDispatchService
             CondominiumId = condominiumId,
             Channel = channel,
             DispatchKey = dispatchKey,
-            Recipient = recipient,
+            RecipientUserId = recipientUserId,
+            RecipientExternalId = recipientExternalId,
             Status = PendingStatus,
             Attempts = 1,
             LastAttemptAt = now,
@@ -194,12 +235,12 @@ public class NotificationDispatchService : INotificationDispatchService
         return users;
     }
 
-    private Dictionary<string, List<Notification>> ResolveEmailNotifications(
+    private Dictionary<Guid, List<Notification>> ResolveEmailNotifications(
         List<Notification> notifications,
         Condominium? condominium,
         IReadOnlyDictionary<Guid, User> activeUsersById)
     {
-        var notificationsByEmail = new Dictionary<string, List<Notification>>(StringComparer.OrdinalIgnoreCase);
+        var notificationsByUserId = new Dictionary<Guid, List<Notification>>();
 
         foreach (var notification in notifications)
         {
@@ -207,15 +248,16 @@ public class NotificationDispatchService : INotificationDispatchService
 
             if (targetRole == UserRole.Admin)
             {
-                AddNotificationForRecipient(notificationsByEmail, GetCondominiumEmail(condominium), notification);
+                // Admin role uses condominium email, but we don't track this as a user-specific delivery
+                // This case would be handled separately if needed, or skipped for user-based tracking
                 continue;
             }
 
             if (!targetRole.HasValue && !notification.TargetUserId.HasValue)
             {
-                AddNotificationForAllCondominiumUsersExceptManagers(
-                    notificationsByEmail,
-                    activeUsersById.Values,
+                AddNotificationsForAllUsersExceptManagers(
+                    notificationsByUserId,
+                    activeUsersById,
                     notification);
                 continue;
             }
@@ -240,10 +282,10 @@ public class NotificationDispatchService : INotificationDispatchService
                 continue;
             }
 
-            AddNotificationForRecipient(notificationsByEmail, GetUserEmail(targetUser), notification);
+            AddNotificationForUser(notificationsByUserId, targetUser, notification);
         }
 
-        return notificationsByEmail;
+        return notificationsByUserId;
     }
 
     private static UserRole? ParseRole(string? rawRole)
@@ -261,39 +303,33 @@ public class NotificationDispatchService : INotificationDispatchService
         return role;
     }
 
-    private static void AddNotificationForRecipient(
-        Dictionary<string, List<Notification>> notificationsByEmail,
-        string? recipientEmail,
+    private static void AddNotificationForUser(
+        Dictionary<Guid, List<Notification>> notificationsByUserId,
+        User user,
         Notification notification)
     {
-        if (string.IsNullOrWhiteSpace(recipientEmail))
+        if (!notificationsByUserId.TryGetValue(user.Id, out var userNotifications))
         {
-            return;
+            userNotifications = new List<Notification>();
+            notificationsByUserId[user.Id] = userNotifications;
         }
 
-        var normalizedEmail = recipientEmail.Trim().ToLowerInvariant();
-        if (!notificationsByEmail.TryGetValue(normalizedEmail, out var recipientNotifications))
-        {
-            recipientNotifications = new List<Notification>();
-            notificationsByEmail[normalizedEmail] = recipientNotifications;
-        }
-
-        recipientNotifications.Add(notification);
+        userNotifications.Add(notification);
     }
 
-    private void AddNotificationForAllCondominiumUsersExceptManagers(
-        Dictionary<string, List<Notification>> notificationsByEmail,
-        IEnumerable<User> activeUsers,
+    private void AddNotificationsForAllUsersExceptManagers(
+        Dictionary<Guid, List<Notification>> notificationsByUserId,
+        IReadOnlyDictionary<Guid, User> activeUsersById,
         Notification notification)
     {
-        foreach (var user in activeUsers)
+        foreach (var user in activeUsersById.Values)
         {
             if (user.Role == UserRole.Manager)
             {
                 continue;
             }
 
-            AddNotificationForRecipient(notificationsByEmail, GetUserEmail(user), notification);
+            AddNotificationForUser(notificationsByUserId, user, notification);
         }
     }
 
@@ -368,5 +404,15 @@ public class NotificationDispatchService : INotificationDispatchService
         var remaining = notifications.Count > 5 ? $"\n... e mais {notifications.Count - 5}." : string.Empty;
 
         return $"Foram geradas {notifications.Count} novas notificacoes:\n{titles}{remaining}";
+    }
+
+    private static string ComputeEmailHash(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return string.Empty;
+
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(email.ToLowerInvariant().Trim()));
+        return Convert.ToHexString(bytes);
     }
 }
