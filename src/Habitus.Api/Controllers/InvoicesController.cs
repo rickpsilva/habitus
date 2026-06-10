@@ -114,15 +114,15 @@ public class InvoicesController : ControllerBase
                     return Forbid();
             }
 
-            // If PDF URL is stored, redirect to it (blob storage URL)
-            if (!string.IsNullOrEmpty(invoice.PdfUrl))
+            // Stream the PDF through the API instead of redirecting to a blob URL
+            var pdfResult = await _invoiceService.DownloadInvoicePdfAsync(invoiceId);
+            if (pdfResult.HasValue)
             {
-                // Return PDF from blob storage
-                return Redirect(invoice.PdfUrl);
+                var value = pdfResult.Value;
+                return File(value.Stream, value.ContentType ?? "application/pdf", value.FileName);
             }
 
-            // Fallback: Generate PDF on-the-fly if not stored
-            // TODO: Implement this fallback with full invoice entity
+            // Fallback: PDF not stored yet
             return StatusCode(501, "PDF generation in progress");
         }
         catch (Exception ex)
