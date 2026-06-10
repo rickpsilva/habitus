@@ -17,6 +17,10 @@ public class UsefulContactsController : ControllerBase
     {
         public string Name { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? PostalCode { get; set; }
+        public string? Locality { get; set; }
         public ContactCategory Category { get; set; }
         public Guid? CondominiumId { get; set; }
     }
@@ -25,11 +29,21 @@ public class UsefulContactsController : ControllerBase
     {
         public string Name { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Address { get; set; }
+        public string? PostalCode { get; set; }
+        public string? Locality { get; set; }
         public ContactCategory Category { get; set; }
     }
 
     private readonly IRepository<UsefulContact> _repository;
-    public UsefulContactsController(IRepository<UsefulContact> repository) => _repository = repository;
+    private readonly IEncryptionService _encryptionService;
+    
+    public UsefulContactsController(IRepository<UsefulContact> repository, IEncryptionService encryptionService)
+    {
+        _repository = repository;
+        _encryptionService = encryptionService;
+    }
 
     private bool CanAccessCondominium(Guid condominiumId)
     {
@@ -73,7 +87,11 @@ public class UsefulContactsController : ControllerBase
             Id = Guid.NewGuid(),
             CondominiumId = condominiumId,
             Name = request.Name.Trim(),
-            Phone = request.Phone.Trim(),
+            PhoneEncrypted = _encryptionService.Encrypt(request.Phone.Trim()),
+            EmailEncrypted = !string.IsNullOrWhiteSpace(request.Email) ? _encryptionService.Encrypt(request.Email.Trim()) : null,
+            AddressEncrypted = !string.IsNullOrWhiteSpace(request.Address) ? _encryptionService.Encrypt(request.Address.Trim()) : null,
+            PostalCodeEncrypted = !string.IsNullOrWhiteSpace(request.PostalCode) ? _encryptionService.Encrypt(request.PostalCode.Trim()) : null,
+            LocalityEncrypted = !string.IsNullOrWhiteSpace(request.Locality) ? _encryptionService.Encrypt(request.Locality.Trim()) : null,
             Category = request.Category,
         };
 
@@ -95,7 +113,11 @@ public class UsefulContactsController : ControllerBase
             return BadRequest(new { message = "Nome e telefone são obrigatórios." });
 
         existing.Name = request.Name.Trim();
-        existing.Phone = request.Phone.Trim();
+        existing.PhoneEncrypted = _encryptionService.Encrypt(request.Phone.Trim());
+        existing.EmailEncrypted = !string.IsNullOrWhiteSpace(request.Email) ? _encryptionService.Encrypt(request.Email.Trim()) : null;
+        existing.AddressEncrypted = !string.IsNullOrWhiteSpace(request.Address) ? _encryptionService.Encrypt(request.Address.Trim()) : null;
+        existing.PostalCodeEncrypted = !string.IsNullOrWhiteSpace(request.PostalCode) ? _encryptionService.Encrypt(request.PostalCode.Trim()) : null;
+        existing.LocalityEncrypted = !string.IsNullOrWhiteSpace(request.Locality) ? _encryptionService.Encrypt(request.Locality.Trim()) : null;
         existing.Category = request.Category;
         _repository.Update(existing);
         await _repository.SaveChangesAsync();
@@ -115,15 +137,26 @@ public class UsefulContactsController : ControllerBase
         return NoContent();
     }
 
-    private static object MapContact(UsefulContact contact)
+    private object MapContact(UsefulContact contact)
     {
+        var phone = !string.IsNullOrEmpty(contact.PhoneEncrypted) ? _encryptionService.Decrypt(contact.PhoneEncrypted) : contact.Phone;
+        var email = !string.IsNullOrEmpty(contact.EmailEncrypted) ? _encryptionService.Decrypt(contact.EmailEncrypted) : null;
+        var address = !string.IsNullOrEmpty(contact.AddressEncrypted) ? _encryptionService.Decrypt(contact.AddressEncrypted) : null;
+        var postalCode = !string.IsNullOrEmpty(contact.PostalCodeEncrypted) ? _encryptionService.Decrypt(contact.PostalCodeEncrypted) : null;
+        var locality = !string.IsNullOrEmpty(contact.LocalityEncrypted) ? _encryptionService.Decrypt(contact.LocalityEncrypted) : null;
+
         return new
         {
             id = contact.Id,
             name = contact.Name,
-            phone = contact.Phone,
+            phone = phone,
+            email = email,
+            address = address,
+            postalCode = postalCode,
+            locality = locality,
             category = contact.Category,
             condominiumId = contact.CondominiumId,
         };
     }
 }
+

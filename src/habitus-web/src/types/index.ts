@@ -452,6 +452,10 @@ export interface UsefulContactDto {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  address?: string;
+  postalCode?: string;
+  locality?: string;
   category: UsefulContactCategory;
   condominiumId: string;
 }
@@ -459,6 +463,10 @@ export interface UsefulContactDto {
 export interface CreateUsefulContactRequest {
   name: string;
   phone: string;
+  email?: string;
+  address?: string;
+  postalCode?: string;
+  locality?: string;
   category: UsefulContactCategory;
   condominiumId?: string;
 }
@@ -466,6 +474,10 @@ export interface CreateUsefulContactRequest {
 export interface UpdateUsefulContactRequest {
   name: string;
   phone: string;
+  email?: string;
+  address?: string;
+  postalCode?: string;
+  locality?: string;
   category: UsefulContactCategory;
 }
 
