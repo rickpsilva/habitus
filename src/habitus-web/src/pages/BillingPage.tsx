@@ -248,15 +248,14 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
             <RefreshCw className={`w-4 h-4 ${generatingInvoices ? 'animate-spin' : ''}`} />
             {generatingInvoices ? 'A gerar...' : 'Gerar Em Dívida'}
           </button>
-          <a
-            href={invoicesApi.saftXmlUrl(selectedCondoId, Number(saftYear))}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+          <button
+            onClick={() => invoicesApi.downloadSaftXml(selectedCondoId, Number(saftYear), `SAFT-PT_${selectedCondoId}_${saftYear}.xml`)}
+            disabled={!selectedCondoId}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors disabled:opacity-60"
           >
             <Download className="w-4 h-4" />
             SAF-T {saftYear}
-          </a>
+          </button>
           <input
             type="number"
             value={saftYear}
@@ -369,15 +368,13 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {inv.pdfUrl && (
-                        <a
-                          href={inv.pdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => invoicesApi.downloadPdf(inv.id)}
                           className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
                           title="Descarregar PDF"
                         >
                           <Download className="w-4 h-4" />
-                        </a>
+                        </button>
                       )}
                       {(inv.status === 'Emitted' || inv.status === 'Overdue') && (
                         <>

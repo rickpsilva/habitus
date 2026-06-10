@@ -519,6 +519,50 @@ export const invoicesApi = {
     api.get(`/platform/invoices/${condominiumId}/saft?year=${year}`),
   saftXmlUrl: (condominiumId: string, year: number) =>
     `/api/platform/invoices/${condominiumId}/saft?year=${year}&format=xml`,
+  downloadSaftXml: async (condominiumId: string, year: number, fileName?: string) => {
+    const response = await api.get(`/platform/invoices/${condominiumId}/saft?year=${year}&format=xml`, { responseType: 'blob' });
+    const contentType = String(response.headers['content-type'] || 'application/xml');
+    const contentDisposition = String(response.headers['content-disposition'] || '');
+    let downloadFileName = fileName || `SAFT-${condominiumId}_${year}.xml`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFileName = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = downloadFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+  downloadPdf: async (invoiceId: string, fileName?: string) => {
+    const response = await api.get(`/platform/invoices/detail/${invoiceId}/pdf`, { responseType: 'blob' });
+    const contentType = String(response.headers['content-type'] || 'application/pdf');
+    const contentDisposition = String(response.headers['content-disposition'] || '');
+    let downloadFileName = fileName || `Invoice_${invoiceId}.pdf`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFileName = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = downloadFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export const platformBillingSettingsApi = {

@@ -1,3 +1,4 @@
+using System.IO;
 using Habitus.Application.DTOs.Billing;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
@@ -95,6 +96,24 @@ public class InvoiceService
         );
 
         return invoice == null ? null : MapInvoiceToDto(invoice);
+    }
+
+    /// <summary>
+    /// Download invoice PDF stream from blob storage.
+    /// Returns null when there is no stored PDF for the invoice.
+    /// </summary>
+    public async Task<(Stream Stream, string? ContentType, string FileName)?> DownloadInvoicePdfAsync(Guid invoiceId)
+    {
+        var invoice = await _invoicesRepo.GetByIdAsync(invoiceId);
+        if (invoice == null) return null;
+
+        if (string.IsNullOrEmpty(invoice.PdfPath))
+            return null;
+
+        var (stream, contentType) = await _blobStorageService.DownloadAsync(invoice.PdfPath);
+        var fileName = $"HABITUS-{invoice.Year}-{invoice.Number:D6}.pdf";
+
+        return (stream, contentType ?? "application/pdf", fileName);
     }
 
     /// <summary>
