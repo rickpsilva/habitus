@@ -120,6 +120,7 @@ public static class DependencyInjection
         // services.AddHostedService<UserPhoneEncryptionMigrationHostedService>();
         // services.AddHostedService<CondominiumAddressEncryptionMigrationHostedService>();
         // services.AddHostedService<SupplierEncryptionMigrationHostedService>();
+        // services.AddHostedService<UsefulContactEncryptionMigrationHostedService>();
 
         // Encryption service for sensitive data
         services.AddScoped<IEncryptionService, EncryptionService>();

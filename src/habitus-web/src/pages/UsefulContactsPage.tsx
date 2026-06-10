@@ -31,6 +31,10 @@ const categoryByString: Record<string, number> = {
 const initialForm = {
   name: '',
   phone: '',
+  email: '',
+  address: '',
+  postalCode: '',
+  locality: '',
   category: 0,
 };
 
@@ -121,6 +125,10 @@ export default function UsefulContactsPage() {
     setForm({
       name: contact.name,
       phone: contact.phone,
+      email: contact.email || '',
+      address: contact.address || '',
+      postalCode: contact.postalCode || '',
+      locality: contact.locality || '',
       category: normalizeCategory(contact.category),
     });
     setShowForm(true);
@@ -150,6 +158,10 @@ export default function UsefulContactsPage() {
       const payload = {
         name: form.name.trim(),
         phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        address: form.address.trim() || undefined,
+        postalCode: form.postalCode.trim() || undefined,
+        locality: form.locality.trim() || undefined,
         category: form.category,
       };
 
@@ -228,6 +240,52 @@ export default function UsefulContactsPage() {
               placeholder="Ex: +351 213 000 000"
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Ex: contacto@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Ex: Rua Principal, 123"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <input
+                type="text"
+                value={form.postalCode}
+                onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Ex: 1000-001"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+              <input
+                type="text"
+                value={form.locality}
+                onChange={(e) => setForm((prev) => ({ ...prev, locality: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Ex: Lisboa"
+              />
+            </div>
           </div>
 
           <div>
@@ -341,6 +399,26 @@ export default function UsefulContactsPage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 space-y-2 text-sm">
+                  {contact.email && (
+                    <div className="text-gray-600">
+                      <a href={`mailto:${contact.email}`} className="text-indigo-600 hover:text-indigo-700">
+                        {contact.email}
+                      </a>
+                    </div>
+                  )}
+                  {contact.address && (
+                    <div className="text-gray-600">{contact.address}</div>
+                  )}
+                  {(contact.postalCode || contact.locality) && (
+                    <div className="text-gray-600">
+                      {contact.postalCode && <span>{contact.postalCode}</span>}
+                      {contact.postalCode && contact.locality && <span>, </span>}
+                      {contact.locality && <span>{contact.locality}</span>}
                     </div>
                   )}
                 </div>
