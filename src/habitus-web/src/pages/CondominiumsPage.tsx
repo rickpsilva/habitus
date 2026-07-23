@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail, AlertCircle, RefreshCw } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -23,6 +23,7 @@ export default function CondominiumsPage() {
   
   const [condominiums, setCondominiums] = useState<CondominiumDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function CondominiumsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [visibleLinkCondoId, setVisibleLinkCondoId] = useState<string | null>(null);
   const [copiedLinkCondoId, setCopiedLinkCondoId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const pageSize = 10;
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function CondominiumsPage() {
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       const response = await condominiumsApi.getPaged(page, pageSize, debouncedSearch);
       setPagination(response.data);
@@ -58,6 +61,7 @@ export default function CondominiumsPage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar condomínios:', error);
+      setLoadError('Não foi possível carregar os condomínios.');
     } finally {
       setLoading(false);
     }
@@ -69,6 +73,7 @@ export default function CondominiumsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       if (editingId) {
         const updateRequest: UpdateCondominiumRequest = {
@@ -90,8 +95,10 @@ export default function CondominiumsPage() {
       setIsActive(true);
       load();
     } catch (error) {
-      console.error('Erro ao salvar condomínio:', error);
-      alert('Erro ao salvar condomínio');
+      console.error('Erro ao guardar condomínio:', error);
+      toastError('Erro ao guardar condomínio. Tente novamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -145,7 +152,7 @@ export default function CondominiumsPage() {
       setTimeout(() => setCopiedLinkCondoId((current) => (current === condominiumId ? null : current)), 2000);
     } catch (error) {
       console.error('Erro ao copiar link de registo de administrador:', error);
-      alert('Não foi possível copiar automaticamente. Copie o link manualmente.');
+      toastError('Não foi possível copiar automaticamente. Copie o link manualmente.');
     }
   };
 
@@ -174,8 +181,8 @@ export default function CondominiumsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Condomínios</h1>
           <p className="text-gray-500 text-sm mt-0.5">{condominiums.length} condomínios registados</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-80">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+          <div className="w-full sm:w-80">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -184,7 +191,7 @@ export default function CondominiumsPage() {
           </div>
           <button
             onClick={handleNew}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Novo Condomínio
@@ -193,14 +200,30 @@ export default function CondominiumsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {!loading && loadError && (
+          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={() => load(currentPage)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : condominiums.length === 0 ? (
+        ) : !loadError && condominiums.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Building2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Nenhum condomínio cadastrado</p>
+            <p>Nenhum condomínio registado</p>
           </div>
-        ) : (
+        ) : !loadError ? (
           condominiums.map((condo) => (
             <div key={condo.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
@@ -287,7 +310,7 @@ export default function CondominiumsPage() {
               </div>
             </div>
           ))
-        )}
+        ) : null}
       </div>
       
       {pagination && !loading && condominiums.length > 0 && (
@@ -410,9 +433,10 @@ export default function CondominiumsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingId ? 'Salvar' : 'Criar'}
+                  {submitting ? 'A guardar...' : editingId ? 'Guardar' : 'Criar'}
                 </button>
               </div>
             </form>

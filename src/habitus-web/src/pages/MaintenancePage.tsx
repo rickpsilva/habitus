@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2 } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, RefreshCw, Eye } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
@@ -59,6 +59,7 @@ export default function MaintenancePage() {
   const { success, error: toastError, warning } = useToast();
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('Open');
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,16 +139,21 @@ export default function MaintenancePage() {
   const load = useCallback(() => {
     if (!condominiumId) {
       setRequests([]);
+      setLoadError('Condomínio não identificado.');
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setLoadError('');
     maintenanceApi.getAll(condominiumId)
       .then((r) => {
         const scopedItems = r.data
           .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }));
         setRequests(scopedItems);
+      })
+      .catch(() => {
+        setLoadError('Não foi possível carregar os pedidos de manutenção.');
       })
       .finally(() => setLoading(false));
   }, [condominiumId]);
@@ -396,8 +402,8 @@ export default function MaintenancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
           <p className="text-gray-500 text-sm mt-0.5">Pedidos de manutenção do condomínio</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-80">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+          <div className="w-full sm:w-80">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -406,7 +412,7 @@ export default function MaintenancePage() {
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             Novo Pedido
@@ -516,6 +522,21 @@ export default function MaintenancePage() {
       <div className="space-y-3">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
         ) : paginatedRequests.length === 0 ? (
           <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -554,9 +575,10 @@ export default function MaintenancePage() {
                     ) : (
                       <button
                         onClick={() => handleOpenStatusPanel(m)}
-                        className="shrink-0 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
+                        className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
                       >
-                        Ver Detalhes
+                        <Eye className="w-3.5 h-3.5" />
+                        Detalhes
                       </button>
                     )}
                   </div>

@@ -27,23 +27,23 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
   }
 
   return (
-    <div className="flex items-center justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
       <div className="text-sm text-gray-600">
         Página {pagination.page} de {pagination.totalPages} • {itemsLabel}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 self-end sm:self-auto">
         <button
           onClick={() => goToPage(currentPage - 1)}
           disabled={!pagination.hasPreviousPage}
           aria-label="Página anterior"
-          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
+          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
         >
           <ChevronLeft className="w-4 h-4" />
           Anterior
         </button>
         
         {/* Page numbers */}
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
             .filter(page => {
               return page === 1 || 
@@ -78,7 +78,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
           onClick={() => goToPage(currentPage + 1)}
           disabled={!pagination.hasNextPage}
           aria-label="Próxima página"
-          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
+          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
         >
           Seguinte
           <ChevronRight className="w-4 h-4" />

@@ -67,3 +67,28 @@
   color: #e5e7eb !important;
   border-color: #4b5563 !important;
 }
+
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.app-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.app-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}

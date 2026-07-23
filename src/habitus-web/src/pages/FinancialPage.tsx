@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save, AlertCircle, RefreshCw } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -61,6 +61,9 @@ export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const [loading, setLoading] = useState(true);
+  const [dashboardLoadError, setDashboardLoadError] = useState('');
+  const [recordsLoadError, setRecordsLoadError] = useState('');
+  const [paymentsLoadError, setPaymentsLoadError] = useState('');
   const [activeTab, setActiveTab] = useState<'transactions' | 'cashin' | 'quota-plans'>('transactions');
   const [dashboard, setDashboard] = useState<FinancialDashboardDto | null>(null);
   const [reserveFund, setReserveFund] = useState<ReserveFundDto | null>(null);
@@ -131,6 +134,7 @@ export default function FinancialPage() {
     if (!condominiumId) return;
     
     setLoading(true);
+    setDashboardLoadError('');
     Promise.all([
       financialApi.getDashboard(condominiumId, selectedYear),
       financialApi.getCurrentReserveFund(condominiumId),
@@ -143,6 +147,7 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar dados financeiros:', error);
+        setDashboardLoadError('Não foi possível carregar o resumo financeiro.');
         toastError('Erro ao carregar dados financeiros.');
       })
       .finally(() => setLoading(false));
@@ -151,7 +156,8 @@ export default function FinancialPage() {
   // Load records with pagination
   const loadRecords = useCallback((page: number = 1) => {
     if (!condominiumId) return;
-    
+    setRecordsLoadError('');
+
     financialApi.getByYear(condominiumId, selectedYear, page, pageSize, debouncedSearch)
       .then((r) => {
         setPagination(r.data);
@@ -160,6 +166,7 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar registos:', error);
+        setRecordsLoadError('Não foi possível carregar os registos financeiros.');
       });
   }, [condominiumId, selectedYear, pageSize, debouncedSearch]);
 
@@ -356,12 +363,14 @@ export default function FinancialPage() {
   // Payment functions
   const loadAllPayments = useCallback(async () => {
     if (!isAdmin || !condominiumId) return;
+    setPaymentsLoadError('');
     try {
       // Load all payments (up to 500)
       const response = await paymentsApi.getPaged(condominiumId, 1, 500);
       setAllPayments(response.data.items);
     } catch (error) {
       console.error('Error loading payments:', error);
+      setPaymentsLoadError('Não foi possível carregar os pagamentos do cash in.');
     }
   }, [isAdmin, condominiumId]);
 
@@ -594,6 +603,40 @@ export default function FinancialPage() {
       {/* Transactions Tab Content */}
       {activeTab === 'transactions' && (
         <>
+          {dashboardLoadError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                {dashboardLoadError}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (condominiumId) {
+                    setLoading(true);
+                    setDashboardLoadError('');
+                    Promise.all([
+                      financialApi.getDashboard(condominiumId, selectedYear),
+                      financialApi.getCurrentReserveFund(condominiumId),
+                      financialApi.getFiscalYears(condominiumId),
+                    ])
+                      .then(([dashboardRes, fundRes, yearsRes]) => {
+                        setDashboard(dashboardRes.data);
+                        setReserveFund(fundRes.data);
+                        setAvailableYears(yearsRes.data);
+                      })
+                      .catch(() => setDashboardLoadError('Não foi possível carregar o resumo financeiro.'))
+                      .finally(() => setLoading(false));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
           {/* Info Banner */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
             <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
@@ -734,12 +777,28 @@ export default function FinancialPage() {
                 />
               </div>
             </div>
+            {recordsLoadError && (
+              <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {recordsLoadError}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => loadRecords(currentPage)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Tentar novamente
+                </button>
+              </div>
+            )}
             
-            {records.length === 0 ? (
+            {!recordsLoadError && records.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 {searchQuery ? `Sem resultados para "${searchQuery}"` : `Sem registos de ${selectedYear}`}
               </div>
-            ) : (
+            ) : !recordsLoadError ? (
               <>
                 <div className="divide-y divide-gray-50">
                   {records.map((r) => (
@@ -785,7 +844,7 @@ export default function FinancialPage() {
                   </div>
                 )}
               </>
-            )}
+            ) : null}
           </div>
         </>
       ) : null}
@@ -1108,7 +1167,22 @@ export default function FinancialPage() {
             </div>
 
             {/* Payments List */}
-            {filteredPayments.length === 0 ? (
+            {paymentsLoadError ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {paymentsLoadError}
+                </span>
+                <button
+                  type="button"
+                  onClick={loadAllPayments}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Tentar novamente
+                </button>
+              </div>
+            ) : filteredPayments.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 {paymentSearchQuery ? 
                   'Nenhum pagamento encontrado para a pesquisa' : 

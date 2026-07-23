@@ -21,6 +21,7 @@ import {
   Wallet,
   ArrowRight,
   Megaphone,
+  RefreshCw,
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,34 +115,39 @@ export default function DashboardPage() {
   const [activeByCondominium, setActiveByCondominium] = useState<CondominiumActiveUsersDto[]>([]);
   const [platformBillingSettings, setPlatformBillingSettings] = useState<PlatformBillingSettingsDto | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
 
   useEffect(() => {
     if (isManager) {
-      condominiumsApi.getAll().then((r) => setManagerCondominiumCount(r.data.length)).catch(() => {});
+      const setLoadWarning = () => setDashboardError('Alguns dados do dashboard não puderam ser carregados.');
+
+      condominiumsApi.getAll().then((r) => setManagerCondominiumCount(r.data.length)).catch(setLoadWarning);
       usersApi.getAll().then((r) => {
         setManagerUserCount(r.data.length);
         setManagerActiveUserCount(r.data.filter((u) => u.isActive).length);
-      }).catch(() => {});
-      subscriptionsApi.getStats().then((r) => setManagerMrr(r.data.monthlyBillingVolume)).catch(() => {});
-        usersApi.getActiveLastMonthByCondominium().then((r) => setActiveByCondominium(r.data)).catch(() => {});
-        subscriptionsApi.getStats().then((r) => setManagerMrr(r.data.monthlyBillingVolume)).catch(() => {});
-        platformBillingSettingsApi.get().then((r) => setPlatformBillingSettings(r.data)).catch(() => {});
-      return;
+      }).catch(setLoadWarning);
+      subscriptionsApi.getStats().then((r) => setManagerMrr(r.data.monthlyBillingVolume)).catch(setLoadWarning);
+      usersApi.getActiveLastMonthByCondominium().then((r) => setActiveByCondominium(r.data)).catch(setLoadWarning);
+      platformBillingSettingsApi.get().then((r) => setPlatformBillingSettings(r.data)).catch(setLoadWarning);
+      const tManager = setTimeout(() => setDashboardLoading(false), 800);
+      return () => clearTimeout(tManager);
     }
 
+    const setLoadWarning = () => setDashboardError('Alguns dados do dashboard não puderam ser carregados.');
+
     // Get current user ID
-    usersApi.getMe().then((r) => setUserId(r.data.id)).catch(() => {});
+    usersApi.getMe().then((r) => setUserId(r.data.id)).catch(setLoadWarning);
     
     if (condominiumId) {
       maintenanceApi.getAll(condominiumId).then((r) => {
         setMaintenance(r.data);
-      }).catch(() => {});
+      }).catch(setLoadWarning);
     }
     if (condominiumId) {
-      notificationsApi.getAll(condominiumId, 1, 100).then((r) => setNotifications(r.data.items)).catch(() => {});
+      notificationsApi.getAll(condominiumId, 1, 100).then((r) => setNotifications(r.data.items)).catch(setLoadWarning);
     }
     if (condominiumId) {
-      reservationsApi.getAll(condominiumId).then((r) => setReservations(r.data)).catch(() => {});
+      reservationsApi.getAll(condominiumId).then((r) => setReservations(r.data)).catch(setLoadWarning);
     }
     // Load financial dashboard for current year
     if (condominiumId) {
@@ -152,7 +158,7 @@ export default function DashboardPage() {
         setReserveFundBalance(r.data.reserveFundBalance);
         setNoiseAnnouncementsCurrentYear(r.data.noiseAnnouncementsCurrentYear ?? 0);
         setNoiseAnnouncementsPreviousYear(r.data.noiseAnnouncementsPreviousYear ?? 0);
-      }).catch(() => {});
+      }).catch(setLoadWarning);
     }
 
     // Mark dashboard as loaded after a short delay to allow parallel calls to settle
@@ -171,6 +177,20 @@ export default function DashboardPage() {
             Visão de plataforma para gestão global da carteira de condomínios.
           </p>
         </div>
+
+        {dashboardError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span>{dashboardError}</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Recarregar
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
@@ -381,6 +401,20 @@ export default function DashboardPage() {
         </h1>
         <p className="text-gray-500 mt-1">Aqui está o resumo do seu condomínio.</p>
       </div>
+
+      {dashboardError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{dashboardError}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">

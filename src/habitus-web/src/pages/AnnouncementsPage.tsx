@@ -15,6 +15,8 @@ import {
   Trash2,
   Image as ImageIcon,
   FileText,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { announcementsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -95,6 +97,7 @@ export default function AnnouncementsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
   const [stats, setStats] = useState<AnnouncementStatsDto | null>(null);
   const [allowComments, setAllowComments] = useState(true);
@@ -184,8 +187,16 @@ export default function AnnouncementsPage() {
   );
 
   const loadData = useCallback(async () => {
-    if (!condominiumId) return;
+    if (!condominiumId) {
+      setAnnouncements([]);
+      setStats(null);
+      setLoadError('Condomínio não identificado.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setLoadError('');
     try {
       const [aRes, sRes] = await Promise.all([
         announcementsApi.getAll(condominiumId),
@@ -196,6 +207,9 @@ export default function AnnouncementsPage() {
 
       const cRes = await announcementsApi.getSettings(condominiumId);
       setAllowComments(cRes.data.allowAnnouncementComments);
+    } catch (error) {
+      console.error('Erro ao carregar comunicados:', error);
+      setLoadError('Não foi possível carregar os comunicados.');
     } finally {
       setLoading(false);
     }
@@ -424,7 +438,7 @@ export default function AnnouncementsPage() {
       resetForm();
       await loadData();
     } catch {
-      alert('Não foi possível guardar o comunicado.');
+      toastError('Não foi possível guardar o comunicado.');
     } finally {
       setSubmitting(false);
     }
@@ -611,6 +625,21 @@ export default function AnnouncementsPage() {
       <div className="space-y-3">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
         ) : sortedAnnouncements.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-xl p-10 text-center text-gray-500">
             <Megaphone className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -651,7 +680,10 @@ export default function AnnouncementsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => openDetails(a)} className="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200 text-gray-700">Ver</button>
+                  <button onClick={() => openDetails(a)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200 text-gray-700">
+                    <Eye className="w-3.5 h-3.5" />
+                    Detalhes
+                  </button>
                   {a.status === 'Draft' && (
                     <button onClick={() => openEdit(a)} className="p-2 rounded hover:bg-blue-50 text-blue-600" title="Editar">
                       <Edit className="w-4 h-4" />
@@ -781,6 +813,7 @@ export default function AnnouncementsPage() {
       <ModalPopup
         open={selected !== null && !!condominiumId}
         onClose={closeDetails}
+        title="Detalhes do comunicado"
         maxWidthClass="max-w-5xl"
         bodyClassName="p-5 space-y-4"
       >

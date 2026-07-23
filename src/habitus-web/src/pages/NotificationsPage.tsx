@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Bell, BellOff, CheckCheck, Trash2, LayoutDashboard } from 'lucide-react';
+import { Bell, BellOff, CheckCheck, Trash2, LayoutDashboard, AlertCircle, RefreshCw } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { notificationsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +27,7 @@ export default function NotificationsPage() {
   const { success, error } = useToast();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse<NotificationDto> | null>(null);
   const [confirmAction, setConfirmAction] = useState<null | 'markAll' | 'clearAll' | string>(null);
@@ -37,15 +38,19 @@ export default function NotificationsPage() {
       setPagination(null);
       setNotifications([]);
       setCurrentPage(page);
+      setLoadError('Condomínio não identificado.');
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setLoadError('');
     notificationsApi.getAll(condominiumId, page, pageSize).then((r) => {
       setPagination(r.data);
       setNotifications(r.data.items);
       setCurrentPage(page);
+    }).catch(() => {
+      setLoadError('Não foi possível carregar as notificações.');
     }).finally(() => setLoading(false));
   }, [condominiumId]);
 
@@ -167,6 +172,21 @@ export default function NotificationsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={() => load(currentPage)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
           </div>
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-gray-400 bg-white rounded-xl border border-gray-100">

@@ -41,6 +41,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentDto[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [cancelPaymentId, setCancelPaymentId] = useState<string | null>(null);
@@ -60,24 +61,26 @@ export default function PaymentsPage() {
   const currentMonth = new Date().getMonth(); // 0-indexed
   const currentYear = new Date().getFullYear();
 
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
     if (!condominiumId) {
       setPayments([]);
+      setLoadError('Condomínio não selecionado.');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('Loading payments...');
       const response = await paymentsApi.getMyPayments(condominiumId);
-      console.log('Payments loaded:', response.data);
       setPayments(response.data);
     } catch (error) {
       console.error('Error loading payments:', error);
+      setLoadError('Não foi possível carregar os pagamentos.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId]);
 
   const loadPaymentMethods = useCallback(async () => {
     if (!condominiumId) return;
@@ -103,7 +106,7 @@ export default function PaymentsPage() {
     if (condominiumId) {
       loadPaymentMethods();
     }
-  }, [condominiumId, loadPaymentMethods]);
+  }, [condominiumId, loadPaymentMethods, loadPayments]);
 
   useEffect(() => {
     let mounted = true;
@@ -315,8 +318,6 @@ export default function PaymentsPage() {
     );
   }
 
-  console.log('Rendering payments list. Total payments:', payments.length);
-
   return (
     <div className="space-y-6">
       <ConfirmModal
@@ -357,14 +358,30 @@ export default function PaymentsPage() {
             Atualizar
           </button>
         </div>
+        {!loading && loadError && (
+          <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={loadPayments}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
         <div className="divide-y divide-gray-200">
-          {payments.length === 0 ? (
+          {!loadError && payments.length === 0 ? (
             <div className="flex flex-col items-center gap-3 p-10 text-gray-400">
               <CreditCard className="w-10 h-10 opacity-40" aria-hidden="true" />
               <p className="text-sm font-medium">Nenhum pagamento registado</p>
               <p className="text-xs text-gray-400">Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.</p>
             </div>
-          ) : (
+          ) : !loadError ? (
             payments.map((payment) => (
               <div
                 key={payment.id}
@@ -382,21 +399,18 @@ export default function PaymentsPage() {
                       <p className="text-xs text-gray-500">
                         Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
                       </p>
-                      {/* Document Indicators */}
-                      <div className="flex items-center gap-2">
-                        {payment.proofOfPaymentUrl && (
-                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded" title="Comprovativo disponível">
-                            <Download className="w-3 h-3" />
-                            Comprovativo
-                          </span>
-                        )}
-                        {payment.status === 'Approved' && payment.hasReceipt && (
-                          <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded" title="Recibo disponível">
-                            <FileText className="w-3 h-3" />
-                            Recibo
-                          </span>
-                        )}
-                      </div>
+                      {payment.proofOfPaymentUrl && (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded" title="Comprovativo disponível">
+                          <Download className="w-3 h-3" />
+                          Comprovativo
+                        </span>
+                      )}
+                      {payment.status === 'Approved' && payment.hasReceipt && (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded" title="Recibo disponível">
+                          <FileText className="w-3 h-3" />
+                          Recibo
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -405,7 +419,7 @@ export default function PaymentsPage() {
                 </div>
               </div>
             ))
-          )}
+          ) : null}
         </div>
       </div>
 

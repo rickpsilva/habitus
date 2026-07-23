@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server, AlertCircle
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
@@ -137,6 +137,7 @@ function GeneralCondominiumContent() {
   const [locality, setLocality] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [condominiumName, setCondominiumName] = useState('');
 
@@ -144,6 +145,7 @@ function GeneralCondominiumContent() {
     const loadCondominium = async () => {
       if (!condominiumId) return;
       setLoading(true);
+      setLoadError('');
       try {
         const response = await condominiumsApi.getById(condominiumId);
         setCondominiumName(response.data.name);
@@ -159,6 +161,7 @@ function GeneralCondominiumContent() {
         });
       } catch (error) {
         console.error('Error loading condominium data:', error);
+        setLoadError('Não foi possível carregar os dados do condomínio.');
         toastError('Erro ao carregar dados do condomínio.');
       } finally {
         setLoading(false);
@@ -204,6 +207,16 @@ function GeneralCondominiumContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Gerais</h3>
         <p className="text-sm text-gray-500">Gerir contactos e localização usados nos recibos e nas informações do condomínio</p>
@@ -314,11 +327,13 @@ function PlatformBillingContent() {
     merchantDisplayName: '',
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const response = await platformBillingSettingsApi.get();
         setSettings(response.data);
@@ -332,6 +347,7 @@ function PlatformBillingContent() {
         });
       } catch (error) {
         console.error('Error loading platform billing settings:', error);
+        setLoadError('Não foi possível carregar as configurações do gateway.');
         toastError('Erro ao carregar configurações do gateway.');
       } finally {
         setLoading(false);
@@ -366,6 +382,16 @@ function PlatformBillingContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Gateway de Pagamento</h3>
         <p className="text-sm text-gray-500">Configure o provider e as credenciais do checkout global da plataforma</p>
@@ -496,17 +522,20 @@ function PlatformUploadContent() {
     maxUploadSizeBytes: 600 * 1024,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const response = await uploadSettingsApi.get();
         setSettings(response.data);
         setForm({ maxUploadSizeBytes: response.data.maxUploadSizeBytes });
       } catch (error) {
         console.error('Error loading upload settings:', error);
+        setLoadError('Não foi possível carregar as configurações de upload.');
         toastError('Erro ao carregar configurações de upload.');
       } finally {
         setLoading(false);
@@ -557,6 +586,16 @@ function PlatformUploadContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Limites de Upload</h3>
         <p className="text-sm text-gray-500">Configure o tamanho máximo de ficheiros enviados para o sistema.</p>
@@ -650,6 +689,7 @@ function ReceiptTemplateContent() {
     includeContactPhone: true,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const tagDefinitions: RichTextTokenDefinition[] = useMemo(() => [
@@ -780,7 +820,10 @@ function ReceiptTemplateContent() {
   ];
 
   const activeTemplateField = templateFieldByType[activeTemplateType];
-  const knownTagTokens = new Set(tagDefinitions.map((definition) => definition.token.toLowerCase()));
+  const knownTagTokens = useMemo(
+    () => new Set(tagDefinitions.map((definition) => definition.token.toLowerCase())),
+    [tagDefinitions],
+  );
   const unknownTags = useMemo(() => {
     const values = [
       template.templateMonthlyFee,
@@ -809,6 +852,7 @@ function ReceiptTemplateContent() {
     const loadTemplate = async () => {
       if (!condominiumId) return;
       setLoading(true);
+      setLoadError('');
       try {
         const response = await receiptTemplateSettingsApi.get(condominiumId);
         setTemplate({
@@ -840,6 +884,8 @@ function ReceiptTemplateContent() {
         if (isNotFound) {
           return;
         }
+
+        setLoadError('Não foi possível carregar o template de recibos.');
 
         const errorMessage =
           typeof error === 'object' &&
@@ -907,6 +953,16 @@ function ReceiptTemplateContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Template de Recibos</h3>
         <p className="text-sm text-gray-500">Escolha quais dados do condomínio (definidos em Geral) devem aparecer no cabeçalho dos recibos</p>
@@ -986,17 +1042,9 @@ function PaymentMethodsContent() {
   const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   
-  // Only admins (regular or internal) can access payment methods
-  if (!isAdmin) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <p>Acesso apenas para Administrador</p>
-      </div>
-    );
-  }
-  
   const [activeMethodModal, setActiveMethodModal] = useState<'bankTransfer' | 'mbReference' | 'mbWay' | 'card' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [methods, setMethods] = useState({
     bankTransfer: {
@@ -1026,6 +1074,7 @@ function PaymentMethodsContent() {
   const loadPaymentSettings = useCallback(async () => {
     if (!condominiumId) return;
     setLoading(true);
+    setLoadError('');
     try {
       const response = await paymentSettingsApi.get(condominiumId);
       const data = response.data;
@@ -1063,6 +1112,7 @@ function PaymentMethodsContent() {
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar configurações'
           : 'Erro ao carregar configurações';
       console.error('Error loading payment settings:', error);
+      setLoadError('Não foi possível carregar as configurações de pagamento.');
       toastError(errorMessage);
     } finally {
       setLoading(false);
@@ -1142,12 +1192,31 @@ function PaymentMethodsContent() {
     }
   };
 
+  // Only admins (regular or internal) can access payment methods
+  if (!isAdmin) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p>Acesso apenas para Administrador</p>
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="text-center py-8 text-gray-500">A carregar...</div>;
   }
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Métodos de Pagamento</h3>
         <p className="text-sm text-gray-500">Configure os métodos de pagamento disponíveis para os residentes</p>
@@ -1424,6 +1493,7 @@ function CommunicationChannelsContent() {
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'whatsApp' | null>(null);
   const [settings, setSettings] = useState<CommunicationSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [showWhatsAppKey, setShowWhatsAppKey] = useState(false);
@@ -1434,14 +1504,17 @@ function CommunicationChannelsContent() {
     if (!condominiumId) return;
     try {
       setLoading(true);
+      setLoadError('');
       const response = await communicationSettingsApi.get(condominiumId);
       setSettings(response.data);
     } catch (error) {
       console.error('Error loading communication settings:', error);
+      setLoadError('Não foi possível carregar as configurações de comunicação.');
+      toastError('Erro ao carregar configurações de comunicação.');
     } finally {
       setLoading(false);
     }
-  }, [condominiumId]);
+  }, [condominiumId, toastError]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -1518,6 +1591,16 @@ function CommunicationChannelsContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Canais de Comunicação</h3>
         <p className="text-sm text-gray-500">Configure os canais para enviar notificações, recibos e comunicados aos residentes</p>
@@ -1739,12 +1822,14 @@ function SystemEmailContent() {
     useSsl: true,
   });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const response = await systemEmailSettingsApi.get();
         setSettings(response.data);
@@ -1758,6 +1843,7 @@ function SystemEmailContent() {
         });
       } catch (error) {
         console.error('Erro ao carregar configurações de email do sistema:', error);
+        setLoadError('Não foi possível carregar as configurações de email do sistema.');
         toastError('Erro ao carregar configurações de email do sistema.');
       } finally {
         setLoading(false);
@@ -1804,6 +1890,16 @@ function SystemEmailContent() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
+          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Recarregar
+          </button>
+        </div>
+      )}
+
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Email de Sistema</h3>
         <p className="text-sm text-gray-500">
