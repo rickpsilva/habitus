@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
+import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload, AlertCircle, RefreshCw } from 'lucide-react';
 import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -31,6 +31,7 @@ export default function AssembliesPage() {
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [assemblies, setAssemblies] = useState<AssemblyDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [deleteAssemblyId, setDeleteAssemblyId] = useState<string | null>(null);
   const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
@@ -105,11 +106,13 @@ export default function AssembliesPage() {
     if (!condominiumId) {
       setAssemblies([]);
       setPagination(null);
+      setLoadError('Condomínio não identificado.');
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setLoadError('');
     assembliesApi.getPaged(condominiumId, page, pageSize, debouncedSearch)
       .then((r) => {
         const scoped = r.data.items;
@@ -120,6 +123,9 @@ export default function AssembliesPage() {
         setPagination({ ...r.data, items: sorted, totalItems: sorted.length });
         setAssemblies(sorted);
         setCurrentPage(page);
+      })
+      .catch(() => {
+        setLoadError('Não foi possível carregar as assembleias.');
       })
       .finally(() => setLoading(false));
   }, [condominiumId, debouncedSearch]);
@@ -379,7 +385,7 @@ export default function AssembliesPage() {
   };
 
   // Document management
-  const loadAssemblyDocuments = async (assemblyId: string) => {
+  const loadAssemblyDocuments = useCallback(async (assemblyId: string) => {
     if (!condominiumId) return;
 
     setLoadingDocuments(true);
@@ -391,14 +397,14 @@ export default function AssembliesPage() {
     } finally {
       setLoadingDocuments(false);
     }
-  };
+  }, [condominiumId]);
 
   // Load documents when detail modal opens
   useEffect(() => {
     if (showDetailModal && selectedAssembly) {
       loadAssemblyDocuments(selectedAssembly.id);
     }
-  }, [showDetailModal, selectedAssembly]);
+  }, [loadAssemblyDocuments, showDetailModal, selectedAssembly]);
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -623,8 +629,8 @@ export default function AssembliesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Assembleias</h1>
           <p className="text-gray-500 text-sm mt-0.5">Reuniões e assembleias de condóminos</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-80">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+          <div className="w-full sm:w-80">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -634,7 +640,7 @@ export default function AssembliesPage() {
           {isAdmin && (
             <button
               onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
               Nova Assembleia
@@ -733,6 +739,21 @@ export default function AssembliesPage() {
       <div className="space-y-3">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={() => load(currentPage)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
         ) : filteredAssemblies.length === 0 ? (
           <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -1168,7 +1189,7 @@ export default function AssembliesPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                 <p className="text-sm text-blue-800">
                   💾 <strong>Auto-save ativo:</strong> As suas alterações são guardadas automaticamente.<br />
-                  Clique em <strong>"Guardar Draft"</strong> para salvar manualmente ou <strong>"Concluir Assembleia"</strong> quando terminar.
+                  Clique em <strong>"Guardar Draft"</strong> para guardar manualmente ou <strong>"Concluir Assembleia"</strong> quando terminar.
                 </p>
               </div>
               <RichTextEditor

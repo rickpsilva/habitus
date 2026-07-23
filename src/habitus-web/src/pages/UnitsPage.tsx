@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X, Upload, Download } from 'lucide-react';
+import { Building2, Trash2, Pencil, Plus, X, Upload, Download, AlertCircle, RefreshCw } from 'lucide-react';
 import { unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -39,6 +39,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
   
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CreateUnitRequest>({
@@ -66,11 +67,13 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       if (!condominiumId) {
         setPagination(null);
         setUnits([]);
         setCurrentPage(page);
+        setLoadError('Condomínio não identificado.');
         return;
       }
 
@@ -82,10 +85,11 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar frações:', error);
+      setLoadError('Não foi possível carregar as frações.');
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, isAdmin, debouncedSearch]);
+  }, [condominiumId, debouncedSearch]);
 
   useEffect(() => {
     load(1);
@@ -500,14 +504,30 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {!loading && loadError && (
+          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={() => load(currentPage)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : filteredUnits.length === 0 ? (
+        ) : !loadError && filteredUnits.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
             Sem frações registadas
           </div>
-        ) : (
+        ) : !loadError ? (
           filteredUnits.map((u) => (
             <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
@@ -547,7 +567,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
               </div>
             </div>
           ))
-        )}
+        ) : null}
       </div>
       
       {pagination && !loading && filteredUnits.length > 0 && (

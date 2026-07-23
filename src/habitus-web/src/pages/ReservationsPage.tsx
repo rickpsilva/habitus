@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, MessageSquare, Table as TableIcon, CalendarDays } from 'lucide-react';
+import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, Eye, Table as TableIcon, CalendarDays, RefreshCw } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -40,6 +40,7 @@ export default function ReservationsPage() {
   const [users, setUsers] = useState<UserDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
@@ -91,6 +92,7 @@ export default function ReservationsPage() {
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       // Get current user data
       const userData = await usersApi.getMe();
@@ -106,6 +108,7 @@ export default function ReservationsPage() {
         setUnits([]);
         setPagination(null);
         setCurrentPage(page);
+        setLoadError('Condomínio não identificado para o utilizador atual.');
         return;
       }
       
@@ -146,6 +149,7 @@ export default function ReservationsPage() {
       setForm(prev => ({ ...prev, userId, condominiumId: scopedCondominiumId || '' }));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
+      setLoadError('Não foi possível carregar as reservas.');
     } finally {
       setLoading(false);
     }
@@ -633,10 +637,10 @@ export default function ReservationsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Reservas</h1>
           <p className="text-gray-500 text-sm mt-0.5">Reservas dos espaços comuns</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
           {viewMode === 'table' && (
             <>
-              <div className="w-80">
+              <div className="w-full sm:w-80">
                 <SearchBar
                   value={searchQuery}
                   onChange={setSearchQuery}
@@ -646,7 +650,7 @@ export default function ReservationsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">Todos os estados</option>
                 <option value="Pending">Pendente</option>
@@ -658,7 +662,7 @@ export default function ReservationsPage() {
               </select>
             </>
           )}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="w-full sm:w-auto flex items-center gap-1 bg-gray-100 rounded-lg p-1 overflow-x-auto app-scrollbar">
             <button
               onClick={() => setViewMode('table')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
@@ -695,7 +699,7 @@ export default function ReservationsPage() {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             Nova Reserva
@@ -783,6 +787,23 @@ export default function ReservationsPage() {
       </ModalPopup>
 
       {/* Calendar or Table view */}
+      {!loading && loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {loadError}
+          </span>
+          <button
+            type="button"
+            onClick={() => load(currentPage)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {viewMode === 'week' ? (
         <WeeklyCalendar
           reservations={reservations}
@@ -805,13 +826,13 @@ export default function ReservationsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : reservations.length === 0 ? (
+        ) : !loadError && reservations.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">Sem reservas</p>
             <p className="text-sm text-gray-500 mt-1">Crie a primeira reserva de espaço comum</p>
           </div>
-        ) : (
+        ) : !loadError ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -949,10 +970,11 @@ export default function ReservationsPage() {
                         {/* Show details button */}
                         <button
                           onClick={() => openDetailsModal(r)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-xs font-medium"
                           title="Ver detalhes"
                         >
-                          <MessageSquare className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
+                          Detalhes
                         </button>
                       </div>
                     </td>
@@ -961,7 +983,7 @@ export default function ReservationsPage() {
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
         
         {pagination && !loading && reservations.length > 0 && (
           <div className="px-4 py-3 border-t border-gray-200">

@@ -24,6 +24,8 @@ export default function ModalPopup({
   closeOnBackdrop = true,
   closeOnEscape = true,
 }: ModalPopupProps) {
+  const fallbackTitle = title?.trim() || 'Detalhes';
+
   useEffect(() => {
     if (!open || !closeOnEscape) return;
 
@@ -43,33 +45,31 @@ export default function ModalPopup({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px] flex items-center justify-center p-4"
       onClick={(event) => {
         if (closeOnBackdrop && event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className={`bg-white rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-y-auto`}>
+      <div className={`bg-white rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-hidden flex flex-col`}>
         {header ? (
           header
         ) : (
-          (title || closeOnBackdrop) && (
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Fechar"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          )
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">{fallbackTitle}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         )}
 
-        <div className={bodyClassName}>{children}</div>
+        <div className={`${bodyClassName} app-scrollbar overflow-y-auto`}>{children}</div>
       </div>
     </div>
   );

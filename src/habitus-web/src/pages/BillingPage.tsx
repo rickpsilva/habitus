@@ -115,6 +115,8 @@ function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
 function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] }) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [confirmGenerateDue, setConfirmGenerateDue] = useState(false);
+  const [cancelInvoiceId, setCancelInvoiceId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [selectedCondoId, setSelectedCondoId] = useState<string>(condominiums[0]?.id ?? '');
   const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -176,9 +178,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
     }
   };
 
-  const handleCancel = async (invoiceId: string) => {
-    const reason = prompt('Motivo para cancelamento:');
-    if (!reason?.trim()) return;
+  const handleCancel = async (invoiceId: string, reason: string) => {
     setActionLoading(invoiceId);
     setActionError('');
     try {
@@ -190,6 +190,23 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const openCancelModal = (invoiceId: string) => {
+    setCancelInvoiceId(invoiceId);
+    setCancelReason('');
+  };
+
+  const confirmCancelInvoice = async () => {
+    if (!cancelInvoiceId) return;
+    if (!cancelReason.trim()) {
+      setActionError('Indique o motivo para cancelamento da fatura.');
+      return;
+    }
+
+    await handleCancel(cancelInvoiceId, cancelReason.trim());
+    setCancelInvoiceId(null);
+    setCancelReason('');
   };
 
   const handleInitiatePayment = async (invoiceId: string) => {
@@ -234,6 +251,32 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
         onConfirm={confirmGenerateDueAction}
         onCancel={() => setConfirmGenerateDue(false)}
       />
+      <ConfirmModal
+        open={cancelInvoiceId !== null}
+        title="Cancelar fatura"
+        message="Esta ação vai cancelar a fatura selecionada."
+        confirmLabel="Confirmar cancelamento"
+        variant="danger"
+        onConfirm={confirmCancelInvoice}
+        onCancel={() => {
+          setCancelInvoiceId(null);
+          setCancelReason('');
+        }}
+      />
+
+      {cancelInvoiceId !== null && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">
+          <label className="block text-sm font-medium text-red-900">Motivo para cancelamento</label>
+          <textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+            placeholder="Explique o motivo do cancelamento..."
+          />
+          <p className="text-xs text-red-700">O motivo sera registado na fatura.</p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
           <FileText className="w-4 h-4 text-indigo-600" />
@@ -395,7 +438,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                             <ExternalLink className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleCancel(inv.id)}
+                            onClick={() => openCancelModal(inv.id)}
                             disabled={actionLoading === inv.id}
                             className="p-1.5 rounded hover:bg-red-50 text-red-500 disabled:opacity-50"
                             title="Cancelar fatura"
@@ -522,7 +565,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                     Pagar via Stripe
                   </button>
                   <button
-                    onClick={() => handleCancel(selectedInvoice.id)}
+                    onClick={() => openCancelModal(selectedInvoice.id)}
                     disabled={actionLoading === selectedInvoice.id}
                     className="flex items-center gap-2 px-4 py-2 border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium disabled:opacity-60"
                   >

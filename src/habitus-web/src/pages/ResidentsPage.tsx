@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Users, Trash2, Mail, Phone, Home } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Users, Trash2, Mail, Phone, Home, AlertCircle, RefreshCw } from 'lucide-react';
 import { residentsApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -24,15 +24,18 @@ export default function ResidentsPage() {
   const [residents, setResidents] = useState<ResidentDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [filterUnitId, setFilterUnitId] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
+    setLoadError('');
     if (!condominiumId) {
       setResidents([]);
       setUnits([]);
+      setLoadError('Condomínio não identificado.');
       setLoading(false);
       return;
     }
@@ -40,8 +43,10 @@ export default function ResidentsPage() {
     Promise.all([
       residentsApi.getAll().then((r) => setResidents(r.data)),
       unitsApi.getAll(condominiumId).then((r) => setUnits(r.data)),
-    ]).finally(() => setLoading(false));
-  };
+    ])
+      .catch(() => setLoadError('Não foi possível carregar os moradores.'))
+      .finally(() => setLoading(false));
+  }, [condominiumId]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -49,7 +54,7 @@ export default function ResidentsPage() {
     }, 0);
 
     return () => window.clearTimeout(timerId);
-  }, []);
+  }, [load]);
 
   const handleDelete = async (id: string) => {
     setDeleteId(id);
@@ -130,14 +135,30 @@ export default function ResidentsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {!loading && loadError && (
+          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : filtered.length === 0 ? (
+        ) : !loadError && filtered.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
             Sem moradores encontrados
           </div>
-        ) : (
+        ) : !loadError ? (
           filtered.map((r) => (
             <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
@@ -174,7 +195,7 @@ export default function ResidentsPage() {
               </div>
             </div>
           ))
-        )}
+        ) : null}
       </div>
     </div>
   );

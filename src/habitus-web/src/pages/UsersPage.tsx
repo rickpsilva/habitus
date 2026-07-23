@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -38,6 +38,7 @@ export default function UsersPage() {
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [condominiums, setCondominiums] = useState<CondominiumDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -66,9 +67,11 @@ export default function UsersPage() {
   const [isInternalAdmin, setIsInternalAdmin] = useState(false); // Admin Interno com fração
   const [pendingUsers, setPendingUsers] = useState<PendingUserDto[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [showPendingApprovals, setShowPendingApprovals] = useState(false);
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       let usersResponse;
 
@@ -104,6 +107,7 @@ export default function UsersPage() {
       // Manager doesn't need units or condominiums in this view
     } catch (error) {
       console.error('Erro ao carregar utilizadores:', error);
+      setLoadError('Não foi possível carregar os utilizadores.');
     } finally {
       setLoading(false);
     }
@@ -123,6 +127,12 @@ export default function UsersPage() {
     load(1);
     if (isAdmin) loadPending();
   }, [load, loadPending, isAdmin]);
+
+  useEffect(() => {
+    if (pendingUsers.length > 0) {
+      setShowPendingApprovals(true);
+    }
+  }, [pendingUsers.length]);
 
   const handleApprove = async (userId: string) => {
     await userRegistrationApi.approveUser(userId);
@@ -191,7 +201,7 @@ export default function UsersPage() {
       resetForm();
       load();
     } catch (error) {
-      console.error('Erro ao salvar utilizador:', error);
+      console.error('Erro ao guardar utilizador:', error);
       toastError('Erro ao guardar utilizador. Tente novamente.');
     }
   };
@@ -308,62 +318,13 @@ export default function UsersPage() {
         onConfirm={confirmReject}
         onCancel={() => setRejectId(null)}
       />
-      {/* ── Pending approvals (Admin only) ─────────────────────────────────── */}
-      {isAdmin && (
-        <div className="bg-white rounded-xl border border-amber-200 shadow-sm">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-amber-100">
-            <Clock className="w-5 h-5 text-amber-500" />
-            <h2 className="text-base font-semibold text-gray-900">Pedidos Pendentes de Aprovação</h2>
-            {pendingUsers.length > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
-                {pendingUsers.length}
-              </span>
-            )}
-          </div>
-          {pendingLoading ? (
-            <div className="px-6 py-4 text-sm text-gray-400">A carregar…</div>
-          ) : pendingUsers.length === 0 ? (
-            <div className="px-6 py-4 text-sm text-gray-400">Nenhum pedido pendente.</div>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {pendingUsers.map((u) => (
-                <li key={u.id} className="flex items-center justify-between px-6 py-3 gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
-                    <p className="text-xs text-gray-500">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleApprove(u.id)}
-                      title="Aprovar"
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Aprovar
-                    </button>
-                    <button
-                      onClick={() => handleReject(u.id)}
-                      title="Recusar"
-                      className="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Recusar
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Utilizadores</h1>
           <p className="text-gray-500 text-sm mt-0.5">{users.length} utilizadores registados</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-80">
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
+          <div className="w-full sm:w-80">
             <SearchBar
               value={search}
               onChange={setSearch}
@@ -372,13 +333,69 @@ export default function UsersPage() {
           </div>
           <button
             onClick={handleNew}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Novo Utilizador
           </button>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowPendingApprovals((prev) => !prev)}
+            className="w-full px-4 py-3 border-b border-amber-100 flex items-center justify-between text-left hover:bg-amber-50/60 transition-colors"
+          >
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <Clock className="w-4 h-4 text-amber-500" />
+              Aprovações pendentes
+              <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                {pendingUsers.length}
+              </span>
+            </span>
+            {showPendingApprovals ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+          </button>
+
+          {showPendingApprovals && (
+            pendingLoading ? (
+              <div className="px-4 py-3 text-sm text-gray-400">A carregar…</div>
+            ) : pendingUsers.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-400">Nenhum pedido pendente.</div>
+            ) : (
+              <ul className="divide-y divide-gray-100 app-scrollbar max-h-64 overflow-y-auto">
+                {pendingUsers.map((u) => (
+                  <li key={u.id} className="flex flex-wrap sm:flex-nowrap items-center justify-between px-4 py-3 gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
+                    </div>
+                    <div className="w-full sm:w-auto flex gap-2 sm:flex-shrink-0">
+                      <button
+                        onClick={() => handleApprove(u.id)}
+                        title="Aprovar"
+                        className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Aprovar
+                      </button>
+                      <button
+                        onClick={() => handleReject(u.id)}
+                        title="Recusar"
+                        className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Recusar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          )}
+        </div>
+      )}
 
       {!isManager && (
         <div className="flex flex-wrap gap-3">
@@ -395,14 +412,30 @@ export default function UsersPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {!loading && loadError && (
+          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {loadError}
+            </span>
+            <button
+              type="button"
+              onClick={() => load(currentPage)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : filtered.length === 0 ? (
+        ) : !loadError && filtered.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
             <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p>Nenhum utilizador encontrado</p>
           </div>
-        ) : (
+        ) : !loadError ? (
           filtered.map((user) => (
             <div key={user.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
@@ -452,7 +485,7 @@ export default function UsersPage() {
               </div>
             </div>
           ))
-        )}
+        ) : null}
       </div>
       
       {pagination && !loading && filtered.length > 0 && (
@@ -642,7 +675,7 @@ export default function UsersPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
-                  {editingId ? 'Salvar' : 'Criar'}
+                  {editingId ? 'Guardar' : 'Criar'}
                 </button>
               </div>
             </form>

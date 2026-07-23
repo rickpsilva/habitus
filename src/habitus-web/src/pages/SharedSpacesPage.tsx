@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Building } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building, AlertCircle, RefreshCw } from 'lucide-react';
 import { sharedSpacesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -14,6 +14,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
   const { error: toastError } = useToast();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -40,12 +41,14 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       if (!condominiumId) {
         setPagination(null);
         setSpaces([]);
         setCurrentPage(page);
         setForm(prev => ({ ...prev, condominiumId: '' }));
+        setLoadError('Condomínio não identificado.');
         return;
       }
 
@@ -57,6 +60,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       setForm(prev => ({ ...prev, condominiumId }));
     } catch (error) {
       console.error('Erro ao carregar espaços:', error);
+      setLoadError('Não foi possível carregar os espaços comuns.');
     } finally {
       setLoading(false);
     }
@@ -70,12 +74,12 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     e.preventDefault();
     
     if (!condominiumId) {
-      alert('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError('Condomínio não identificado. Por favor, recarregue a página.');
       return;
     }
     
     if (!form.name || form.name.trim() === '') {
-      alert('Nome é obrigatório.');
+      toastError('Nome e obrigatorio.');
       return;
     }
     
@@ -130,7 +134,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             ? error.message
             : 'Erro ao guardar espaço';
       console.error('Erro ao guardar espaço:', error);
-      alert(`Erro ao guardar espaço: ${errorMessage}`);
+      toastError(`Erro ao guardar espaco: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }
@@ -359,6 +363,21 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       {/* Cards */}
       {loading ? (
         <div className="flex items-center justify-center h-48 text-gray-500">A carregar...</div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {loadError}
+          </span>
+          <button
+            type="button"
+            onClick={() => load(currentPage)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Tentar novamente
+          </button>
+        </div>
       ) : spaces.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
           <Building className="w-12 h-12 text-gray-300 mx-auto mb-3" />

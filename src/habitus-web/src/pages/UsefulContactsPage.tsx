@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone, Plus, Edit2, Trash2, PhoneCall, ShieldAlert, Wrench, Building2 } from 'lucide-react';
 import { usefulContactsApi } from '../api/services';
@@ -72,10 +72,10 @@ export default function UsefulContactsPage() {
     }
   }, [isManager, navigate]);
 
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     if (!condominiumId) {
       setContacts([]);
-      setLoadError('Condominio nao identificado.');
+      setLoadError('Condomínio não identificado.');
       setLoading(false);
       return;
     }
@@ -87,15 +87,15 @@ export default function UsefulContactsPage() {
       const response = await usefulContactsApi.getAll(condominiumId);
       setContacts(response.data);
     } catch {
-      setLoadError('Nao foi possivel carregar os contactos uteis.');
+      setLoadError('Não foi possível carregar os contactos úteis.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [condominiumId]);
 
   useEffect(() => {
     loadContacts();
-  }, [condominiumId]);
+  }, [loadContacts]);
 
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -144,7 +144,7 @@ export default function UsefulContactsPage() {
     event.preventDefault();
 
     if (!condominiumId) {
-      toastError('Condominio nao identificado.');
+      toastError('Condomínio não identificado.');
       return;
     }
 
@@ -176,7 +176,7 @@ export default function UsefulContactsPage() {
       closeModal();
       await loadContacts();
     } catch {
-      toastError('Nao foi possivel guardar o contacto util.');
+      toastError('Não foi possível guardar o contacto útil.');
     } finally {
       setSubmitting(false);
     }
@@ -193,7 +193,7 @@ export default function UsefulContactsPage() {
       toastSuccess('Contacto util eliminado com sucesso.');
       await loadContacts();
     } catch {
-      toastError('Nao foi possivel eliminar o contacto util.');
+      toastError('Não foi possível eliminar o contacto útil.');
     } finally {
       setDeleteId(null);
     }
@@ -204,7 +204,7 @@ export default function UsefulContactsPage() {
       <ConfirmModal
         open={deleteId !== null}
         title="Eliminar contacto util"
-        message="Tem a certeza que deseja eliminar este contacto? Esta acao nao pode ser revertida."
+        message="Tem a certeza que deseja eliminar este contacto? Esta ação não pode ser revertida."
         confirmLabel="Eliminar"
         variant="danger"
         onConfirm={confirmDelete}
@@ -326,10 +326,10 @@ export default function UsefulContactsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Phone className="w-7 h-7 text-indigo-600" />
-            Contactos Uteis
+            Contactos Úteis
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Lista de contactos importantes do condominio.
+            Lista de contactos importantes do condomínio.
           </p>
         </div>
 
@@ -359,9 +359,9 @@ export default function UsefulContactsPage() {
       ) : filteredContacts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
           <PhoneCall className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Sem contactos uteis registados</p>
+          <p className="text-gray-500 font-medium">Sem contactos úteis registados</p>
           <p className="text-gray-400 text-sm mt-1">
-            {isAdmin ? 'Adicione o primeiro contacto para o condominio.' : 'Ainda nao existem contactos disponiveis.'}
+            {isAdmin ? 'Adicione o primeiro contacto para o condomínio.' : 'Ainda não existem contactos disponíveis.'}
           </p>
         </div>
       ) : (

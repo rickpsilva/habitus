@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
 import { suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -26,6 +26,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const { error: toastError } = useToast();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -45,11 +46,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
   const load = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setLoadError('');
     try {
       if (!condominiumId) {
         setPagination(null);
         setSuppliers([]);
         setCurrentPage(page);
+        setLoadError('Condomínio não identificado.');
         return;
       }
 
@@ -59,6 +62,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar fornecedores:', error);
+      setLoadError('Não foi possível carregar os fornecedores.');
     } finally {
       setLoading(false);
     }
@@ -176,8 +180,8 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             </p>
           </div>
         )}
-        <div className={`flex items-center gap-3 ${!embedded ? 'ml-auto' : 'w-full justify-between'}`}>
-          <div className="w-72">
+        <div className={`flex items-center gap-3 flex-wrap sm:flex-nowrap ${!embedded ? 'w-full sm:w-auto sm:ml-auto justify-end' : 'w-full justify-between'}`}>
+          <div className="w-full sm:w-72">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
@@ -191,7 +195,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 setForm(initialSupplierForm);
                 setShowForm(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               <Plus className="w-5 h-5" />
               Novo Fornecedor
@@ -346,6 +350,21 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           <p className="text-gray-500 mt-2">A carregar fornecedores...</p>
+        </div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {loadError}
+          </span>
+          <button
+            type="button"
+            onClick={() => load(currentPage)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Tentar novamente
+          </button>
         </div>
       ) : filteredSuppliers.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
