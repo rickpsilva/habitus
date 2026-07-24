@@ -1,0 +1,23 @@
+sequenceDiagram
+  actor User
+  participant AuthController
+  participant AuthService
+  participant API as Protected API Endpoint
+  participant ScopeGuard as CondominiumAccessGuardMiddleware
+  participant Db as HabitusDbContext
+
+  User->>AuthController: POST /api/platform/auth/login
+  AuthController->>AuthService: LoginAsync(credentials, ip, userAgent)
+  AuthService-->>AuthController: token with Role + CondominiumId claims
+  AuthController-->>User: 200 token payload
+
+  User->>API: Request protected route with JWT
+  API->>ScopeGuard: InvokeAsync(context, dbContext)
+  ScopeGuard->>Db: Load condominium IsActive by claim CondominiumId
+  alt role is Manager
+    ScopeGuard-->>API: Allow request
+  else condominium active
+    ScopeGuard-->>API: Allow request
+  else condominium inactive
+    ScopeGuard-->>User: 423 condominium_inactive
+  end

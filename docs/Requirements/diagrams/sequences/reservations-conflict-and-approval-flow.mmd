@@ -1,0 +1,34 @@
+sequenceDiagram
+  actor Resident
+  actor Admin
+  participant ReservationsController
+  participant ReservationService
+  participant SpaceRepo
+  participant UserRepo
+  participant ReservationRepo
+  participant FinancialRepo
+  participant NotificationRepo
+  participant Dispatch as NotificationDispatchService
+
+  Resident->>ReservationsController: POST /reservations
+  ReservationsController->>ReservationService: CreateAsync(condominiumId, request)
+  ReservationService->>SpaceRepo: GetById(spaceId)
+  ReservationService->>UserRepo: GetById(userId)
+  ReservationService->>ReservationRepo: Find overlapping reservations
+  alt conflict exists
+    ReservationService-->>ReservationsController: Error: already reserved
+    ReservationsController-->>Resident: 409 Conflict
+  else no conflict
+    ReservationService->>ReservationRepo: Add reservation Pending
+    ReservationService->>FinancialRepo: Add pending reservation fee record (if fee > 0)
+    ReservationService->>NotificationRepo: Add Admin alert
+    ReservationService->>Dispatch: DispatchAsync(notification, external=true)
+    ReservationService-->>ReservationsController: ReservationDto
+    ReservationsController-->>Resident: 201 Created
+  end
+
+  Admin->>ReservationsController: POST /reservations/{id}/approve
+  ReservationsController->>ReservationService: ApproveAsync(id, request, condominiumId)
+  ReservationService->>ReservationRepo: Update status Approved
+  ReservationService-->>ReservationsController: ReservationDto
+  ReservationsController-->>Admin: 200 OK

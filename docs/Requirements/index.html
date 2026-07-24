@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Habitus — Requirements Catalog</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { --border:#d9dee3; --muted:#5b6b79; --bg:#f7f9fb; --high:#c0392b; --medium:#d68910; --low:#2e7d32; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #1c2733; }
+  header { padding: 1.25rem 1.5rem; background: #16324f; color: #fff; }
+  header h1 { margin: 0 0 .25rem; font-size: 1.35rem; }
+  header p { margin: 0; color: #c7d6e3; font-size: .9rem; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .75rem; padding: 1rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  .toolbar input, .toolbar select { padding: .4rem .55rem; border: 1px solid var(--border); border-radius: 6px; font-size: .9rem; }
+  .toolbar input[type="search"] { flex: 1; min-width: 180px; }
+  main { padding: 1rem 1.5rem 3rem; max-width: 1100px; margin: 0 auto; }
+  .count { color: var(--muted); font-size: .85rem; margin: .25rem 0 1rem; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card h2 { margin: 0 0 .35rem; font-size: 1.05rem; }
+  .badges { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .badge { font-size: .72rem; padding: .15rem .5rem; border-radius: 999px; background: #eef2f6; color: #33475b; border: 1px solid var(--border); }
+  .badge.priority-High { color: #fff; background: var(--high); border-color: var(--high); }
+  .badge.priority-Medium { color: #fff; background: var(--medium); border-color: var(--medium); }
+  .badge.priority-Low { color: #fff; background: var(--low); border-color: var(--low); }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem 1.5rem; font-size: .85rem; margin-top: .6rem; }
+  .meta-grid dt { color: var(--muted); font-weight: 600; }
+  .meta-grid dd { margin: 0 0 .4rem; }
+  .mermaid { margin-top: .75rem; background: #fbfcfd; border: 1px dashed var(--border); border-radius: 8px; padding: .5rem; }
+  .diagram-links { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .diagram-link { font-size: .8rem; padding: .2rem .45rem; border: 1px solid var(--border); border-radius: 6px; background: #f4f7fa; color: #27435d; text-decoration: none; }
+  .diagram-link:hover { background: #eaf0f6; }
+  .external-diagrams { margin-top: .5rem; }
+  .external-diagrams .diag-title { font-size: .8rem; color: var(--muted); margin: .35rem 0 .2rem; }
+  @media (max-width: 640px) {
+    .meta-grid { grid-template-columns: 1fr; }
+    .toolbar { position: static; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Habitus — Requirements Catalog</h1>
+  <p>Architecture &amp; software requirements with traceability to design, implementation, and tests.</p>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search title or description…" />
+  <select id="f-module"><option value="">All modules</option></select>
+  <select id="f-type"><option value="">All types</option></select>
+  <select id="f-priority"><option value="">All priorities</option></select>
+  <select id="f-status"><option value="">All statuses</option></select>
+</div>
+
+<main>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+</main>
+
+<script>
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+
+  let DATA = [];
+
+  function unique(field) {
+    return [...new Set(DATA.map(r => r[field]).filter(Boolean))].sort();
+  }
+
+  function fillSelect(id, values) {
+    const el = document.getElementById(id);
+    values.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      el.appendChild(opt);
+    });
+  }
+
+  fillSelect("f-module", unique("module"));
+  fillSelect("f-type", unique("type"));
+  fillSelect("f-priority", unique("priority"));
+  fillSelect("f-status", unique("status"));
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/`/g, "&#96;");
+  }
+
+  function diagramViewerHref(ref) {
+    return `./diagram-viewer.html?src=${encodeURIComponent(ref)}`;
+  }
+
+  function decodeAttr(s) {
+    return String(s ?? "")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+  }
+
+  function parseFrontMatter(markdown) {
+    const match = markdown.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (!match) {
+      throw new Error("Missing front matter block");
+    }
+
+    const fields = {};
+    let currentKey = null;
+
+    for (const line of match[1].split(/\r?\n/)) {
+      if (!line.trim()) continue;
+
+      const listMatch = line.match(/^\s*-\s+(.*)$/);
+      if (listMatch && currentKey) {
+        fields[currentKey] = fields[currentKey] || [];
+        fields[currentKey].push(listMatch[1].trim());
+        continue;
+      }
+
+      const pairMatch = line.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
+      if (pairMatch) {
+        const [, key, value] = pairMatch;
+        currentKey = key;
+        if (value === "") {
+          fields[key] = [];
+        } else if (value === "true" || value === "false") {
+          fields[key] = value === "true";
+        } else {
+          fields[key] = value;
+        }
+      }
+    }
+
+    return { fields, body: match[2].trim() };
+  }
+
+  function toCatalogRelativeHref(ref) {
+    const value = String(ref || "").trim();
+    if (!value) return value;
+
+    const requirementsPrefix = "/home/rick/workspace/habitus/docs/Requirements/";
+    if (value.startsWith(requirementsPrefix)) {
+      return `./${value.slice(requirementsPrefix.length)}`;
+    }
+
+    if (value.startsWith("docs/Requirements/")) {
+      return `./${value.slice("docs/Requirements/".length)}`;
+    }
+
+    return value;
+  }
+
+  function collectDiagramRefs(entryDiagrams, designRefs) {
+    const fromManifest = (entryDiagrams || []).map(diagram => `./${diagram}`);
+    const fromDesignRefs = (designRefs || [])
+      .filter(ref => String(ref).toLowerCase().endsWith(".mmd"))
+      .map(toCatalogRelativeHref);
+
+    return [...new Set([...fromManifest, ...fromDesignRefs])];
+  }
+
+  function extractAcceptanceCriteria(body) {
+    const match = body.match(/## Acceptance Criteria\n\n([\s\S]*)$/);
+    if (!match) return [];
+    return match[1]
+      .split(/\r?\n/)
+      .map(line => line.replace(/^[-*]\s+/, "").trim())
+      .filter(Boolean);
+  }
+
+  function extractDescription(body) {
+    const paragraphs = body
+      .split(/\r?\n\s*\r?\n/)
+      .map(part => part.trim())
+      .filter(Boolean);
+
+    for (const paragraph of paragraphs) {
+      if (!paragraph.startsWith("#")) {
+        return paragraph;
+      }
+    }
+
+    return "";
+  }
+
+  async function loadCatalog() {
+    const manifestResponse = await fetch("./catalog-manifest.json");
+    const manifest = await manifestResponse.json();
+
+    const requirementEntries = await Promise.all(manifest.requirements.map(async entry => {
+      const response = await fetch(`./${entry.file}`);
+      const markdown = await response.text();
+      const { fields, body } = parseFrontMatter(markdown);
+
+      return {
+        id: fields.id || entry.id,
+        title: fields.title || entry.id,
+        type: fields.type || "Functional",
+        module: fields.module || "General",
+        priority: fields.priority || "Medium",
+        status: fields.status || "Draft",
+        description: extractDescription(body),
+        acceptanceCriteria: extractAcceptanceCriteria(body),
+        roles: Array.isArray(fields.roles) ? fields.roles : [],
+        relatedRequirements: Array.isArray(fields.relatedRequirements) ? fields.relatedRequirements : [],
+        designRefs: Array.isArray(fields.designRefs) ? fields.designRefs : [],
+        diagramRefs: collectDiagramRefs(entry.diagrams, Array.isArray(fields.designRefs) ? fields.designRefs : []),
+        implementationRefs: Array.isArray(fields.implementationRefs) ? fields.implementationRefs : [],
+        testRefs: Array.isArray(fields.testRefs) ? fields.testRefs : [],
+        diagram: ""
+      };
+    }));
+
+    DATA = requirementEntries;
+    fillSelect("f-module", unique("module"));
+    fillSelect("f-type", unique("type"));
+    fillSelect("f-priority", unique("priority"));
+    fillSelect("f-status", unique("status"));
+    renderList();
+  }
+
+  function renderList() {
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    const fModule = document.getElementById("f-module").value;
+    const fType = document.getElementById("f-type").value;
+    const fPriority = document.getElementById("f-priority").value;
+    const fStatus = document.getElementById("f-status").value;
+
+    const filtered = DATA.filter(r => {
+      if (fModule && r.module !== fModule) return false;
+      if (fType && r.type !== fType) return false;
+      if (fPriority && r.priority !== fPriority) return false;
+      if (fStatus && r.status !== fStatus) return false;
+      if (q) {
+        const hay = `${r.id} ${r.title} ${r.description}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    document.getElementById("count").textContent = `${filtered.length} of ${DATA.length} requirements`;
+
+    const list = document.getElementById("list");
+    list.innerHTML = filtered.map(r => `
+      <article class="card">
+        <h2>${escapeHtml(r.id)} — ${escapeHtml(r.title)}</h2>
+        <div class="badges">
+          <span class="badge">${escapeHtml(r.type)}</span>
+          <span class="badge">${escapeHtml(r.module)}</span>
+          <span class="badge priority-${escapeHtml(r.priority)}">${escapeHtml(r.priority)}</span>
+          <span class="badge">${escapeHtml(r.status)}</span>
+          ${(r.roles || []).map(role => `<span class="badge">${escapeHtml(role)}</span>`).join("")}
+        </div>
+        <p>${escapeHtml(r.description)}</p>
+        <dl class="meta-grid">
+          <dt>Acceptance Criteria</dt><dd><ul>${(r.acceptanceCriteria || []).map(a => `<li>${escapeHtml(a)}</li>`).join("")}</ul></dd>
+          <dt>Related Requirements</dt><dd>${(r.relatedRequirements || []).join(", ") || "—"}</dd>
+          <dt>Design Refs</dt><dd>${(r.designRefs || []).join(", ") || "—"}</dd>
+          <dt>Diagram Refs</dt><dd>${(r.diagramRefs || []).length ? `<div class="diagram-links">${(r.diagramRefs || []).map(ref => `<a class="diagram-link" href="${escapeAttr(diagramViewerHref(ref))}" target="_blank" rel="noopener noreferrer">${escapeHtml(ref.split("/").pop() || ref)}</a>`).join("")}</div>` : "—"}</dd>
+          <dt>Implementation Refs</dt><dd>${(r.implementationRefs || []).join(", ") || "—"}</dd>
+          <dt>Test Refs</dt><dd>${(r.testRefs || []).join(", ") || "—"}</dd>
+        </dl>
+        ${(r.diagramRefs || []).length ? `<div class="external-diagrams" data-diagram-refs="${escapeAttr(JSON.stringify(r.diagramRefs))}"></div>` : ""}
+        ${r.diagram ? `<div class="mermaid" id="diagram-${escapeHtml(r.id)}">${r.diagram}</div>` : ""}
+      </article>
+    `).join("") || `<p>No requirements match the current filters.</p>`;
+
+    renderExternalDiagrams();
+
+    // Render mermaid diagrams after DOM update
+    document.querySelectorAll(".mermaid").forEach(el => { el.removeAttribute("data-processed"); });
+    mermaid.run({ querySelector: ".mermaid" });
+  }
+
+  async function renderExternalDiagrams() {
+    const containers = [...document.querySelectorAll(".external-diagrams")];
+
+    await Promise.all(containers.map(async container => {
+      const encoded = container.getAttribute("data-diagram-refs");
+      if (!encoded) return;
+
+      let refs = [];
+      try {
+        refs = JSON.parse(decodeAttr(encoded));
+      } catch {
+        container.innerHTML = "<p>Could not parse diagram references.</p>";
+        return;
+      }
+
+      const blocks = await Promise.all(refs.map(async ref => {
+        try {
+          const response = await fetch(ref);
+          if (!response.ok) {
+            return `<p>Could not load diagram: ${escapeHtml(ref)}</p>`;
+          }
+
+          const diagramCode = await response.text();
+          return `
+            <div class="diag-title">Diagram: ${escapeHtml(ref.split("/").pop() || ref)}</div>
+            <div class="mermaid">${escapeHtml(diagramCode)}</div>
+          `;
+        } catch {
+          return `<p>Could not load diagram: ${escapeHtml(ref)}</p>`;
+        }
+      }));
+
+      container.innerHTML = blocks.join("");
+    }));
+  }
+
+  ["q", "f-module", "f-type", "f-priority", "f-status"].forEach(id => {
+    document.getElementById(id).addEventListener("input", renderList);
+  });
+
+  loadCatalog().catch(() => {
+    const count = document.getElementById("count");
+    const list = document.getElementById("list");
+    count.textContent = "Unable to load requirements catalog";
+    if (location.protocol === "file:") {
+      list.innerHTML = "<p>This page must be opened through a local HTTP server because it loads the manifest and requirement files with <code>fetch</code>. Run <code>node docs/Requirements/scripts/serve-catalog.mjs</code> from the repository root and open the URL it prints.</p>";
+    } else {
+      list.innerHTML = "<p>The browser could not load the manifest or requirement files.</p>";
+    }
+  });
+</script>
+</body>
+</html>

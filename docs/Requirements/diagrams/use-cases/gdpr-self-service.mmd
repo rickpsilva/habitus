@@ -1,0 +1,8 @@
+flowchart LR
+  User[Authenticated user] --> Portal[Personal area]
+  Portal --> Info[Read RGPD information]
+  Portal --> Export[Request data export]
+  Portal --> Erase[Request erasure or anonymization]
+  Export --> Scope[Validate condominium scope]
+  Erase --> Scope
+  Scope --> Result[Process request and record outcome]

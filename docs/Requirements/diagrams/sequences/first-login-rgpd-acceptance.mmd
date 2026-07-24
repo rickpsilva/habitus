@@ -1,0 +1,20 @@
+sequenceDiagram
+  actor User as Authenticated user
+  participant Portal as Web portal
+  participant Auth as Auth service
+  participant Consent as RGPD consent store
+
+  User->>Portal: Submit credentials
+  Portal->>Auth: Authenticate user
+  Auth->>Consent: Check first-login RGPD acceptance
+  alt consent missing
+    Auth-->>Portal: Require RGPD acceptance
+    Portal-->>User: Show RGPD terms screen
+    User->>Portal: Accept RGPD terms
+    Portal->>Consent: Persist acceptance
+    Consent-->>Portal: Acceptance stored
+    Portal-->>User: Continue into application
+  else consent already stored
+    Auth-->>Portal: Allow access
+    Portal-->>User: Enter application
+  end

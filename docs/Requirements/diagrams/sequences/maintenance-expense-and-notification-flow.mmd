@@ -1,0 +1,26 @@
+sequenceDiagram
+  actor Resident
+  actor Admin
+  participant MaintenanceController
+  participant MaintenanceService
+  participant MaintRepo as MaintenanceRepository
+  participant FinancialRepo
+  participant NotificationRepo
+  participant Dispatch as NotificationDispatchService
+
+  Resident->>MaintenanceController: POST /maintenance
+  MaintenanceController->>MaintenanceService: CreateAsync(request)
+  MaintenanceService->>MaintRepo: Add maintenance request (Open)
+  MaintenanceService->>NotificationRepo: Add Admin alert
+  MaintenanceService->>Dispatch: DispatchAsync(notification, external=true)
+  MaintenanceService-->>MaintenanceController: MaintenanceRequestDto
+  MaintenanceController-->>Resident: 201 Created
+
+  Admin->>MaintenanceController: PUT /maintenance/{id}/status
+  MaintenanceController->>MaintenanceService: UpdateStatusAsync(...)
+  alt Completed and expense informed
+    MaintenanceService->>FinancialRepo: Add maintenance expense record
+  end
+  MaintenanceService->>MaintRepo: Update request status and metadata
+  MaintenanceService-->>MaintenanceController: MaintenanceRequestDto
+  MaintenanceController-->>Admin: 200 OK

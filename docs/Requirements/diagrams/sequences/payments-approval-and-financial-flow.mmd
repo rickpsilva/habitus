@@ -1,0 +1,26 @@
+sequenceDiagram
+  actor Resident
+  actor Admin
+  participant PaymentsController
+  participant PaymentService
+  participant PaymentRepo
+  participant FinancialRepo
+  participant NotificationRepo
+  participant Dispatch as NotificationDispatchService
+
+  Resident->>PaymentsController: POST /payments (create)
+  PaymentsController->>PaymentService: CreateAsync(request, residentId, unitId, condominiumId)
+  PaymentService->>PaymentRepo: Add payment (Pending)
+  PaymentService->>NotificationRepo: Add Admin notification
+  PaymentService->>Dispatch: DispatchAsync(notification, external=true)
+  PaymentService-->>PaymentsController: PaymentDto
+  PaymentsController-->>Resident: 201 Created
+
+  Admin->>PaymentsController: PUT /payments/{id}/approve
+  PaymentsController->>PaymentService: ApproveAsync(paymentId, adminUserId)
+  PaymentService->>FinancialRepo: Add income financial record
+  PaymentService->>PaymentRepo: Update payment status Approved
+  PaymentService->>NotificationRepo: Add resident notification
+  PaymentService->>Dispatch: DispatchAsync(notification, external=false)
+  PaymentService-->>PaymentsController: PaymentDto
+  PaymentsController-->>Admin: 200 OK

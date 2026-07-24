@@ -1,0 +1,31 @@
+sequenceDiagram
+  actor Manager
+  actor Admin
+  participant UsersController
+  participant CondominiumsController
+  participant UnitsController
+  participant UserService
+  participant CondoService as CondominiumService
+  participant UnitRepo
+
+  Manager->>CondominiumsController: POST /api/platform/condominiums
+  CondominiumsController->>CondoService: CreateCondominiumAsync(request)
+  CondoService-->>CondominiumsController: condominium created
+  CondominiumsController-->>Manager: 201 Created
+
+  Manager->>UsersController: POST /api/platform/users
+  UsersController->>UserService: CreateUserAsync(request)
+  UserService-->>UsersController: user created (any role)
+  UsersController-->>Manager: 201 Created
+
+  Admin->>UsersController: POST /api/platform/users
+  Note over UsersController: Admin can only create users in own condominium\nand cannot create Manager role.
+  UsersController-->>Admin: 201 Created or 403
+
+  Admin->>UnitsController: POST /api/condominiums/{id}/units
+  UnitsController->>UnitRepo: Add unit for route condominium
+  UnitRepo-->>UnitsController: unit persisted
+  UnitsController-->>Admin: 201 Created
+
+  Manager->>UnitsController: GET /api/condominiums/{id}/units
+  UnitsController-->>Manager: units in requested condominium

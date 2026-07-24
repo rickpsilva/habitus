@@ -1,0 +1,29 @@
+classDiagram
+  class PrivacyConsentService {
+    +requiresAcceptance(userId)
+    +recordAcceptance(userId, acceptedAt)
+  }
+
+  class ExportService {
+    +createPortableExport(userId)
+  }
+
+  class ErasureService {
+    +anonymizeOrErase(userId)
+  }
+
+  class UserRepository {
+    +findById(userId)
+    +save(user)
+  }
+
+  class AuditLog {
+    +record(event)
+  }
+
+  PrivacyConsentService --> UserRepository
+  ExportService --> UserRepository
+  ErasureService --> UserRepository
+  PrivacyConsentService --> AuditLog
+  ExportService --> AuditLog
+  ErasureService --> AuditLog

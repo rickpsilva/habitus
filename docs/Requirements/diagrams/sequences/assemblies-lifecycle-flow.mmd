@@ -1,0 +1,23 @@
+sequenceDiagram
+  actor Admin
+  participant AssembliesController
+  participant AssemblyService
+  participant AssemblyRepo
+  participant NotificationRepo
+  participant Dispatch as NotificationDispatchService
+
+  Admin->>AssembliesController: POST /assemblies
+  AssembliesController->>AssemblyService: CreateAsync(request)
+  AssemblyService->>AssemblyRepo: Add assembly (Scheduled)
+  AssemblyService->>NotificationRepo: Add condominium notification
+  AssemblyService->>Dispatch: DispatchAsync(notification, external=true)
+  AssemblyService-->>AssembliesController: AssemblyDto
+  AssembliesController-->>Admin: 201 Created
+
+  Admin->>AssembliesController: PUT /assemblies/{id}/minutes
+  AssembliesController->>AssemblyService: UpdateMinutesAsync(...)
+  AssemblyService->>AssemblyRepo: Update status Completed + minutes
+  AssemblyService->>NotificationRepo: Add completion notification
+  AssemblyService->>Dispatch: DispatchAsync(notification, external=false)
+  AssemblyService-->>AssembliesController: AssemblyDto
+  AssembliesController-->>Admin: 200 OK

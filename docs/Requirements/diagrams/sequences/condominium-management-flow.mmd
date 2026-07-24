@@ -1,0 +1,31 @@
+sequenceDiagram
+  actor Manager
+  actor Admin
+  participant CondominiumsController
+  participant CondominiumService
+
+  Manager->>CondominiumsController: GET /api/platform/condominiums
+  CondominiumsController->>CondominiumService: GetAllCondominiumsAsync()
+  CondominiumService-->>CondominiumsController: condominium list
+  CondominiumsController-->>Manager: 200 OK
+
+  Manager->>CondominiumsController: POST /api/platform/condominiums
+  CondominiumsController->>CondominiumService: CreateCondominiumAsync(request)
+  CondominiumService-->>CondominiumsController: created condominium
+  CondominiumsController-->>Manager: 201 Created
+
+  Admin->>CondominiumsController: GET /api/platform/condominiums/{id}
+  Note over CondominiumsController: Admin can access only own condominium.
+  CondominiumsController->>CondominiumService: GetCondominiumByIdAsync(id)
+  CondominiumService-->>CondominiumsController: condominium data
+  CondominiumsController-->>Admin: 200 OK or 403
+
+  Manager->>CondominiumsController: PUT /api/platform/condominiums/{id}
+  CondominiumsController->>CondominiumService: UpdateCondominiumAsync(request)
+  CondominiumService-->>CondominiumsController: updated condominium
+  CondominiumsController-->>Manager: 200 OK
+
+  Manager->>CondominiumsController: DELETE /api/platform/condominiums/{id}
+  CondominiumsController->>CondominiumService: DeleteCondominiumAsync(id)
+  CondominiumService-->>CondominiumsController: deleted flag
+  CondominiumsController-->>Manager: 204 NoContent or 404
