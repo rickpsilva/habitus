@@ -1,0 +1,24 @@
+sequenceDiagram
+  participant DomainService as Domain Service
+  participant NotificationRepo
+  participant Dispatch as NotificationDispatchService
+  participant SettingsRepo
+  participant UserRepo
+  participant EmailSvc as IEmailService
+  participant WhatsAppSvc as IWhatsAppService
+  participant DeliveryRepo as DispatchDeliveryRepo
+
+  DomainService->>NotificationRepo: Add Notification(s)
+  DomainService->>Dispatch: DispatchAsync(batch, sendExternalChannels)
+  Dispatch->>SettingsRepo: Load condominium communication settings
+  alt Email enabled
+    Dispatch->>UserRepo: Resolve recipients by role/user/scope
+    Dispatch->>DeliveryRepo: Reserve idempotent delivery key
+    Dispatch->>EmailSvc: Send email message(s)
+    Dispatch->>DeliveryRepo: Mark sent or failed
+  end
+  alt WhatsApp enabled
+    Dispatch->>DeliveryRepo: Reserve idempotent delivery key
+    Dispatch->>WhatsAppSvc: Send group message
+    Dispatch->>DeliveryRepo: Mark sent or failed
+  end

@@ -1,0 +1,20 @@
+sequenceDiagram
+  actor User
+  participant DocumentsController
+  participant UserRepo
+  participant DocumentRepo
+  participant MaintenanceRepo
+
+  User->>DocumentsController: GET /api/condominiums/{id}/documents
+  DocumentsController->>DocumentsController: HasCondominiumAccess(routeCondominiumId)
+  DocumentsController->>UserRepo: GetById(authenticatedUserId)
+
+  alt role is Admin
+    DocumentsController->>DocumentRepo: GetAll and filter by condominiumId
+    DocumentsController-->>User: Return all condominium documents
+  else role is Resident
+    DocumentsController->>MaintenanceRepo: Get maintenance IDs for user unit
+    DocumentsController->>DocumentRepo: GetAll and filter by context rules
+    Note over DocumentsController: Context filters: Condominium, Assembly,\nFinancial in same condominium; Unit only own unit;\nMaintenance only own unit requests.
+    DocumentsController-->>User: Return allowed subset
+  end

@@ -1,0 +1,131 @@
+{
+  "standard": "ISO/IEC 12207",
+  "catalog": "Habitus Requirements",
+  "generatedFrom": "manual catalog plus individual requirement artifacts",
+  "requirements": [
+    {
+      "id": "REQ-AUTH-001",
+      "file": "requirements/auth/REQ-AUTH-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-AUTH-002",
+      "file": "requirements/auth/REQ-AUTH-002.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-AUTH-003",
+      "file": "requirements/auth/REQ-AUTH-003.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-AUTH-005",
+      "file": "requirements/auth/REQ-AUTH-005.md",
+      "diagrams": [
+        "diagrams/use-cases/gdpr-self-service.mmd",
+        "diagrams/sequences/first-login-rgpd-acceptance.mmd"
+      ]
+    },
+    {
+      "id": "REQ-USERS-001",
+      "file": "requirements/users/REQ-USERS-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-USERS-002",
+      "file": "requirements/users/REQ-USERS-002.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-USERS-003",
+      "file": "requirements/users/REQ-USERS-003.md",
+      "diagrams": [
+        "diagrams/use-cases/gdpr-self-service.mmd"
+      ]
+    },
+    {
+      "id": "REQ-SEC-003",
+      "file": "requirements/security/REQ-SEC-003.md",
+      "diagrams": [
+        "diagrams/classes/privacy-services.mmd"
+      ]
+    },
+    {
+      "id": "REQ-SEC-004",
+      "file": "requirements/security/REQ-SEC-004.md",
+      "diagrams": [
+        "diagrams/classes/privacy-services.mmd"
+      ]
+    },
+    {
+      "id": "REQ-SEC-001",
+      "file": "requirements/security/REQ-SEC-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-CONDO-001",
+      "file": "requirements/condominium/REQ-CONDO-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-UNITS-001",
+      "file": "requirements/units/REQ-UNITS-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-PAY-001",
+      "file": "requirements/payments/REQ-PAY-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-PAY-002",
+      "file": "requirements/payments/REQ-PAY-002.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-FIN-001",
+      "file": "requirements/financial/REQ-FIN-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-DOC-001",
+      "file": "requirements/documents/REQ-DOC-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-MAINT-001",
+      "file": "requirements/maintenance/REQ-MAINT-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-SUPP-001",
+      "file": "requirements/suppliers/REQ-SUPP-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-RES-001",
+      "file": "requirements/reservations/REQ-RES-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-SPACES-001",
+      "file": "requirements/shared-spaces/REQ-SPACES-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-ANN-001",
+      "file": "requirements/announcements/REQ-ANN-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-ASM-001",
+      "file": "requirements/assemblies/REQ-ASM-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-NOTIF-001",
+      "file": "requirements/notifications/REQ-NOTIF-001.md",
+      "diagrams": []
+    }
+  ]
+}

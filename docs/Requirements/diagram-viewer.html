@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Habitus - Diagram Viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { --border:#d9dee3; --bg:#f7f9fb; --text:#1c2733; --muted:#5b6b79; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: #fff; }
+  h1 { margin: 0; font-size: 1.05rem; }
+  .meta { margin-top: .25rem; color: var(--muted); font-size: .85rem; }
+  main { padding: 1rem 1.25rem 2rem; max-width: 1200px; margin: 0 auto; }
+  .panel { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: .75rem; }
+  .error { color: #b3261e; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Diagram Viewer</h1>
+  <div class="meta" id="meta"></div>
+</header>
+<main>
+  <div class="panel" id="content"></div>
+</main>
+
+<script>
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>\"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+  }
+
+  async function run() {
+    const url = new URL(window.location.href);
+    const src = url.searchParams.get("src");
+    const meta = document.getElementById("meta");
+    const content = document.getElementById("content");
+
+    if (!src) {
+      meta.textContent = "Missing src query parameter";
+      content.innerHTML = "<p class=\"error\">No diagram source was provided.</p>";
+      return;
+    }
+
+    meta.textContent = src;
+
+    try {
+      const response = await fetch(src);
+      if (!response.ok) {
+        content.innerHTML = `<p class=\"error\">Could not load diagram: ${escapeHtml(src)}</p>`;
+        return;
+      }
+
+      const code = await response.text();
+      content.innerHTML = `<div class=\"mermaid\">${escapeHtml(code)}</div>`;
+      await mermaid.run({ querySelector: ".mermaid" });
+    } catch {
+      content.innerHTML = `<p class=\"error\">Could not load diagram: ${escapeHtml(src)}</p>`;
+    }
+  }
+
+  run();
+</script>
+</body>
+</html>

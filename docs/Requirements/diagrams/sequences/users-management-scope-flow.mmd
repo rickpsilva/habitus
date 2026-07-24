@@ -1,0 +1,30 @@
+sequenceDiagram
+  actor Manager
+  actor Admin
+  actor Resident
+  participant UsersController
+  participant UserService
+
+  Manager->>UsersController: GET /api/platform/users
+  UsersController->>UserService: GetAllUsersAsync()
+  UserService-->>UsersController: all users
+  UsersController-->>Manager: 200 OK
+
+  Admin->>UsersController: GET /api/platform/users/condominium/{condoId}
+  Note over UsersController: Admin is limited to own condominium.
+  UsersController->>UserService: GetUsersByCondominiumAsync(condoId)
+  UserService-->>UsersController: condominium users
+  UsersController-->>Admin: 200 OK or 403
+
+  Manager->>UsersController: POST /api/platform/users
+  UsersController->>UserService: CreateUserAsync(request)
+  UserService-->>UsersController: created user
+  UsersController-->>Manager: 201 Created
+
+  Admin->>UsersController: POST /api/platform/users
+  Note over UsersController: Admin cannot create Manager users and must use own condominium.
+  UsersController-->>Admin: 201 Created or 403
+
+  Resident->>UsersController: GET /api/platform/users/{id}
+  Note over UsersController: Resident can only access own profile.
+  UsersController-->>Resident: 200 OK or 403
