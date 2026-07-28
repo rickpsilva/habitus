@@ -4,6 +4,7 @@ import { Building2, Mail, Lock, User, Phone, Home } from 'lucide-react';
 import { authApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { UnitDto, RegisterRequest } from '../types';
+import { Button } from '../components/ui';
 
 export default function RegisterPage() {
   const { condominiumId: routeCondominiumId } = useParams<{ condominiumId?: string }>();
@@ -166,13 +167,9 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm mt-2"
-            >
+            <Button type="submit" loading={loading} fullWidth className="mt-2">
               {loading ? 'A criar conta...' : 'Criar Conta'}
-            </button>
+            </Button>
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">

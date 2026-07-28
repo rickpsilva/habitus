@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
 import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -10,6 +10,7 @@ import SearchBar from '../components/SearchBar';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import MultipleFileUpload from '../components/MultipleFileUpload';
+import { PageHeader, Button, FilterBar, FilterChip, AsyncState, EmptyState } from '../components/ui';
 import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse, DocumentDto } from '../types';
 
 const statusLabels: Record<string, string> = {
@@ -624,30 +625,24 @@ export default function AssembliesPage() {
         onConfirm={confirmDeleteDocument}
         onCancel={() => setDeleteDocumentId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Assembleias</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Reuniões e assembleias de condóminos</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar assembleias..."
-            />
-          </div>
-          {isAdmin && (
-            <button
-              onClick={openNew}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Assembleias"
+        subtitle="Reuniões e assembleias de condóminos"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar assembleias..."
+          />
+        }
+        actions={
+          isAdmin && (
+            <Button icon={Plus} onClick={openNew} fullWidth className="sm:w-auto">
               Nova Assembleia
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+          )
+        }
+      />
 
       {/* Form */}
       <ModalPopup
@@ -698,70 +693,46 @@ export default function AssembliesPage() {
                 placeholder="Ex: Salão comum do condomínio"
               />
             </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowForm(false)} className="border border-gray-300">
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Guardar
+              </Button>
             </div>
           </form>
       </ModalPopup>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <FilterBar>
         {['All', 'Scheduled', 'InProgress', 'Completed', 'Cancelled'].map((status) => (
-          <button
+          <FilterChip
             key={status}
+            label={status === 'All' ? 'Todas' : statusLabels[status] ?? status}
+            active={statusFilter === status}
+            count={status === 'All' ? undefined : assemblies.filter((a) => a.status === status).length}
             onClick={() => setStatusFilter(status)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === status 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {status === 'All' ? 'Todas' : statusLabels[status] ?? status}
-            {status !== 'All' && (
-              <span className="ml-1.5 text-xs opacity-75">
-                ({assemblies.filter(a => a.status === status).length})
-              </span>
-            )}
-          </button>
+          />
         ))}
-      </div>
+      </FilterBar>
 
       {/* List */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : loadError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        ) : filteredAssemblies.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            {statusFilter === 'All' ? 'Sem assembleias agendadas' : `Sem assembleias com estado "${statusLabels[statusFilter] ?? statusFilter}"`}
-          </div>
-        ) : (
-          <>
-            {filteredAssemblies.map((a) => {
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredAssemblies.length === 0}
+        skeleton="list"
+        empty={
+          <EmptyState
+            icon={ClipboardList}
+            title={statusFilter === 'All' ? 'Sem assembleias agendadas' : `Sem assembleias com estado "${statusLabels[statusFilter] ?? statusFilter}"`}
+          />
+        }
+      >
+        <div className="space-y-3">
+          {filteredAssemblies.map((a) => {
               const isDragOver = dragOverAssemblyId === a.id;
               const isDisabled = a.status === 'Cancelled';
               
@@ -874,9 +845,8 @@ export default function AssembliesPage() {
                 onPageChange={(page) => load(page)}
               />
             )}
-          </>
-        )}
-      </div>
+        </div>
+      </AsyncState>
 
       {/* Detail Modal */}
       <ModalPopup
@@ -1012,25 +982,26 @@ export default function AssembliesPage() {
                         disabled={uploadingDocument}
                       />
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setShowUploadDocument(false);
                           setUploadFiles([]);
                         }}
-                        className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         disabled={uploadingDocument}
                       >
                         Cancelar
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
-                        disabled={uploadFiles.length === 0 || uploadingDocument}
-                        className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        size="sm"
+                        loading={uploadingDocument}
+                        disabled={uploadFiles.length === 0}
                       >
-                        {uploadingDocument ? 'A carregar...' : 'Carregar'}
-                      </button>
+                        Carregar
+                      </Button>
                     </div>
                   </form>
                 )}
@@ -1138,20 +1109,13 @@ export default function AssembliesPage() {
                 height="350px"
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowNotesModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowNotesModal(false)}>
                 Cancelar
-              </button>
-              <button
-                onClick={handleSaveNotes}
-                disabled={submitting}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar Notas'}
-              </button>
+              </Button>
+              <Button onClick={handleSaveNotes} loading={submitting}>
+                Guardar Notas
+              </Button>
             </div>
               </>
             )}
@@ -1199,28 +1163,17 @@ export default function AssembliesPage() {
                 height="350px"
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between gap-3">
-              <button
-                onClick={() => setShowMinutesModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-gray-200 flex flex-wrap justify-between gap-3">
+              <Button variant="ghost" onClick={() => setShowMinutesModal(false)}>
                 Fechar
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveDraftMinutes}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium"
-                >
-                  {submitting ? 'A guardar...' : 'Guardar Draft'}
-                </button>
-                <button
-                  onClick={handleCompleteAssembly}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg text-sm font-medium"
-                >
+              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleSaveDraftMinutes} loading={submitting}>
+                  Guardar Draft
+                </Button>
+                <Button variant="success" onClick={handleCompleteAssembly} loading={submitting}>
                   Concluir Assembleia
-                </button>
+                </Button>
               </div>
             </div>
               </>
@@ -1259,20 +1212,13 @@ export default function AssembliesPage() {
                 placeholder="Motivo do cancelamento..."
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowCancelModal(false)}>
                 Voltar
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={submitting}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A cancelar...' : 'Cancelar Assembleia'}
-              </button>
+              </Button>
+              <Button variant="danger" onClick={handleCancel} loading={submitting}>
+                Cancelar Assembleia
+              </Button>
             </div>
               </>
             )}
@@ -1326,29 +1272,22 @@ export default function AssembliesPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowQuickUploadModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={uploadingDocument}
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={uploadFiles.length === 0 || uploadingDocument}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  icon={Upload}
+                  loading={uploadingDocument}
+                  disabled={uploadFiles.length === 0}
                 >
-                  {uploadingDocument ? (
-                    <>A carregar...</>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
-                    </>
-                  )}
-                </button>
+                  Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
+                </Button>
               </div>
             </form>
               </>

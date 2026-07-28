@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Mail, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/services';
+import { Button } from '../components/ui';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -71,13 +72,9 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-            >
+            <Button type="submit" loading={loading} fullWidth>
               {loading ? 'A enviar...' : 'Enviar Link de Recuperação'}
-            </button>
+            </Button>
           </form>
 
           <div className="flex items-center justify-center mt-6">

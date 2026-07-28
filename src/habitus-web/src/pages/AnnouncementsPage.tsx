@@ -15,8 +15,6 @@ import {
   Trash2,
   Image as ImageIcon,
   FileText,
-  AlertCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { announcementsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +23,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
+import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -545,19 +544,15 @@ export default function AnnouncementsPage() {
         onConfirm={confirmRemove}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Comunicados</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Mensagens da comunidade com moderação por administrador</p>
-        </div>
-        <button
-          onClick={openNew}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Novo comunicado
-        </button>
-      </div>
+      <PageHeader
+        title="Comunicados"
+        subtitle="Mensagens da comunidade com moderação por administrador"
+        actions={
+          <Button icon={Plus} onClick={openNew} fullWidth className="sm:w-auto">
+            Novo comunicado
+          </Button>
+        }
+      />
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -622,31 +617,16 @@ export default function AnnouncementsPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : loadError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        ) : sortedAnnouncements.length === 0 ? (
-          <div className="bg-white border border-gray-100 rounded-xl p-10 text-center text-gray-500">
-            <Megaphone className="w-8 h-8 mx-auto mb-2 opacity-40" />
-            Sem comunicados ainda
-          </div>
-        ) : (
-          sortedAnnouncements.map((a) => (
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={loadData}
+        isEmpty={sortedAnnouncements.length === 0}
+        skeleton="list"
+        empty={<EmptyState icon={Megaphone} title="Sem comunicados ainda" />}
+      >
+        <div className="space-y-3">
+          {sortedAnnouncements.map((a) => (
             <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -712,9 +692,9 @@ export default function AnnouncementsPage() {
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      </AsyncState>
 
       <ModalPopup
         open={showEditor}
@@ -789,23 +769,23 @@ export default function AnnouncementsPage() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2">
-              <button onClick={() => { setShowEditor(false); resetForm(); }} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm">Cancelar</button>
-              <button
-                disabled={submitting || uploadingFiles || !form.title.trim() || !form.content.trim()}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => { setShowEditor(false); resetForm(); }}>Cancelar</Button>
+              <Button
+                variant="secondary"
                 onClick={() => submitForm(false)}
-                className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-800 text-white text-sm disabled:opacity-60"
+                disabled={submitting || uploadingFiles || !form.title.trim() || !form.content.trim()}
               >
                 Guardar rascunho
-              </button>
-              <button
-                disabled={submitting || uploadingFiles || !form.title.trim() || !form.content.trim()}
+              </Button>
+              <Button
+                icon={Send}
                 onClick={() => submitForm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-60"
+                loading={submitting || uploadingFiles}
+                disabled={!form.title.trim() || !form.content.trim()}
               >
-                <Send className="w-4 h-4" />
                 Enviar para aprovação
-              </button>
+              </Button>
             </div>
           </div>
       </ModalPopup>
@@ -826,7 +806,7 @@ export default function AnnouncementsPage() {
                   {selected.isAnonymous ? 'Anónimo' : selected.authorName} • {new Date(selected.createdAt).toLocaleString('pt-PT')}
                 </p>
               </div>
-              <button onClick={closeDetails} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm">Fechar</button>
+              <Button variant="secondary" size="sm" onClick={closeDetails}>Fechar</Button>
             </div>
 
             <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
@@ -912,13 +892,13 @@ export default function AnnouncementsPage() {
                           <input type="checkbox" checked={commentAnonymous} onChange={(e) => setCommentAnonymous(e.target.checked)} />
                           Comentar em anonimato
                         </label>
-                        <button
+                        <Button
                           onClick={addComment}
-                          disabled={commenting || !comment.trim()}
-                          className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm disabled:opacity-60"
+                          loading={commenting}
+                          disabled={!comment.trim()}
                         >
                           {commenting ? 'A enviar...' : 'Comentar'}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </>
@@ -948,23 +928,24 @@ export default function AnnouncementsPage() {
               placeholder="Ex: Conteúdo incompleto ou não conforme as regras do condomínio"
             />
             <div className="flex justify-end gap-2">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowRejectModal(false);
                   setRejectingId(null);
                   setRejectionReason('');
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={reject}
-                disabled={rejecting || !rejectionReason.trim()}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm disabled:opacity-60"
+                loading={rejecting}
+                disabled={!rejectionReason.trim()}
               >
                 {rejecting ? 'A rejeitar...' : 'Rejeitar'}
-              </button>
+              </Button>
             </div>
       </ModalPopup>
     </div>

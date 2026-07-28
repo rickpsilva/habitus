@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { authApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
@@ -171,13 +172,9 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-                >
+                <Button type="submit" loading={loading} fullWidth>
                   {loading ? 'A entrar...' : 'Entrar'}
-                </button>
+                </Button>
               </form>
 
               <div className="mt-6">
@@ -188,20 +185,24 @@ export default function LoginPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    fullWidth
                     onClick={() => startSocialLogin('google')}
-                    className="w-full py-2.5 px-4 border border-gray-300 hover:border-gray-400 text-gray-800 font-medium rounded-lg transition-colors text-sm"
+                    className="border border-gray-300 hover:border-gray-400 text-gray-800"
                   >
                     Continue with Google
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    fullWidth
                     onClick={() => startSocialLogin('microsoft')}
-                    className="w-full py-2.5 px-4 border border-gray-300 hover:border-gray-400 text-gray-800 font-medium rounded-lg transition-colors text-sm"
+                    className="border border-gray-300 hover:border-gray-400 text-gray-800"
                   >
                     Continue with Microsoft
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -248,20 +249,17 @@ export default function LoginPage() {
               </label>
 
               <div className="flex gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={resetTwoFactorState}
-                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg transition-colors text-sm hover:bg-gray-50"
+                  className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
                   Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-                >
+                </Button>
+                <Button type="submit" loading={loading} className="flex-1">
                   {loading ? 'A verificar...' : 'Verificar'}
-                </button>
+                </Button>
               </div>
             </form>
           )}

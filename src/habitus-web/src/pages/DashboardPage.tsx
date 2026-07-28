@@ -21,10 +21,10 @@ import {
   Wallet,
   ArrowRight,
   Megaphone,
-  RefreshCw,
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { PageHeader, ErrorState } from '../components/ui';
 import type { MaintenanceRequestDto, NotificationDto, ReservationDto, CondominiumActiveUsersDto, PlatformBillingSettingsDto } from '../types';
 
 function StatCard({
@@ -169,27 +169,13 @@ export default function DashboardPage() {
   if (isManager) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Painel do Gestor
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Visão de plataforma para gestão global da carteira de condomínios.
-          </p>
-        </div>
+        <PageHeader
+          title="Painel do Gestor"
+          subtitle="Visão de plataforma para gestão global da carteira de condomínios."
+        />
 
         {dashboardError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-            <span>{dashboardError}</span>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Recarregar
-            </button>
-          </div>
+          <ErrorState message={dashboardError} onRetry={() => window.location.reload()} />
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -395,25 +381,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Bem-vindo, {user?.name?.split(' ')[0]}! 👋
-        </h1>
-        <p className="text-gray-500 mt-1">Aqui está o resumo do seu condomínio.</p>
-      </div>
+      <PageHeader
+        title={`Bem-vindo, ${user?.name?.split(' ')[0] ?? ''}! 👋`}
+        subtitle="Aqui está o resumo do seu condomínio."
+      />
 
       {dashboardError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span>{dashboardError}</span>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={dashboardError} onRetry={() => window.location.reload()} />
       )}
 
       {/* Stats */}

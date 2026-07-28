@@ -1,4 +1,21 @@
 @import "tailwindcss";
+
+/* Enable class-based dark mode (toggles via `.dark` on <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens — single source of truth for the Habitus UI system.
+   Consumed by the shared components under src/components/ui. */
+@theme {
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+
+  --radius-app: 0.75rem; /* 12px — rounded-xl equivalent for cards/surfaces */
+  --shadow-app: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
 @keyframes bell-ring {
   0%, 100% {
     transform: rotate(0deg);
@@ -22,44 +39,115 @@
   transform-origin: top center;
 }
 
+/* ============================================================================
+   DARK MODE — comprehensive compatibility layer
+   The app markup uses fixed light utilities (no `dark:` prefixes), so we remap
+   the common palette under `.dark` to keep every surface, text and border
+   readable. Colored tints are derived from the Tailwind v4 theme tokens
+   (var(--color-*)) with color-mix so badges stay on-brand but dark-friendly.
+   ========================================================================== */
+
+/* --- Base --------------------------------------------------------------- */
 .dark body,
 .dark #root {
   background-color: #0b1220;
   color: #e5e7eb;
 }
 
+/* --- Neutral surfaces --------------------------------------------------- */
 .dark .bg-white {
   background-color: #111827 !important;
 }
-
-.dark .bg-gray-50 {
+.dark .bg-gray-50,
+.dark .bg-slate-50,
+.dark .bg-zinc-50,
+.dark .bg-neutral-50 {
   background-color: #0f172a !important;
 }
-
-.dark .bg-gray-100 {
+.dark .bg-gray-100,
+.dark .bg-slate-100,
+.dark .bg-zinc-100,
+.dark .bg-neutral-100 {
   background-color: #1f2937 !important;
 }
-
-.dark .text-gray-900 {
-  color: #f9fafb !important;
+.dark .bg-gray-200,
+.dark .bg-slate-200,
+.dark .bg-zinc-200,
+.dark .bg-neutral-200 {
+  background-color: #263244 !important;
 }
 
-.dark .text-gray-700 {
+/* Hover surfaces (avoid white flashes on hover) */
+.dark .hover\:bg-white:hover {
+  background-color: #111827 !important;
+}
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50:hover {
+  background-color: #172033 !important;
+}
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #253044 !important;
+}
+.dark .hover\:bg-gray-200:hover,
+.dark .hover\:bg-slate-200:hover {
+  background-color: #2e3a4e !important;
+}
+
+/* --- Neutral text ------------------------------------------------------- */
+.dark .text-gray-900,
+.dark .text-slate-900,
+.dark .text-black {
+  color: #f9fafb !important;
+}
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: #f3f4f6 !important;
+}
+.dark .text-gray-700,
+.dark .text-slate-700 {
+  color: #e5e7eb !important;
+}
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: #9ca3af !important;
+}
+.dark .text-gray-400,
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+.dark .hover\:text-gray-900:hover,
+.dark .hover\:text-gray-800:hover {
+  color: #f9fafb !important;
+}
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-gray-600:hover {
   color: #e5e7eb !important;
 }
 
-.dark .text-gray-600,
-.dark .text-gray-500,
-.dark .text-gray-400 {
-  color: #9ca3af !important;
-}
-
+/* --- Neutral borders / dividers ---------------------------------------- */
 .dark .border-gray-100,
 .dark .border-gray-200,
-.dark .border-gray-300 {
+.dark .border-gray-300,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #374151 !important;
+}
+.dark .hover\:border-gray-300:hover,
+.dark .hover\:border-gray-400:hover {
+  border-color: #4b5563 !important;
+}
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: #374151 !important;
 }
 
+/* --- Form controls ------------------------------------------------------ */
 .dark input,
 .dark select,
 .dark textarea {
@@ -67,6 +155,165 @@
   color: #e5e7eb !important;
   border-color: #4b5563 !important;
 }
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark .placeholder\:text-gray-400::placeholder {
+  color: #6b7280 !important;
+}
+
+/* --- Full-page auth gradients (login, register, reset, etc.) ------------ */
+.dark .min-h-screen.bg-gradient-to-br {
+  background-image: none !important;
+  background-color: #0b1220 !important;
+}
+/* Emerald/teal highlight card (FinancialPage fund summary) */
+.dark .bg-gradient-to-br.from-emerald-50 {
+  background-image: none !important;
+  background-color: color-mix(in oklab, var(--color-emerald-400) 14%, #0b1220) !important;
+}
+
+/* --- Translucent tint surfaces (opacity variants used for highlight rows) - */
+/* These are distinct utility classes (e.g. `bg-indigo-50/50`) and must be
+   remapped explicitly; mixed over the card color so they read as a subtle
+   elevated highlight on dark surfaces. */
+.dark .bg-indigo-50\/30,
+.dark .bg-indigo-50\/50 {
+  background-color: color-mix(in oklab, var(--color-indigo-400) 15%, #111827) !important;
+}
+.dark .bg-amber-50\/60,
+.dark .hover\:bg-amber-50\/60:hover {
+  background-color: color-mix(in oklab, var(--color-amber-400) 14%, #111827) !important;
+}
+.dark .bg-emerald-50\/70 {
+  background-color: color-mix(in oklab, var(--color-emerald-400) 14%, #111827) !important;
+}
+.dark .bg-gray-50\/50 {
+  background-color: #0f172a !important;
+}
+
+/* --- Colored tints (badges, soft cards, links) -------------------------- */
+/* indigo */
+.dark .bg-indigo-50 { background-color: color-mix(in oklab, var(--color-indigo-400) 10%, #0b1220) !important; }
+.dark .bg-indigo-100 { background-color: color-mix(in oklab, var(--color-indigo-400) 16%, #0b1220) !important; }
+.dark .text-indigo-500 { color: var(--color-indigo-400) !important; }
+.dark .text-indigo-600, .dark .text-indigo-700, .dark .hover\:text-indigo-700:hover { color: var(--color-indigo-300) !important; }
+.dark .text-indigo-800, .dark .text-indigo-900 { color: var(--color-indigo-200) !important; }
+.dark .border-indigo-100 { border-color: color-mix(in oklab, var(--color-indigo-400) 26%, #0b1220) !important; }
+.dark .border-indigo-200, .dark .border-indigo-300 { border-color: color-mix(in oklab, var(--color-indigo-400) 40%, #0b1220) !important; }
+
+/* blue */
+.dark .bg-blue-50 { background-color: color-mix(in oklab, var(--color-blue-400) 10%, #0b1220) !important; }
+.dark .bg-blue-100 { background-color: color-mix(in oklab, var(--color-blue-400) 16%, #0b1220) !important; }
+.dark .text-blue-500 { color: var(--color-blue-400) !important; }
+.dark .text-blue-600, .dark .text-blue-700, .dark .hover\:text-blue-700:hover { color: var(--color-blue-300) !important; }
+.dark .text-blue-800, .dark .text-blue-900 { color: var(--color-blue-200) !important; }
+.dark .border-blue-100 { border-color: color-mix(in oklab, var(--color-blue-400) 26%, #0b1220) !important; }
+.dark .border-blue-200, .dark .border-blue-300 { border-color: color-mix(in oklab, var(--color-blue-400) 40%, #0b1220) !important; }
+
+/* sky */
+.dark .bg-sky-50 { background-color: color-mix(in oklab, var(--color-sky-400) 10%, #0b1220) !important; }
+.dark .bg-sky-100 { background-color: color-mix(in oklab, var(--color-sky-400) 16%, #0b1220) !important; }
+.dark .text-sky-500 { color: var(--color-sky-400) !important; }
+.dark .text-sky-600, .dark .text-sky-700 { color: var(--color-sky-300) !important; }
+.dark .border-sky-100 { border-color: color-mix(in oklab, var(--color-sky-400) 26%, #0b1220) !important; }
+.dark .border-sky-200, .dark .border-sky-300 { border-color: color-mix(in oklab, var(--color-sky-400) 40%, #0b1220) !important; }
+
+/* cyan */
+.dark .bg-cyan-50 { background-color: color-mix(in oklab, var(--color-cyan-400) 10%, #0b1220) !important; }
+.dark .bg-cyan-100 { background-color: color-mix(in oklab, var(--color-cyan-400) 16%, #0b1220) !important; }
+.dark .text-cyan-600, .dark .text-cyan-700 { color: var(--color-cyan-300) !important; }
+.dark .border-cyan-100 { border-color: color-mix(in oklab, var(--color-cyan-400) 26%, #0b1220) !important; }
+.dark .border-cyan-200, .dark .border-cyan-300 { border-color: color-mix(in oklab, var(--color-cyan-400) 40%, #0b1220) !important; }
+
+/* green */
+.dark .bg-green-50 { background-color: color-mix(in oklab, var(--color-green-400) 10%, #0b1220) !important; }
+.dark .bg-green-100 { background-color: color-mix(in oklab, var(--color-green-400) 16%, #0b1220) !important; }
+.dark .text-green-500 { color: var(--color-green-400) !important; }
+.dark .text-green-600, .dark .text-green-700, .dark .hover\:text-green-700:hover { color: var(--color-green-300) !important; }
+.dark .text-green-800, .dark .text-green-900 { color: var(--color-green-200) !important; }
+.dark .border-green-100 { border-color: color-mix(in oklab, var(--color-green-400) 26%, #0b1220) !important; }
+.dark .border-green-200, .dark .border-green-300 { border-color: color-mix(in oklab, var(--color-green-400) 40%, #0b1220) !important; }
+
+/* emerald */
+.dark .bg-emerald-50 { background-color: color-mix(in oklab, var(--color-emerald-400) 10%, #0b1220) !important; }
+.dark .bg-emerald-100 { background-color: color-mix(in oklab, var(--color-emerald-400) 16%, #0b1220) !important; }
+.dark .text-emerald-500 { color: var(--color-emerald-400) !important; }
+.dark .text-emerald-600, .dark .text-emerald-700 { color: var(--color-emerald-300) !important; }
+.dark .text-emerald-800, .dark .text-emerald-900 { color: var(--color-emerald-200) !important; }
+.dark .border-emerald-100 { border-color: color-mix(in oklab, var(--color-emerald-400) 26%, #0b1220) !important; }
+.dark .border-emerald-200, .dark .border-emerald-300, .dark .border-emerald-400 { border-color: color-mix(in oklab, var(--color-emerald-400) 42%, #0b1220) !important; }
+.dark .ring-emerald-300 { --tw-ring-color: color-mix(in oklab, var(--color-emerald-400) 45%, #0b1220) !important; }
+
+/* teal */
+.dark .bg-teal-50 { background-color: color-mix(in oklab, var(--color-teal-400) 10%, #0b1220) !important; }
+.dark .bg-teal-100 { background-color: color-mix(in oklab, var(--color-teal-400) 16%, #0b1220) !important; }
+.dark .text-teal-600, .dark .text-teal-700 { color: var(--color-teal-300) !important; }
+.dark .border-teal-100 { border-color: color-mix(in oklab, var(--color-teal-400) 26%, #0b1220) !important; }
+.dark .border-teal-200, .dark .border-teal-300 { border-color: color-mix(in oklab, var(--color-teal-400) 40%, #0b1220) !important; }
+
+/* red */
+.dark .bg-red-50 { background-color: color-mix(in oklab, var(--color-red-400) 10%, #0b1220) !important; }
+.dark .bg-red-100 { background-color: color-mix(in oklab, var(--color-red-400) 16%, #0b1220) !important; }
+.dark .text-red-500 { color: var(--color-red-400) !important; }
+.dark .text-red-600, .dark .text-red-700, .dark .hover\:text-red-700:hover { color: var(--color-red-300) !important; }
+.dark .text-red-800, .dark .text-red-900 { color: var(--color-red-200) !important; }
+.dark .border-red-100 { border-color: color-mix(in oklab, var(--color-red-400) 26%, #0b1220) !important; }
+.dark .border-red-200, .dark .border-red-300 { border-color: color-mix(in oklab, var(--color-red-400) 40%, #0b1220) !important; }
+
+/* rose */
+.dark .bg-rose-50 { background-color: color-mix(in oklab, var(--color-rose-400) 10%, #0b1220) !important; }
+.dark .bg-rose-100 { background-color: color-mix(in oklab, var(--color-rose-400) 16%, #0b1220) !important; }
+.dark .text-rose-600, .dark .text-rose-700 { color: var(--color-rose-300) !important; }
+.dark .border-rose-100 { border-color: color-mix(in oklab, var(--color-rose-400) 26%, #0b1220) !important; }
+.dark .border-rose-200, .dark .border-rose-300 { border-color: color-mix(in oklab, var(--color-rose-400) 40%, #0b1220) !important; }
+
+/* amber */
+.dark .bg-amber-50 { background-color: color-mix(in oklab, var(--color-amber-400) 10%, #0b1220) !important; }
+.dark .bg-amber-100 { background-color: color-mix(in oklab, var(--color-amber-400) 16%, #0b1220) !important; }
+.dark .text-amber-500 { color: var(--color-amber-400) !important; }
+.dark .text-amber-600, .dark .text-amber-700, .dark .hover\:text-amber-700:hover { color: var(--color-amber-300) !important; }
+.dark .text-amber-800, .dark .text-amber-900 { color: var(--color-amber-200) !important; }
+.dark .border-amber-100 { border-color: color-mix(in oklab, var(--color-amber-400) 26%, #0b1220) !important; }
+.dark .border-amber-200, .dark .border-amber-300 { border-color: color-mix(in oklab, var(--color-amber-400) 40%, #0b1220) !important; }
+
+/* yellow */
+.dark .bg-yellow-50 { background-color: color-mix(in oklab, var(--color-yellow-400) 10%, #0b1220) !important; }
+.dark .bg-yellow-100 { background-color: color-mix(in oklab, var(--color-yellow-400) 16%, #0b1220) !important; }
+.dark .text-yellow-600, .dark .text-yellow-700 { color: var(--color-yellow-300) !important; }
+.dark .text-yellow-800, .dark .text-yellow-900 { color: var(--color-yellow-200) !important; }
+.dark .border-yellow-100 { border-color: color-mix(in oklab, var(--color-yellow-400) 26%, #0b1220) !important; }
+.dark .border-yellow-200, .dark .border-yellow-300 { border-color: color-mix(in oklab, var(--color-yellow-400) 40%, #0b1220) !important; }
+
+/* orange */
+.dark .bg-orange-50 { background-color: color-mix(in oklab, var(--color-orange-400) 10%, #0b1220) !important; }
+.dark .bg-orange-100 { background-color: color-mix(in oklab, var(--color-orange-400) 16%, #0b1220) !important; }
+.dark .text-orange-600, .dark .text-orange-700 { color: var(--color-orange-300) !important; }
+.dark .text-orange-800, .dark .text-orange-900 { color: var(--color-orange-200) !important; }
+.dark .border-orange-100 { border-color: color-mix(in oklab, var(--color-orange-400) 26%, #0b1220) !important; }
+.dark .border-orange-200, .dark .border-orange-300 { border-color: color-mix(in oklab, var(--color-orange-400) 40%, #0b1220) !important; }
+
+/* purple */
+.dark .bg-purple-50 { background-color: color-mix(in oklab, var(--color-purple-400) 10%, #0b1220) !important; }
+.dark .bg-purple-100 { background-color: color-mix(in oklab, var(--color-purple-400) 16%, #0b1220) !important; }
+.dark .text-purple-600, .dark .text-purple-700 { color: var(--color-purple-300) !important; }
+.dark .text-purple-800, .dark .text-purple-900 { color: var(--color-purple-200) !important; }
+.dark .border-purple-100 { border-color: color-mix(in oklab, var(--color-purple-400) 26%, #0b1220) !important; }
+.dark .border-purple-200, .dark .border-purple-300 { border-color: color-mix(in oklab, var(--color-purple-400) 40%, #0b1220) !important; }
+
+/* violet */
+.dark .bg-violet-50 { background-color: color-mix(in oklab, var(--color-violet-400) 10%, #0b1220) !important; }
+.dark .bg-violet-100 { background-color: color-mix(in oklab, var(--color-violet-400) 16%, #0b1220) !important; }
+.dark .text-violet-600, .dark .text-violet-700 { color: var(--color-violet-300) !important; }
+.dark .border-violet-100 { border-color: color-mix(in oklab, var(--color-violet-400) 26%, #0b1220) !important; }
+.dark .border-violet-200, .dark .border-violet-300 { border-color: color-mix(in oklab, var(--color-violet-400) 40%, #0b1220) !important; }
+
+/* pink */
+.dark .bg-pink-50 { background-color: color-mix(in oklab, var(--color-pink-400) 10%, #0b1220) !important; }
+.dark .bg-pink-100 { background-color: color-mix(in oklab, var(--color-pink-400) 16%, #0b1220) !important; }
+.dark .text-pink-600, .dark .text-pink-700 { color: var(--color-pink-300) !important; }
+.dark .border-pink-100 { border-color: color-mix(in oklab, var(--color-pink-400) 26%, #0b1220) !important; }
+.dark .border-pink-200, .dark .border-pink-300 { border-color: color-mix(in oklab, var(--color-pink-400) 40%, #0b1220) !important; }
+
 
 .app-scrollbar {
   scrollbar-width: thin;
@@ -91,4 +338,16 @@
 
 .app-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
+}
+
+.dark .app-scrollbar {
+  scrollbar-color: #334155 transparent;
+}
+
+.dark .app-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #334155;
+}
+
+.dark .app-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
 }

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Users, Trash2, Mail, Phone, Home, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, Trash2, Mail, Phone, Home } from 'lucide-react';
 import { residentsApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import type { ResidentDto, UnitDto } from '../types';
+import { PageHeader, AsyncState, EmptyState } from '../components/ui';
 
 const roleLabels: Record<string, string> = {
   Admin: 'Administrador',
@@ -105,61 +106,44 @@ export default function ResidentsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Moradores</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{residents.length} moradores registados</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Moradores"
+        subtitle={`${residents.length} moradores registados`}
+        search={
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por nome ou email..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        }
+        actions={
+          <select
+            value={filterUnitId}
+            onChange={(e) => setFilterUnitId(e.target.value)}
+            className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="">Todas as frações</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                Fração {u.number} – Piso {u.floor}
+              </option>
+            ))}
+          </select>
+        }
+      />
 
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Pesquisar por nome ou email..."
-          className="flex-1 min-w-[200px] max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <select
-          value={filterUnitId}
-          onChange={(e) => setFilterUnitId(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-        >
-          <option value="">Todas as frações</option>
-          {units.map((u) => (
-            <option key={u.id} value={u.id}>
-              Fração {u.number} – Piso {u.floor}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!loading && loadError && (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={load}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : !loadError && filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            Sem moradores encontrados
-          </div>
-        ) : !loadError ? (
-          filtered.map((r) => (
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={load}
+        isEmpty={filtered.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Users} title="Sem moradores encontrados" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((r) => (
             <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -194,9 +178,9 @@ export default function ResidentsPage() {
                 </div>
               </div>
             </div>
-          ))
-        ) : null}
-      </div>
+          ))}
+        </div>
+      </AsyncState>
     </div>
   );
 }

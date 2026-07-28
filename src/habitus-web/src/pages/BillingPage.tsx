@@ -24,6 +24,8 @@ import { subscriptionsApi, condominiumsApi, invoicesApi } from '../api/services'
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { Button, DataTable, EmptyState } from '../components/ui';
+import type { Column } from '../components/ui';
 import type {
   SubscriptionPlanDto,
   FeatureCatalogItemDto,
@@ -240,6 +242,97 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
     }
   };
 
+  const invoiceColumns: Column<InvoiceDto>[] = [
+    {
+      key: 'invoiceRef',
+      header: 'Referência',
+      mobileLabel: 'Referência',
+      render: (inv) => <span className="font-mono text-xs font-medium text-gray-800">{inv.invoiceRef}</span>,
+    },
+    {
+      key: 'issuedDate',
+      header: 'Data',
+      mobileLabel: 'Data',
+      render: (inv) => <span className="text-gray-600">{new Date(inv.issuedDate).toLocaleDateString('pt-PT')}</span>,
+    },
+    {
+      key: 'dueDate',
+      header: 'Vencimento',
+      mobileLabel: 'Vencimento',
+      render: (inv) => (
+        <span className={inv.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+          {new Date(inv.dueDate).toLocaleDateString('pt-PT')}
+        </span>
+      ),
+    },
+    {
+      key: 'planName',
+      header: 'Plano',
+      mobileLabel: 'Plano',
+      render: (inv) => <span className="text-gray-700">{inv.planName}</span>,
+    },
+    {
+      key: 'totalAmount',
+      header: 'Total',
+      align: 'right',
+      mobileLabel: 'Total',
+      render: (inv) => <span className="font-semibold text-gray-900">{fmt(inv.totalAmount)}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      mobileLabel: 'Estado',
+      render: (inv) => <StatusBadge status={inv.status} />,
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      mobileLabel: 'Ações',
+      render: (inv) => (
+        <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+          {inv.pdfUrl && (
+            <button
+              onClick={() => invoicesApi.downloadPdf(inv.id)}
+              className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+              title="Descarregar PDF"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          {(inv.status === 'Emitted' || inv.status === 'Overdue') && (
+            <>
+              <button
+                onClick={() => handleMarkPaid(inv.id)}
+                disabled={actionLoading === inv.id}
+                className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600 disabled:opacity-50"
+                title="Marcar como paga"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleInitiatePayment(inv.id)}
+                disabled={actionLoading === `pay-${inv.id}`}
+                className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 disabled:opacity-50"
+                title="Pagar via gateway"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => openCancelModal(inv.id)}
+                disabled={actionLoading === inv.id}
+                className="p-1.5 rounded hover:bg-red-50 text-red-500 disabled:opacity-50"
+                title="Cancelar fatura"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section className="space-y-4">
       <ConfirmModal
@@ -367,94 +460,21 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
       {/* Invoice table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-24 text-gray-400 text-sm">
-            <RefreshCw className="w-4 h-4 animate-spin mr-2" /> A carregar...
-          </div>
-        ) : error ? (
-          <p className="p-4 text-sm text-red-600">{error}</p>
-        ) : filtered.length === 0 ? (
-          <p className="p-6 text-center text-sm text-gray-400">Nenhuma fatura encontrada para os filtros selecionados.</p>
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
-                <th className="px-4 py-3">Referência</th>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Vencimento</th>
-                <th className="px-4 py-3">Plano</th>
-                <th className="px-4 py-3">Total</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((inv) => (
-                <tr
-                  key={inv.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedInvoice(inv)}
-                >
-                  <td className="px-4 py-3 font-mono text-xs font-medium text-gray-800">{inv.invoiceRef}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {new Date(inv.issuedDate).toLocaleDateString('pt-PT')}
-                  </td>
-                  <td className={`px-4 py-3 ${inv.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                    {new Date(inv.dueDate).toLocaleDateString('pt-PT')}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{inv.planName}</td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{fmt(inv.totalAmount)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={inv.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      {inv.pdfUrl && (
-                        <button
-                          onClick={() => invoicesApi.downloadPdf(inv.id)}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
-                          title="Descarregar PDF"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                      )}
-                      {(inv.status === 'Emitted' || inv.status === 'Overdue') && (
-                        <>
-                          <button
-                            onClick={() => handleMarkPaid(inv.id)}
-                            disabled={actionLoading === inv.id}
-                            className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600 disabled:opacity-50"
-                            title="Marcar como paga"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleInitiatePayment(inv.id)}
-                            disabled={actionLoading === `pay-${inv.id}`}
-                            className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 disabled:opacity-50"
-                            title="Pagar via gateway"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => openCancelModal(inv.id)}
-                            disabled={actionLoading === inv.id}
-                            className="p-1.5 rounded hover:bg-red-50 text-red-500 disabled:opacity-50"
-                            title="Cancelar fatura"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <DataTable<InvoiceDto>
+        columns={invoiceColumns}
+        rows={filtered}
+        rowKey={(inv) => inv.id}
+        loading={loading}
+        error={error || null}
+        onRetry={() => { if (selectedCondoId) loadInvoices(selectedCondoId); }}
+        onRowClick={(inv) => setSelectedInvoice(inv)}
+        emptyState={
+          <EmptyState
+            icon={FileText}
+            title="Nenhuma fatura encontrada para os filtros selecionados."
+          />
+        }
+      />
 
       {/* Invoice detail modal */}
       {selectedInvoice && (
@@ -548,30 +568,32 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
               )}
               {(selectedInvoice.status === 'Emitted' || selectedInvoice.status === 'Overdue') && (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    icon={CheckCircle2}
                     onClick={() => handleMarkPaid(selectedInvoice.id)}
-                    disabled={actionLoading === selectedInvoice.id}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:opacity-60"
+                    loading={actionLoading === selectedInvoice.id}
                   >
-                    <CheckCircle2 className="w-4 h-4" />
                     Marcar Paga
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    icon={ExternalLink}
                     onClick={() => handleInitiatePayment(selectedInvoice.id)}
-                    disabled={actionLoading === `pay-${selectedInvoice.id}`}
-                    className="flex items-center gap-2 px-4 py-2 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium disabled:opacity-60"
+                    loading={actionLoading === `pay-${selectedInvoice.id}`}
+                    className="border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700"
                   >
-                    <ExternalLink className="w-4 h-4" />
                     Pagar via Stripe
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    icon={XCircle}
                     onClick={() => openCancelModal(selectedInvoice.id)}
                     disabled={actionLoading === selectedInvoice.id}
-                    className="flex items-center gap-2 px-4 py-2 border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium disabled:opacity-60"
+                    className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600"
                   >
-                    <XCircle className="w-4 h-4" />
                     Cancelar
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -643,18 +665,12 @@ function PlanCard({
       </ul>
 
       <div className="mt-auto flex gap-2">
-        <button
-          onClick={() => onEdit(plan)}
-          className="flex-1 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-        >
+        <Button variant="ghost" onClick={() => onEdit(plan)} fullWidth className="flex-1 border border-gray-300">
           Editar
-        </button>
-        <button
-          onClick={() => onAssign(plan)}
-          className="flex-1 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-        >
+        </Button>
+        <Button onClick={() => onAssign(plan)} fullWidth className="flex-1">
           Atribuir
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1170,13 +1186,13 @@ export default function BillingPage() {
                 <p className="text-sm text-red-600">{assignError}</p>
               )}
 
-              <button
+              <Button
                 onClick={handleAssign}
-                disabled={assigning}
-                className="w-full py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                loading={assigning}
+                fullWidth
               >
-                {assigning ? 'A guardar...' : 'Confirmar Atribuição'}
-              </button>
+                Confirmar Atribuição
+              </Button>
             </div>
           </div>
         </div>
@@ -1308,23 +1324,20 @@ export default function BillingPage() {
               <p className="mt-3 text-sm text-red-600">{planFormError}</p>
             )}
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setPlanModalOpen(false);
                   setPlanFormError('');
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                className="border border-gray-300"
               >
                 Cancelar
-              </button>
-              <button
-                onClick={handleSavePlan}
-                disabled={savingPlan}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60"
-              >
-                {savingPlan ? 'A guardar...' : 'Guardar Plano'}
-              </button>
+              </Button>
+              <Button onClick={handleSavePlan} loading={savingPlan}>
+                Guardar Plano
+              </Button>
             </div>
           </div>
         </div>

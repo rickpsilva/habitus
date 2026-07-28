@@ -8,6 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
+import { PageHeader, Spinner, Button } from '../components/ui';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
 
@@ -423,9 +424,8 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="text-center py-20 text-gray-400">
-          <User className="w-12 h-12 mx-auto mb-4 opacity-30" />
-          <p>A carregar dados do perfil...</p>
+        <div className="flex justify-center py-20 text-gray-400">
+          <Spinner label="A carregar dados do perfil..." />
         </div>
       </div>
     );
@@ -443,10 +443,10 @@ export default function ProfilePage() {
         onCancel={() => setDeleteDocId(null)}
       />
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Gerencie suas informações pessoais e segurança</p>
-      </div>
+      <PageHeader
+        title="Meu Perfil"
+        subtitle="Gerencie suas informações pessoais e segurança"
+      />
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
@@ -565,14 +565,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'A guardar...' : 'Guardar Alterações'}
-                </button>
+                <Button type="submit" icon={Save} loading={saving}>
+                  Guardar Alterações
+                </Button>
               </div>
             </form>
           </div>
@@ -663,12 +658,9 @@ export default function ProfilePage() {
                     {isDarkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                     Tema:
                   </span>
-                  <button
-                    onClick={handleToggleTheme}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                  >
+                  <Button size="sm" onClick={handleToggleTheme}>
                     {isDarkMode ? 'Mudar para claro' : 'Mudar para escuro'}
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -719,7 +711,11 @@ export default function ProfilePage() {
             </div>
 
             {loadingSecurity ? (
-              <p className="text-sm text-gray-500">A carregar definições de segurança...</p>
+              <p className="text-sm text-gray-500">
+                {loadingSecurity ? (
+                  <span className="flex items-center gap-2"><Spinner size="sm" label="A carregar definições de segurança..." /></span>
+                ) : null}
+              </p>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
@@ -727,13 +723,13 @@ export default function ProfilePage() {
                 </div>
 
                 {!securityData?.twoFactorEnabled && !twoFactorSetup && (
-                  <button
+                  <Button
+                    variant="success"
                     onClick={handleStartTwoFactorSetup}
-                    disabled={processingSecurity}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    loading={processingSecurity}
                   >
-                    {processingSecurity ? 'A preparar...' : 'Configurar 2FA'}
-                  </button>
+                    Configurar 2FA
+                  </Button>
                 )}
 
                 {twoFactorSetup && (
@@ -767,24 +763,20 @@ export default function ProfilePage() {
                         />
                       </div>
 
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             setTwoFactorSetup(null);
                             setTwoFactorSetupCode('');
                           }}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="border border-gray-300"
                         >
                           Cancelar
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={processingSecurity}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                        >
-                          {processingSecurity ? 'A verificar...' : 'Verificar e ativar'}
-                        </button>
+                        </Button>
+                        <Button type="submit" loading={processingSecurity}>
+                          Verificar e ativar
+                        </Button>
                       </div>
                     </form>
                   </div>
@@ -792,19 +784,20 @@ export default function ProfilePage() {
 
                 {securityData?.twoFactorEnabled && (
                   <div className="flex flex-wrap gap-3">
-                    <button
+                    <Button
+                      variant="ghost"
+                      icon={RefreshCcw}
                       onClick={() => setShowRegenerateRecoveryCodes((value) => !value)}
-                      className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="border border-gray-300"
                     >
-                      <RefreshCcw className="w-4 h-4" />
                       Regenerar códigos de recuperação
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="danger"
                       onClick={() => setShowDisableTwoFactor((value) => !value)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                     >
                       Desativar 2FA
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -835,13 +828,9 @@ export default function ProfilePage() {
                       />
                       Usar código de recuperação
                     </label>
-                    <button
-                      type="submit"
-                      disabled={processingSecurity}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="danger" loading={processingSecurity}>
                       Confirmar desativação
-                    </button>
+                    </Button>
                   </form>
                 )}
 
@@ -872,13 +861,9 @@ export default function ProfilePage() {
                       />
                       Usar código de recuperação
                     </label>
-                    <button
-                      type="submit"
-                      disabled={processingSecurity}
-                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="warning" loading={processingSecurity}>
                       Gerar novos códigos
-                    </button>
+                    </Button>
                   </form>
                 )}
 
@@ -924,19 +909,17 @@ export default function ProfilePage() {
                       </p>
                     </div>
                     {linkedProvider ? (
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => handleUnlinkProvider(providerKey)}
-                        className="px-4 py-2 border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                        className="border border-red-200 text-red-700 hover:bg-red-50"
                       >
                         Desassociar
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        onClick={() => handleStartProviderLink(providerKey)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
+                      <Button onClick={() => handleStartProviderLink(providerKey)}>
                         Associar {provider}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 );
@@ -992,14 +975,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="pt-4">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Lock className="w-4 h-4" />
-                  {saving ? 'A alterar...' : 'Alterar Senha'}
-                </button>
+                <Button type="submit" variant="warning" icon={Lock} loading={saving}>
+                  Alterar Senha
+                </Button>
               </div>
             </form>
           </div>
@@ -1019,13 +997,9 @@ export default function ProfilePage() {
                 <p className="text-sm text-gray-500">Gerencie os documentos da sua habitação</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
+            <Button icon={Upload} onClick={() => setShowUploadModal(true)}>
               Carregar Documento
-            </button>
+            </Button>
           </div>
 
           {unitDocuments.length === 0 ? (
@@ -1155,25 +1129,22 @@ export default function ProfilePage() {
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-3 pt-4">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowUploadModal(false);
                     setUploadFile(null);
                     setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="flex-1 border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? 'A carregar...' : 'Carregar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={uploading} disabled={!uploadFile} fullWidth className="flex-1">
+                  Carregar
+                </Button>
               </div>
             </form>
       </ModalPopup>

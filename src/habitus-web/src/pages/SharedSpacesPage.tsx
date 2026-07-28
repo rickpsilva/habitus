@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Building, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building } from 'lucide-react';
 import { sharedSpacesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
 export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
@@ -310,82 +311,70 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
               </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+            <div className="flex flex-wrap justify-end gap-3 pt-2">
+              <Button variant="ghost" onClick={handleCancel} className="border border-gray-300">
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {submitting ? 'A guardar...' : editingId ? 'Atualizar' : 'Criar'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting}>
+                {editingId ? 'Atualizar' : 'Criar'}
+              </Button>
             </div>
           </form>
         </div>
       </ModalPopup>
 
-      {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Building className="w-7 h-7" />
-            Espaços Comuns
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">Gestão dos espaços partilhados do condomínio</p>
+      {!embedded ? (
+        <PageHeader
+          title="Espaços Comuns"
+          subtitle="Gestão dos espaços partilhados do condomínio"
+          search={
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar espaços..."
+            />
+          }
+          actions={
+            isAdmin && (
+              <Button icon={Plus} onClick={() => setShowForm(true)} fullWidth className="sm:w-auto">
+                Novo Espaço
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-48">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar espaços..."
+            />
+          </div>
+          {isAdmin && (
+            <Button icon={Plus} onClick={() => setShowForm(true)}>
+              Novo Espaço
+            </Button>
+          )}
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-48">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Pesquisar espaços..."
-          />
-        </div>
-        {isAdmin && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Espaço
-          </button>
-        )}
-      </div>
-
       {/* Cards */}
-      {loading ? (
-        <div className="flex items-center justify-center h-48 text-gray-500">A carregar...</div>
-      ) : loadError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {loadError}
-          </span>
-          <button
-            type="button"
-            onClick={() => load(currentPage)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Tentar novamente
-          </button>
-        </div>
-      ) : spaces.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Building className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Nenhum espaço comum registado</p>
-          <p className="text-gray-400 text-sm mt-1">Crie o primeiro espaço comum para começar</p>
-        </div>
-      ) : (
-        <>
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={spaces.length === 0}
+        skeleton="card"
+        empty={
+          <EmptyState
+            icon={Building}
+            title="Nenhum espaço comum registado"
+            description="Crie o primeiro espaço comum para começar"
+          />
+        }
+      >
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {spaces.map((space) => (
               <div
@@ -442,8 +431,8 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
               onPageChange={(page) => load(page)}
             />
           )}
-        </>
-      )}
+        </div>
+      </AsyncState>
     </div>
   );
 }

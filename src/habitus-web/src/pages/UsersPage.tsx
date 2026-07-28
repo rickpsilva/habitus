@@ -9,6 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { Button } from '../components/ui';
 import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
 
 const roleLabels: Record<number, string> = {
@@ -64,6 +65,7 @@ export default function UsersPage() {
     unitId: undefined,
   });
   const [isActive, setIsActive] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isInternalAdmin, setIsInternalAdmin] = useState(false); // Admin Interno com fração
   const [pendingUsers, setPendingUsers] = useState<PendingUserDto[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -183,6 +185,7 @@ export default function UsersPage() {
         const currentUser = users.find(u => u.id === editingId);
         if (!currentUser) throw new Error('User not found');
         
+        setSubmitting(true);
         await usersApi.update(editingId, {
           id: editingId,
           name: formData.name,
@@ -194,6 +197,7 @@ export default function UsersPage() {
           isActive: isActive,
         });
       } else {
+        setSubmitting(true);
         await usersApi.create(formData);
       }
       setShowModal(false);
@@ -203,6 +207,8 @@ export default function UsersPage() {
     } catch (error) {
       console.error('Erro ao guardar utilizador:', error);
       toastError('Erro ao guardar utilizador. Tente novamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -331,13 +337,9 @@ export default function UsersPage() {
               placeholder="Pesquisar utilizadores..."
             />
           </div>
-          <button
-            onClick={handleNew}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={handleNew} icon={Plus} className="w-full sm:w-auto justify-center">
             Novo Utilizador
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -661,22 +663,21 @@ export default function UsersPage() {
                 </div>
               )}
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={submitting}
+                  fullWidth
+                  className="border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
+                </Button>
+                <Button type="submit" fullWidth loading={submitting}>
                   {editingId ? 'Guardar' : 'Criar'}
-                </button>
+                </Button>
               </div>
             </form>
       </ModalPopup>

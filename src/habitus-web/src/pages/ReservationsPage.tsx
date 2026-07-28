@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Calendar, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Edit2, AlertCircle, Eye, Table as TableIcon, CalendarDays, RefreshCw } from 'lucide-react';
+import { Plus, Calendar, Trash2, Edit2, AlertCircle, Eye, Table as TableIcon, CalendarDays } from 'lucide-react';
 import { reservationsApi, sharedSpacesApi, usersApi, unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
-import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import WeeklyCalendar from '../components/WeeklyCalendar';
 import MonthlyCalendar from '../components/MonthlyCalendar';
 import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
+import { PageHeader, Button, Segmented, ErrorState, DataTable, EmptyState } from '../components/ui';
+import type { Column } from '../components/ui';
 
 const statusLabels: Record<string, string> = {
   Pending: 'Pendente',
@@ -540,15 +541,6 @@ export default function ReservationsPage() {
     }
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
-    }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-4 h-4 text-indigo-600" />
-      : <ArrowDown className="w-4 h-4 text-indigo-600" />;
-  };
-
   const filteredReservations = statusFilter 
     ? reservations.filter(r => r.status === statusFilter)
     : reservations;
@@ -621,6 +613,122 @@ export default function ReservationsPage() {
     setViewMode('week');
   };
 
+  const reservationColumns: Column<ReservationDto>[] = [
+    {
+      key: 'spaceName',
+      header: 'Espaço',
+      sortable: true,
+      mobileLabel: 'Espaço',
+      render: (r) => <span className="font-medium text-gray-900">{spaceName(r.spaceId)}</span>,
+    },
+    {
+      key: 'startTime',
+      header: 'Início',
+      sortable: true,
+      mobileLabel: 'Início',
+      render: (r) =>
+        new Date(r.startTime).toLocaleString('pt-PT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+    },
+    {
+      key: 'endTime',
+      header: 'Fim',
+      sortable: true,
+      mobileLabel: 'Fim',
+      render: (r) =>
+        new Date(r.endTime).toLocaleString('pt-PT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      sortable: true,
+      mobileLabel: 'Estado',
+      render: (r) => (
+        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
+          {statusLabels[r.status] ?? r.status}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Criado em',
+      sortable: true,
+      mobileLabel: 'Criado em',
+      render: (r) =>
+        new Date(r.createdAt).toLocaleString('pt-PT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      align: 'right',
+      mobileLabel: 'Ações',
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          {canEdit(r) && (
+            <>
+              <button
+                onClick={() => handleEdit(r)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Editar reserva"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(r.id)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                title="Eliminar reserva"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
+          {getAvailableActions(r).map((action, idx) => {
+            const colorClasses = {
+              green: 'text-green-600 hover:bg-green-50',
+              red: 'text-red-600 hover:bg-red-50',
+              orange: 'text-orange-600 hover:bg-orange-50',
+            }[action.color] || 'text-gray-600 hover:bg-gray-50';
+            return (
+              <button
+                key={idx}
+                onClick={action.action}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded transition-colors text-xs ${colorClasses}`}
+                title={action.label}
+              >
+                {action.label}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => openDetailsModal(r)}
+            className="inline-flex items-center gap-1 px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-xs font-medium"
+            title="Ver detalhes"
+          >
+            <Eye className="w-4 h-4" />
+            Detalhes
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <ConfirmModal
@@ -632,21 +740,21 @@ export default function ReservationsPage() {
         onConfirm={confirmCancellation}
         onCancel={() => setCancelId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reservas</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Reservas dos espaços comuns</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          {viewMode === 'table' && (
-            <>
-              <div className="w-full sm:w-80">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Pesquisar reservas..."
-                />
-              </div>
+      <PageHeader
+        title="Reservas"
+        subtitle="Reservas dos espaços comuns"
+        search={
+          viewMode === 'table' ? (
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar reservas..."
+            />
+          ) : undefined
+        }
+        actions={
+          <>
+            {viewMode === 'table' && (
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -660,52 +768,24 @@ export default function ReservationsPage() {
                 <option value="Cancelled">Cancelado</option>
                 <option value="Completed">Terminado</option>
               </select>
-            </>
-          )}
-          <div className="w-full sm:w-auto flex items-center gap-1 bg-gray-100 rounded-lg p-1 overflow-x-auto app-scrollbar">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <TableIcon className="w-4 h-4" />
-              Tabela
-            </button>
-            <button
-              onClick={() => setViewMode('week')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                viewMode === 'week'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Semanal
-            </button>
-            <button
-              onClick={() => setViewMode('month')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                viewMode === 'month'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              Mensal
-            </button>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Reserva
-          </button>
-        </div>
-      </div>
+            )}
+            <Segmented<'table' | 'week' | 'month'>
+              ariaLabel="Modo de visualização"
+              value={viewMode}
+              onChange={setViewMode}
+              className="w-full sm:w-auto"
+              options={[
+                { value: 'table', label: 'Tabela', icon: TableIcon },
+                { value: 'week', label: 'Semanal', icon: Calendar },
+                { value: 'month', label: 'Mensal', icon: CalendarDays },
+              ]}
+            />
+            <Button onClick={() => setShowForm(true)} icon={Plus} fullWidth className="sm:w-auto">
+              Nova Reserva
+            </Button>
+          </>
+        }
+      />
 
       {/* Spaces available */}
       {spaces.length > 0 && (
@@ -767,41 +847,20 @@ export default function ReservationsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <div className="sm:col-span-2 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleCancelForm}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+          <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+            <Button variant="ghost" onClick={handleCancelForm} className="border border-gray-300">
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {submitting ? 'A guardar...' : editingId ? 'Atualizar' : 'Reservar'}
-            </button>
+            </Button>
+            <Button type="submit" loading={submitting}>
+              {editingId ? 'Atualizar' : 'Reservar'}
+            </Button>
           </div>
         </form>
       </ModalPopup>
 
       {/* Calendar or Table view */}
-      {!loading && loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {loadError}
-          </span>
-          <button
-            type="button"
-            onClick={() => load(currentPage)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Tentar novamente
-          </button>
-        </div>
+      {!loading && loadError && viewMode !== 'table' && (
+        <ErrorState message={loadError} onRetry={() => load(currentPage)} />
       )}
 
       {viewMode === 'week' ? (
@@ -823,178 +882,27 @@ export default function ReservationsPage() {
       ) : (
         <>
           {/* Reservations table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : !loadError && reservations.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Sem reservas</p>
-            <p className="text-sm text-gray-500 mt-1">Crie a primeira reserva de espaço comum</p>
-          </div>
-        ) : !loadError ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th 
-                    onClick={() => handleSort('spaceName')}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      Espaço
-                      {getSortIcon('spaceName')}
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => handleSort('startTime')}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      Início
-                      {getSortIcon('startTime')}
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => handleSort('endTime')}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      Fim
-                      {getSortIcon('endTime')}
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => handleSort('status')}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      Estado
-                      {getSortIcon('status')}
-                    </div>
-                  </th>
-                  <th 
-                    onClick={() => handleSort('createdAt')}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      Criado em
-                      {getSortIcon('createdAt')}
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sortedReservations.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                      {spaceName(r.spaceId)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(r.startTime).toLocaleString('pt-PT', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(r.endTime).toLocaleString('pt-PT', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {statusLabels[r.status] ?? r.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {new Date(r.createdAt).toLocaleString('pt-PT', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Edit and Delete buttons */}
-                        {canEdit(r) && (
-                          <>
-                            <button 
-                              onClick={() => handleEdit(r)} 
-                              className="inline-flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Editar reserva"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(r.id)} 
-                              className="inline-flex items-center gap-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Eliminar reserva"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        
-                        {/* Status action buttons */}
-                        {getAvailableActions(r).map((action, idx) => {
-                          const colorClasses = {
-                            green: 'text-green-600 hover:bg-green-50',
-                            red: 'text-red-600 hover:bg-red-50',
-                            orange: 'text-orange-600 hover:bg-orange-50'
-                          }[action.color] || 'text-gray-600 hover:bg-gray-50';
-                          
-                          return (
-                            <button
-                              key={idx}
-                              onClick={action.action}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded transition-colors text-xs ${colorClasses}`}
-                              title={action.label}
-                            >
-                              {action.label}
-                            </button>
-                          );
-                        })}
-                        
-                        {/* Show details button */}
-                        <button
-                          onClick={() => openDetailsModal(r)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-xs font-medium"
-                          title="Ver detalhes"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Detalhes
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-        
-        {pagination && !loading && reservations.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200">
-            <Pagination
-              pagination={pagination}
-              currentPage={currentPage}
-              onPageChange={(page) => load(page)}
-            />
-          </div>
-        )}
-      </div>
+          <DataTable<ReservationDto>
+            columns={reservationColumns}
+            rows={sortedReservations}
+            rowKey={(r) => r.id}
+            loading={loading}
+            error={loadError || null}
+            onRetry={() => load(currentPage)}
+            sortBy={sortField}
+            sortDirection={sortDirection}
+            onSort={(key) => handleSort(key as SortField)}
+            pagination={pagination ?? undefined}
+            currentPage={currentPage}
+            onPageChange={(page) => load(page)}
+            emptyState={
+              <EmptyState
+                icon={Calendar}
+                title="Sem reservas"
+                description="Crie a primeira reserva de espaço comum"
+              />
+            }
+          />
         </>
       )}
 
@@ -1045,19 +953,13 @@ export default function ReservationsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               rows={4}
             />
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={closeCommentModal}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+            <div className="flex flex-wrap justify-end gap-3 mt-4">
+              <Button variant="ghost" onClick={closeCommentModal} className="border border-gray-300">
                 Cancelar
-              </button>
-              <button
-                onClick={handleStatusAction}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-              >
+              </Button>
+              <Button onClick={handleStatusAction}>
                 Confirmar
-              </button>
+              </Button>
             </div>
       </ModalPopup>
 
@@ -1177,12 +1079,9 @@ export default function ReservationsPage() {
             </div>
             
             <div className="flex justify-end mt-6">
-              <button
-                onClick={closeDetailsModal}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-              >
+              <Button variant="secondary" onClick={closeDetailsModal}>
                 Fechar
-              </button>
+              </Button>
             </div>
           </>
         )}

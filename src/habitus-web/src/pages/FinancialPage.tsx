@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,6 +8,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
+import { PageHeader, Button, Skeleton, ErrorState, DataTable } from '../components/ui';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -519,43 +520,33 @@ export default function FinancialPage() {
         onCancel={() => setIssueReceiptId(null)}
       />
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão Financeira</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Conta corrente e fundo de reserva do condomínio
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year}>Ano Fiscal {year}</option>
-            ))}
-          </select>
-          {isAdmin && (
-            <>
-              <button
-                onClick={openDocumentModal}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <FileText className="w-4 h-4" />
-                Adicionar Documento
-              </button>
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Novo Registo
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Gestão Financeira"
+        subtitle="Conta corrente e fundo de reserva do condomínio"
+        actions={
+          <>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>Ano Fiscal {year}</option>
+              ))}
+            </select>
+            {isAdmin && (
+              <>
+                <Button variant="secondary" onClick={openDocumentModal} icon={FileText}>
+                  Adicionar Documento
+                </Button>
+                <Button onClick={() => setShowForm(true)} icon={Plus}>
+                  Novo Registo
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
 
       {/* Tabs (Admin only) */}
       {isAdmin && (
@@ -604,37 +595,27 @@ export default function FinancialPage() {
       {activeTab === 'transactions' && (
         <>
           {dashboardLoadError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                {dashboardLoadError}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (condominiumId) {
-                    setLoading(true);
-                    setDashboardLoadError('');
-                    Promise.all([
-                      financialApi.getDashboard(condominiumId, selectedYear),
-                      financialApi.getCurrentReserveFund(condominiumId),
-                      financialApi.getFiscalYears(condominiumId),
-                    ])
-                      .then(([dashboardRes, fundRes, yearsRes]) => {
-                        setDashboard(dashboardRes.data);
-                        setReserveFund(fundRes.data);
-                        setAvailableYears(yearsRes.data);
-                      })
-                      .catch(() => setDashboardLoadError('Não foi possível carregar o resumo financeiro.'))
-                      .finally(() => setLoading(false));
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Tentar novamente
-              </button>
-            </div>
+            <ErrorState
+              message={dashboardLoadError}
+              onRetry={() => {
+                if (condominiumId) {
+                  setLoading(true);
+                  setDashboardLoadError('');
+                  Promise.all([
+                    financialApi.getDashboard(condominiumId, selectedYear),
+                    financialApi.getCurrentReserveFund(condominiumId),
+                    financialApi.getFiscalYears(condominiumId),
+                  ])
+                    .then(([dashboardRes, fundRes, yearsRes]) => {
+                      setDashboard(dashboardRes.data);
+                      setReserveFund(fundRes.data);
+                      setAvailableYears(yearsRes.data);
+                    })
+                    .catch(() => setDashboardLoadError('Não foi possível carregar o resumo financeiro.'))
+                    .finally(() => setLoading(false));
+                }
+              }}
+            />
           )}
 
           {/* Info Banner */}
@@ -653,7 +634,7 @@ export default function FinancialPage() {
       )}
 
       {activeTab === 'transactions' && loading ? (
-        <div className="text-center py-12 text-gray-400">A carregar...</div>
+        <Skeleton variant="card" rows={4} />
       ) : activeTab === 'transactions' ? (
         <>
           {/* Dashboard Cards */}
@@ -716,15 +697,16 @@ export default function FinancialPage() {
                   <h2 className="font-semibold text-gray-900">Fundo de Reserva</h2>
                 </div>
                 {isAdmin && (
-                  <button
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => {
                       setFundOperation('deposit');
                       setShowFundModal(true);
                     }}
-                    className="text-xs px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
                   >
                     Gerir Fundo
-                  </button>
+                  </Button>
                 )}
               </div>
               
@@ -778,20 +760,11 @@ export default function FinancialPage() {
               </div>
             </div>
             {recordsLoadError && (
-              <div className="mx-5 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {recordsLoadError}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => loadRecords(currentPage)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Tentar novamente
-                </button>
-              </div>
+              <ErrorState
+                message={recordsLoadError}
+                onRetry={() => loadRecords(currentPage)}
+                className="mx-5 mt-4"
+              />
             )}
             
             {!recordsLoadError && records.length === 0 ? (
@@ -927,22 +900,17 @@ export default function FinancialPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={submitting}
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'A guardar...' : 'Guardar Registo'}
-                </button>
+                </Button>
+                <Button type="submit" loading={submitting}>
+                  Guardar Registo
+                </Button>
               </div>
             </form>
       </ModalPopup>
@@ -1002,24 +970,18 @@ export default function FinancialPage() {
                 )}
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowFundModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowFundModal(false)}>
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={fundOperation === 'deposit' ? 'success' : 'warning'}
                 onClick={handleFundOperation}
-                disabled={submitting || !fundAmount || parseFloat(fundAmount) <= 0}
-                className={`px-4 py-2 rounded-lg text-sm font-medium text-white ${
-                  fundOperation === 'deposit'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
-                    : 'bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400'
-                }`}
+                loading={submitting}
+                disabled={!fundAmount || parseFloat(fundAmount) <= 0}
               >
-                {submitting ? 'A processar...' : fundOperation === 'deposit' ? 'Transferir para Fundo' : 'Levantar do Fundo'}
-              </button>
+                {fundOperation === 'deposit' ? 'Transferir para Fundo' : 'Levantar do Fundo'}
+              </Button>
             </div>
       </ModalPopup>
 
@@ -1091,29 +1053,23 @@ export default function FinancialPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowDocumentModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={uploading}
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  variant="success"
+                  icon={UploadIcon}
+                  loading={uploading}
+                  disabled={!uploadFile}
                 >
-                  {uploading ? (
-                    <>A carregar...</>
-                  ) : (
-                    <>
-                      <UploadIcon className="w-4 h-4" />
-                      Carregar Documento
-                    </>
-                  )}
-                </button>
+                  Carregar Documento
+                </Button>
               </div>
             </form>
       </ModalPopup>
@@ -1168,20 +1124,7 @@ export default function FinancialPage() {
 
             {/* Payments List */}
             {paymentsLoadError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {paymentsLoadError}
-                </span>
-                <button
-                  type="button"
-                  onClick={loadAllPayments}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Tentar novamente
-                </button>
-              </div>
+              <ErrorState message={paymentsLoadError} onRetry={loadAllPayments} />
             ) : filteredPayments.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 {paymentSearchQuery ? 
@@ -1310,47 +1253,54 @@ export default function FinancialPage() {
                     )}
 
                     {/* Action Buttons - Context Dependent */}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {payment.status === 'Pending' && (
                         <>
-                          <button
+                          <Button
+                            variant="success"
+                            icon={Check}
                             onClick={() => handleApprovePayment(payment.id)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            fullWidth
+                            className="flex-1"
                           >
-                            <Check className="w-4 h-4" />
                             Aprovar
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="danger"
+                            icon={XCircle}
                             onClick={() => {
                               setSelectedPayment(payment);
                               setShowRejectModal(true);
                             }}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            fullWidth
+                            className="flex-1"
                           >
-                            <XCircle className="w-4 h-4" />
                             Rejeitar
-                          </button>
+                          </Button>
                         </>
                       )}
                       
                       {payment.status === 'Approved' && (
                         <>
                           {payment.hasReceipt ? (
-                            <button
+                            <Button
+                              icon={ArrowDownToLine}
                               onClick={() => handleDownloadReceipt(payment)}
-                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                              fullWidth
+                              className="flex-1"
                             >
-                              <ArrowDownToLine className="w-4 h-4" />
                               Descarregar Recibo
-                            </button>
+                            </Button>
                           ) : (
-                            <button
+                            <Button
+                              variant="success"
+                              icon={FileText}
                               onClick={() => handleIssueReceipt(payment.id)}
-                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                              fullWidth
+                              className="flex-1"
                             >
-                              <FileText className="w-4 h-4" />
                               Emitir Recibo
-                            </button>
+                            </Button>
                           )}
                         </>
                       )}
@@ -1393,23 +1343,28 @@ export default function FinancialPage() {
                 required
               />
             </div>
-            <div className="flex gap-2">
-              <button
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setShowRejectModal(false);
                   setSelectedPayment(null);
                   setRejectionReason('');
                 }}
-                className="flex-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                fullWidth
+                className="flex-1"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={handleRejectPayment}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                disabled={!rejectionReason.trim()}
+                fullWidth
+                className="flex-1"
               >
                 Rejeitar Pagamento
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -1606,13 +1561,9 @@ function FinancialPlansContent() {
             <h2 className="text-2xl font-bold text-gray-900">Planos Financeiros</h2>
             <p className="text-gray-600 mt-1">Gerir planos de quotas por ano</p>
           </div>
-          <button
-            onClick={() => setView('create')}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
+          <Button icon={Plus} onClick={() => setView('create')}>
             Novo Plano
-          </button>
+          </Button>
         </div>
 
         {/* Unit Monthly Quotas Panel */}
@@ -1670,13 +1621,9 @@ function FinancialPlansContent() {
                 ))}
               </div>
               <div className="mt-4 flex justify-end">
-                <button
-                  onClick={handleSaveUnitQuotas}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Save className="w-4 h-4" />
+                <Button variant="success" icon={Save} onClick={handleSaveUnitQuotas}>
                   Guardar Quotas
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -1740,13 +1687,14 @@ function FinancialPlansContent() {
                 </div>
 
                 {plan.status === 'Draft' && (
-                  <button
+                  <Button
+                    variant="success"
+                    icon={CheckCircle}
                     onClick={() => handleApplyPlan(plan.id)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    fullWidth
                   >
-                    <CheckCircle className="w-5 h-5" />
                     Aplicar Plano de Quota {plan.year}
-                  </button>
+                  </Button>
                 )}
               </div>
             ))
@@ -1823,7 +1771,8 @@ function FinancialPlansContent() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setView('list');
                   setSelectedPlan(null);
@@ -1833,16 +1782,18 @@ function FinancialPlansContent() {
                     extraordinaryQuota: 0
                   });
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                fullWidth
+                className="flex-1 border border-gray-300"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={view === 'create' ? handleCreatePlan : handleUpdatePlan}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                fullWidth
+                className="flex-1"
               >
                 {view === 'create' ? 'Criar Plano' : 'Guardar Alterações'}
-              </button>
+              </Button>
             </div>
       </ModalPopup>
       <ConfirmModal
@@ -1912,119 +1863,136 @@ function FinancialPlansContent() {
         </div>
 
         {/* Calculations Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fração
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quota Base
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Inflação ({selectedPlan.inflationRate}%)
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quota Extraordinária
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mensal
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trimestral
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Anual
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {units.map(unit => {
-                  const baseQuota = unit.monthlyQuota || 0;
-                  const inflationAmount = baseQuota * (selectedPlan.inflationRate / 100);
-                  const quotaWithInflation = baseQuota + inflationAmount;
-                  const monthlyTotal = quotaWithInflation + extraordinaryPerUnit;
-                  const quarterlyTotal = monthlyTotal * 3;
-                  const annualTotal = monthlyTotal * 12;
-
-                  return (
-                    <tr key={unit.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {unit.number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        €{baseQuota.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
-                        €{inflationAmount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
-                        €{extraordinaryPerUnit.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
-                        €{monthlyTotal.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        €{quarterlyTotal.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        €{annualTotal.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Totals Row */}
-                <tr className="bg-gray-50 font-semibold">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    TOTAL
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{units.reduce((sum, u) => sum + (u.monthlyQuota || 0), 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{units.reduce((sum, u) => sum + ((u.monthlyQuota || 0) * (selectedPlan.inflationRate / 100)), 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{selectedPlan.extraordinaryQuota.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{units.reduce((sum, u) => {
+        <DataTable<UnitDto>
+          columns={[
+            { key: 'number', header: 'Fração', mobileLabel: 'Fração' },
+            {
+              key: 'baseQuota',
+              header: 'Quota Base',
+              align: 'right',
+              render: (u) => `€${(u.monthlyQuota || 0).toFixed(2)}`,
+            },
+            {
+              key: 'inflation',
+              header: `Inflação (${selectedPlan.inflationRate}%)`,
+              align: 'right',
+              render: (u) => `€${((u.monthlyQuota || 0) * (selectedPlan.inflationRate / 100)).toFixed(2)}`,
+            },
+            {
+              key: 'extra',
+              header: 'Quota Extraordinária',
+              align: 'right',
+              render: () => `€${extraordinaryPerUnit.toFixed(2)}`,
+            },
+            {
+              key: 'monthly',
+              header: 'Mensal',
+              align: 'right',
+              className: 'font-semibold text-gray-900',
+              render: (u) => {
+                const base = u.monthlyQuota || 0;
+                const inflation = base * (selectedPlan.inflationRate / 100);
+                return `€${(base + inflation + extraordinaryPerUnit).toFixed(2)}`;
+              },
+            },
+            {
+              key: 'quarterly',
+              header: 'Trimestral',
+              align: 'right',
+              render: (u) => {
+                const base = u.monthlyQuota || 0;
+                const inflation = base * (selectedPlan.inflationRate / 100);
+                return `€${((base + inflation + extraordinaryPerUnit) * 3).toFixed(2)}`;
+              },
+            },
+            {
+              key: 'annual',
+              header: 'Anual',
+              align: 'right',
+              render: (u) => {
+                const base = u.monthlyQuota || 0;
+                const inflation = base * (selectedPlan.inflationRate / 100);
+                return `€${((base + inflation + extraordinaryPerUnit) * 12).toFixed(2)}`;
+              },
+            },
+          ]}
+          rows={units}
+          rowKey={(u) => u.id}
+          footer={
+            <tr>
+              <td className="px-4 py-3">TOTAL</td>
+              <td className="px-4 py-3 text-right">
+                €{units.reduce((sum, u) => sum + (u.monthlyQuota || 0), 0).toFixed(2)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                €{units
+                  .reduce((sum, u) => sum + ((u.monthlyQuota || 0) * (selectedPlan.inflationRate / 100)), 0)
+                  .toFixed(2)}
+              </td>
+              <td className="px-4 py-3 text-right">€{selectedPlan.extraordinaryQuota.toFixed(2)}</td>
+              <td className="px-4 py-3 text-right">
+                €{units
+                  .reduce((sum, u) => {
+                    const base = u.monthlyQuota || 0;
+                    const inflation = base * (selectedPlan.inflationRate / 100);
+                    return sum + base + inflation + extraordinaryPerUnit;
+                  }, 0)
+                  .toFixed(2)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                €{(units.reduce((sum, u) => {
+                  const base = u.monthlyQuota || 0;
+                  const inflation = base * (selectedPlan.inflationRate / 100);
+                  return sum + base + inflation + extraordinaryPerUnit;
+                }, 0) * 3).toFixed(2)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                €{(units.reduce((sum, u) => {
+                  const base = u.monthlyQuota || 0;
+                  const inflation = base * (selectedPlan.inflationRate / 100);
+                  return sum + base + inflation + extraordinaryPerUnit;
+                }, 0) * 12).toFixed(2)}
+              </td>
+            </tr>
+          }
+          mobileFooter={
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-2 font-semibold text-gray-900">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-gray-500">Total Mensal</span>
+                <span className="text-sm">
+                  €{units
+                    .reduce((sum, u) => {
                       const base = u.monthlyQuota || 0;
                       const inflation = base * (selectedPlan.inflationRate / 100);
                       return sum + base + inflation + extraordinaryPerUnit;
-                    }, 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{(units.reduce((sum, u) => {
-                      const base = u.monthlyQuota || 0;
-                      const inflation = base * (selectedPlan.inflationRate / 100);
-                      return sum + base + inflation + extraordinaryPerUnit;
-                    }, 0) * 3).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    €{(units.reduce((sum, u) => {
-                      const base = u.monthlyQuota || 0;
-                      const inflation = base * (selectedPlan.inflationRate / 100);
-                      return sum + base + inflation + extraordinaryPerUnit;
-                    }, 0) * 12).toFixed(2)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    }, 0)
+                    .toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-gray-500">Total Anual</span>
+                <span className="text-sm">
+                  €{(units.reduce((sum, u) => {
+                    const base = u.monthlyQuota || 0;
+                    const inflation = base * (selectedPlan.inflationRate / 100);
+                    return sum + base + inflation + extraordinaryPerUnit;
+                  }, 0) * 12).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          }
+        />
 
         {selectedPlan.status === 'Draft' && (
           <div className="mt-6">
-            <button
+            <Button
+              variant="success"
+              icon={CheckCircle}
               onClick={() => handleApplyPlan(selectedPlan.id)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              fullWidth
             >
-              <CheckCircle className="w-5 h-5" />
               Aplicar Plano de Quota {selectedPlan.year}
-            </button>
+            </Button>
           </div>
         )}
       </div>

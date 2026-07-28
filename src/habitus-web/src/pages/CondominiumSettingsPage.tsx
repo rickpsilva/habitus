@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server, AlertCircle
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
+import { PageHeader, Spinner, ErrorState, Button } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi } from '../api/services';
 import type {
@@ -84,12 +85,10 @@ export default function CondominiumSettingsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          {isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
-        </p>
-      </div>
+      <PageHeader
+        title={isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}
+        subtitle={isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
+      />
 
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -202,19 +201,13 @@ function GeneralCondominiumContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -301,14 +294,9 @@ function GeneralCondominiumContent() {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Dados'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Dados
+          </Button>
         </div>
       </div>
     </div>
@@ -373,23 +361,13 @@ function PlatformBillingContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -499,14 +477,9 @@ function PlatformBillingContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
         </div>
       </div>
     </div>
@@ -577,23 +550,13 @@ function PlatformUploadContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -639,14 +602,9 @@ function PlatformUploadContent() {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Limite'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Limite
+          </Button>
         </div>
       </div>
     </div>
@@ -948,19 +906,13 @@ function ReceiptTemplateContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -1024,14 +976,9 @@ function ReceiptTemplateContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Template'}
-          </button>
+          <Button type="submit" icon={Save} loading={saving}>
+            Guardar Template
+          </Button>
         </div>
       </form>
     </div>
@@ -1202,19 +1149,13 @@ function PaymentMethodsContent() {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -1373,14 +1314,9 @@ function PaymentMethodsContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
         </div>
       </div>
 
@@ -1478,9 +1414,9 @@ function PaymentMethodsContent() {
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
-          <button type="button" onClick={() => setActiveMethodModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
-          <button type="button" onClick={saveAndCloseMethodModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        <div className="mt-6 pt-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={() => setActiveMethodModal(null)} className="border border-gray-300">Fechar</Button>
+          <Button icon={Save} onClick={saveAndCloseMethodModal} loading={saving}>Guardar Configurações</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1584,7 +1520,7 @@ function CommunicationChannelsContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   if (!settings) return null;
@@ -1592,13 +1528,7 @@ function CommunicationChannelsContent() {
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -1708,23 +1638,9 @@ function CommunicationChannelsContent() {
 
         {/* Save Button */}
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                A guardar...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Guardar Configurações
-              </>
-            )}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving} className="px-6 py-2.5">
+            Guardar Configurações
+          </Button>
         </div>
       </div>
 
@@ -1800,9 +1716,9 @@ function CommunicationChannelsContent() {
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
-          <button type="button" onClick={() => setActiveChannelModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
-          <button type="button" onClick={saveAndCloseChannelModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        <div className="mt-6 pt-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={() => setActiveChannelModal(null)} className="border border-gray-300">Fechar</Button>
+          <Button icon={Save} onClick={saveAndCloseChannelModal} loading={saving}>Guardar Configurações</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1881,23 +1797,13 @@ function SystemEmailContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-gray-500"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
@@ -2007,21 +1913,18 @@ function SystemEmailContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
-          <button
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
+          <Button
+            variant="ghost"
             onClick={handleTest}
-            disabled={testing || !form.emailEnabled}
-            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-colors"
+            loading={testing}
+            disabled={!form.emailEnabled}
+            className="border border-gray-300"
           >
-            {testing ? 'A verificar...' : 'Verificar Configuração'}
-          </button>
+            Verificar Configuração
+          </Button>
         </div>
       </div>
     </div>

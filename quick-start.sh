@@ -19,19 +19,53 @@ WEB_DIR="$PROJECT_ROOT/src/habitus-web"
 echo -e "${BLUE}🚀 Habitus Quick Start${NC}"
 echo ""
 
+# Detectar se estamos dentro de um container Docker
+IN_CONTAINER=false
+if [ -f "/.dockerenv" ]; then
+    IN_CONTAINER=true
+    DB_HOST="host.docker.internal"
+    echo -e "${YELLOW}⚠ A correr dentro de um container Docker — PostgreSQL deve estar ativo no host.${NC}"
+else
+    DB_HOST="localhost"
+fi
+
 # Para todos os serviços primeiro para garantir um arranque limpo
 echo -e "${BLUE}0. Parando serviços existentes...${NC}"
 cd "$PROJECT_ROOT"
-./run-local.sh stop-all >/dev/null 2>&1 || true
-echo -e "${GREEN}✓ Serviços parados${NC}"
+if [ "$IN_CONTAINER" = false ]; then
+    ./run-local.sh stop-all >/dev/null 2>&1 || true
+    echo -e "${GREEN}✓ Serviços parados${NC}"
+else
+    echo -e "${YELLOW}⚠ Dentro de container: a ignorar stop-all (sem acesso ao Docker socket)${NC}"
+fi
 echo ""
 
 # Inicia BD e pgAdmin
 echo -e "${BLUE}1. Iniciando PostgreSQL e pgAdmin...${NC}"
 cd "$PROJECT_ROOT"
-docker compose up postgres pgadmin -d >/dev/null 2>&1 || true
-sleep 3
-echo -e "${GREEN}✓ PostgreSQL e pgAdmin estão em execução${NC}"
+if [ "$IN_CONTAINER" = false ]; then
+    docker compose up postgres pgadmin -d >/dev/null 2>&1 || true
+    sleep 3
+    echo -e "${GREEN}✓ PostgreSQL e pgAdmin estão em execução${NC}"
+else
+    echo -e "${YELLOW}⚠ Dentro de container: a ignorar 'docker compose up' (sem Docker socket).${NC}"
+    echo -e "${YELLOW}  Garante que o PostgreSQL está a correr no host antes de continuar.${NC}"
+    echo -e "${YELLOW}  No host: cd /path/to/habitus && docker compose up postgres pgadmin -d${NC}"
+    # Aguarda que o postgres esteja acessível
+    echo -e "${BLUE}  Aguardando PostgreSQL em $DB_HOST:5432...${NC}"
+    for i in $(seq 1 15); do
+        if (echo > /dev/tcp/"$DB_HOST"/5432) 2>/dev/null; then
+            echo -e "${GREEN}✓ PostgreSQL acessível em $DB_HOST:5432${NC}"
+            break
+        fi
+        if [ "$i" -eq 15 ]; then
+            echo -e "${RED}✗ PostgreSQL não acessível em $DB_HOST:5432 após 15s.${NC}"
+            echo -e "${RED}  Inicia o PostgreSQL no host e tenta novamente.${NC}"
+            exit 1
+        fi
+        sleep 1
+    done
+fi
 echo ""
 
 # Restaura dependências .NET
@@ -46,16 +80,18 @@ echo -e "${BLUE}3. Criando e aplicando migrações...${NC}"
 
 # Verifica se há migrations folder, se não cria a inicial
 INFRA_DIR="$PROJECT_ROOT/src/Habitus.Infrastructure"
+DB_CONN="Host=$DB_HOST;Port=5432;Database=habitus;Username=habitus;Password=habitus"
+
 if [ ! -d "$INFRA_DIR/Migrations" ]; then
     echo -e "${BLUE}ℹ Criando migração inicial...${NC}"
     dotnet ef migrations add InitialCreate --project "$INFRA_DIR" --startup-project "$API_DIR" >/dev/null 2>&1
 fi
 
 # Aplica as migrations
-if ! dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR"; then
+if ! dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR" --connection "$DB_CONN"; then
     echo -e "${RED}Tentando novamente em 2 segundos...${NC}"
     sleep 2
-    dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR"
+    dotnet ef database update --project "$INFRA_DIR" --startup-project "$API_DIR" --connection "$DB_CONN"
 fi
 echo -e "${GREEN}✓ Migrações aplicadas${NC}"
 echo ""
@@ -95,15 +131,15 @@ echo ""
 echo "Pressiona Ctrl+C para parar tudo"
 echo ""
 
-# Inicia API em background
+# Inicia API em background (bind em 0.0.0.0 para ser acessível do host)
 cd "$API_DIR"
-dotnet run &
+dotnet run --urls "http://0.0.0.0:5027" &
 API_PID=$!
 
-# Aguarda um pouco e inicia Web
+# Aguarda um pouco e inicia Web (--host expõe ao host)
 sleep 2
 cd "$WEB_DIR"
-npm run dev &
+npm run dev -- --host &
 WEB_PID=$!
 
 # Aguarda ambas

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,6 +8,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
+import { PageHeader, Button, Segmented, AsyncState, EmptyState } from '../components/ui';
 
 type SupplierForm = CreateSupplierRequest & { isActive: boolean };
 
@@ -168,19 +169,36 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         onCancel={() => setDeleteId(null)}
       />
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Truck className="w-7 h-7 text-indigo-600" />
-              Fornecedores
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Gerir fornecedores de serviços do condomínio
-            </p>
-          </div>
-        )}
-        <div className={`flex items-center gap-3 flex-wrap sm:flex-nowrap ${!embedded ? 'w-full sm:w-auto sm:ml-auto justify-end' : 'w-full justify-between'}`}>
+      {!embedded ? (
+        <PageHeader
+          title="Fornecedores"
+          subtitle="Gerir fornecedores de serviços do condomínio"
+          search={
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar fornecedores..."
+            />
+          }
+          actions={
+            isAdmin && (
+              <Button
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(initialSupplierForm);
+                  setShowForm(true);
+                }}
+                icon={Plus}
+                fullWidth
+                className="sm:w-auto"
+              >
+                Novo Fornecedor
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <div className="flex w-full items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
           <div className="w-full sm:w-72">
             <SearchBar
               value={searchQuery}
@@ -189,37 +207,33 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             />
           </div>
           {isAdmin && (
-            <button
+            <Button
               onClick={() => {
                 setEditingId(null);
                 setForm(initialSupplierForm);
                 setShowForm(true);
               }}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              icon={Plus}
+              fullWidth
+              className="sm:w-auto"
             >
-              <Plus className="w-5 h-5" />
               Novo Fornecedor
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Filter */}
-      <div className="flex gap-2">
-        {['all', 'active', 'inactive'].map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setFilterActive(filter)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filterActive === filter
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {filter === 'all' ? 'Todos' : filter === 'active' ? 'Ativos' : 'Inativos'}
-          </button>
-        ))}
-      </div>
+      <Segmented<string>
+        ariaLabel="Filtrar fornecedores por estado"
+        value={filterActive}
+        onChange={setFilterActive}
+        options={[
+          { value: 'all', label: 'Todos' },
+          { value: 'active', label: 'Ativos' },
+          { value: 'inactive', label: 'Inativos' },
+        ]}
+      />
 
       {/* Form Modal */}
       <ModalPopup
@@ -322,57 +336,34 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
+          <div className="flex flex-wrap justify-end gap-3 pt-4">
+            <Button
+              variant="secondary"
               onClick={() => {
                 setShowForm(false);
                 setEditingId(null);
                 setForm(initialSupplierForm);
               }}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'A guardar...' : editingId ? 'Guardar' : 'Criar'}
-            </button>
+            </Button>
+            <Button type="submit" loading={submitting}>
+              {editingId ? 'Guardar' : 'Criar'}
+            </Button>
           </div>
         </form>
       </ModalPopup>
 
       {/* Suppliers Grid */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="text-gray-500 mt-2">A carregar fornecedores...</p>
-        </div>
-      ) : loadError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {loadError}
-          </span>
-          <button
-            type="button"
-            onClick={() => load(currentPage)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Tentar novamente
-          </button>
-        </div>
-      ) : filteredSuppliers.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Truck className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-500">Sem fornecedores registados</p>
-        </div>
-      ) : (
-        <>
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredSuppliers.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Truck} title="Sem fornecedores registados" />}
+      >
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSuppliers.map((supplier) => (
               <div
@@ -447,8 +438,8 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
               onPageChange={(page) => load(page)}
             />
           )}
-        </>
-      )}
+        </div>
+      </AsyncState>
     </div>
   );
 }

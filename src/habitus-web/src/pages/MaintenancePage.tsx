@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, Eye } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
 const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
@@ -397,28 +398,22 @@ export default function MaintenancePage() {
         onConfirm={confirmDocDelete}
         onCancel={() => setDeleteDocId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Pedidos de manutenção do condomínio</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar pedidos..."
-            />
-          </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Manutenção"
+        subtitle="Pedidos de manutenção do condomínio"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar pedidos..."
+          />
+        }
+        actions={
+          <Button onClick={() => setShowForm(!showForm)} icon={Plus} fullWidth className="sm:w-auto">
             Novo Pedido
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
@@ -488,17 +483,13 @@ export default function MaintenancePage() {
                 ))}
               </select>
             </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowForm(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Guardar
+              </Button>
             </div>
           </form>
       </ModalPopup>
@@ -520,29 +511,13 @@ export default function MaintenancePage() {
 
       {/* List */}
       <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : loadError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={load}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        ) : paginatedRequests.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            Sem pedidos de manutenção
-          </div>
-        ) : (
+        <AsyncState
+          loading={loading}
+          error={loadError || null}
+          onRetry={load}
+          isEmpty={paginatedRequests.length === 0}
+          empty={<EmptyState icon={Wrench} title="Sem pedidos de manutenção" />}
+        >
           <>
             {paginatedRequests.map((m) => {
               const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
@@ -597,7 +572,7 @@ export default function MaintenancePage() {
               />
             )}
           </>
-        )}
+        </AsyncState>
       </div>
 
       {/* Status Management Modal */}
@@ -832,21 +807,18 @@ export default function MaintenancePage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      variant="ghost"
                       onClick={handleCloseStatusPanel}
-                      className="flex-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      fullWidth
+                      className="flex-1 border border-gray-300"
                     >
                       Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      {submitting ? 'A guardar...' : 'Guardar Alterações'}
-                    </button>
+                    </Button>
+                    <Button type="submit" loading={submitting} fullWidth className="flex-1">
+                      Guardar Alterações
+                    </Button>
                   </div>
                 </form>
               ) : (
@@ -1028,25 +1000,22 @@ export default function MaintenancePage() {
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-3 pt-4">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowDocUploadModal(false);
                     setUploadFile(null);
                     setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="flex-1 border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? 'A carregar...' : 'Adicionar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={uploading} disabled={!uploadFile} fullWidth className="flex-1">
+                  Adicionar
+                </Button>
               </div>
             </form>
       </ModalPopup>

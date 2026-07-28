@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X, Upload, Download, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Trash2, Pencil, Plus, X, Upload, Download } from 'lucide-react';
 import { unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
+import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -320,10 +321,10 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       />
       {/* Header — standalone only */}
       {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
-        </div>
+        <PageHeader
+          title="Frações"
+          subtitle={`${filteredUnits.length} frações registadas`}
+        />
       )}
 
       {/* Toolbar */}
@@ -336,32 +337,28 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           />
         </div>
 
-        <button
+        <Button
+          variant="secondary"
+          icon={Download}
           onClick={handleCsvDownload}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
           title="Descarregar CSV (template ou exportação)"
         >
-          <Download className="w-4 h-4" />
           Descarregar CSV
-        </button>
+        </Button>
 
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
+        <Button icon={Plus} onClick={openCreate}>
           Nova Fração
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="secondary"
+          icon={Upload}
           onClick={() => csvInputRef.current?.click()}
           disabled={csvImporting}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
           title="Importar frações a partir de ficheiro CSV"
         >
-          <Upload className="w-4 h-4" />
           {csvImporting ? 'A importar...' : 'Importar CSV'}
-        </button>
+        </Button>
         <input
           ref={csvInputRef}
           type="file"
@@ -483,52 +480,33 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                 <p className="text-xs text-gray-500 mt-1">Valor mensal da quota desta fração</p>
               </div>
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                >
-                  {saving ? 'A guardar...' : 'Guardar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={saving} fullWidth>
+                  Guardar
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!loading && loadError && (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : !loadError && filteredUnits.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            Sem frações registadas
-          </div>
-        ) : !loadError ? (
-          filteredUnits.map((u) => (
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredUnits.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Building2} title="Sem frações registadas" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredUnits.map((u) => (
             <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
@@ -566,9 +544,9 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                 </div>
               </div>
             </div>
-          ))
-        ) : null}
-      </div>
+          ))}
+        </div>
+      </AsyncState>
       
       {pagination && !loading && filteredUnits.length > 0 && (
         <Pagination

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Building2, Mail, Lock, User, Phone, Home, CheckCircle } from 'lucide-react';
 import { condominiumsApi, userRegistrationApi } from '../api/services';
 import type { UnitPublicDto } from '../types';
+import { Button } from '../components/ui';
 
 export default function ResidentRegisterPage() {
   const { condominiumId } = useParams<{ condominiumId: string }>();
@@ -157,13 +158,9 @@ export default function ResidentRegisterPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm mt-2"
-            >
+            <Button type="submit" loading={loading} fullWidth className="mt-2">
               {loading ? 'A submeter…' : 'Submeter Pedido de Registo'}
-            </button>
+            </Button>
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">

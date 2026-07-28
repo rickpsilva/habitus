@@ -6,6 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
+import { PageHeader, Button, Spinner, EmptyState, ErrorState } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -311,9 +312,8 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-64 gap-3 text-gray-400">
-        <RefreshCw className="w-8 h-8 animate-spin" aria-hidden="true" />
-        <p className="text-sm">A carregar pagamentos...</p>
+      <div className="flex justify-center items-center h-64">
+        <Spinner size="lg" label="A carregar pagamentos..." />
       </div>
     );
   }
@@ -331,56 +331,36 @@ export default function PaymentsPage() {
       />
 
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pagamentos</h1>
-          <p className="text-gray-600">Gerencie os seus pagamentos ao condomínio</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Pagamento
-        </button>
-      </div>
+      <PageHeader
+        title="Pagamentos"
+        subtitle="Gerencie os seus pagamentos ao condomínio"
+        actions={
+          <Button onClick={() => setShowCreateModal(true)} icon={Plus} fullWidth className="sm:w-auto">
+            Novo Pagamento
+          </Button>
+        }
+      />
 
       {/* Payments List */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Histórico de Pagamentos</h2>
-          <button
-            type="button"
-            onClick={() => loadPayments()}
-            className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" aria-hidden="true" />
+          <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => loadPayments()}>
             Atualizar
-          </button>
+          </Button>
         </div>
         {!loading && loadError && (
-          <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={loadPayments}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
+          <div className="mx-4 mt-4">
+            <ErrorState message={loadError} onRetry={loadPayments} />
           </div>
         )}
         <div className="divide-y divide-gray-200">
           {!loadError && payments.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 p-10 text-gray-400">
-              <CreditCard className="w-10 h-10 opacity-40" aria-hidden="true" />
-              <p className="text-sm font-medium">Nenhum pagamento registado</p>
-              <p className="text-xs text-gray-400">Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.</p>
-            </div>
+            <EmptyState
+              icon={CreditCard}
+              title="Nenhum pagamento registado"
+              description='Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.'
+            />
           ) : !loadError ? (
             payments.map((payment) => (
               <div
@@ -648,25 +628,28 @@ export default function PaymentsPage() {
                   ? 'Efetue a transferência bancária e anexe o comprovativo antes de criar o pagamento.' 
                   : 'Para MB Way e Cartão, o processo de pagamento será automático após a criação do registo.'}
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowCreateModal(false);
                     setProofFile(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   disabled={submitting}
+                  fullWidth
+                  className="flex-1 border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg transition-colors"
-                  disabled={submitting || (form.method === 'BankTransfer' && !proofFile)}
+                  loading={submitting}
+                  disabled={form.method === 'BankTransfer' && !proofFile}
+                  fullWidth
+                  className="flex-1"
                 >
-                  {submitting ? 'A criar...' : 'Criar Pagamento'}
-                </button>
+                  Criar Pagamento
+                </Button>
               </div>
             </form>
         </div>
@@ -755,43 +738,47 @@ export default function PaymentsPage() {
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Documentos</h3>
               <div className="flex flex-col gap-2">
                 {selectedPayment.proofOfPaymentUrl && (
-                  <button
+                  <Button
+                    icon={Download}
                     onClick={() => handleDownloadProof(selectedPayment.id, selectedPayment.description)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    fullWidth
                   >
-                    <Download className="w-4 h-4" />
                     Descarregar Comprovativo de Pagamento
-                  </button>
+                  </Button>
                 )}
                 {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
-                  <button
+                  <Button
+                    variant="success"
+                    icon={FileText}
                     onClick={() => handleDownloadReceipt(selectedPayment)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    fullWidth
                   >
-                    <FileText className="w-4 h-4" />
                     Descarregar Recibo
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           )}
           
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
             {selectedPayment.status === 'Pending' && (
-              <button
-                type="button"
+              <Button
+                variant="danger"
                 onClick={() => { setCancelPaymentId(selectedPayment.id); setSelectedPayment(null); }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                fullWidth
+                className="flex-1"
               >
                 Cancelar Pagamento
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setSelectedPayment(null)}
-              className={`${selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300`}
+              fullWidth
+              className={selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'}
             >
               Fechar
-            </button>
+            </Button>
           </div>
         </div>
         )}

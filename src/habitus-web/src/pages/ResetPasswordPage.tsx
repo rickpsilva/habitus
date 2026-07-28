@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Building2, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/services';
+import { Button } from '../components/ui';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -136,13 +137,9 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-              >
+              <Button type="submit" loading={loading} fullWidth>
                 {loading ? 'A redefinir...' : 'Redefinir Password'}
-              </button>
+              </Button>
             </form>
           ) : null}
 

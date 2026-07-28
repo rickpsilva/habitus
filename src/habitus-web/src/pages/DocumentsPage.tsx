@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileText, Download, Trash2, Plus, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench, AlertCircle, RefreshCw } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench } from 'lucide-react';
 import { documentsApi, assembliesApi, unitsApi, maintenanceApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -9,6 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
+import { PageHeader, Button, ErrorState } from '../components/ui';
 import type { DocumentDto, PaginatedResponse, AssemblyDto, UnitDto, MaintenanceRequestDto } from '../types';
 
 const contextLabels: Record<string, string> = {
@@ -438,30 +439,24 @@ export default function DocumentsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Documentos e arquivos do condomínio</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar documentos..."
-            />
-          </div>
-          {isAdmin && (
-            <button
-              onClick={openUploadModal}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Documentos"
+        subtitle="Documentos e arquivos do condomínio"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar documentos..."
+          />
+        }
+        actions={
+          isAdmin && (
+            <Button onClick={openUploadModal} icon={Plus} fullWidth className="sm:w-auto">
               Novo Documento
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+          )
+        }
+      />
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
@@ -492,20 +487,7 @@ export default function DocumentsPage() {
               A carregar...
             </div>
           ) : loadError ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                {loadError}
-              </span>
-              <button
-                type="button"
-                onClick={() => load(currentPage)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Tentar novamente
-              </button>
-            </div>
+            <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           ) : documents.length === 0 ? (
             <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
               <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -961,19 +943,8 @@ export default function DocumentsPage() {
         {loading ? (
           <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
         ) : loadError ? (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
+          <div className="col-span-full">
+            <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           </div>
         ) : documents.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
@@ -1190,29 +1161,22 @@ export default function DocumentsPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowUploadModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={uploading}
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  icon={UploadIcon}
+                  loading={uploading}
+                  disabled={!uploadFile}
                 >
-                  {uploading ? (
-                    <>A carregar...</>
-                  ) : (
-                    <>
-                      <UploadIcon className="w-4 h-4" />
-                      Carregar
-                    </>
-                  )}
-                </button>
+                  Carregar
+                </Button>
               </div>
             </form>
       </ModalPopup>

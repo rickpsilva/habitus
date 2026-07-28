@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
 import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
 
 export default function CondominiumsPage() {
@@ -176,55 +177,33 @@ export default function CondominiumsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Condomínios</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{condominiums.length} condomínios registados</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar condomínios..."
-            />
-          </div>
-          <button
-            onClick={handleNew}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Condomínios"
+        subtitle={`${condominiums.length} condomínios registados`}
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar condomínios..."
+          />
+        }
+        actions={
+          <Button icon={Plus} onClick={handleNew} fullWidth className="sm:w-auto">
             Novo Condomínio
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!loading && loadError && (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : !loadError && condominiums.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Building2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Nenhum condomínio registado</p>
-          </div>
-        ) : !loadError ? (
-          condominiums.map((condo) => (
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={condominiums.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Building2} title="Nenhum condomínio registado" />}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {condominiums.map((condo) => (
             <div key={condo.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -309,9 +288,9 @@ export default function CondominiumsPage() {
                 )}
               </div>
             </div>
-          ))
-        ) : null}
-      </div>
+          ))}
+        </div>
+      </AsyncState>
       
       {pagination && !loading && condominiums.length > 0 && (
         <Pagination
@@ -421,23 +400,20 @@ export default function CondominiumsPage() {
                 </div>
               )}
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="flex-1 border border-gray-300"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'A guardar...' : editingId ? 'Guardar' : 'Criar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={submitting} fullWidth className="flex-1">
+                  {editingId ? 'Guardar' : 'Criar'}
+                </Button>
               </div>
             </form>
           </div>
