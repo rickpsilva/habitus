@@ -8,7 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Spinner, Button, Card } from '../components/ui';
+import { PageHeader, Spinner, Button, Card, Skeleton } from '../components/ui';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
 
@@ -423,10 +423,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto">
-        <div className="flex justify-center py-20 text-ink-subtle">
-          <Spinner label="A carregar dados do perfil..." />
-        </div>
+      <div className="max-w-3xl mx-auto space-y-6">
+        <Skeleton variant="card" rows={4} />
       </div>
     );
   }

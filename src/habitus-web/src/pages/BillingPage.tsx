@@ -24,7 +24,7 @@ import { subscriptionsApi, condominiumsApi, invoicesApi } from '../api/services'
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { Button, DataTable, EmptyState, StatCard, Card } from '../components/ui';
+import { Button, DataTable, EmptyState, StatCard, Card, Skeleton } from '../components/ui';
 import type { Column } from '../components/ui';
 import type {
   SubscriptionPlanDto,
@@ -889,8 +889,9 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-ink-subtle">
-        <RefreshCw className="w-6 h-6 animate-spin mr-2" /> A carregar...
+      <div className="space-y-8">
+        <Skeleton variant="card" rows={3} />
+        <Skeleton variant="list" rows={4} />
       </div>
     );
   }

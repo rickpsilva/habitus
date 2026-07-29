@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
-import { PageHeader, Button, Spinner, EmptyState, ErrorState } from '../components/ui';
+import { PageHeader, Button, Skeleton, EmptyState, ErrorState } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -312,8 +312,8 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Spinner size="lg" label="A carregar pagamentos..." />
+      <div className="space-y-6">
+        <Skeleton variant="list" rows={5} />
       </div>
     );
   }

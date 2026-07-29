@@ -9,7 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Button, ErrorState, Card, EmptyState } from '../components/ui';
+import { PageHeader, Button, ErrorState, Card, EmptyState, Skeleton } from '../components/ui';
 import type { DocumentDto, PaginatedResponse, AssemblyDto, UnitDto, MaintenanceRequestDto } from '../types';
 
 const contextLabels: Record<string, string> = {
@@ -483,9 +483,7 @@ export default function DocumentsPage() {
       {activeTab === 'Assembly' || activeTab === 'Unit' || activeTab === 'Maintenance' || activeTab === 'Financial' ? (
         <div className="space-y-3">
           {loading ? (
-            <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-              A carregar...
-            </div>
+            <Skeleton variant="list" rows={4} />
           ) : loadError ? (
             <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           ) : documents.length === 0 ? (
