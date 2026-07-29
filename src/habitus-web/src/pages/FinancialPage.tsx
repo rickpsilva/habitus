@@ -447,12 +447,13 @@ export default function FinancialPage() {
     }
   };
 
-  // Load payments when switching to cashin tab
+  // Load payments up-front (admin only) so the "Cash In" badge reflects
+  // pending payments as soon as the page opens, not only after the tab is clicked.
   useEffect(() => {
-    if (activeTab === 'cashin' && isAdmin) {
+    if (isAdmin) {
       loadAllPayments();
     }
-  }, [activeTab, isAdmin, condominiumId, loadAllPayments]);
+  }, [isAdmin, condominiumId, loadAllPayments]);
 
   // Filter and search payments
   const filteredPayments = allPayments.filter(payment => {
