@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.Interfaces;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,36 @@ public class Repository<T> : IRepository<T> where T : class
 
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
+
+    public async Task<PaginatedResponse<T>> GetPagedAsync(
+        int page,
+        int pageSize,
+        Expression<Func<T, bool>> filter,
+        Expression<Func<T, object>> orderBy,
+        bool descending = false)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        var query = _dbSet.Where(filter);
+        query = descending ? query.OrderByDescending(orderBy) : query.OrderBy(orderBy);
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PaginatedResponse<T>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        };
+    }
 
     public async Task<IEnumerable<T>> FindWithIncludesAsync(
         Expression<Func<T, bool>> predicate,

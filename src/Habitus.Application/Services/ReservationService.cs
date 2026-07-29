@@ -1,6 +1,5 @@
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Reservations;
-using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -39,18 +38,27 @@ public class ReservationService
 
     public async Task<PaginatedResponse<ReservationDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string? search = null)
     {
-        var items = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
-        var dtos = items.Select(MapToDto).OrderByDescending(r => r.StartTime);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            r => r.CondominiumId == condominiumId &&
+                 (searchLower == null || (r.AdminComments ?? "").ToLower().Contains(searchLower)),
+            r => r.StartTime,
+            descending: true);
+
+        return new PaginatedResponse<ReservationDto>
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(r =>
-                (r.AdminComments ?? "").ToLower().Contains(searchLower)
-            ).OrderByDescending(r => r.StartTime);
-        }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        };
     }
 
     public async Task<ReservationDto?> GetByIdAsync(Guid id, Guid condominiumId)

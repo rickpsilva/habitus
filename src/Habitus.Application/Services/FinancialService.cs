@@ -1,6 +1,5 @@
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Financial;
-using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -30,19 +29,38 @@ public class FinancialService
 
     public async Task<PaginatedResponse<FinancialRecordDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string? search = null)
     {
-        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
-        var dtos = records.Select(MapToDto).OrderByDescending(r => r.Date);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        // Enum categories cannot be filtered with a text LIKE at the database level, so we
+        // pre-resolve the matching enum values (a small, bounded set) and translate the search
+        // into an IN clause the provider can execute server-side.
+        var matchingCategories = searchLower is null
+            ? Array.Empty<FinancialCategory>()
+            : Enum.GetValues<FinancialCategory>()
+                .Where(c => c.ToString().ToLower().Contains(searchLower))
+                .ToArray();
+
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            r => r.CondominiumId == condominiumId &&
+                 (searchLower == null ||
+                  r.Description.ToLower().Contains(searchLower) ||
+                  matchingCategories.Contains(r.Category)),
+            r => r.Date,
+            descending: true);
+
+        return new PaginatedResponse<FinancialRecordDto>
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(r =>
-                r.Description.ToLower().Contains(searchLower) ||
-                (r.Category ?? "").ToLower().Contains(searchLower)
-            ).OrderByDescending(r => r.Date);
-        }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        };
     }
 
     public async Task<FinancialRecordDto?> GetByIdAsync(Guid id, Guid condominiumId)
@@ -170,22 +188,36 @@ public class FinancialService
         int pageSize, 
         string? search = null)
     {
-        var records = await _repository.FindAsync(r => 
-            r.CondominiumId == condominiumId && 
-            r.FiscalYear == fiscalYear);
-            
-        var dtos = records.Select(MapToDto).OrderByDescending(r => r.Date);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        var matchingCategories = searchLower is null
+            ? Array.Empty<FinancialCategory>()
+            : Enum.GetValues<FinancialCategory>()
+                .Where(c => c.ToString().ToLower().Contains(searchLower))
+                .ToArray();
+
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            r => r.CondominiumId == condominiumId &&
+                 r.FiscalYear == fiscalYear &&
+                 (searchLower == null ||
+                  r.Description.ToLower().Contains(searchLower) ||
+                  matchingCategories.Contains(r.Category)),
+            r => r.Date,
+            descending: true);
+
+        return new PaginatedResponse<FinancialRecordDto>
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(r =>
-                r.Description.ToLower().Contains(searchLower) ||
-                r.Category.ToLower().Contains(searchLower)
-            ).OrderByDescending(r => r.Date);
-        }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        };
     }
 
     private static FinancialRecordDto MapToDto(FinancialRecord r) => new()

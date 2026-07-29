@@ -64,9 +64,24 @@ public class ReservationServiceIsolationTests
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumA, SpaceId = Guid.NewGuid(), UserId = Guid.NewGuid(), StartTime = DateTime.UtcNow, EndTime = DateTime.UtcNow.AddHours(1) },
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumB, SpaceId = Guid.NewGuid(), UserId = Guid.NewGuid(), StartTime = DateTime.UtcNow, EndTime = DateTime.UtcNow.AddHours(1) },
         };
-        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Reservation, bool>>>()))
-            .ReturnsAsync((Expression<Func<Reservation, bool>> predicate) =>
-                reservations.Where(predicate.Compile()).ToList());
+        _repositoryMock
+            .Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Expression<Func<Reservation, bool>>>(),
+                It.IsAny<Expression<Func<Reservation, object>>>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync((int page, int pageSize, Expression<Func<Reservation, bool>> filter,
+                Expression<Func<Reservation, object>> _, bool __) =>
+            {
+                var matched = reservations.Where(filter.Compile()).ToList();
+                return new Habitus.Application.DTOs.Common.PaginatedResponse<Reservation>
+                {
+                    Items = matched.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = matched.Count,
+                    TotalPages = (int)Math.Ceiling(matched.Count / (double)pageSize)
+                };
+            });
 
         var result = await _service.GetPagedAsync(1, 10, _condominiumA);
 

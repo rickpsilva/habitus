@@ -118,30 +118,29 @@ public class PaymentService
 
     public async Task<PaginatedResponse<PaymentDto>> GetPagedAsync(Guid condominiumId, int page, int pageSize)
     {
-        var payments = await _paymentRepository.FindAsync(p => p.CondominiumId == condominiumId);
-        var orderedPayments = payments.OrderByDescending(p => p.CreatedDate).ToList();
-        
-        var totalItems = orderedPayments.Count;
-        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
-        
-        var pagedPayments = orderedPayments
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var paged = await _paymentRepository.GetPagedAsync(
+            page,
+            pageSize,
+            p => p.CondominiumId == condominiumId,
+            p => p.CreatedDate,
+            descending: true);
 
         var items = new List<PaymentDto>();
-        foreach (var payment in pagedPayments)
+        foreach (var payment in paged.Items)
         {
             items.Add(await MapToDtoAsync(payment));
         }
 
         return new PaginatedResponse<PaymentDto>
         {
-            Items = items.ToList(),
-            Page = page,
-            PageSize = pageSize,
-            TotalItems = totalItems,
-            TotalPages = totalPages
+            Items = items,
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
         };
     }
 

@@ -1,6 +1,5 @@
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Maintenance;
-using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
 
@@ -43,23 +42,49 @@ public class MaintenanceService
         Guid? unitId,
         string? search = null)
     {
-        var requests = await _repository.GetAllAsync();
-        var dtos = requests
-            .Where(r => CanUserAccessMaintenance(r, condominiumId, userRole, userId, unitId))
-            .Select(MapToDto)
-            .OrderByDescending(r => r.CreatedAt);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        // Access rules mirror CanUserAccessMaintenance: only Admin (all requests in the
+        // condominium) or Resident (own requests / own unit) may list. Resolve the role once
+        // so the predicate only references row columns and captured values (translatable to SQL).
+        var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isResident = string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdmin && !isResident)
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(r =>
-                r.Title.ToLower().Contains(searchLower) ||
-                (r.Description ?? "").ToLower().Contains(searchLower) ||
-                (r.Location ?? "").ToLower().Contains(searchLower)
-            ).OrderByDescending(r => r.CreatedAt);
+            return new PaginatedResponse<MaintenanceRequestDto>
+            {
+                Items = new List<MaintenanceRequestDto>(),
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = 0,
+                TotalPages = 0
+            };
         }
-        
-        return PaginationHelper.Paginate(dtos, page, pageSize);
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            r => r.CondominiumId == condominiumId &&
+                 (isAdmin || r.CreatedBy == userId || (unitId.HasValue && r.UnitId == unitId.Value)) &&
+                 (searchLower == null ||
+                  r.Title.ToLower().Contains(searchLower) ||
+                  (r.Description ?? "").ToLower().Contains(searchLower) ||
+                  (r.Location ?? "").ToLower().Contains(searchLower)),
+            r => r.CreatedAt,
+            descending: true);
+
+        return new PaginatedResponse<MaintenanceRequestDto>
+        {
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        };
     }
 
     public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id, Guid condominiumId, string userRole, Guid userId, Guid? unitId)

@@ -49,9 +49,30 @@ public class FinancialServiceIsolationTests
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumA, Description = "A Record", Type = FinancialType.Income, Amount = 100, Date = DateTime.UtcNow, FiscalYear = DateTime.UtcNow.Year, Category = FinancialCategory.MonthlyFees },
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumB, Description = "B Record", Type = FinancialType.Expense, Amount = 50, Date = DateTime.UtcNow, FiscalYear = DateTime.UtcNow.Year, Category = FinancialCategory.Maintenance },
         };
-        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, bool>>>()))
-            .ReturnsAsync((System.Linq.Expressions.Expression<Func<FinancialRecord, bool>> predicate) =>
-                records.Where(predicate.Compile()).ToList());
+        _repositoryMock
+            .Setup(r => r.GetPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, object>>>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync((
+                int page,
+                int pageSize,
+                System.Linq.Expressions.Expression<Func<FinancialRecord, bool>> filter,
+                System.Linq.Expressions.Expression<Func<FinancialRecord, object>> orderBy,
+                bool descending) =>
+            {
+                var filtered = records.Where(filter.Compile()).ToList();
+                return new Habitus.Application.DTOs.Common.PaginatedResponse<FinancialRecord>
+                {
+                    Items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = filtered.Count,
+                    TotalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize)
+                };
+            });
 
         var result = await _service.GetPagedAsync(1, 10, _condominiumA);
 

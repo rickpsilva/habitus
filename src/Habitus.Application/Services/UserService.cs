@@ -40,7 +40,10 @@ public class UserService
 
     public async Task<PaginatedResponse<UserResponse>> GetPagedUsersAsync(int page, int pageSize, string? search = null)
     {
-        return await GetPaginatedUsersAsync(u => true, page, pageSize, search);
+        // Platform Manager view: lists only other platform Managers. Condominium Admins and
+        // Residents are managed inside their own condominium, so they are excluded here.
+        // Filtering by role server-side (before paging) keeps the pagination totals correct.
+        return await GetPaginatedUsersAsync(u => u.Role == UserRole.Manager, page, pageSize, search);
     }
 
     public async Task<IEnumerable<UserResponse>> GetUsersByCondominiumAsync(Guid condominiumId)
@@ -54,7 +57,9 @@ public class UserService
 
     public async Task<PaginatedResponse<UserResponse>> GetUsersByCondominiumPagedAsync(Guid condominiumId, int page = 1, int pageSize = 10, string? search = null)
     {
-        return await GetPaginatedUsersAsync(u => u.CondominiumId == condominiumId, page, pageSize, search);
+        // Condominium view: all users of the condominium EXCEPT platform Managers.
+        // Filtering by role server-side (before paging) keeps the pagination totals correct.
+        return await GetPaginatedUsersAsync(u => u.CondominiumId == condominiumId && u.Role != UserRole.Manager, page, pageSize, search);
     }
 
     public async Task<UserResponse?> GetUserByIdAsync(Guid id)
