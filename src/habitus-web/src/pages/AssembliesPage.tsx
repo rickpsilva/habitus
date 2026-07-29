@@ -10,7 +10,8 @@ import SearchBar from '../components/SearchBar';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import MultipleFileUpload from '../components/MultipleFileUpload';
-import { PageHeader, Button, FilterBar, FilterChip, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, FilterBar, FilterChip, AsyncState, EmptyState, Badge } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse, DocumentDto } from '../types';
 
 const statusLabels: Record<string, string> = {
@@ -20,11 +21,11 @@ const statusLabels: Record<string, string> = {
   Cancelled: 'Cancelada',
 };
 
-const statusColors: Record<string, string> = {
-  Scheduled: 'bg-blue-100 text-blue-700',
-  InProgress: 'bg-yellow-100 text-yellow-700',
-  Completed: 'bg-green-100 text-green-700',
-  Cancelled: 'bg-control text-ink-muted',
+const statusVariants: Record<string, BadgeVariant> = {
+  Scheduled: 'info',
+  InProgress: 'warning',
+  Completed: 'success',
+  Cancelled: 'neutral',
 };
 
 export default function AssembliesPage() {
@@ -769,9 +770,9 @@ export default function AssembliesPage() {
                         </button>
                         {a.description && <p className="text-sm text-ink-subtle mt-0.5 line-clamp-2">{a.description}</p>}
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[a.status] ?? 'bg-control text-ink-muted'}`}>
+                          <Badge variant={statusVariants[a.status] ?? 'neutral'}>
                             {statusLabels[a.status] ?? a.status}
-                          </span>
+                          </Badge>
                           <span className="text-xs text-ink-subtle flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(a.scheduledAt).toLocaleString('pt-PT')}
@@ -879,9 +880,9 @@ export default function AssembliesPage() {
               <div>
                 <label className="text-xs font-medium text-ink-subtle uppercase">Estado</label>
                 <p className="mt-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[selectedAssembly.status]}`}>
+                  <Badge variant={statusVariants[selectedAssembly.status] ?? 'neutral'}>
                     {statusLabels[selectedAssembly.status]}
-                  </span>
+                  </Badge>
                 </p>
               </div>
               {selectedAssembly.notes && (

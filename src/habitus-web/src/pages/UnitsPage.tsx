@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
-import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -507,7 +507,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredUnits.map((u) => (
-            <div key={u.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
+            <Card key={u.id} className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm shrink-0">
@@ -543,7 +543,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   <span className="font-medium text-ink">{u.permillage.toFixed(2)} ‰</span>
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </AsyncState>

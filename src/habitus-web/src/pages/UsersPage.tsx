@@ -9,7 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import { Button } from '../components/ui';
+import { Button, Card, EmptyState } from '../components/ui';
 import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
 
 const roleLabels: Record<number, string> = {
@@ -433,13 +433,10 @@ export default function UsersPage() {
         {loading ? (
           <div className="col-span-full text-center py-12 text-ink-subtle">A carregar...</div>
         ) : !loadError && filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Nenhum utilizador encontrado</p>
-          </div>
+          <EmptyState icon={Users} title="Nenhum utilizador encontrado" className="col-span-full" />
         ) : !loadError ? (
           filtered.map((user) => (
-            <div key={user.id} className="bg-surface rounded-xl border border-line p-5 hover:shadow-md transition-shadow">
+            <Card key={user.id} interactive className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h3 className="font-semibold text-ink">{user.name}</h3>
@@ -485,7 +482,7 @@ export default function UsersPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           ))
         ) : null}
       </div>

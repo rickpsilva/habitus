@@ -8,7 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Spinner, Button } from '../components/ui';
+import { PageHeader, Spinner, Button, Card } from '../components/ui';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
 
@@ -505,7 +505,7 @@ export default function ProfilePage() {
       {activeTab === 'profile' && (
         <div className="space-y-6">
           {/* Profile Information */}
-          <div className="bg-surface rounded-xl border border-line p-6">
+          <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700">
                 <User className="w-6 h-6" />
@@ -570,7 +570,7 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
-          </div>
+          </Card>
 
           {/* User Info Display (Read-only) */}
           <div className="bg-surface-muted rounded-xl border border-line p-6">
@@ -692,7 +692,7 @@ export default function ProfilePage() {
       {/* Security Tab */}
       {activeTab === 'security' && (
         <div className="space-y-6">
-          <div className="bg-surface rounded-xl border border-line p-6">
+          <Card className="p-6">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 text-emerald-700">
@@ -882,9 +882,9 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
-          </div>
+          </Card>
 
-          <div className="bg-surface rounded-xl border border-line p-6">
+          <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700">
                 <Link2 className="w-6 h-6" />
@@ -925,9 +925,9 @@ export default function ProfilePage() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-surface rounded-xl border border-line p-6">
+          <Card className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 text-amber-700">
                 <Lock className="w-6 h-6" />
@@ -980,13 +980,13 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Documents Tab */}
       {activeTab === 'documents' && unit && (
-        <div className="bg-surface rounded-xl border border-line p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700">
@@ -1056,7 +1056,7 @@ export default function ProfilePage() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Upload Modal */}

@@ -7,7 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
 import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
 
 export default function CondominiumsPage() {
@@ -204,7 +204,7 @@ export default function CondominiumsPage() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {condominiums.map((condo) => (
-            <div key={condo.id} className="bg-surface rounded-xl border border-line p-5 hover:shadow-md transition-shadow">
+            <Card key={condo.id} interactive className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h3 className="font-semibold text-ink mb-1">{condo.name}</h3>
@@ -287,7 +287,7 @@ export default function CondominiumsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </AsyncState>

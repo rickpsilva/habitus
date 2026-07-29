@@ -12,8 +12,21 @@
   --color-primary-600: #4f46e5;
   --color-primary-700: #4338ca;
 
+  /* Brand typography (A1) — self-hosted Inter variable (no external CDN).
+     Tailwind v4 maps this to the `font-sans` utility and the base `body`. */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
   --radius-app: 0.75rem; /* 12px — rounded-xl equivalent for cards/surfaces */
   --shadow-app: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+  /* Elevation/radius scale (A2) — formalized tokens matching the current look.
+     Introduced for later phases to consume; no page-level sweep in this PR. */
+  --radius-sm: 0.5rem;   /* rounded-lg */
+  --radius-md: 0.75rem;  /* rounded-xl */
+  --radius-lg: 1rem;     /* rounded-2xl */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 
   /* Semantic surface/text/border tokens (light values).
      Theme-aware: overridden under `.dark` below. Neutral palette utilities
@@ -271,4 +284,62 @@
 
 .dark .app-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #475569;
+}
+
+/* ============================================================================
+   A1 / A3 — Base typography refinement + global focus & motion
+   Presentation-only, applied globally (no page/layout/label changes).
+   ========================================================================== */
+
+/* A1 — ensure the brand typeface is the base font. */
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* A1 — subtle heading tracking (typeface refinement only; sizes/weights kept). */
+h1, h2, h3, h4 {
+  letter-spacing: -0.01em;
+}
+
+/* A3 — consistent keyboard focus ring across interactive elements.
+   Uses :focus-visible so mouse/touch users are unaffected. The existing
+   Button focus ring is preserved (Tailwind ring wins by specificity). */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* A3 — gentle default transitions on interactive surfaces. */
+a,
+button,
+[role="button"],
+input,
+select,
+textarea {
+  transition: color 150ms ease, background-color 150ms ease,
+    border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* A3 — respect reduced-motion preference. Standard accessibility reset;
+   `!important` is scoped to this media query only to reliably neutralize
+   utility-driven animations/transitions for users who opt out of motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

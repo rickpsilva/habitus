@@ -8,7 +8,7 @@ import { marked } from 'marked';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
-import { PageHeader, Spinner, ErrorState, Button } from '../components/ui';
+import { PageHeader, Spinner, ErrorState, Button, Card } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi } from '../api/services';
 import type {
@@ -91,7 +91,7 @@ export default function CondominiumSettingsPage() {
       />
 
       {/* Tabs */}
-      <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
+      <Card className="overflow-hidden">
         <div className="flex overflow-x-auto border-b border-line">
           {visibleTabs.map(({ key, label, icon: Icon }) => (
             <button
@@ -122,7 +122,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

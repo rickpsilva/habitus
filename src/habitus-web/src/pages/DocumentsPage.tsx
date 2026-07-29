@@ -9,7 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Button, ErrorState } from '../components/ui';
+import { PageHeader, Button, ErrorState, Card, EmptyState } from '../components/ui';
 import type { DocumentDto, PaginatedResponse, AssemblyDto, UnitDto, MaintenanceRequestDto } from '../types';
 
 const contextLabels: Record<string, string> = {
@@ -489,20 +489,14 @@ export default function DocumentsPage() {
           ) : loadError ? (
             <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           ) : documents.length === 0 ? (
-            <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-              <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              {searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos de assembleias'}
-            </div>
+            <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos de assembleias'} />
           ) : activeTab === 'Assembly' ? (
             (() => {
               const groupedDocs = getDocumentsByAssembly();
               const assemblyIds = Array.from(groupedDocs.keys());
               
               return assemblyIds.length === 0 ? (
-                <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de assembleias
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de assembleias" />
               ) : (
                 assemblyIds.map(assemblyId => {
                   const assemblyDocs = groupedDocs.get(assemblyId) || [];
@@ -510,7 +504,7 @@ export default function DocumentsPage() {
                   const isExpanded = expandedAssemblies.has(assemblyId);
                   
                   return (
-                    <div key={assemblyId} className="bg-surface rounded-xl border border-line overflow-hidden">
+                    <Card key={assemblyId} className="overflow-hidden">
                       {/* Assembly Header */}
                       <button
                         onClick={() => toggleAssembly(assemblyId)}
@@ -606,7 +600,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -617,10 +611,7 @@ export default function DocumentsPage() {
               const unitIds = Array.from(groupedDocs.keys());
               
               return unitIds.length === 0 ? (
-                <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de frações
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de frações" />
               ) : (
                 unitIds.map(unitId => {
                   const unitDocs = groupedDocs.get(unitId) || [];
@@ -628,7 +619,7 @@ export default function DocumentsPage() {
                   const isExpanded = expandedUnits.has(unitId);
                   
                   return (
-                    <div key={unitId} className="bg-surface rounded-xl border border-line overflow-hidden">
+                    <Card key={unitId} className="overflow-hidden">
                       {/* Unit Header */}
                       <button
                         onClick={() => toggleUnit(unitId)}
@@ -718,7 +709,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -729,10 +720,7 @@ export default function DocumentsPage() {
               const maintenanceIds = Array.from(groupedDocs.keys());
               
               return maintenanceIds.length === 0 ? (
-                <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de manutenções
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de manutenções" />
               ) : (
                 maintenanceIds.map(maintenanceId => {
                   const maintenanceDocs = groupedDocs.get(maintenanceId) || [];
@@ -740,7 +728,7 @@ export default function DocumentsPage() {
                   const isExpanded = expandedMaintenance.has(maintenanceId);
                   
                   return (
-                    <div key={maintenanceId} className="bg-surface rounded-xl border border-line overflow-hidden">
+                    <Card key={maintenanceId} className="overflow-hidden">
                       {/* Maintenance Header */}
                       <button
                         onClick={() => toggleMaintenance(maintenanceId)}
@@ -830,7 +818,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -841,17 +829,14 @@ export default function DocumentsPage() {
               const years = Array.from(groupedDocs.keys()).sort((a, b) => b - a);
               
               return years.length === 0 ? (
-                <div className="text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos financeiros
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos financeiros" />
               ) : (
                 years.map(year => {
                   const yearDocs = groupedDocs.get(year) || [];
                   const isExpanded = expandedYears.has(year);
                   
                   return (
-                    <div key={year} className="bg-surface rounded-xl border border-line overflow-hidden">
+                    <Card key={year} className="overflow-hidden">
                       {/* Year Header */}
                       <button
                         onClick={() => toggleYear(year)}
@@ -931,7 +916,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -947,13 +932,10 @@ export default function DocumentsPage() {
             <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           </div>
         ) : documents.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-ink-subtle bg-surface rounded-xl border border-line">
-            <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            {searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos nesta categoria'}
-          </div>
+          <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos nesta categoria'} className="col-span-full" />
         ) : (
           documents.map((d) => (
-            <div key={d.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
+            <Card key={d.id} className="p-4">
               <div className="flex items-start gap-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 shrink-0">
                   <FileText className="w-5 h-5 text-blue-600" />
@@ -993,7 +975,7 @@ export default function DocumentsPage() {
                   </button>
                 )}
               </div>
-            </div>
+            </Card>
           ))
         )}
       </div>

@@ -24,7 +24,7 @@ import { subscriptionsApi, condominiumsApi, invoicesApi } from '../api/services'
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { Button, DataTable, EmptyState } from '../components/ui';
+import { Button, DataTable, EmptyState, StatCard, Card } from '../components/ui';
 import type { Column } from '../components/ui';
 import type {
   SubscriptionPlanDto,
@@ -930,35 +930,24 @@ export default function BillingPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
-          <span className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
-            <Building2 className="w-5 h-5" />
-          </span>
-          <div>
-            <p className="text-xs text-ink-subtle">Condomínios</p>
-            <p className="text-xl font-bold text-ink">{condominiums.length}</p>
-          </div>
-        </div>
-        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
-          <span className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
-            <Check className="w-5 h-5" />
-          </span>
-          <div>
-            <p className="text-xs text-ink-subtle">Subscrições Ativas</p>
-            <p className="text-xl font-bold text-ink">{activeCount}</p>
-          </div>
-        </div>
-        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
-          <span className="p-2 rounded-lg bg-amber-100 text-amber-700">
-            <CreditCard className="w-5 h-5" />
-          </span>
-          <div>
-            <p className="text-xs text-ink-subtle">Volume Mensal (MRR)</p>
-            <p className="text-xl font-bold text-ink">
-              {monthlyVolume !== null ? fmt(monthlyVolume) : '—'}
-            </p>
-          </div>
-        </div>
+        <StatCard
+          title="Condomínios"
+          value={condominiums.length}
+          icon={Building2}
+          color="bg-indigo-100 text-indigo-700"
+        />
+        <StatCard
+          title="Subscrições Ativas"
+          value={activeCount}
+          icon={Check}
+          color="bg-emerald-100 text-emerald-700"
+        />
+        <StatCard
+          title="Volume Mensal (MRR)"
+          value={monthlyVolume !== null ? fmt(monthlyVolume) : '—'}
+          icon={CreditCard}
+          color="bg-amber-100 text-amber-700"
+        />
       </div>
 
       {/* Plans */}
@@ -1006,7 +995,7 @@ export default function BillingPage() {
       {/* Subscriptions table */}
       <section>
         <h2 className="text-base font-semibold text-ink mb-3">Subscrições Ativas</h2>
-        <div className="bg-surface rounded-xl shadow-sm border border-line overflow-x-auto">
+        <Card className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-ink-subtle uppercase bg-surface-muted border-b border-line">
@@ -1082,7 +1071,7 @@ export default function BillingPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </Card>
       </section>
 
       {/* Assign modal */}

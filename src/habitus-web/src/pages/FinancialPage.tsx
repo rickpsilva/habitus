@@ -8,7 +8,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Button, Skeleton, ErrorState, DataTable } from '../components/ui';
+import { PageHeader, Button, Skeleton, ErrorState, DataTable, Card } from '../components/ui';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -641,7 +641,7 @@ export default function FinancialPage() {
           {/* Dashboard Cards */}
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Current Account Card */}
-            <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
+            <Card className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-indigo-600" />
@@ -688,7 +688,7 @@ export default function FinancialPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Reserve Fund Card */}
             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-sm border border-emerald-200 p-5">
@@ -749,7 +749,7 @@ export default function FinancialPage() {
           </div>
 
           {/* Records List */}
-          <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="px-5 py-4 border-b border-line flex items-center justify-between">
               <h2 className="font-semibold text-ink">Registos de {selectedYear}</h2>
               <div className="w-64">
@@ -819,7 +819,7 @@ export default function FinancialPage() {
                 )}
               </>
             ) : null}
-          </div>
+          </Card>
         </>
       ) : null}
 

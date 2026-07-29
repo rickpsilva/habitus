@@ -8,20 +8,21 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Badge, Card } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
-const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
-  Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  InProgress: { label: 'Em curso', className: 'bg-blue-100 text-blue-700', icon: Clock },
-  Completed: { label: 'Concluído', className: 'bg-green-100 text-green-700', icon: CheckCircle2 },
+const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: React.ElementType }> = {
+  Open: { label: 'Aberto', variant: 'warning', icon: AlertCircle },
+  InProgress: { label: 'Em curso', variant: 'info', icon: Clock },
+  Completed: { label: 'Concluído', variant: 'success', icon: CheckCircle2 },
 };
 
-const priorityMap: Record<string, string> = {
-  Low: 'bg-control text-ink-muted',
-  Medium: 'bg-yellow-100 text-yellow-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+const priorityVariants: Record<string, BadgeVariant> = {
+  Low: 'neutral',
+  Medium: 'warning',
+  High: 'attention',
+  Critical: 'danger',
 };
 
 const priorityLabels: Record<string, string> = {
@@ -520,9 +521,9 @@ export default function MaintenancePage() {
         >
           <>
             {paginatedRequests.map((m) => {
-              const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
+              const { label, variant, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
               return (
-                <div key={m.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
+                <Card key={m.id} className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                       <Icon className="w-5 h-5 mt-0.5 shrink-0 text-ink-subtle" />
@@ -530,12 +531,12 @@ export default function MaintenancePage() {
                         <p className="font-medium text-ink">{m.title}</p>
                         <p className="text-sm text-ink-subtle mt-0.5 line-clamp-2">{m.description}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>{label}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityMap[m.priority] ?? 'bg-control text-ink-muted'}`}>
+                          <Badge variant={variant}>{label}</Badge>
+                          <Badge variant={priorityVariants[m.priority] ?? 'neutral'}>
                             {priorityLabels[m.priority] ?? m.priority}
-                          </span>
+                          </Badge>
                           {m.location && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-control text-ink-muted">{m.location}</span>
+                            <Badge variant="neutral">{m.location}</Badge>
                           )}
                         </div>
                       </div>
@@ -560,7 +561,7 @@ export default function MaintenancePage() {
                   <p className="text-xs text-ink-subtle mt-2">
                     Criado em: {new Date(m.createdAt).toLocaleDateString('pt-PT')}
                   </p>
-                </div>
+                </Card>
               );
             })}
             

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import type { ResidentDto, UnitDto } from '../types';
-import { PageHeader, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, AsyncState, EmptyState, Card } from '../components/ui';
 
 const roleLabels: Record<string, string> = {
   Admin: 'Administrador',
@@ -144,7 +144,7 @@ export default function ResidentsPage() {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((r) => (
-            <div key={r.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
+            <Card key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm shrink-0">
@@ -177,7 +177,7 @@ export default function ResidentsPage() {
                   {unitLabel(r.unitId)}
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </AsyncState>

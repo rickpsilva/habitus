@@ -9,8 +9,8 @@ import SearchBar from '../components/SearchBar';
 import WeeklyCalendar from '../components/WeeklyCalendar';
 import MonthlyCalendar from '../components/MonthlyCalendar';
 import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
-import { PageHeader, Button, Segmented, ErrorState, DataTable, EmptyState } from '../components/ui';
-import type { Column } from '../components/ui';
+import { PageHeader, Button, Segmented, ErrorState, DataTable, EmptyState, Badge, Card } from '../components/ui';
+import type { Column, BadgeVariant } from '../components/ui';
 
 const statusLabels: Record<string, string> = {
   Pending: 'Pendente',
@@ -21,13 +21,13 @@ const statusLabels: Record<string, string> = {
   Completed: 'Terminado',
 };
 
-const statusColors: Record<string, string> = {
-  Pending: 'bg-yellow-100 text-yellow-700',
-  Approved: 'bg-green-100 text-green-700',
-  Rejected: 'bg-red-100 text-red-700',
-  CancellationRequested: 'bg-orange-100 text-orange-700',
-  Cancelled: 'bg-control text-ink-muted',
-  Completed: 'bg-blue-100 text-blue-700',
+const statusVariants: Record<string, BadgeVariant> = {
+  Pending: 'warning',
+  Approved: 'success',
+  Rejected: 'danger',
+  CancellationRequested: 'attention',
+  Cancelled: 'neutral',
+  Completed: 'info',
 };
 
 type SortField = 'spaceName' | 'startTime' | 'endTime' | 'status' | 'createdAt';
@@ -655,9 +655,9 @@ export default function ReservationsPage() {
       sortable: true,
       mobileLabel: 'Estado',
       render: (r) => (
-        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[r.status] ?? 'bg-control text-ink-muted'}`}>
+        <Badge variant={statusVariants[r.status] ?? 'neutral'}>
           {statusLabels[r.status] ?? r.status}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -791,13 +791,13 @@ export default function ReservationsPage() {
       {spaces.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {spaces.map((s) => (
-            <div key={s.id} className="bg-surface rounded-xl border border-line shadow-sm p-4">
+            <Card key={s.id} className="p-4">
               <div className="flex items-start justify-between mb-1">
                 <h3 className="font-medium text-ink">{s.name}</h3>
               </div>
               {s.description && <p className="text-xs text-ink-subtle mb-2">{s.description}</p>}
               {s.capacity && s.capacity > 0 && <p className="text-xs text-ink-subtle">Capacidade: {s.capacity} pessoas</p>}
-            </div>
+            </Card>
           ))}
         </div>
       )}
@@ -1023,9 +1023,9 @@ export default function ReservationsPage() {
                 <div>
                   <label className="text-sm font-medium text-ink-subtle">Estado</label>
                   <p>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedReservation.status]}`}>
+                    <Badge variant={statusVariants[selectedReservation.status] ?? 'neutral'}>
                       {statusLabels[selectedReservation.status]}
-                    </span>
+                    </Badge>
                   </p>
                 </div>
                 

@@ -8,6 +8,8 @@ export interface EmptyStateProps {
   title: string;
   description?: string;
   action?: ReactNode;
+  /** Optional custom illustration rendered instead of the default icon. */
+  illustration?: ReactNode;
   className?: string;
 }
 
@@ -16,6 +18,7 @@ export default function EmptyState({
   title,
   description,
   action,
+  illustration,
   className,
 }: EmptyStateProps) {
   return (
@@ -25,7 +28,13 @@ export default function EmptyState({
         className,
       )}
     >
-      <Icon className="w-12 h-12 opacity-30" aria-hidden="true" />
+      {illustration ? (
+        <div className="mb-1" aria-hidden="true">{illustration}</div>
+      ) : (
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-surface-hover">
+          <Icon className="w-8 h-8 opacity-40" aria-hidden="true" />
+        </div>
+      )}
       <p className="text-sm font-medium text-ink-muted">{title}</p>
       {description && <p className="text-sm max-w-sm">{description}</p>}
       {action && <div className="mt-1">{action}</div>}

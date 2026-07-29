@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReservationDto, SharedSpaceDto } from '../types';
+import { Card } from './ui';
 
 interface MonthlyCalendarProps {
   reservations: ReservationDto[];
@@ -100,7 +101,7 @@ export default function MonthlyCalendar({
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header with month/year selector */}
       <div className="flex items-center justify-between p-4 border-b border-line bg-surface-muted">
         <button
@@ -239,6 +240,6 @@ export default function MonthlyCalendar({
           <span className="text-ink-muted">Aprovada</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

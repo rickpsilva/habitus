@@ -63,8 +63,13 @@ export default function LoginPage() {
 
       login(data);
       navigate('/dashboard');
-    } catch {
-      setError('Email ou password incorretos.');
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 429) {
+        setError('Demasiadas tentativas de início de sessão. Por favor, aguarde alguns minutos e tente novamente.');
+      } else {
+        setError('Email ou password incorretos.');
+      }
     } finally {
       setLoading(false);
     }

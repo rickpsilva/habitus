@@ -7,7 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import SearchBar from '../components/SearchBar';
-import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
 import type { UsefulContactCategory, UsefulContactDto } from '../types';
 
 type CategoryOption = {
@@ -358,10 +358,7 @@ export default function UsefulContactsPage() {
             const Icon = meta.icon;
 
             return (
-              <div
-                key={contact.id}
-                className="bg-surface rounded-xl border border-line p-5 shadow-sm hover:shadow-md transition-shadow"
-              >
+              <Card key={contact.id} interactive className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-ink truncate">{contact.name}</h3>
@@ -416,7 +413,7 @@ export default function UsefulContactsPage() {
                     {meta.label}
                   </span>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

@@ -24,64 +24,18 @@ import {
 } from 'lucide-react';
 import { maintenanceApi, financialApi, notificationsApi, reservationsApi, usersApi, condominiumsApi, subscriptionsApi, platformBillingSettingsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
-import { PageHeader, ErrorState } from '../components/ui';
+import { PageHeader, ErrorState, StatCard, Badge, Card } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import type { MaintenanceRequestDto, NotificationDto, ReservationDto, CondominiumActiveUsersDto, PlatformBillingSettingsDto } from '../types';
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  to,
-  subtitle,
-  loading,
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  to: string;
-  subtitle?: string;
-  loading?: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="bg-surface rounded-xl p-5 shadow-sm border border-line flex items-center gap-4 animate-pulse">
-        <div className="w-12 h-12 rounded-xl bg-surface-hover shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 bg-surface-hover rounded w-3/4" />
-          <div className="h-6 bg-surface-hover rounded w-1/2" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <Link
-      to={to}
-      className="bg-surface rounded-xl p-5 shadow-sm border border-line hover:shadow-md transition-shadow flex items-center gap-4"
-    >
-      <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${color}`}>
-        <Icon className="w-6 h-6" aria-hidden="true" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm text-ink-subtle leading-tight">{title}</p>
-        <p className="text-2xl font-bold text-ink">{value}</p>
-        {subtitle && (
-          <p className="text-xs text-ink-subtle mt-0.5 leading-tight">{subtitle}</p>
-        )}
-      </div>
-    </Link>
-  );
-}
 
 function statusBadge(status: string) {
   const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
-  const map: Record<string, string> = {
-    Open: 'bg-yellow-100 text-yellow-700',
-    Pending: 'bg-yellow-100 text-yellow-700',
-    InProgress: 'bg-blue-100 text-blue-700',
-    Completed: 'bg-green-100 text-green-700',
-    Cancelled: 'bg-control text-ink-muted',
+  const variants: Record<string, BadgeVariant> = {
+    Open: 'warning',
+    Pending: 'warning',
+    InProgress: 'info',
+    Completed: 'success',
+    Cancelled: 'neutral',
   };
   const labels: Record<string, string> = {
     Open: 'Aberto',
@@ -91,9 +45,9 @@ function statusBadge(status: string) {
     Cancelled: 'Cancelado',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[normalizedStatus] ?? 'bg-control text-ink-muted'}`}>
+    <Badge variant={variants[normalizedStatus] ?? 'neutral'}>
       {labels[normalizedStatus] ?? normalizedStatus}
-    </span>
+    </Badge>
   );
 }
 
@@ -213,7 +167,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-ink">Utilizadores ativos por condomínio</h2>
             <span className="text-xs text-ink-subtle">Último mês</span>
@@ -256,9 +210,9 @@ export default function DashboardPage() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-ink">Planos da Plataforma</h2>
             <a
@@ -291,9 +245,9 @@ export default function DashboardPage() {
               <p className="text-xs text-ink-subtle mt-2">Analytics avançado, WhatsApp e acesso à API REST.</p>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="font-semibold text-ink flex items-center gap-2">
@@ -332,7 +286,7 @@ export default function DashboardPage() {
               <p className="text-xs text-ink-subtle mt-1">Configurações editáveis em Faturação</p>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -458,7 +412,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent maintenance */}
-      <div className="bg-surface rounded-xl shadow-sm border border-line">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <h2 className="font-semibold text-ink">Pedidos de Manutenção Recentes</h2>
           <Link to="/maintenance" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
@@ -495,10 +449,10 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Notifications */}
-      <div className="bg-surface rounded-xl shadow-sm border border-line">
+      <Card>
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <h2 className="font-semibold text-ink">Últimas Notificações</h2>
           <Link to="/notifications" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
@@ -530,7 +484,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import type { ReservationDto, SharedSpaceDto } from '../types';
+import { Card } from './ui';
 
 interface WeeklyCalendarProps {
   reservations: ReservationDto[];
@@ -186,7 +187,7 @@ export default function WeeklyCalendar({
   };
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header with navigation and zoom */}
       <div className="flex items-center justify-between p-4 border-b border-line bg-surface-muted">
         <button
@@ -340,6 +341,6 @@ export default function WeeklyCalendar({
           <span className="text-ink-muted">Aprovada</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

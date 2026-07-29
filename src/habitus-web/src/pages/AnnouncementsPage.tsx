@@ -23,7 +23,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
-import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Badge } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -56,12 +57,12 @@ const statusLabels: Record<string, string> = {
   Archived: 'Arquivado',
 };
 
-const statusColors: Record<string, string> = {
-  Draft: 'bg-control text-ink-muted',
-  PendingApproval: 'bg-yellow-100 text-yellow-700',
-  Published: 'bg-green-100 text-green-700',
-  Rejected: 'bg-red-100 text-red-700',
-  Archived: 'bg-slate-100 text-slate-600',
+const statusVariants: Record<string, BadgeVariant> = {
+  Draft: 'neutral',
+  PendingApproval: 'warning',
+  Published: 'success',
+  Rejected: 'danger',
+  Archived: 'neutral',
 };
 
 function escapeRegExp(value: string) {
@@ -632,9 +633,9 @@ export default function AnnouncementsPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-ink truncate">{highlightText(a.title, debouncedSearchText)}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[a.status] || statusColors.Draft}`}>
+                    <Badge variant={statusVariants[a.status] ?? 'neutral'}>
                       {statusLabels[a.status] || a.status}
-                    </span>
+                    </Badge>
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
                       {categoryLabels[a.category] || a.category}
                     </span>
