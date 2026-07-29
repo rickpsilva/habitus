@@ -279,7 +279,7 @@ export default function PaymentsPage() {
       Pending: { icon: Clock, color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
       Approved: { icon: CheckCircle, color: 'bg-green-100 text-green-800', label: 'Aprovado' },
       Rejected: { icon: XCircle, color: 'bg-red-100 text-red-800', label: 'Rejeitado' },
-      Cancelled: { icon: XCircle, color: 'bg-gray-100 text-gray-800', label: 'Cancelado' },
+      Cancelled: { icon: XCircle, color: 'bg-control text-ink-muted', label: 'Cancelado' },
     };
     const badge = badges[status as keyof typeof badges] || badges.Pending;
     const Icon = badge.icon;
@@ -342,9 +342,9 @@ export default function PaymentsPage() {
       />
 
       {/* Payments List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Histórico de Pagamentos</h2>
+      <div className="bg-surface rounded-lg shadow">
+        <div className="p-4 border-b border-line flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink">Histórico de Pagamentos</h2>
           <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => loadPayments()}>
             Atualizar
           </Button>
@@ -354,7 +354,7 @@ export default function PaymentsPage() {
             <ErrorState message={loadError} onRetry={loadPayments} />
           </div>
         )}
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-line">
           {!loadError && payments.length === 0 ? (
             <EmptyState
               icon={CreditCard}
@@ -365,18 +365,18 @@ export default function PaymentsPage() {
             payments.map((payment) => (
               <div
                 key={payment.id}
-                className="p-4 hover:bg-gray-50 cursor-pointer"
+                className="p-4 hover:bg-surface-hover cursor-pointer"
                 onClick={() => setSelectedPayment(payment)}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900">{getTypeName(payment.type)}</h3>
+                      <h3 className="font-semibold text-ink">{getTypeName(payment.type)}</h3>
                       {getStatusBadge(payment.status)}
                     </div>
-                    <p className="text-sm text-gray-600">{payment.description}</p>
+                    <p className="text-sm text-ink-muted">{payment.description}</p>
                     <div className="flex items-center gap-3 mt-2">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-ink-subtle">
                         Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
                       </p>
                       {payment.proofOfPaymentUrl && (
@@ -394,7 +394,7 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">€{payment.amount.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-ink">€{payment.amount.toFixed(2)}</div>
                   </div>
                 </div>
               </div>
@@ -413,13 +413,13 @@ export default function PaymentsPage() {
         <div className="p-6">
           <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Tipo de Pagamento
                 </label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value as CreatePaymentRequest['type'] })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                 >
                   <option value="MonthlyFee">Quotas</option>
@@ -431,7 +431,7 @@ export default function PaymentsPage() {
               {/* Quota Periodicity Selector */}
               {form.type === 'MonthlyFee' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Periodicidade
                   </label>
                   <div className="flex gap-2">
@@ -443,7 +443,7 @@ export default function PaymentsPage() {
                         className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
                           quotaPeriodicity === p
                             ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
+                            : 'bg-surface text-ink-muted border-line hover:border-indigo-400'
                         }`}
                       >
                         {p === 'Monthly' ? 'Mensal' : p === 'Quarterly' ? 'Trimestral' : 'Anual'}
@@ -451,7 +451,7 @@ export default function PaymentsPage() {
                     ))}
                   </div>
                   {quotaPeriodicity === 'Monthly' && (
-                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                    <p className="text-xs text-ink-subtle mt-2 bg-surface-muted px-3 py-2 rounded">
                       Período: <strong>{PT_MONTHS[currentMonth]}</strong> {currentYear}
                     </p>
                   )}
@@ -460,7 +460,7 @@ export default function PaymentsPage() {
                       <select
                         value={trimestralStart}
                         onChange={(e) => setTrimestralStart(Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                       >
                         <option value={1}>Janeiro – Abril</option>
                         <option value={5}>Maio – Agosto</option>
@@ -469,7 +469,7 @@ export default function PaymentsPage() {
                     </div>
                   )}
                   {quotaPeriodicity === 'Annual' && (
-                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                    <p className="text-xs text-ink-subtle mt-2 bg-surface-muted px-3 py-2 rounded">
                       Período: <strong>Janeiro a Dezembro</strong> {currentYear}
                     </p>
                   )}
@@ -478,7 +478,7 @@ export default function PaymentsPage() {
               
               {/* Payment Method Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Método de Pagamento
                 </label>
                 <select
@@ -490,7 +490,7 @@ export default function PaymentsPage() {
                       setProofFile(null);
                     }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                 >
                   {paymentMethods?.bankTransferEnabled && (
@@ -543,7 +543,7 @@ export default function PaymentsPage() {
               )}
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Valor (€)
                 </label>
                 <input
@@ -555,19 +555,19 @@ export default function PaymentsPage() {
                     const value = parseFloat(e.target.value);
                     setForm({ ...form, amount: isNaN(value) ? 0 : value });
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                   placeholder="Ex: 50.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Descrição
                 </label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   rows={3}
                   required
                   placeholder="Ex: Pagamento quota Janeiro 2026"
@@ -577,10 +577,10 @@ export default function PaymentsPage() {
               {/* Proof of Payment Upload - Only for Bank Transfer */}
               {form.method === 'BankTransfer' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Comprovativo de Pagamento <span className="text-red-500">*</span>
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-indigo-500 transition-colors">
+                  <div className="border-2 border-dashed border-line rounded-lg p-4 text-center hover:border-indigo-500 transition-colors">
                     <input
                       type="file"
                       id="proof-upload"
@@ -603,18 +603,18 @@ export default function PaymentsPage() {
                       htmlFor="proof-upload"
                       className="cursor-pointer flex flex-col items-center gap-2"
                     >
-                      <Upload className="w-8 h-8 text-gray-400" />
+                      <Upload className="w-8 h-8 text-ink-subtle" />
                       {proofFile ? (
                         <div className="text-sm">
                           <p className="text-green-600 font-medium">{proofFile.name}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-ink-subtle">
                             {(proofFile.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-ink-muted">
                           <p className="font-medium">Clique para selecionar</p>
-                          <p className="text-xs text-gray-500">PDF ou Imagem (máx. {formatUploadSizeLabel(maxUploadSizeBytes)})</p>
+                          <p className="text-xs text-ink-subtle">PDF ou Imagem (máx. {formatUploadSizeLabel(maxUploadSizeBytes)})</p>
                         </div>
                       )}
                     </label>
@@ -622,7 +622,7 @@ export default function PaymentsPage() {
                 </div>
               )}
               
-              <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
+              <div className="text-xs text-blue-800 bg-blue-50 p-3 rounded border border-blue-200">
                 <AlertCircle className="w-4 h-4 inline mr-1" />
                 <strong>Importante:</strong> {form.method === 'BankTransfer' 
                   ? 'Efetue a transferência bancária e anexe o comprovativo antes de criar o pagamento.' 
@@ -637,7 +637,7 @@ export default function PaymentsPage() {
                   }}
                   disabled={submitting}
                   fullWidth
-                  className="flex-1 border border-gray-300"
+                  className="flex-1 border border-line"
                 >
                   Cancelar
                 </Button>
@@ -666,38 +666,38 @@ export default function PaymentsPage() {
         <div className="p-6">
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Estado:</span>
+              <span className="text-ink-muted">Estado:</span>
               {getStatusBadge(selectedPayment.status)}
               </div>
               <div className="flex justify-between">
-              <span className="text-gray-600">Tipo:</span>
+              <span className="text-ink-muted">Tipo:</span>
               <span className="font-medium">{getTypeName(selectedPayment.type)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Método:</span>
+              <span className="text-ink-muted">Método:</span>
               <span className="font-medium">{getMethodName(selectedPayment.method)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Valor:</span>
+              <span className="text-ink-muted">Valor:</span>
               <span className="font-bold text-lg">€{selectedPayment.amount.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-600 block mb-1">Descrição:</span>
+              <span className="text-ink-muted block mb-1">Descrição:</span>
               <p className="text-sm">{selectedPayment.description}</p>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Data de Criação:</span>
+              <span className="text-ink-muted">Data de Criação:</span>
               <span>{new Date(selectedPayment.createdDate).toLocaleString('pt-PT')}</span>
             </div>
             {selectedPayment.processedDate && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Data de Processamento:</span>
+                <span className="text-ink-muted">Data de Processamento:</span>
                 <span>{new Date(selectedPayment.processedDate).toLocaleString('pt-PT')}</span>
               </div>
             )}
             {selectedPayment.processedByUserName && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Processado por:</span>
+                <span className="text-ink-muted">Processado por:</span>
                 <span>{selectedPayment.processedByUserName}</span>
               </div>
             )}
@@ -734,8 +734,8 @@ export default function PaymentsPage() {
           
           {/* Document Actions */}
           {(selectedPayment.proofOfPaymentUrl || (selectedPayment.status === 'Approved' && selectedPayment.hasReceipt)) && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Documentos</h3>
+            <div className="mt-4 pt-4 border-t border-line">
+              <h3 className="text-sm font-semibold text-ink mb-2">Documentos</h3>
               <div className="flex flex-col gap-2">
                 {selectedPayment.proofOfPaymentUrl && (
                   <Button

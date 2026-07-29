@@ -15,8 +15,8 @@ export default function PageHeader({ title, subtitle, actions, search, className
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-3', className)}>
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        {subtitle && <p className="text-gray-500 text-sm mt-0.5">{subtitle}</p>}
+        <h1 className="text-2xl font-bold text-ink">{title}</h1>
+        {subtitle && <p className="text-ink-subtle text-sm mt-0.5">{subtitle}</p>}
       </div>
       {(search || actions) && (
         <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">

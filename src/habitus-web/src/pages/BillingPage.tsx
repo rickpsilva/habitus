@@ -38,7 +38,7 @@ import type {
 } from '../types';
 
 const tierMeta: Record<string, { icon: React.ElementType; color: string; badge: string }> = {
-  Free:   { icon: Layers,     color: 'border-gray-200 bg-gray-50',          badge: 'bg-gray-100 text-gray-600' },
+  Free:   { icon: Layers,     color: 'border-line bg-surface-muted',          badge: 'bg-control text-ink-muted' },
   Silver: { icon: Shield,     color: 'border-amber-300 bg-amber-50',        badge: 'bg-amber-100 text-amber-700' },
   Gold:   { icon: TrendingUp, color: 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300', badge: 'bg-emerald-100 text-emerald-700' },
 };
@@ -94,11 +94,11 @@ function calculateDiscountedPrice(baseMonthly: number, months: number, discountP
 // ============= Invoice Status Helpers =============
 
 const statusMeta: Record<InvoiceDto['status'], { label: string; className: string; icon: React.ElementType }> = {
-  Draft:     { label: 'Rascunho', className: 'bg-gray-100 text-gray-600', icon: Clock },
+  Draft:     { label: 'Rascunho', className: 'bg-control text-ink-muted', icon: Clock },
   Emitted:   { label: 'Emitida',  className: 'bg-blue-100 text-blue-700', icon: FileText },
   Paid:      { label: 'Paga',     className: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
   Overdue:   { label: 'Vencida',  className: 'bg-red-100 text-red-700', icon: AlertTriangle },
-  Cancelled: { label: 'Cancelada', className: 'bg-gray-200 text-gray-500', icon: XCircle },
+  Cancelled: { label: 'Cancelada', className: 'bg-control text-ink-muted', icon: XCircle },
 };
 
 function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
@@ -247,20 +247,20 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       key: 'invoiceRef',
       header: 'Referência',
       mobileLabel: 'Referência',
-      render: (inv) => <span className="font-mono text-xs font-medium text-gray-800">{inv.invoiceRef}</span>,
+      render: (inv) => <span className="font-mono text-xs font-medium text-ink">{inv.invoiceRef}</span>,
     },
     {
       key: 'issuedDate',
       header: 'Data',
       mobileLabel: 'Data',
-      render: (inv) => <span className="text-gray-600">{new Date(inv.issuedDate).toLocaleDateString('pt-PT')}</span>,
+      render: (inv) => <span className="text-ink-muted">{new Date(inv.issuedDate).toLocaleDateString('pt-PT')}</span>,
     },
     {
       key: 'dueDate',
       header: 'Vencimento',
       mobileLabel: 'Vencimento',
       render: (inv) => (
-        <span className={inv.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+        <span className={inv.isOverdue ? 'text-red-600 font-medium' : 'text-ink-muted'}>
           {new Date(inv.dueDate).toLocaleDateString('pt-PT')}
         </span>
       ),
@@ -269,14 +269,14 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       key: 'planName',
       header: 'Plano',
       mobileLabel: 'Plano',
-      render: (inv) => <span className="text-gray-700">{inv.planName}</span>,
+      render: (inv) => <span className="text-ink-muted">{inv.planName}</span>,
     },
     {
       key: 'totalAmount',
       header: 'Total',
       align: 'right',
       mobileLabel: 'Total',
-      render: (inv) => <span className="font-semibold text-gray-900">{fmt(inv.totalAmount)}</span>,
+      render: (inv) => <span className="font-semibold text-ink">{fmt(inv.totalAmount)}</span>,
     },
     {
       key: 'status',
@@ -294,7 +294,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
           {inv.pdfUrl && (
             <button
               onClick={() => invoicesApi.downloadPdf(inv.id)}
-              className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+              className="p-1.5 rounded hover:bg-surface-hover text-ink-subtle hover:text-ink"
               title="Descarregar PDF"
             >
               <Download className="w-4 h-4" />
@@ -371,7 +371,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
         </div>
       )}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+        <h2 className="text-base font-semibold text-ink flex items-center gap-2">
           <FileText className="w-4 h-4 text-indigo-600" />
           Faturas
         </h2>
@@ -379,7 +379,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
           <button
             onClick={handleGenerateDue}
             disabled={generatingInvoices}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-line text-sm text-ink-muted hover:bg-surface-hover transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${generatingInvoices ? 'animate-spin' : ''}`} />
             {generatingInvoices ? 'A gerar...' : 'Gerar Em Dívida'}
@@ -398,7 +398,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
             min={2020}
             max={new Date().getFullYear() + 1}
             onChange={(e) => setSaftYear(e.target.value)}
-            className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center"
+            className="w-20 px-2 py-1.5 border border-line rounded-lg text-sm text-center"
           />
         </div>
       </div>
@@ -406,11 +406,11 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       {/* Condominium selector */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-gray-400" />
+          <Building2 className="w-4 h-4 text-ink-subtle" />
           <select
             value={selectedCondoId}
             onChange={(e) => setSelectedCondoId(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
+            className="border border-line rounded-lg px-3 py-1.5 text-sm bg-surface"
           >
             {condominiums.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -420,7 +420,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
+          className="border border-line rounded-lg px-3 py-1.5 text-sm bg-surface"
         >
           <option value="all">Todos os estados</option>
           <option value="Emitted">Emitidas</option>
@@ -431,7 +431,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
+          className="border border-line rounded-lg px-3 py-1.5 text-sm bg-surface"
         >
           <option value="all">Todos os anos</option>
           {years.map((y) => (
@@ -447,7 +447,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
             { label: 'Emitido', value: fmt(totalEmitted), color: 'text-blue-700 bg-blue-50 border-blue-200' },
             { label: 'Cobrado', value: fmt(totalPaid), color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
             { label: 'Em Dívida', value: fmt(totalOverdue), color: 'text-red-700 bg-red-50 border-red-200' },
-            { label: 'Vencidas', value: String(overdueCount), color: overdueCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-gray-600 bg-gray-50 border-gray-200' },
+            { label: 'Vencidas', value: String(overdueCount), color: overdueCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-ink-muted bg-surface-muted border-line' },
           ].map((s) => (
             <div key={s.label} className={`rounded-lg border px-3 py-2 text-sm ${s.color}`}>
               <p className="text-xs opacity-70">{s.label}</p>
@@ -483,17 +483,17 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
           onClick={() => setSelectedInvoice(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4"
+            className="bg-surface rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{selectedInvoice.invoiceRef}</h3>
-                <p className="text-sm text-gray-500">{selectedInvoice.customerName}</p>
+                <h3 className="text-lg font-bold text-ink">{selectedInvoice.invoiceRef}</h3>
+                <p className="text-sm text-ink-subtle">{selectedInvoice.customerName}</p>
               </div>
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="p-1 rounded text-gray-400 hover:text-gray-600"
+                className="p-1 rounded text-ink-subtle hover:text-ink-muted"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -501,48 +501,48 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <div>
-                <p className="text-xs text-gray-400 uppercase">Estado</p>
+                <p className="text-xs text-ink-subtle uppercase">Estado</p>
                 <StatusBadge status={selectedInvoice.status} />
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase">Plano</p>
-                <p className="font-medium text-gray-800">{selectedInvoice.planName}</p>
+                <p className="text-xs text-ink-subtle uppercase">Plano</p>
+                <p className="font-medium text-ink">{selectedInvoice.planName}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase">Emitida</p>
-                <p className="text-gray-700">{new Date(selectedInvoice.issuedDate).toLocaleDateString('pt-PT')}</p>
+                <p className="text-xs text-ink-subtle uppercase">Emitida</p>
+                <p className="text-ink-muted">{new Date(selectedInvoice.issuedDate).toLocaleDateString('pt-PT')}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase">Vencimento</p>
-                <p className={selectedInvoice.isOverdue ? 'text-red-600 font-semibold' : 'text-gray-700'}>
+                <p className="text-xs text-ink-subtle uppercase">Vencimento</p>
+                <p className={selectedInvoice.isOverdue ? 'text-red-600 font-semibold' : 'text-ink-muted'}>
                   {new Date(selectedInvoice.dueDate).toLocaleDateString('pt-PT')}
                 </p>
               </div>
               {selectedInvoice.paidDate && (
                 <div>
-                  <p className="text-xs text-gray-400 uppercase">Data de Pagamento</p>
+                  <p className="text-xs text-ink-subtle uppercase">Data de Pagamento</p>
                   <p className="text-emerald-700">{new Date(selectedInvoice.paidDate).toLocaleDateString('pt-PT')}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-gray-400 uppercase">Período</p>
-                <p className="text-gray-700">
+                <p className="text-xs text-ink-subtle uppercase">Período</p>
+                <p className="text-ink-muted">
                   {new Date(selectedInvoice.periodStartDate).toLocaleDateString('pt-PT')} –{' '}
                   {new Date(selectedInvoice.periodEndDate).toLocaleDateString('pt-PT')}
                 </p>
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-3 space-y-1 text-sm">
-              <div className="flex justify-between text-gray-600">
+            <div className="border-t border-line pt-3 space-y-1 text-sm">
+              <div className="flex justify-between text-ink-muted">
                 <span>Subtotal</span>
                 <span>{fmt(selectedInvoice.subtotalAmount)}</span>
               </div>
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-ink-muted">
                 <span>IVA ({(selectedInvoice.vatRate * 100).toFixed(0)}%)</span>
                 <span>{fmt(selectedInvoice.vatAmount)}</span>
               </div>
-              <div className="flex justify-between font-bold text-gray-900 text-base border-t border-gray-100 pt-1 mt-1">
+              <div className="flex justify-between font-bold text-ink text-base border-t border-line pt-1 mt-1">
                 <span>Total</span>
                 <span>{fmt(selectedInvoice.totalAmount)}</span>
               </div>
@@ -624,21 +624,21 @@ function PlanCard({
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${meta.badge}`}>
           {plan.tier}
         </span>
-        <Icon className="w-5 h-5 text-gray-400" />
+        <Icon className="w-5 h-5 text-ink-subtle" />
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-        <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>
+        <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+        <p className="text-xs text-ink-subtle mt-0.5">{plan.description}</p>
       </div>
 
       <div className="space-y-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-gray-900">{fmt(plan.priceMonthly)}</span>
-          <span className="text-xs text-gray-400">/mês</span>
+          <span className="text-2xl font-bold text-ink">{fmt(plan.priceMonthly)}</span>
+          <span className="text-xs text-ink-subtle">/mês</span>
         </div>
         {plan.priceAnnual > 0 && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-ink-subtle">
             {fmt(plan.priceAnnual)}/ano{' '}
             {formatDiscount(plan.annualDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.annualDiscountPercent)}</span>
@@ -646,7 +646,7 @@ function PlanCard({
           </div>
         )}
         {plan.priceQuinquennial > 0 && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-ink-subtle">
             {fmt(plan.priceQuinquennial)}/5 anos{' '}
             {formatDiscount(plan.quinquennialDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.quinquennialDiscountPercent)}</span>
@@ -657,7 +657,7 @@ function PlanCard({
 
       <ul className="space-y-1.5 flex-1">
         {plan.features.filter((f) => f.isEnabled).map((f) => (
-          <li key={f.featureKey} className="flex items-center gap-2 text-sm text-gray-700">
+          <li key={f.featureKey} className="flex items-center gap-2 text-sm text-ink-muted">
             <Check className="w-4 h-4 text-emerald-500 shrink-0" />
             {f.featureLabel}
           </li>
@@ -665,7 +665,7 @@ function PlanCard({
       </ul>
 
       <div className="mt-auto flex gap-2">
-        <Button variant="ghost" onClick={() => onEdit(plan)} fullWidth className="flex-1 border border-gray-300">
+        <Button variant="ghost" onClick={() => onEdit(plan)} fullWidth className="flex-1 border border-line">
           Editar
         </Button>
         <Button onClick={() => onAssign(plan)} fullWidth className="flex-1">
@@ -889,7 +889,7 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
+      <div className="flex items-center justify-center h-64 text-ink-subtle">
         <RefreshCw className="w-6 h-6 animate-spin mr-2" /> A carregar...
       </div>
     );
@@ -918,11 +918,11 @@ export default function BillingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-ink flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-indigo-600" />
             Faturação e Subscrições
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">
+          <p className="text-ink-subtle mt-1 text-sm">
             Gere os planos e subscrições dos condomínios da plataforma.
           </p>
         </div>
@@ -930,31 +930,31 @@ export default function BillingPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
           <span className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
             <Building2 className="w-5 h-5" />
           </span>
           <div>
-            <p className="text-xs text-gray-500">Condomínios</p>
-            <p className="text-xl font-bold text-gray-900">{condominiums.length}</p>
+            <p className="text-xs text-ink-subtle">Condomínios</p>
+            <p className="text-xl font-bold text-ink">{condominiums.length}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
           <span className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
             <Check className="w-5 h-5" />
           </span>
           <div>
-            <p className="text-xs text-gray-500">Subscrições Ativas</p>
-            <p className="text-xl font-bold text-gray-900">{activeCount}</p>
+            <p className="text-xs text-ink-subtle">Subscrições Ativas</p>
+            <p className="text-xl font-bold text-ink">{activeCount}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+        <div className="bg-surface rounded-xl border border-line shadow-sm p-4 flex items-center gap-4">
           <span className="p-2 rounded-lg bg-amber-100 text-amber-700">
             <CreditCard className="w-5 h-5" />
           </span>
           <div>
-            <p className="text-xs text-gray-500">Volume Mensal (MRR)</p>
-            <p className="text-xl font-bold text-gray-900">
+            <p className="text-xs text-ink-subtle">Volume Mensal (MRR)</p>
+            <p className="text-xl font-bold text-ink">
               {monthlyVolume !== null ? fmt(monthlyVolume) : '—'}
             </p>
           </div>
@@ -964,7 +964,7 @@ export default function BillingPage() {
       {/* Plans */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-900">Planos Disponíveis</h2>
+          <h2 className="text-base font-semibold text-ink">Planos Disponíveis</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleResetDefaultPlans}
@@ -975,7 +975,7 @@ export default function BillingPage() {
             </button>
             <button
               onClick={openCreatePlanModal}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-black transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-ink text-surface text-sm font-medium hover:opacity-90 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Novo Plano
@@ -1005,11 +1005,11 @@ export default function BillingPage() {
 
       {/* Subscriptions table */}
       <section>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Subscrições Ativas</h2>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <h2 className="text-base font-semibold text-ink mb-3">Subscrições Ativas</h2>
+        <div className="bg-surface rounded-xl shadow-sm border border-line overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
+              <tr className="text-left text-xs text-ink-subtle uppercase bg-surface-muted border-b border-line">
                 <th className="px-4 py-3">Condomínio</th>
                 <th className="px-4 py-3">Plano</th>
                 <th className="px-4 py-3">Ciclo</th>
@@ -1018,32 +1018,32 @@ export default function BillingPage() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line">
               {condominiums.map((condo) => {
                 const sub = activeSubMap.get(condo.id);
                 return (
-                  <tr key={condo.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{condo.name}</td>
+                  <tr key={condo.id} className="hover:bg-surface-hover transition-colors">
+                    <td className="px-4 py-3 font-medium text-ink">{condo.name}</td>
                     <td className="px-4 py-3">
                       {sub ? (
                         <span
                           className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                            tierMeta[sub.plan.tier]?.badge ?? 'bg-gray-100 text-gray-600'
+                            tierMeta[sub.plan.tier]?.badge ?? 'bg-control text-ink-muted'
                           }`}
                         >
                           {sub.plan.name}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">Sem plano</span>
+                        <span className="text-ink-subtle text-xs">Sem plano</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-ink-muted">
                       {sub ? cycleLabel[sub.billingCycle] ?? sub.billingCycle : '—'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-ink-muted">
                       {sub ? fmt(sub.priceAtPurchase) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-ink-muted">
                       {sub
                         ? new Date(sub.nextBillingDate).toLocaleDateString('pt-PT')
                         : '—'}
@@ -1075,7 +1075,7 @@ export default function BillingPage() {
               })}
               {condominiums.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
+                  <td colSpan={6} className="px-4 py-8 text-center text-ink-subtle text-sm">
                     Nenhum condomínio encontrado.
                   </td>
                 </tr>
@@ -1088,18 +1088,18 @@ export default function BillingPage() {
       {/* Assign modal */}
       {assignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 m-4">
+          <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 m-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Atribuir Subscrição</h3>
+              <h3 className="font-semibold text-ink">Atribuir Subscrição</h3>
               <button onClick={() => setAssignModal(null)}>
-                <X className="w-5 h-5 text-gray-400 hover:text-gray-700" />
+                <X className="w-5 h-5 text-ink-subtle hover:text-ink-muted" />
               </button>
             </div>
 
             <div className="space-y-4">
               {/* Condominium select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Condomínio
                 </label>
                 <div className="relative">
@@ -1108,7 +1108,7 @@ export default function BillingPage() {
                     onChange={(e) =>
                       setAssignModal({ ...assignModal, condominiumId: e.target.value })
                     }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {condominiums.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1116,13 +1116,13 @@ export default function BillingPage() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-ink-subtle pointer-events-none" />
                 </div>
               </div>
 
               {/* Plan select */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Plano
                 </label>
                 <div className="relative">
@@ -1132,7 +1132,7 @@ export default function BillingPage() {
                       const p = plans.find((x) => x.id === e.target.value);
                       if (p) setAssignModal({ ...assignModal, plan: p });
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm pr-8 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {plans.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1140,13 +1140,13 @@ export default function BillingPage() {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-ink-subtle pointer-events-none" />
                 </div>
               </div>
 
               {/* Billing cycle */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Ciclo de Faturação
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1165,7 +1165,7 @@ export default function BillingPage() {
                         className={`border rounded-lg p-2 text-xs text-center transition-colors ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-semibold'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            : 'border-line text-ink-muted hover:border-ink-subtle'
                         }`}
                       >
                         <div className="font-medium">{cycleLabel[cycle]}</div>
@@ -1201,33 +1201,33 @@ export default function BillingPage() {
       {/* Plan editor modal */}
       {planModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 m-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-surface rounded-2xl shadow-xl w-full max-w-3xl p-6 m-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="font-semibold text-ink flex items-center gap-2">
                 <Pencil className="w-4 h-4" />
                 {planForm.id ? 'Editar Plano' : 'Criar Plano'}
               </h3>
               <button onClick={() => setPlanModalOpen(false)}>
-                <X className="w-5 h-5 text-gray-400 hover:text-gray-700" />
+                <X className="w-5 h-5 text-ink-subtle hover:text-ink-muted" />
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Nome</label>
                 <input
                   value={planForm.name}
                   onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                   placeholder="Ex: Silver Plus"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tier</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Tier</label>
                 <select
                   value={planForm.tier}
                   onChange={(e) => setPlanForm({ ...planForm, tier: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                 >
                   <option value="Free">Free</option>
                   <option value="Silver">Silver</option>
@@ -1235,27 +1235,27 @@ export default function BillingPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
                 <textarea
                   value={planForm.description}
                   onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                   rows={2}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço Mensal (EUR)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Preço Mensal (EUR)</label>
                 <input
                   type="number"
                   min={0}
                   step="0.01"
                   value={planForm.priceMonthly}
                   onChange={(e) => setPlanForm({ ...planForm, priceMonthly: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Desconto Anual (%)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Desconto Anual (%)</label>
                 <input
                   type="number"
                   min={0}
@@ -1263,11 +1263,11 @@ export default function BillingPage() {
                   step="1"
                   value={planForm.annualDiscountPercent}
                   onChange={(e) => setPlanForm({ ...planForm, annualDiscountPercent: Number(e.target.value) })}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${planForm.annualDiscountPercent > 100 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                  className={`w-full border bg-surface text-ink rounded-lg px-3 py-2 text-sm ${planForm.annualDiscountPercent > 100 ? 'border-red-300 bg-red-50' : 'border-line'}`}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Desconto 5 Anos (%)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Desconto 5 Anos (%)</label>
                 <input
                   type="number"
                   min={0}
@@ -1275,7 +1275,7 @@ export default function BillingPage() {
                   step="1"
                   value={planForm.quinquennialDiscountPercent}
                   onChange={(e) => setPlanForm({ ...planForm, quinquennialDiscountPercent: Number(e.target.value) })}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${planForm.quinquennialDiscountPercent > 100 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                  className={`w-full border bg-surface text-ink rounded-lg px-3 py-2 text-sm ${planForm.quinquennialDiscountPercent > 100 ? 'border-red-300 bg-red-50' : 'border-line'}`}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -1285,7 +1285,7 @@ export default function BillingPage() {
                   checked={planForm.isActive}
                   onChange={(e) => setPlanForm({ ...planForm, isActive: e.target.checked })}
                 />
-                <label htmlFor="plan-is-active" className="text-sm text-gray-700">Plano ativo</label>
+                <label htmlFor="plan-is-active" className="text-sm text-ink-muted">Plano ativo</label>
               </div>
             </div>
 
@@ -1298,11 +1298,11 @@ export default function BillingPage() {
               </div>
             </div>
 
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-3">Funcionalidades do Plano</h4>
+            <div className="border border-line rounded-lg p-4">
+              <h4 className="font-medium text-ink mb-3">Funcionalidades do Plano</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {featureCatalog.map((feature) => (
-                  <label key={feature.featureKey} className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                  <label key={feature.featureKey} className="flex items-center justify-between border border-line rounded-lg px-3 py-2 text-sm">
                     <span>{feature.featureLabel}</span>
                     <input
                       type="checkbox"
@@ -1331,7 +1331,7 @@ export default function BillingPage() {
                   setPlanModalOpen(false);
                   setPlanFormError('');
                 }}
-                className="border border-gray-300"
+                className="border border-line"
               >
                 Cancelar
               </Button>
@@ -1345,7 +1345,7 @@ export default function BillingPage() {
 
       {/* Invoices dashboard */}
       {condominiums.length > 0 && (
-        <div className="border-t border-gray-100 pt-8">
+        <div className="border-t border-line pt-8">
           <InvoicesDashboard condominiums={condominiums} />
         </div>
       )}

@@ -249,7 +249,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Nome *
               </label>
               <input
@@ -257,13 +257,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Nome do fornecedor"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Especialidade *
               </label>
               <input
@@ -271,7 +271,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.specialty}
                 onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: Canalizador, Eletricista..."
               />
             </div>
@@ -281,7 +281,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Telefone *
               </label>
               <input
@@ -289,34 +289,34 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="+351 XXX XXX XXX"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-muted mb-1">
               Email
             </label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="email@exemplo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-muted mb-1">
               Morada
             </label>
             <textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               placeholder="Morada completa"
             />
           </div>
@@ -328,9 +328,9 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 id="isActive"
                 checked={(form as UpdateSupplierRequest).isActive}
                 onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
               />
-              <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+              <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
                 Fornecedor Ativo
               </label>
             </div>
@@ -368,16 +368,16 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             {filteredSuppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className={`bg-white rounded-xl p-5 shadow-sm border ${
-                  supplier.isActive ? 'border-gray-200' : 'border-gray-300 bg-gray-50'
+                className={`bg-surface rounded-xl p-5 shadow-sm border ${
+                  supplier.isActive ? 'border-line' : 'border-line bg-surface-muted'
                 } hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-ink flex items-center gap-2">
                       {supplier.name}
                       {!supplier.isActive && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                        <span className="text-xs px-2 py-0.5 bg-control text-ink-muted rounded-full">
                           Inativo
                         </span>
                       )}
@@ -406,14 +406,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
                 <div className="space-y-2 text-sm">
                   
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2 text-ink-muted">
                     <Phone className="w-4 h-4 flex-shrink-0" />
                     <a href={`tel:${supplier.phone}`} className="hover:text-indigo-600">
                       {supplier.phone}
                     </a>
                   </div>
                   {supplier.email && (
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-ink-muted">
                       <Mail className="w-4 h-4 flex-shrink-0" />
                       <a href={`mailto:${supplier.email}`} className="hover:text-indigo-600 truncate">
                         {supplier.email}
@@ -421,7 +421,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                     </div>
                   )}
                   {supplier.address && (
-                    <div className="flex items-start gap-2 text-gray-600">
+                    <div className="flex items-start gap-2 text-ink-muted">
                       <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
                       <span className="text-xs leading-relaxed">{supplier.address}</span>
                     </div>

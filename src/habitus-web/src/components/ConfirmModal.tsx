@@ -52,20 +52,20 @@ export default function ConfirmModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+      <div className="bg-surface rounded-2xl shadow-xl max-w-sm w-full p-6">
         <div className="flex items-start gap-4">
           <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${iconBg}`}>
             <AlertTriangle className={`w-5 h-5 ${iconColor}`} aria-hidden="true" />
           </div>
           <div className="flex-1">
-            <h3 id="confirm-title" className="font-semibold text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500 mt-1">{message}</p>
+            <h3 id="confirm-title" className="font-semibold text-ink">{title}</h3>
+            <p className="text-sm text-ink-subtle mt-1">{message}</p>
           </div>
           <button
             type="button"
             onClick={onCancel}
             aria-label="Fechar"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-ink-subtle hover:text-ink-muted transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -74,7 +74,7 @@ export default function ConfirmModal({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-ink bg-surface border border-line rounded-lg hover:bg-surface-hover transition-colors"
           >
             {cancelLabel}
           </button>

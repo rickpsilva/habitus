@@ -163,29 +163,29 @@ export default function NotificationsPage() {
               return (
                 <div
                   key={n.id}
-                  className={`bg-white rounded-xl shadow-sm border p-4 ${!n.isRead ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100'}`}
+                  className={`bg-surface rounded-xl shadow-sm border p-4 ${!n.isRead ? 'border-indigo-200 bg-indigo-50/30' : 'border-line'}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`flex items-center justify-center w-9 h-9 rounded-full shrink-0 ${!n.isRead ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                    <div className={`flex items-center justify-center w-9 h-9 rounded-full shrink-0 ${!n.isRead ? 'bg-indigo-100' : 'bg-control'}`}>
                       {n.isRead ? (
-                        <BellOff className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                        <BellOff className="w-4 h-4 text-ink-subtle" aria-hidden="true" />
                       ) : (
                         <Bell className="w-4 h-4 text-indigo-600" aria-hidden="true" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`font-medium text-sm ${!n.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
+                        <p className={`font-medium text-sm ${!n.isRead ? 'text-ink' : 'text-ink-muted'}`}>
                           {n.title}
                         </p>
-                        <time className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+                        <time className="text-xs text-ink-subtle shrink-0 whitespace-nowrap">
                           {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </time>
                       </div>
-                      <p className="text-sm text-gray-500 mt-0.5">{parsed.plain}</p>
+                      <p className="text-sm text-ink-subtle mt-0.5">{parsed.plain}</p>
                       {parsed.thumb && (
                         <a href={parsed.thumb} target="_blank" rel="noreferrer" className="inline-block mt-2">
-                          <img src={parsed.thumb} alt="Pré-visualização" className="w-28 h-20 object-cover rounded border border-gray-200" />
+                          <img src={parsed.thumb} alt="Pré-visualização" className="w-28 h-20 object-cover rounded border border-line" />
                         </a>
                       )}
                       <div className="flex items-center gap-3 mt-2">
@@ -214,7 +214,7 @@ export default function NotificationsPage() {
                           <button
                             type="button"
                             onClick={() => setConfirmAction(n.id)}
-                            className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                            className="text-xs text-ink-subtle hover:text-red-500 flex items-center gap-1 transition-colors"
                           >
                             <Trash2 className="w-3 h-3" aria-hidden="true" />
                             Eliminar

@@ -20,7 +20,7 @@ type CategoryOption = {
 const categoryOptions: CategoryOption[] = [
   { value: 0, label: 'Emergencia', icon: ShieldAlert, badgeClass: 'bg-red-100 text-red-700' },
   { value: 1, label: 'Servico', icon: Wrench, badgeClass: 'bg-indigo-100 text-indigo-700' },
-  { value: 2, label: 'Administrativo', icon: Building2, badgeClass: 'bg-slate-100 text-slate-700' },
+  { value: 2, label: 'Administrativo', icon: Building2, badgeClass: 'bg-control text-ink-muted' },
 ];
 
 const categoryByString: Record<string, number> = {
@@ -220,81 +220,81 @@ export default function UsefulContactsPage() {
       >
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Nome</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: Bombeiros de Lisboa"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Telefone</label>
             <input
               type="text"
               value={form.phone}
               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: +351 213 000 000"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Email</label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: contacto@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Morada</label>
             <input
               type="text"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: Rua Principal, 123"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal</label>
               <input
                 type="text"
                 value={form.postalCode}
                 onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: 1000-001"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Localidade</label>
               <input
                 type="text"
                 value={form.locality}
                 onChange={(e) => setForm((prev) => ({ ...prev, locality: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: Lisboa"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Categoria</label>
             <select
               value={form.category}
               onChange={(e) => setForm((prev) => ({ ...prev, category: Number(e.target.value) }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               {categoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -305,7 +305,7 @@ export default function UsefulContactsPage() {
           </div>
 
           <div className="flex flex-wrap justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={closeModal} className="border border-gray-300">
+            <Button variant="ghost" onClick={closeModal} className="border border-line">
               Cancelar
             </Button>
             <Button type="submit" loading={submitting}>
@@ -360,11 +360,11 @@ export default function UsefulContactsPage() {
             return (
               <div
                 key={contact.id}
-                className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-surface rounded-xl border border-line p-5 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">{contact.name}</h3>
+                    <h3 className="text-base font-semibold text-ink truncate">{contact.name}</h3>
                     <a href={`tel:${contact.phone}`} className="text-sm text-indigo-600 hover:text-indigo-700">
                       {contact.phone}
                     </a>
@@ -392,17 +392,17 @@ export default function UsefulContactsPage() {
 
                 <div className="mt-3 space-y-2 text-sm">
                   {contact.email && (
-                    <div className="text-gray-600">
+                    <div className="text-ink-muted">
                       <a href={`mailto:${contact.email}`} className="text-indigo-600 hover:text-indigo-700">
                         {contact.email}
                       </a>
                     </div>
                   )}
                   {contact.address && (
-                    <div className="text-gray-600">{contact.address}</div>
+                    <div className="text-ink-muted">{contact.address}</div>
                   )}
                   {(contact.postalCode || contact.locality) && (
-                    <div className="text-gray-600">
+                    <div className="text-ink-muted">
                       {contact.postalCode && <span>{contact.postalCode}</span>}
                       {contact.postalCode && contact.locality && <span>, </span>}
                       {contact.locality && <span>{contact.locality}</span>}

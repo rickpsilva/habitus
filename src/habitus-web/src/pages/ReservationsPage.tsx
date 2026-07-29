@@ -26,7 +26,7 @@ const statusColors: Record<string, string> = {
   Approved: 'bg-green-100 text-green-700',
   Rejected: 'bg-red-100 text-red-700',
   CancellationRequested: 'bg-orange-100 text-orange-700',
-  Cancelled: 'bg-gray-100 text-gray-500',
+  Cancelled: 'bg-control text-ink-muted',
   Completed: 'bg-blue-100 text-blue-700',
 };
 
@@ -619,7 +619,7 @@ export default function ReservationsPage() {
       header: 'Espaço',
       sortable: true,
       mobileLabel: 'Espaço',
-      render: (r) => <span className="font-medium text-gray-900">{spaceName(r.spaceId)}</span>,
+      render: (r) => <span className="font-medium text-ink">{spaceName(r.spaceId)}</span>,
     },
     {
       key: 'startTime',
@@ -655,7 +655,7 @@ export default function ReservationsPage() {
       sortable: true,
       mobileLabel: 'Estado',
       render: (r) => (
-        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
+        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[r.status] ?? 'bg-control text-ink-muted'}`}>
           {statusLabels[r.status] ?? r.status}
         </span>
       ),
@@ -704,7 +704,7 @@ export default function ReservationsPage() {
               green: 'text-green-600 hover:bg-green-50',
               red: 'text-red-600 hover:bg-red-50',
               orange: 'text-orange-600 hover:bg-orange-50',
-            }[action.color] || 'text-gray-600 hover:bg-gray-50';
+            }[action.color] || 'text-ink-muted hover:bg-surface-hover';
             return (
               <button
                 key={idx}
@@ -758,7 +758,7 @@ export default function ReservationsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full sm:w-auto px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">Todos os estados</option>
                 <option value="Pending">Pendente</option>
@@ -791,12 +791,12 @@ export default function ReservationsPage() {
       {spaces.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {spaces.map((s) => (
-            <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div key={s.id} className="bg-surface rounded-xl border border-line shadow-sm p-4">
               <div className="flex items-start justify-between mb-1">
-                <h3 className="font-medium text-gray-900">{s.name}</h3>
+                <h3 className="font-medium text-ink">{s.name}</h3>
               </div>
-              {s.description && <p className="text-xs text-gray-500 mb-2">{s.description}</p>}
-              {s.capacity && s.capacity > 0 && <p className="text-xs text-gray-400">Capacidade: {s.capacity} pessoas</p>}
+              {s.description && <p className="text-xs text-ink-subtle mb-2">{s.description}</p>}
+              {s.capacity && s.capacity > 0 && <p className="text-xs text-ink-subtle">Capacidade: {s.capacity} pessoas</p>}
             </div>
           ))}
         </div>
@@ -812,12 +812,12 @@ export default function ReservationsPage() {
         {error && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Espaço</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Espaço</label>
             <select
               value={form.spaceId}
               onChange={(e) => setForm({ ...form, spaceId: e.target.value })}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Selecionar espaço</option>
               {spaces.map((s) => (
@@ -828,27 +828,27 @@ export default function ReservationsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Início</label>
             <input
               type="datetime-local"
               value={form.startTime}
               onChange={(e) => setForm({ ...form, startTime: e.target.value })}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fim</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Fim</label>
             <input
               type="datetime-local"
               value={form.endTime}
               onChange={(e) => setForm({ ...form, endTime: e.target.value })}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
-            <Button variant="ghost" onClick={handleCancelForm} className="border border-gray-300">
+            <Button variant="ghost" onClick={handleCancelForm} className="border border-line">
               Cancelar
             </Button>
             <Button type="submit" loading={submitting}>
@@ -950,11 +950,11 @@ export default function ReservationsPage() {
               value={adminComment}
               onChange={(e) => setAdminComment(e.target.value)}
               placeholder="Digite um comentário se desejar..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               rows={4}
             />
             <div className="flex flex-wrap justify-end gap-3 mt-4">
-              <Button variant="ghost" onClick={closeCommentModal} className="border border-gray-300">
+              <Button variant="ghost" onClick={closeCommentModal} className="border border-line">
                 Cancelar
               </Button>
               <Button onClick={handleStatusAction}>
@@ -975,26 +975,26 @@ export default function ReservationsPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Espaço</label>
-                <p className="text-base text-gray-900">{spaceName(selectedReservation.spaceId)}</p>
+                <label className="text-sm font-medium text-ink-subtle">Espaço</label>
+                <p className="text-base text-ink">{spaceName(selectedReservation.spaceId)}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Morador</label>
-                  <p className="text-base text-gray-900">{getUserName(selectedReservation.userId)}</p>
+                  <label className="text-sm font-medium text-ink-subtle">Morador</label>
+                  <p className="text-base text-ink">{getUserName(selectedReservation.userId)}</p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Fração</label>
-                  <p className="text-base text-gray-900">{getUserUnit(selectedReservation.userId)}</p>
+                  <label className="text-sm font-medium text-ink-subtle">Fração</label>
+                  <p className="text-base text-ink">{getUserUnit(selectedReservation.userId)}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Data/Hora Início</label>
-                  <p className="text-base text-gray-900">
+                  <label className="text-sm font-medium text-ink-subtle">Data/Hora Início</label>
+                  <p className="text-base text-ink">
                     {new Date(selectedReservation.startTime).toLocaleString('pt-PT', { 
                       day: '2-digit', 
                       month: '2-digit', 
@@ -1006,8 +1006,8 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Data/Hora Fim</label>
-                  <p className="text-base text-gray-900">
+                  <label className="text-sm font-medium text-ink-subtle">Data/Hora Fim</label>
+                  <p className="text-base text-ink">
                     {new Date(selectedReservation.endTime).toLocaleString('pt-PT', { 
                       day: '2-digit', 
                       month: '2-digit', 
@@ -1021,7 +1021,7 @@ export default function ReservationsPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Estado</label>
+                  <label className="text-sm font-medium text-ink-subtle">Estado</label>
                   <p>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[selectedReservation.status]}`}>
                       {statusLabels[selectedReservation.status]}
@@ -1030,8 +1030,8 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Data de Criação</label>
-                  <p className="text-base text-gray-900">
+                  <label className="text-sm font-medium text-ink-subtle">Data de Criação</label>
+                  <p className="text-base text-ink">
                     {new Date(selectedReservation.createdAt).toLocaleString('pt-PT', { 
                       day: '2-digit', 
                       month: '2-digit', 
@@ -1045,7 +1045,7 @@ export default function ReservationsPage() {
               
               {selectedReservation.adminComments && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">Histórico de Comentários</label>
+                  <label className="text-sm font-medium text-ink-subtle mb-2 block">Histórico de Comentários</label>
                   <div className="space-y-2">
                     {selectedReservation.adminComments.split('\n').map((comment, idx) => {
                       // Parse comment format: [DD/MM/YYYY HH:MM] Action: Comment
@@ -1058,9 +1058,9 @@ export default function ReservationsPage() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-semibold text-amber-800">{action}</span>
-                                  <span className="text-xs text-gray-500">{timestamp}</span>
+                                  <span className="text-xs text-ink-subtle">{timestamp}</span>
                                 </div>
-                                <p className="text-sm text-gray-900">{text}</p>
+                                <p className="text-sm text-ink">{text}</p>
                               </div>
                             </div>
                           </div>
@@ -1069,7 +1069,7 @@ export default function ReservationsPage() {
                       // Fallback for old format or unformatted comments
                       return (
                         <div key={idx} className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                          <p className="text-sm text-gray-900">{comment}</p>
+                          <p className="text-sm text-ink">{comment}</p>
                         </div>
                       );
                     })}

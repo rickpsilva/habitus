@@ -186,32 +186,32 @@ export default function WeeklyCalendar({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
       {/* Header with navigation and zoom */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+      <div className="flex items-center justify-between p-4 border-b border-line bg-surface-muted">
         <button
           onClick={() => onWeekChange('prev')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+          className="p-2 hover:bg-control-hover rounded-lg transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         
         <div className="text-center">
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-ink">
             {formatDateHeader(weekDays[0])} - {formatDateHeader(weekDays[6])}
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-subtle">
             {weekDays[0].toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}
           </p>
         </div>
 
         {/* Hour Zoom Selector */}
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-500" />
+          <Clock className="w-4 h-4 text-ink-subtle" />
           <select
             value={hourZoom}
             onChange={(e) => setHourZoom(e.target.value as HourZoom)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-1.5 text-sm border border-line bg-surface rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="commercial">{HOUR_RANGES.commercial.label}</option>
             <option value="evening">{HOUR_RANGES.evening.label}</option>
@@ -221,7 +221,7 @@ export default function WeeklyCalendar({
         
         <button
           onClick={() => onWeekChange('next')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+          className="p-2 hover:bg-control-hover rounded-lg transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -231,21 +231,21 @@ export default function WeeklyCalendar({
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           {/* Days header */}
-          <div className="grid grid-cols-8 border-b border-gray-200">
-            <div className="p-2 text-xs font-medium text-gray-500 text-center border-r border-gray-200">
+          <div className="grid grid-cols-8 border-b border-line">
+            <div className="p-2 text-xs font-medium text-ink-subtle text-center border-r border-line">
               Hora
             </div>
             {weekDays.map((date, i) => (
               <div
                 key={i}
-                className={`p-2 text-center border-r border-gray-200 ${
+                className={`p-2 text-center border-r border-line ${
                   isToday(date) ? 'bg-indigo-50' : ''
                 }`}
               >
-                <div className="text-xs font-medium text-gray-500">{DAYS[date.getDay()]}</div>
+                <div className="text-xs font-medium text-ink-subtle">{DAYS[date.getDay()]}</div>
                 <div
                   className={`text-sm font-semibold ${
-                    isToday(date) ? 'text-indigo-600' : 'text-gray-900'
+                    isToday(date) ? 'text-indigo-600' : 'text-ink'
                   }`}
                 >
                   {date.getDate()}
@@ -257,14 +257,14 @@ export default function WeeklyCalendar({
           {/* Time slots */}
           <div className="relative">
             {HOURS.map((hour) => (
-              <div key={hour} className="grid grid-cols-8 border-b border-gray-100 h-16">
-                <div className="p-2 text-xs text-gray-500 text-center border-r border-gray-200 flex items-center justify-center">
+              <div key={hour} className="grid grid-cols-8 border-b border-line h-16">
+                <div className="p-2 text-xs text-ink-subtle text-center border-r border-line flex items-center justify-center">
                   {hour}:00
                 </div>
                 {weekDays.map((date, dayIndex) => (
                   <div
                     key={dayIndex}
-                    className={`border-r border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors relative ${
+                    className={`border-r border-line hover:bg-surface-hover cursor-pointer transition-colors relative ${
                       isToday(date) ? 'bg-indigo-50/30' : ''
                     }`}
                     onClick={() => onSelectSlot(date, hour)}
@@ -308,7 +308,7 @@ export default function WeeklyCalendar({
                         <div className="text-xs font-medium truncate" style={{ color: blockStyle.borderColor }}>
                           {blockStyle.spaceName}
                         </div>
-                        <div className="text-xs text-gray-600 truncate">
+                        <div className="text-xs text-ink-muted truncate">
                           {new Date(reservation.startTime).toLocaleTimeString('pt-PT', {
                             hour: '2-digit',
                             minute: '2-digit',
@@ -330,14 +330,14 @@ export default function WeeklyCalendar({
       </div>
 
       {/* Legend */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-6 text-xs">
+      <div className="p-4 border-t border-line bg-surface-muted flex items-center gap-6 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-4 border-2 border-gray-400 border-dashed rounded"></div>
-          <span className="text-gray-600">Pendente</span>
+          <div className="w-8 h-4 border-2 border-ink-subtle border-dashed rounded"></div>
+          <span className="text-ink-muted">Pendente</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-4 border-2 border-gray-400 border-solid rounded"></div>
-          <span className="text-gray-600">Aprovada</span>
+          <div className="w-8 h-4 border-2 border-ink-subtle border-solid rounded"></div>
+          <span className="text-ink-muted">Aprovada</span>
         </div>
       </div>
     </div>

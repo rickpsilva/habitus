@@ -57,7 +57,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  Draft: 'bg-gray-100 text-gray-700',
+  Draft: 'bg-control text-ink-muted',
   PendingApproval: 'bg-yellow-100 text-yellow-700',
   Published: 'bg-green-100 text-green-700',
   Rejected: 'bg-red-100 text-red-700',
@@ -79,7 +79,7 @@ function highlightText(text: string, query: string) {
     <>
       {parts.map((part, index) =>
         part.toLowerCase() === q.toLowerCase() ? (
-          <mark key={index} className="bg-yellow-200 text-gray-900 rounded px-0.5">
+          <mark key={index} className="bg-yellow-200 text-[#111827] rounded px-0.5">
             {part}
           </mark>
         ) : (
@@ -556,32 +556,32 @@ export default function AnnouncementsPage() {
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-sm"><strong>{stats.totalAnnouncements}</strong> total</div>
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-sm"><strong>{stats.published}</strong> publicados</div>
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-sm"><strong>{stats.myDrafts}</strong> rascunhos</div>
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> por ler</div>
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> pendentes</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.totalAnnouncements}</strong> total</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.published}</strong> publicados</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.myDrafts}</strong> rascunhos</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> por ler</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> pendentes</div>
         </div>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-xl p-4">
+      <div className="bg-surface border border-line rounded-xl p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Pesquisar</label>
+            <label className="block text-xs text-ink-subtle mb-1">Pesquisar</label>
             <input
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Título, conteúdo, autor, fração..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Estado</label>
+            <label className="block text-xs text-ink-subtle mb-1">Estado</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
               <option value="All">Todos</option>
               {Object.keys(statusLabels).map((k) => (
@@ -590,11 +590,11 @@ export default function AnnouncementsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Categoria</label>
+            <label className="block text-xs text-ink-subtle mb-1">Categoria</label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
               <option value="All">Todas</option>
               {Object.keys(categoryLabels).map((k) => (
@@ -609,7 +609,7 @@ export default function AnnouncementsPage() {
                 setStatusFilter('All');
                 setCategoryFilter('All');
               }}
-              className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-700"
+              className="px-3 py-2 rounded-lg bg-control hover:bg-control-hover text-sm text-ink"
             >
               Limpar filtros
             </button>
@@ -627,11 +627,11 @@ export default function AnnouncementsPage() {
       >
         <div className="space-y-3">
           {sortedAnnouncements.map((a) => (
-            <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-4">
+            <div key={a.id} className="bg-surface border border-line rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-900 truncate">{highlightText(a.title, debouncedSearchText)}</h3>
+                    <h3 className="font-semibold text-ink truncate">{highlightText(a.title, debouncedSearchText)}</h3>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[a.status] || statusColors.Draft}`}>
                       {statusLabels[a.status] || a.status}
                     </span>
@@ -640,17 +640,17 @@ export default function AnnouncementsPage() {
                     </span>
                     {a.isPinned && <Pin className="w-4 h-4 text-amber-500" />}
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-ink-subtle mt-1">
                     {highlightText(a.isAnonymous ? 'Anónimo' : a.authorName, debouncedSearchText)} • {new Date(a.createdAt).toLocaleString('pt-PT')}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                  <p className="text-sm text-ink-muted mt-1 line-clamp-2">
                     {highlightText(
                       a.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180),
                       debouncedSearchText
                     )}
                     {a.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().length > 180 ? '…' : ''}
                   </p>
-                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-4">
+                  <div className="text-xs text-ink-subtle mt-2 flex items-center gap-4">
                     <span className="inline-flex items-center gap-1"><Eye className="w-3 h-3" /> {a.totalReads}</span>
                     <span className="inline-flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {a.totalComments}</span>
                     <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {a.totalAttachments}</span>
@@ -660,7 +660,7 @@ export default function AnnouncementsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button onClick={() => openDetails(a)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200 text-gray-700">
+                  <button onClick={() => openDetails(a)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-control hover:bg-control-hover text-ink">
                     <Eye className="w-3.5 h-3.5" />
                     Detalhes
                   </button>
@@ -710,12 +710,12 @@ export default function AnnouncementsPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Título"
-                className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="md:col-span-2 px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
               />
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
               >
                 {Object.keys(categoryLabels).map((k) => (
                   <option key={k} value={k}>{categoryLabels[k]}</option>
@@ -724,7 +724,7 @@ export default function AnnouncementsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-ink-muted">
                 <input type="checkbox" checked={!!form.isAnonymous} onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })} />
                 Publicar em anonimato (mostrar apenas fração)
               </label>
@@ -732,16 +732,16 @@ export default function AnnouncementsPage() {
                 type="datetime-local"
                 value={form.validUntil || ''}
                 onChange={(e) => setForm({ ...form, validUntil: e.target.value || undefined })}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
               />
             </div>
 
             <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder="Escreve o conteúdo do comunicado..." height="240px" />
 
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-gray-800 mb-2">Anexos (máx. 5 imagens + 2 documentos)</p>
+            <div className="border border-line rounded-lg p-3">
+              <p className="text-sm font-medium text-ink mb-2">Anexos (máx. 5 imagens + 2 documentos)</p>
               {editing && editing.attachments.length > 0 && (
-                <p className="text-xs text-gray-500 mb-2">Rascunho atual: {editing.attachments.length} anexo(s) já guardado(s)</p>
+                <p className="text-xs text-ink-subtle mb-2">Rascunho atual: {editing.attachments.length} anexo(s) já guardado(s)</p>
               )}
               <input
                 type="file"
@@ -761,11 +761,11 @@ export default function AnnouncementsPage() {
                 }}
                 className="block w-full text-sm"
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-ink-subtle mt-2">
                 Tamanho máximo por ficheiro: {formatUploadSizeLabel(maxUploadSizeBytes)}
               </p>
               {files.length > 0 && (
-                <p className="text-xs text-gray-500 mt-2">{files.length} ficheiro(s) selecionado(s)</p>
+                <p className="text-xs text-ink-subtle mt-2">{files.length} ficheiro(s) selecionado(s)</p>
               )}
             </div>
 
@@ -801,40 +801,40 @@ export default function AnnouncementsPage() {
           <>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">{selected.title}</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-xl font-semibold text-ink">{selected.title}</h2>
+                <p className="text-sm text-ink-subtle mt-1">
                   {selected.isAnonymous ? 'Anónimo' : selected.authorName} • {new Date(selected.createdAt).toLocaleString('pt-PT')}
                 </p>
               </div>
               <Button variant="secondary" size="sm" onClick={closeDetails}>Fechar</Button>
             </div>
 
-            <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+            <div className="bg-surface-muted border border-line rounded-lg p-4">
               <RichTextDisplay content={selected.content} />
             </div>
 
             {selected.attachments.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800">Anexos</h3>
+                <h3 className="text-sm font-semibold text-ink">Anexos</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {selected.attachments.map((att) => {
                     const isImage = att.type === 'Image' || (att.contentType?.startsWith('image/') ?? false);
                     const previewUrl = attachmentPreviewUrls[att.id];
                     return (
-                      <div key={att.id} className="border border-gray-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                      <div key={att.id} className="border border-line rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-sm text-ink-muted mb-2">
                           {isImage ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                           <span className="truncate">{att.fileName}</span>
                         </div>
                         {isImage && previewUrl ? (
                           <button type="button" onClick={() => openAttachment(selected.id, att)} className="block w-full text-left">
-                            <img src={previewUrl} alt={att.fileName} className="w-full h-36 object-cover rounded border border-gray-200" />
+                            <img src={previewUrl} alt={att.fileName} className="w-full h-36 object-cover rounded border border-line" />
                           </button>
                         ) : isImage ? (
                           <button
                             type="button"
                             onClick={() => openAttachment(selected.id, att)}
-                            className="w-full h-36 rounded border border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center justify-center"
+                            className="w-full h-36 rounded border border-line bg-surface-muted text-xs text-ink-subtle flex items-center justify-center"
                           >
                             Pré-visualização indisponível
                           </button>
@@ -842,7 +842,7 @@ export default function AnnouncementsPage() {
                           <button
                             type="button"
                             onClick={() => openAttachment(selected.id, att)}
-                            className="w-full h-36 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors flex flex-col items-center justify-center gap-2"
+                            className="w-full h-36 rounded border border-line bg-surface-muted text-ink-muted hover:bg-surface-hover transition-colors flex flex-col items-center justify-center gap-2"
                           >
                             <FileText className="w-7 h-7" />
                             <span className="text-sm">Abrir ficheiro</span>
@@ -857,23 +857,23 @@ export default function AnnouncementsPage() {
 
             {selected.status === 'Published' && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-800">Comentários</h3>
+                <h3 className="text-sm font-semibold text-ink">Comentários</h3>
 
                 {!allowComments ? (
-                  <div className="text-sm text-gray-500">Comentários desativados neste condomínio.</div>
+                  <div className="text-sm text-ink-subtle">Comentários desativados neste condomínio.</div>
                 ) : (
                   <>
-                    <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-100 rounded-lg p-3">
+                    <div className="space-y-2 max-h-64 overflow-y-auto border border-line rounded-lg p-3">
                       {selected.comments.length === 0 ? (
-                        <p className="text-sm text-gray-500">Sem comentários ainda.</p>
+                        <p className="text-sm text-ink-subtle">Sem comentários ainda.</p>
                       ) : (
                         selected.comments
                           .slice()
                           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                           .map((c) => (
-                            <div key={c.id} className="border-b border-gray-100 pb-2 last:border-b-0">
-                              <p className="text-xs text-gray-500">{c.authorName} • {new Date(c.createdAt).toLocaleString('pt-PT')}</p>
-                              <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{c.content}</p>
+                            <div key={c.id} className="border-b border-line pb-2 last:border-b-0">
+                              <p className="text-xs text-ink-subtle">{c.authorName} • {new Date(c.createdAt).toLocaleString('pt-PT')}</p>
+                              <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{c.content}</p>
                             </div>
                           ))
                       )}
@@ -884,11 +884,11 @@ export default function AnnouncementsPage() {
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
                         placeholder="Escreve uma resposta..."
                       />
                       <div className="flex items-center justify-between">
-                        <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+                        <label className="text-sm text-ink-muted inline-flex items-center gap-2">
                           <input type="checkbox" checked={commentAnonymous} onChange={(e) => setCommentAnonymous(e.target.checked)} />
                           Comentar em anonimato
                         </label>
@@ -919,12 +919,12 @@ export default function AnnouncementsPage() {
         title="Rejeitar comunicado"
         maxWidthClass="max-w-md"
       >
-            <p className="text-sm text-gray-500">Indica o motivo da rejeição (obrigatório).</p>
+            <p className="text-sm text-ink-subtle">Indica o motivo da rejeição (obrigatório).</p>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
               placeholder="Ex: Conteúdo incompleto ou não conforme as regras do condomínio"
             />
             <div className="flex justify-end gap-2">

@@ -7,10 +7,10 @@ import type {
 import { cn } from '../../lib/cn';
 
 const controlBase =
-  'w-full px-3 py-2 border rounded-lg text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed';
+  'w-full px-3 py-2 border rounded-lg text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed';
 
 function borderClass(invalid?: boolean) {
-  return invalid ? 'border-red-400' : 'border-gray-300';
+  return invalid ? 'border-red-400' : 'border-line';
 }
 
 export interface FieldProps {
@@ -27,7 +27,7 @@ export function Field({ label, htmlFor, required, error, hint, children, classNa
   return (
     <div className={cn('space-y-1', className)}>
       {label && (
-        <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={htmlFor} className="block text-sm font-medium text-ink-muted">
           {label}
           {required && <span className="text-red-500"> *</span>}
         </label>
@@ -36,7 +36,7 @@ export function Field({ label, htmlFor, required, error, hint, children, classNa
       {error ? (
         <p className="text-xs text-red-600">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-gray-500">{hint}</p>
+        <p className="text-xs text-ink-subtle">{hint}</p>
       ) : null}
     </div>
   );

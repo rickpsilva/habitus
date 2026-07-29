@@ -46,11 +46,11 @@ function StatCard({
 }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 animate-pulse">
-        <div className="w-12 h-12 rounded-xl bg-gray-100 shrink-0" />
+      <div className="bg-surface rounded-xl p-5 shadow-sm border border-line flex items-center gap-4 animate-pulse">
+        <div className="w-12 h-12 rounded-xl bg-surface-hover shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-3 bg-gray-100 rounded w-3/4" />
-          <div className="h-6 bg-gray-100 rounded w-1/2" />
+          <div className="h-3 bg-surface-hover rounded w-3/4" />
+          <div className="h-6 bg-surface-hover rounded w-1/2" />
         </div>
       </div>
     );
@@ -58,16 +58,16 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-center gap-4"
+      className="bg-surface rounded-xl p-5 shadow-sm border border-line hover:shadow-md transition-shadow flex items-center gap-4"
     >
       <div className={`flex items-center justify-center w-12 h-12 rounded-xl ${color}`}>
         <Icon className="w-6 h-6" aria-hidden="true" />
       </div>
       <div className="min-w-0">
-        <p className="text-sm text-gray-500 leading-tight">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-sm text-ink-subtle leading-tight">{title}</p>
+        <p className="text-2xl font-bold text-ink">{value}</p>
         {subtitle && (
-          <p className="text-xs text-gray-400 mt-0.5 leading-tight">{subtitle}</p>
+          <p className="text-xs text-ink-subtle mt-0.5 leading-tight">{subtitle}</p>
         )}
       </div>
     </Link>
@@ -81,7 +81,7 @@ function statusBadge(status: string) {
     Pending: 'bg-yellow-100 text-yellow-700',
     InProgress: 'bg-blue-100 text-blue-700',
     Completed: 'bg-green-100 text-green-700',
-    Cancelled: 'bg-gray-100 text-gray-500',
+    Cancelled: 'bg-control text-ink-muted',
   };
   const labels: Record<string, string> = {
     Open: 'Aberto',
@@ -91,7 +91,7 @@ function statusBadge(status: string) {
     Cancelled: 'Cancelado',
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[normalizedStatus] ?? 'bg-gray-100 text-gray-600'}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[normalizedStatus] ?? 'bg-control text-ink-muted'}`}>
       {labels[normalizedStatus] ?? normalizedStatus}
     </span>
   );
@@ -213,18 +213,18 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Utilizadores ativos por condomínio</h2>
-            <span className="text-xs text-gray-400">Último mês</span>
+            <h2 className="font-semibold text-ink">Utilizadores ativos por condomínio</h2>
+            <span className="text-xs text-ink-subtle">Último mês</span>
           </div>
           {activeByCondominium.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">Sem dados disponíveis.</p>
+            <p className="text-sm text-ink-subtle text-center py-4">Sem dados disponíveis.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <tr className="text-left text-ink-subtle border-b border-line">
                     <th className="pb-2 font-medium">Condomínio</th>
                     <th className="pb-2 font-medium text-right">Utilizadores ativos</th>
                     <th className="pb-2 font-medium text-right pr-1">Engajamento</th>
@@ -235,18 +235,18 @@ export default function DashboardPage() {
                     const maxActive = Math.max(...activeByCondominium.map((r) => r.activeUsersLastMonth), 1);
                     const barWidth = Math.round((row.activeUsersLastMonth / maxActive) * 100);
                     return (
-                      <tr key={row.condominiumId} className="border-b border-gray-50 last:border-0">
-                        <td className="py-2.5 text-gray-800 font-medium">{row.condominiumName}</td>
-                        <td className="py-2.5 text-right tabular-nums text-gray-700">{row.activeUsersLastMonth}</td>
+                      <tr key={row.condominiumId} className="border-b border-line last:border-0">
+                        <td className="py-2.5 text-ink font-medium">{row.condominiumName}</td>
+                        <td className="py-2.5 text-right tabular-nums text-ink-muted">{row.activeUsersLastMonth}</td>
                         <td className="py-2.5 pl-4 pr-1 w-36">
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                            <div className="flex-1 bg-surface-hover rounded-full h-1.5">
                               <div
                                 className="bg-indigo-500 h-1.5 rounded-full"
                                 style={{ width: `${barWidth}%` }}
                               />
                             </div>
-                            <span className="text-xs text-gray-400 w-8 text-right">{barWidth}%</span>
+                            <span className="text-xs text-ink-subtle w-8 text-right">{barWidth}%</span>
                           </div>
                         </td>
                       </tr>
@@ -258,9 +258,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Planos da Plataforma</h2>
+            <h2 className="font-semibold text-ink">Planos da Plataforma</h2>
             <a
               href="/billing"
               className="text-xs text-indigo-600 hover:underline font-medium"
@@ -269,38 +269,38 @@ export default function DashboardPage() {
             </a>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-sm font-semibold text-ink flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-600" />
                 Pack Free
               </p>
-              <p className="text-xs text-gray-500 mt-2">Base operacional, features essenciais e limites reduzidos.</p>
+              <p className="text-xs text-ink-subtle mt-2">Base operacional, features essenciais e limites reduzidos.</p>
             </div>
             <div className="rounded-lg border border-amber-200 p-4">
-              <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <p className="text-sm font-semibold text-ink flex items-center gap-2">
                 <Shield className="w-4 h-4 text-amber-600" />
                 Pack Silver — 29,90€/mês
               </p>
-              <p className="text-xs text-gray-500 mt-2">Mais automações, reservas, relatórios e suporte prioritário.</p>
+              <p className="text-xs text-ink-subtle mt-2">Mais automações, reservas, relatórios e suporte prioritário.</p>
             </div>
             <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
-              <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <p className="text-sm font-semibold text-ink flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
                 Pack Gold — 59,90€/mês
               </p>
-              <p className="text-xs text-gray-500 mt-2">Analytics avançado, WhatsApp e acesso à API REST.</p>
+              <p className="text-xs text-ink-subtle mt-2">Analytics avançado, WhatsApp e acesso à API REST.</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="font-semibold text-ink flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-indigo-600" />
                 Faturação da Plataforma
               </h2>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-ink-subtle mt-1">
                 Tens um resumo imediato aqui; a gestão detalhada continua na página de Faturação.
               </p>
             </div>
@@ -311,25 +311,25 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">MRR atual</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-xs text-ink-subtle">MRR atual</p>
+              <p className="text-xl font-bold text-ink mt-1">
                 {managerMrr !== null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(managerMrr) : '—'}
               </p>
             </div>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Gateway</p>
-              <p className={`text-xl font-bold mt-1 ${platformBillingSettings?.gatewayEnabled ? 'text-emerald-700' : 'text-gray-700'}`}>
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-xs text-ink-subtle">Gateway</p>
+              <p className={`text-xl font-bold mt-1 ${platformBillingSettings?.gatewayEnabled ? 'text-emerald-700' : 'text-ink-muted'}`}>
                 {platformBillingSettings?.gatewayEnabled ? 'Ativo' : 'Inativo'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">{platformBillingSettings?.gatewayProvider || 'stripe'}</p>
+              <p className="text-xs text-ink-subtle mt-1">{platformBillingSettings?.gatewayProvider || 'stripe'}</p>
             </div>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Configuração Stripe</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">
+            <div className="rounded-lg border border-line p-4">
+              <p className="text-xs text-ink-subtle">Configuração Stripe</p>
+              <p className="text-xl font-bold text-ink mt-1">
                 {platformBillingSettings?.hasSecretKey && platformBillingSettings?.hasWebhookSecret ? 'Completa' : 'Incompleta'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Configurações editáveis em Faturação</p>
+              <p className="text-xs text-ink-subtle mt-1">Configurações editáveis em Faturação</p>
             </div>
           </div>
         </div>
@@ -458,14 +458,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent maintenance */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Pedidos de Manutenção Recentes</h2>
+      <div className="bg-surface rounded-xl shadow-sm border border-line">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h2 className="font-semibold text-ink">Pedidos de Manutenção Recentes</h2>
           <Link to="/maintenance" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
             Ver todos
           </Link>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-line">
           {maintenance.slice(0, 5).map((m) => {
             const normalizedStatus = m.status === 'Resolved' || m.status === 'Closed' ? 'Completed' : m.status;
 
@@ -481,15 +481,15 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                <p className="text-xs text-gray-500">{m.location || new Date(m.createdAt).toLocaleDateString('pt-PT')}</p>
+                <p className="text-sm font-medium text-ink truncate">{m.title}</p>
+                <p className="text-xs text-ink-subtle">{m.location || new Date(m.createdAt).toLocaleDateString('pt-PT')}</p>
               </div>
               {statusBadge(m.status)}
             </div>
             );
           })}
           {maintenance.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
+            <div className="flex flex-col items-center gap-2 py-8 text-ink-subtle">
               <Wrench className="w-8 h-8 opacity-40" aria-hidden="true" />
               <p className="text-sm">Sem pedidos de manutenção ativos</p>
             </div>
@@ -498,33 +498,33 @@ export default function DashboardPage() {
       </div>
 
       {/* Notifications */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Últimas Notificações</h2>
+      <div className="bg-surface rounded-xl shadow-sm border border-line">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h2 className="font-semibold text-ink">Últimas Notificações</h2>
           <Link to="/notifications" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
             Ver todas
           </Link>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-line">
           {notifications.slice(0, 4).map((n) => (
             <div key={n.id} className={`flex items-start gap-3 px-5 py-3.5 ${!n.isRead ? 'bg-indigo-50/50' : ''}`}>
               <div className="relative mt-0.5 shrink-0">
-                <Bell className={`w-4 h-4 ${!n.isRead ? 'text-indigo-500' : 'text-gray-400'}`} aria-hidden="true" />
+                <Bell className={`w-4 h-4 ${!n.isRead ? 'text-indigo-500' : 'text-ink-subtle'}`} aria-hidden="true" />
                 {!n.isRead && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-indigo-500" aria-label="Não lida" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                <p className="text-xs text-gray-500 truncate">{n.message}</p>
+                <p className="text-sm font-medium text-ink">{n.title}</p>
+                <p className="text-xs text-ink-subtle truncate">{n.message}</p>
               </div>
-              <time className="text-xs text-gray-400 shrink-0 whitespace-nowrap">
+              <time className="text-xs text-ink-subtle shrink-0 whitespace-nowrap">
                 {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </time>
             </div>
           ))}
           {notifications.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-8 text-gray-400">
+            <div className="flex flex-col items-center gap-2 py-8 text-ink-subtle">
               <Bell className="w-8 h-8 opacity-40" aria-hidden="true" />
               <p className="text-sm">Sem notificações recentes</p>
             </div>

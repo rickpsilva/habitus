@@ -101,12 +101,12 @@ export default function RegisterPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Habitus</h1>
-          <p className="text-gray-500 mt-1">Gestão de Condomínio</p>
+          <h1 className="text-3xl font-bold text-ink">Habitus</h1>
+          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+        <div className="bg-surface rounded-2xl shadow-xl p-8">
+          <h2 className="text-xl font-semibold text-ink mb-6">
             {isAdminRegistration ? 'Registo de Administrador' : 'Criar Conta'}
           </h2>
 
@@ -128,16 +128,16 @@ export default function RegisterPage() {
               { name: 'phone', label: 'Telefone', type: 'tel', icon: Phone, placeholder: '+351 912 345 678' },
             ].map(({ name, label, type, icon: Icon, placeholder }) => (
               <div key={name}>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">{label}</label>
                 <div className="relative">
-                  <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                   <input
                     type={type}
                     name={name}
                     value={form[name as keyof typeof form]}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                     placeholder={placeholder}
                   />
                 </div>
@@ -146,15 +146,15 @@ export default function RegisterPage() {
 
             {!isAdminRegistration && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Fração</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">Fração</label>
                 <div className="relative">
-                  <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                   <select
                     name="unitId"
                     value={form.unitId}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-white"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-surface"
                   >
                     <option value="">Selecionar fração</option>
                     {units.map((u) => (
@@ -172,7 +172,7 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-ink-subtle mt-6">
             Já tem conta?{' '}
             <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
               Iniciar sessão

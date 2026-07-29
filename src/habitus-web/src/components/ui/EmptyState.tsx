@@ -21,12 +21,12 @@ export default function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-3 py-16 px-4 text-center text-gray-400 bg-white rounded-xl border border-gray-100',
+        'flex flex-col items-center gap-3 py-16 px-4 text-center text-ink-subtle bg-surface rounded-xl border border-line',
         className,
       )}
     >
       <Icon className="w-12 h-12 opacity-30" aria-hidden="true" />
-      <p className="text-sm font-medium text-gray-600">{title}</p>
+      <p className="text-sm font-medium text-ink-muted">{title}</p>
       {description && <p className="text-sm max-w-sm">{description}</p>}
       {action && <div className="mt-1">{action}</div>}
     </div>

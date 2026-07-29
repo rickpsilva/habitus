@@ -18,11 +18,11 @@ const base =
 
 const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary: 'bg-indigo-600 hover:bg-indigo-700 text-white',
-  secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-700',
+  secondary: 'bg-control hover:bg-control-hover text-ink',
   danger: 'bg-red-600 hover:bg-red-700 text-white',
   success: 'bg-green-600 hover:bg-green-700 text-white',
   warning: 'bg-amber-600 hover:bg-amber-700 text-white',
-  ghost: 'bg-transparent hover:bg-gray-100 text-gray-700',
+  ghost: 'bg-transparent hover:bg-control text-ink',
 };
 
 const sizes: Record<NonNullable<ButtonProps['size']>, string> = {

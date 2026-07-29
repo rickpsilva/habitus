@@ -528,7 +528,7 @@ export default function FinancialPage() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {availableYears.map((year) => (
                 <option key={year} value={year}>Ano Fiscal {year}</option>
@@ -550,14 +550,14 @@ export default function FinancialPage() {
 
       {/* Tabs (Admin only) */}
       {isAdmin && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex border-b border-gray-200">
+        <div className="bg-surface rounded-lg shadow-sm border border-line">
+          <div className="flex border-b border-line">
             <button
               onClick={() => setActiveTab('transactions')}
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'transactions'
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
               Transações
@@ -567,7 +567,7 @@ export default function FinancialPage() {
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === 'cashin'
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
               Cash In
@@ -582,7 +582,7 @@ export default function FinancialPage() {
               className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'quota-plans'
                   ? 'text-indigo-600 border-b-2 border-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
               Planos de Quotas
@@ -640,13 +640,13 @@ export default function FinancialPage() {
           {/* Dashboard Cards */}
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Current Account Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="bg-surface rounded-xl shadow-sm border border-line p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-indigo-600" />
-                  <h2 className="font-semibold text-gray-900">Conta Corrente {selectedYear}</h2>
+                  <h2 className="font-semibold text-ink">Conta Corrente {selectedYear}</h2>
                 </div>
-                <Calendar className="w-4 h-4 text-gray-400" />
+                <Calendar className="w-4 h-4 text-ink-subtle" />
               </div>
               
               <div className="space-y-3">
@@ -694,7 +694,7 @@ export default function FinancialPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <PiggyBank className="w-5 h-5 text-emerald-600" />
-                  <h2 className="font-semibold text-gray-900">Fundo de Reserva</h2>
+                  <h2 className="font-semibold text-ink">Fundo de Reserva</h2>
                 </div>
                 {isAdmin && (
                   <Button
@@ -748,9 +748,9 @@ export default function FinancialPage() {
           </div>
 
           {/* Records List */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Registos de {selectedYear}</h2>
+          <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden">
+            <div className="px-5 py-4 border-b border-line flex items-center justify-between">
+              <h2 className="font-semibold text-ink">Registos de {selectedYear}</h2>
               <div className="w-64">
                 <SearchBar
                   value={searchQuery}
@@ -768,14 +768,14 @@ export default function FinancialPage() {
             )}
             
             {!recordsLoadError && records.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-ink-subtle">
                 {searchQuery ? `Sem resultados para "${searchQuery}"` : `Sem registos de ${selectedYear}`}
               </div>
             ) : !recordsLoadError ? (
               <>
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-line">
                   {records.map((r) => (
-                    <div key={r.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                    <div key={r.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-hover transition-colors">
                       <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
                         r.type === 'Income' ? 'bg-green-100' : 'bg-red-100'
                       }`}>
@@ -786,8 +786,8 @@ export default function FinancialPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{r.description}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium text-ink truncate">{r.description}</p>
+                        <p className="text-xs text-ink-subtle">
                           {allCategoryLabels[r.category] || r.category} · {new Date(r.date).toLocaleDateString('pt-PT')}
                         </p>
                       </div>
@@ -799,7 +799,7 @@ export default function FinancialPage() {
                       {isAdmin && (
                         <button 
                           onClick={() => handleDelete(r.id)} 
-                          className="text-gray-300 hover:text-red-500 transition-colors"
+                          className="text-ink-subtle hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -808,7 +808,7 @@ export default function FinancialPage() {
                   ))}
                 </div>
                 {pagination && pagination.totalPages > 1 && (
-                  <div className="p-4 border-t border-gray-100">
+                  <div className="p-4 border-t border-line">
                     <Pagination
                       pagination={pagination}
                       currentPage={currentPage}
@@ -832,7 +832,7 @@ export default function FinancialPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Tipo</label>
                   <select
                     value={form.type}
                     onChange={(e) => {
@@ -843,7 +843,7 @@ export default function FinancialPage() {
                         category: newType === 'Income' ? 'MonthlyFees' : 'OtherExpense'
                       });
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="Income">Receita</option>
                     <option value="Expense">Despesa</option>
@@ -851,11 +851,11 @@ export default function FinancialPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Categoria</label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {Object.entries(currentCategories).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -864,7 +864,7 @@ export default function FinancialPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Valor (€)</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Valor (€)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -872,35 +872,35 @@ export default function FinancialPage() {
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Data</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
                 <input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Ex: Pagamento quotas Janeiro 2026"
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line">
                 <Button
                   variant="ghost"
                   onClick={() => setShowForm(false)}
@@ -924,14 +924,14 @@ export default function FinancialPage() {
       >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Operação</label>
+                <label className="block text-sm font-medium text-ink-muted mb-2">Operação</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setFundOperation('deposit')}
                     className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       fundOperation === 'deposit'
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-control text-ink-muted hover:bg-control-hover'
                     }`}
                   >
                     Depósito
@@ -941,7 +941,7 @@ export default function FinancialPage() {
                     className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       fundOperation === 'withdrawal'
                         ? 'bg-orange-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-control text-ink-muted hover:bg-control-hover'
                     }`}
                   >
                     Levantamento
@@ -950,14 +950,14 @@ export default function FinancialPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Valor (€)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Valor (€)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={fundAmount}
                   onChange={(e) => setFundAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="0.00"
                 />
               </div>
@@ -970,7 +970,7 @@ export default function FinancialPage() {
                 )}
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap justify-end gap-3">
+            <div className="mt-4 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowFundModal(false)}>
                 Cancelar
               </Button>
@@ -994,7 +994,7 @@ export default function FinancialPage() {
       >
             <form onSubmit={handleDocumentUpload} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-muted mb-2">
                   Arquivo
                 </label>
                 <FileUpload
@@ -1006,14 +1006,14 @@ export default function FinancialPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Nome do Documento *
                 </label>
                 <input
                   type="text"
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Ex: Extrato Bancário Janeiro 2024"
                   required
                   disabled={uploading}
@@ -1021,13 +1021,13 @@ export default function FinancialPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Tipo *
                 </label>
                 <select
                   value={uploadForm.type}
                   onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   required
                   disabled={uploading}
                 >
@@ -1040,20 +1040,20 @@ export default function FinancialPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Descrição (opcional)
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows={3}
                   placeholder="Adicione notas ou detalhes sobre o documento..."
                   disabled={uploading}
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line">
                 <Button
                   variant="ghost"
                   onClick={() => setShowDocumentModal(false)}
@@ -1076,13 +1076,13 @@ export default function FinancialPage() {
 
       {/* Cash In Tab - Unified Payments Management */}
       {activeTab === 'cashin' && isAdmin && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-surface rounded-lg shadow-sm border border-line">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-ink">
                 Cash In - Gestão de Pagamentos
               </h2>
-              <div className="flex gap-2 text-xs text-gray-600">
+              <div className="flex gap-2 text-xs text-ink-muted">
                 <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded">
                   Pendentes: {paymentCounts.pending}
                 </span>
@@ -1111,7 +1111,7 @@ export default function FinancialPage() {
                 <select
                   value={paymentStatusFilter}
                   onChange={(e) => setPaymentStatusFilter(e.target.value as 'All' | 'Pending' | 'Approved' | 'Rejected' | 'AwaitingReceipt')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="Pending">🟡 Pendentes</option>
                   <option value="Approved">🟢 Aprovados</option>
@@ -1126,7 +1126,7 @@ export default function FinancialPage() {
             {paymentsLoadError ? (
               <ErrorState message={paymentsLoadError} onRetry={loadAllPayments} />
             ) : filteredPayments.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-ink-subtle">
                 {paymentSearchQuery ? 
                   'Nenhum pagamento encontrado para a pesquisa' : 
                   paymentStatusFilter === 'AwaitingReceipt'
@@ -1139,12 +1139,12 @@ export default function FinancialPage() {
                 {filteredPayments.map((payment) => (
                   <div
                     key={payment.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                    className="border border-line rounded-lg p-4 hover:bg-surface-hover"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-gray-900">
+                          <h3 className="font-medium text-ink">
                             {payment.residentName} - {payment.unitIdentifier}
                           </h3>
                           {/* Status Badge */}
@@ -1167,9 +1167,9 @@ export default function FinancialPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{payment.description}</p>
+                        <p className="text-sm text-ink-muted mt-1">{payment.description}</p>
                         <div className="flex items-center gap-3 mt-2">
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-ink-subtle">
                             Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
                           </p>
                           <p className="text-xs text-blue-600">
@@ -1186,7 +1186,7 @@ export default function FinancialPage() {
                               ✓ Recibo Nº {payment.receiptNumber}/{payment.receiptYear}
                             </span>
                             {payment.receiptIssuedDate && (
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-ink-subtle">
                                 Emitido: {new Date(payment.receiptIssuedDate).toLocaleDateString('pt-PT')}
                               </span>
                             )}
@@ -1207,7 +1207,7 @@ export default function FinancialPage() {
 
                         {/* Processed Info */}
                         {payment.processedDate && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-ink-subtle mt-1">
                             Processado: {new Date(payment.processedDate).toLocaleDateString('pt-PT')}
                             {payment.processedByUserName && ` por ${payment.processedByUserName}`}
                           </p>
@@ -1215,10 +1215,10 @@ export default function FinancialPage() {
                       </div>
                       
                       <div className="text-right ml-4">
-                        <div className="text-xl font-bold text-gray-900">
+                        <div className="text-xl font-bold text-ink">
                           €{payment.amount.toFixed(2)}
                         </div>
-                        <span className="inline-block px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded mt-1">
+                        <span className="inline-block px-2 py-1 text-xs font-medium text-ink-muted bg-control rounded mt-1">
                           {payment.type === 'MonthlyFee' ? 'Quotas' :
                            payment.type === 'ExtraordinaryFee' ? 'Quota Extraordinária' :
                            payment.type === 'Reservation' ? 'Reservas' : 'Outros'}
@@ -1326,18 +1326,18 @@ export default function FinancialPage() {
       >
         {selectedPayment && (
           <>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-ink-muted mb-4">
               Pagamento de <strong>{selectedPayment.residentName}</strong> no valor de{' '}
               <strong>€{selectedPayment.amount.toFixed(2)}</strong>
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Motivo da Rejeição *
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={4}
                 placeholder="Explique o motivo da rejeição..."
                 required
@@ -1532,7 +1532,7 @@ function FinancialPlansContent() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      Draft: 'bg-gray-100 text-gray-800',
+      Draft: 'bg-control text-ink-muted',
       Active: 'bg-blue-100 text-blue-800',
       Applied: 'bg-green-100 text-green-800',
       Archived: 'bg-yellow-100 text-yellow-800'
@@ -1558,8 +1558,8 @@ function FinancialPlansContent() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Planos Financeiros</h2>
-            <p className="text-gray-600 mt-1">Gerir planos de quotas por ano</p>
+            <h2 className="text-2xl font-bold text-ink">Planos Financeiros</h2>
+            <p className="text-ink-muted mt-1">Gerir planos de quotas por ano</p>
           </div>
           <Button icon={Plus} onClick={() => setView('create')}>
             Novo Plano
@@ -1567,17 +1567,17 @@ function FinancialPlansContent() {
         </div>
 
         {/* Unit Monthly Quotas Panel */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+        <div className="bg-surface rounded-lg shadow-sm border border-line">
+          <div className="p-4 border-b border-line flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Valores Base das Quotas Mensais por Fração</h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Valores Base das Quotas Mensais por Fração</h3>
+              <p className="text-sm text-ink-muted mt-1">
                 Defina os valores mensais base para cada fração. Estes valores serão usados nos cálculos dos planos.
               </p>
             </div>
             <button
               onClick={() => setIsQuotasPanelExpanded(!isQuotasPanelExpanded)}
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-ink-muted hover:bg-surface-hover rounded-lg transition-colors"
             >
               {isQuotasPanelExpanded ? (
                 <>
@@ -1597,12 +1597,12 @@ function FinancialPlansContent() {
             <div className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {units.map(unit => (
-                  <div key={unit.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                    <label className="flex-1 text-sm font-medium text-gray-700">
+                  <div key={unit.id} className="flex items-center gap-3 p-3 border border-line rounded-lg">
+                    <label className="flex-1 text-sm font-medium text-ink-muted">
                       {unit.number}
                     </label>
                     <div className="flex items-center gap-1">
-                      <span className="text-gray-500 text-sm">€</span>
+                      <span className="text-ink-subtle text-sm">€</span>
                       <input
                         type="number"
                         step="0.01"
@@ -1614,7 +1614,7 @@ function FinancialPlansContent() {
                           );
                           setUnits(newUnits);
                         }}
-                        className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-24 px-2 py-1 border border-line bg-surface text-ink rounded text-right text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -1632,28 +1632,28 @@ function FinancialPlansContent() {
         {/* Plans List */}
         <div className="space-y-4">
           {quotaPlans.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">Nenhum plano criado ainda</p>
-              <p className="text-gray-500 text-sm mt-1">Clique em "Novo Plano" para começar</p>
+            <div className="text-center py-12 bg-surface rounded-lg border border-line">
+              <TrendingUp className="w-12 h-12 text-ink-subtle mx-auto mb-3" />
+              <p className="text-ink-muted">Nenhum plano criado ainda</p>
+              <p className="text-ink-subtle text-sm mt-1">Clique em "Novo Plano" para começar</p>
             </div>
           ) : (
             quotaPlans.map(plan => (
-              <div key={plan.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div key={plan.id} className="bg-surface rounded-lg shadow-sm border border-line p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-bold text-gray-900">Plano {plan.year}</h3>
+                      <h3 className="text-xl font-bold text-ink">Plano {plan.year}</h3>
                       {getStatusBadge(plan.status)}
                     </div>
                     <div className="flex gap-6 mt-3 text-sm">
                       <div>
-                        <span className="text-gray-600">Inflação:</span>
-                        <span className="ml-2 font-semibold text-gray-900">{plan.inflationRate}%</span>
+                        <span className="text-ink-muted">Inflação:</span>
+                        <span className="ml-2 font-semibold text-ink">{plan.inflationRate}%</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Quota Extraordinária:</span>
-                        <span className="ml-2 font-semibold text-gray-900">€{plan.extraordinaryQuota.toFixed(2)}</span>
+                        <span className="text-ink-muted">Quota Extraordinária:</span>
+                        <span className="ml-2 font-semibold text-ink">€{plan.extraordinaryQuota.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -1718,27 +1718,27 @@ function FinancialPlansContent() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Ano *
                 </label>
                 <input
                   type="number"
                   value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-surface-muted disabled:cursor-not-allowed"
                   min={currentYear}
                   required
                   disabled={view === 'edit'}
                 />
                 {view === 'edit' && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-ink-subtle mt-1">
                     O ano não pode ser alterado após a criação do plano
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Percentagem de Inflação (%)
                 </label>
                 <input
@@ -1746,15 +1746,15 @@ function FinancialPlansContent() {
                   step="0.01"
                   value={formData.inflationRate}
                   onChange={(e) => setFormData({ ...formData, inflationRate: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ink-subtle mt-1">
                   Este valor será aplicado sobre a quota mensal base de cada fração
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Quota Extraordinária (€)
                 </label>
                 <input
@@ -1762,9 +1762,9 @@ function FinancialPlansContent() {
                   step="0.01"
                   value={formData.extraordinaryQuota}
                   onChange={(e) => setFormData({ ...formData, extraordinaryQuota: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ink-subtle mt-1">
                   Valor adicional que será dividido igualmente por todas as frações
                 </p>
               </div>
@@ -1783,7 +1783,7 @@ function FinancialPlansContent() {
                   });
                 }}
                 fullWidth
-                className="flex-1 border border-gray-300"
+                className="flex-1 border border-line"
               >
                 Cancelar
               </Button>
@@ -1837,25 +1837,25 @@ function FinancialPlansContent() {
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-surface rounded-lg shadow-sm border border-line p-6 mb-6">
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <h2 className="text-2xl font-bold text-gray-900">Plano {selectedPlan.year}</h2>
+                <h2 className="text-2xl font-bold text-ink">Plano {selectedPlan.year}</h2>
                 {getStatusBadge(selectedPlan.status)}
               </div>
               <div className="grid grid-cols-3 gap-6 text-sm">
                 <div>
-                  <span className="text-gray-600">Inflação:</span>
-                  <span className="ml-2 font-semibold text-gray-900">{selectedPlan.inflationRate}%</span>
+                  <span className="text-ink-muted">Inflação:</span>
+                  <span className="ml-2 font-semibold text-ink">{selectedPlan.inflationRate}%</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Quota Extraordinária Total:</span>
-                  <span className="ml-2 font-semibold text-gray-900">€{selectedPlan.extraordinaryQuota.toFixed(2)}</span>
+                  <span className="text-ink-muted">Quota Extraordinária Total:</span>
+                  <span className="ml-2 font-semibold text-ink">€{selectedPlan.extraordinaryQuota.toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Extraordinária por Fração:</span>
-                  <span className="ml-2 font-semibold text-gray-900">€{extraordinaryPerUnit.toFixed(2)}</span>
+                  <span className="text-ink-muted">Extraordinária por Fração:</span>
+                  <span className="ml-2 font-semibold text-ink">€{extraordinaryPerUnit.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -1888,7 +1888,7 @@ function FinancialPlansContent() {
               key: 'monthly',
               header: 'Mensal',
               align: 'right',
-              className: 'font-semibold text-gray-900',
+              className: 'font-semibold text-ink',
               render: (u) => {
                 const base = u.monthlyQuota || 0;
                 const inflation = base * (selectedPlan.inflationRate / 100);
@@ -1956,9 +1956,9 @@ function FinancialPlansContent() {
             </tr>
           }
           mobileFooter={
-            <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-2 font-semibold text-gray-900">
+            <div className="bg-surface-muted rounded-xl border border-line p-4 space-y-2 font-semibold text-ink">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-medium text-gray-500">Total Mensal</span>
+                <span className="text-xs font-medium text-ink-subtle">Total Mensal</span>
                 <span className="text-sm">
                   €{units
                     .reduce((sum, u) => {
@@ -1970,7 +1970,7 @@ function FinancialPlansContent() {
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-medium text-gray-500">Total Anual</span>
+                <span className="text-xs font-medium text-ink-subtle">Total Anual</span>
                 <span className="text-sm">
                   €{(units.reduce((sum, u) => {
                     const base = u.monthlyQuota || 0;

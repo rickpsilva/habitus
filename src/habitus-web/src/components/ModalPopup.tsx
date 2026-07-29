@@ -52,19 +52,19 @@ export default function ModalPopup({
         }
       }}
     >
-      <div className={`bg-white rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-hidden flex flex-col`}>
+      <div className={`bg-surface rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-hidden flex flex-col`}>
         {header ? (
           header
         ) : (
-          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">{fallbackTitle}</h2>
+          <div className="sticky top-0 z-10 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-ink">{fallbackTitle}</h2>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-surface-hover rounded-lg transition-colors"
               aria-label="Fechar"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-ink-subtle" />
             </button>
           </div>
         )}

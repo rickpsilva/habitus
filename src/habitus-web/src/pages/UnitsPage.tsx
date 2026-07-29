@@ -301,7 +301,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div className="text-center py-20 text-ink-subtle">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
         <p>Acesso restrito a administradores</p>
       </div>
@@ -366,18 +366,18 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           className="hidden"
           onChange={handleCsvImport}
         />
-        <span className="text-xs text-gray-500">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
+        <span className="text-xs text-ink-subtle">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
       </div>
 
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-ink">
                 {editId ? 'Editar Fração' : 'Nova Fração'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowForm(false)} className="text-ink-subtle hover:text-ink-muted">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -388,7 +388,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Fração *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Número da Fração *</label>
                 <input
                   type="text"
                   name="number"
@@ -396,51 +396,51 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   onChange={handleChange}
                   required
                   placeholder="Ex: 101"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prédio</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Prédio</label>
                 <input
                   type="text"
                   name="building"
                   value={form.building || ''}
                   onChange={handleChange}
                   placeholder="Ex: Bloco A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Piso *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Piso *</label>
                 <input
                   type="number"
                   name="floor"
                   value={form.floor}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               {form.type === 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Apartamento</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Apartamento</label>
                   <input
                     type="text"
                     name="apartmentNumber"
                     value={form.apartmentNumber || ''}
                     onChange={handleChange}
                     placeholder="Ex: A, B, Esq, Dto"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Tipo *</label>
                 <select
                   name="type"
                   value={form.type}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface text-ink"
                 >
                   <option value={0}>Apartamento</option>
                   <option value={1}>Comercial</option>
@@ -448,7 +448,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Permilagem (‰) *
                 </label>
                 <input
@@ -460,11 +460,11 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   min={0}
                   step={0.01}
                   placeholder="Ex: 85.50"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Quota Mensal Base (€)
                 </label>
                 <input
@@ -475,16 +475,16 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   min={0}
                   step={0.01}
                   placeholder="Ex: 45.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Valor mensal da quota desta fração</p>
+                <p className="text-xs text-ink-subtle mt-1">Valor mensal da quota desta fração</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button
                   variant="ghost"
                   onClick={() => setShowForm(false)}
                   fullWidth
-                  className="border border-gray-300"
+                  className="border border-line"
                 >
                   Cancelar
                 </Button>
@@ -507,40 +507,40 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredUnits.map((u) => (
-            <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div key={u.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm shrink-0">
                     {u.number}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-ink">
                       Fração {u.number}{u.apartmentNumber && u.type === 0 ? ` - ${u.apartmentNumber}` : ''}
                     </p>
-                    <span className="text-xs text-gray-500">Piso {u.floor}</span>
+                    <span className="text-xs text-ink-subtle">Piso {u.floor}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(u)} className="text-gray-300 hover:text-indigo-500 transition-colors p-1">
+                  <button onClick={() => openEdit(u)} className="text-ink-subtle hover:text-indigo-500 transition-colors p-1">
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(u.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
+                  <button onClick={() => handleDelete(u.id)} className="text-ink-subtle hover:text-red-500 transition-colors p-1">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-              <div className="mt-3 space-y-1.5 text-sm text-gray-500">
+              <div className="mt-3 space-y-1.5 text-sm text-ink-subtle">
                 <div className="flex items-center justify-between">
                   <span>Prédio</span>
-                  <span className="font-medium text-gray-700">{u.building || '-'}</span>
+                  <span className="font-medium text-ink">{u.building || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Tipo</span>
-                  <span className="font-medium text-gray-700">{unitTypeLabels[u.type] ?? u.type}</span>
+                  <span className="font-medium text-ink">{unitTypeLabels[u.type] ?? u.type}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Permilagem</span>
-                  <span className="font-medium text-gray-700">{u.permillage.toFixed(2)} ‰</span>
+                  <span className="font-medium text-ink">{u.permillage.toFixed(2)} ‰</span>
                 </div>
               </div>
             </div>

@@ -10,7 +10,7 @@ export interface SkeletonProps {
 }
 
 function Line({ className }: { className?: string }) {
-  return <div className={cn('bg-gray-100 rounded animate-pulse', className)} />;
+  return <div className={cn('bg-surface-hover rounded animate-pulse', className)} />;
 }
 
 export default function Skeleton({ variant = 'list', rows = 4, columns = 4, className }: SkeletonProps) {
@@ -28,7 +28,7 @@ export default function Skeleton({ variant = 'list', rows = 4, columns = 4, clas
     return (
       <tbody aria-hidden="true">
         {Array.from({ length: rows }).map((_, r) => (
-          <tr key={r} className="border-b border-gray-100">
+          <tr key={r} className="border-b border-line">
             {Array.from({ length: columns }).map((_, c) => (
               <td key={c} className="px-4 py-3">
                 <Line className="h-3.5 w-full" />
@@ -44,8 +44,8 @@ export default function Skeleton({ variant = 'list', rows = 4, columns = 4, clas
   return (
     <div className={cn('space-y-3', className)} aria-hidden="true">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex gap-3">
-          <div className="w-9 h-9 rounded-full bg-gray-100 shrink-0 animate-pulse" />
+        <div key={i} className="bg-surface rounded-xl border border-line p-4 flex gap-3">
+          <div className="w-9 h-9 rounded-full bg-surface-hover shrink-0 animate-pulse" />
           <div className="flex-1 space-y-2">
             <Line className="h-3.5 w-2/3" />
             <Line className="h-3 w-full" />

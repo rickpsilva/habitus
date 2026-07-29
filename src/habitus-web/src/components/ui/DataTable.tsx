@@ -60,7 +60,7 @@ const justifyClass: Record<NonNullable<Column<unknown>['align']>, string> = {
 };
 
 function SortIcon({ active, direction }: { active: boolean; direction?: 'asc' | 'desc' }) {
-  if (!active) return <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" aria-hidden="true" />;
+  if (!active) return <ArrowUpDown className="w-3.5 h-3.5 text-ink-subtle" aria-hidden="true" />;
   return direction === 'asc' ? (
     <ArrowUp className="w-3.5 h-3.5 text-indigo-600" aria-hidden="true" />
   ) : (
@@ -98,9 +98,9 @@ export default function DataTable<T>({
   return (
     <div className={cn('space-y-3', className)}>
       {/* Desktop / tablet: real table */}
-      <div className="hidden sm:block bg-white rounded-xl border border-gray-100 overflow-x-auto app-scrollbar">
+      <div className="hidden sm:block bg-surface rounded-xl border border-line overflow-x-auto app-scrollbar">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-surface-muted border-b border-line">
             <tr>
               {columns.map((col) => {
                 const key = col.sortKey ?? col.key;
@@ -112,7 +112,7 @@ export default function DataTable<T>({
                     scope="col"
                     aria-sort={active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
                     className={cn(
-                      'px-4 py-3 font-semibold text-gray-600 whitespace-nowrap',
+                      'px-4 py-3 font-semibold text-ink-muted whitespace-nowrap',
                       alignClass[col.align ?? 'left'],
                       col.className,
                     )}
@@ -122,7 +122,7 @@ export default function DataTable<T>({
                         type="button"
                         onClick={() => onSort?.(key)}
                         className={cn(
-                          'inline-flex items-center gap-1.5 font-semibold hover:text-gray-900 transition-colors',
+                          'inline-flex items-center gap-1.5 font-semibold hover:text-ink transition-colors',
                           justifyClass[col.align ?? 'left'],
                         )}
                       >
@@ -156,14 +156,14 @@ export default function DataTable<T>({
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
-                    'border-b border-gray-100 last:border-0',
-                    onRowClick && 'cursor-pointer hover:bg-gray-50',
+                    'border-b border-line last:border-0',
+                    onRowClick && 'cursor-pointer hover:bg-surface-muted',
                   )}
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={cn('px-4 py-3 text-gray-700', alignClass[col.align ?? 'left'], col.className)}
+                      className={cn('px-4 py-3 text-ink', alignClass[col.align ?? 'left'], col.className)}
                     >
                       {cellValue(col, row)}
                     </td>
@@ -173,7 +173,7 @@ export default function DataTable<T>({
             </tbody>
           )}
           {footer && hasRows && (
-            <tfoot className="bg-gray-50 border-t border-gray-200 font-semibold text-gray-900">
+            <tfoot className="bg-surface-muted border-t border-line font-semibold text-ink">
               {footer}
             </tfoot>
           )}
@@ -196,18 +196,18 @@ export default function DataTable<T>({
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={cn(
-                  'bg-white rounded-xl border border-gray-100 p-4 space-y-2',
-                  onRowClick && 'cursor-pointer active:bg-gray-50',
+                  'bg-surface rounded-xl border border-line p-4 space-y-2',
+                  onRowClick && 'cursor-pointer active:bg-surface-muted',
                 )}
               >
                 {columns
                   .filter((col) => !col.hideOnMobile)
                   .map((col) => (
                     <div key={col.key} className="flex items-start justify-between gap-3">
-                      <span className="text-xs font-medium text-gray-500 shrink-0">
+                      <span className="text-xs font-medium text-ink-subtle shrink-0">
                         {col.mobileLabel ?? (typeof col.header === 'string' ? col.header : '')}
                       </span>
-                      <span className="text-sm text-gray-800 text-right min-w-0">{cellValue(col, row)}</span>
+                      <span className="text-sm text-ink text-right min-w-0">{cellValue(col, row)}</span>
                     </div>
                   ))}
               </div>

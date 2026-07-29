@@ -223,96 +223,96 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Nome *
                 </label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Ex: Salão de Festas"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Capacidade
                 </label>
                 <input
                   type="number"
                   value={form.capacity}
                   onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Ex: 50 (deixe vazio para ilimitado)"
                   min="0"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Cor no Calendário
                 </label>
                 <input
                   type="color"
                   value={form.color}
                   onChange={(e) => setForm({ ...form, color: e.target.value })}
-                  className="w-full h-10 px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
+                  className="w-full h-10 px-1 py-1 border border-line bg-surface rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
                   title="Escolha a cor para este espaço no calendário"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Descrição
               </label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={3}
                 placeholder="Descrição do espaço"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Regras de Utilização
               </label>
               <textarea
                 value={form.rules}
                 onChange={(e) => setForm({ ...form, rules: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={4}
                 placeholder="Ex: Horário: 8h-22h. Proibido fumar. Respeitar limites de ruído."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Taxa de Reserva (€)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle">€</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={form.reservationFee}
                   onChange={(e) => setForm({ ...form, reservationFee: e.target.value })}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="0.00"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-ink-subtle">
                 Taxa cobrada ao residente por cada reserva. Deixe 0 para reservas gratuitas.
               </p>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 pt-2">
-              <Button variant="ghost" onClick={handleCancel} className="border border-gray-300">
+              <Button variant="ghost" onClick={handleCancel} className="border border-line">
                 Cancelar
               </Button>
               <Button type="submit" loading={submitting}>
@@ -379,11 +379,11 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             {spaces.map((space) => (
               <div
                 key={space.id}
-                className="border border-gray-200 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow"
+                className="border border-line rounded-xl p-4 bg-surface hover:shadow-sm transition-shadow"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{space.name}</h3>
+                    <h3 className="font-semibold text-ink truncate">{space.name}</h3>
                     {space.capacity && space.capacity > 0 && (
                       <p className="text-sm text-indigo-600 mt-0.5">
                         Capacidade: {space.capacity} pessoas
@@ -411,13 +411,13 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                 </div>
 
                 {space.description && (
-                  <p className="text-sm text-gray-600 mb-2">{space.description}</p>
+                  <p className="text-sm text-ink-muted mb-2">{space.description}</p>
                 )}
 
                 {space.rules && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <p className="text-xs font-medium text-gray-700 mb-1">Regras:</p>
-                    <p className="text-xs text-gray-500 whitespace-pre-line line-clamp-3">{space.rules}</p>
+                  <div className="mt-2 pt-2 border-t border-line">
+                    <p className="text-xs font-medium text-ink-muted mb-1">Regras:</p>
+                    <p className="text-xs text-ink-subtle whitespace-pre-line line-clamp-3">{space.rules}</p>
                   </div>
                 )}
               </div>

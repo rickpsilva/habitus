@@ -15,7 +15,7 @@ const roleLabels: Record<string, string> = {
 
 const roleColors: Record<string, string> = {
   Admin: 'bg-indigo-100 text-indigo-700',
-  Resident: 'bg-gray-100 text-gray-600',
+  Resident: 'bg-control text-ink-muted',
   Manager: 'bg-emerald-100 text-emerald-700',
 };
 
@@ -88,7 +88,7 @@ export default function ResidentsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div className="text-center py-20 text-ink-subtle">
         <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
         <p>Acesso restrito a administradores</p>
       </div>
@@ -115,14 +115,14 @@ export default function ResidentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Pesquisar por nome ou email..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         }
         actions={
           <select
             value={filterUnitId}
             onChange={(e) => setFilterUnitId(e.target.value)}
-            className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="w-full sm:w-auto px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface"
           >
             <option value="">Todas as frações</option>
             {units.map((u) => (
@@ -144,35 +144,35 @@ export default function ResidentsPage() {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((r) => (
-            <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div key={r.id} className="bg-surface rounded-xl shadow-sm border border-line p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm shrink-0">
                     {r.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{r.name}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[r.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <p className="font-medium text-ink">{r.name}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[r.role] ?? 'bg-control text-ink-muted'}`}>
                       {roleLabels[r.role] ?? r.role}
                     </span>
                   </div>
                 </div>
-                <button onClick={() => handleDelete(r.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                <button onClick={() => handleDelete(r.id)} className="text-ink-subtle hover:text-red-500 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
               <div className="mt-3 space-y-1.5">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-ink-subtle">
                   <Mail className="w-3.5 h-3.5" />
                   <span className="truncate">{r.email}</span>
                 </div>
                 {r.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-ink-subtle">
                     <Phone className="w-3.5 h-3.5" />
                     {r.phone}
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="flex items-center gap-2 text-xs text-ink-subtle">
                   <Home className="w-3.5 h-3.5" />
                   {unitLabel(r.unitId)}
                 </div>

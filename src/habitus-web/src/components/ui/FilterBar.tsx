@@ -39,7 +39,7 @@ export function FilterChip({ label, active, count, icon: Icon, onClick }: Filter
         'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors border',
         active
           ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
+          : 'bg-surface border-line text-ink-muted hover:bg-surface-hover',
       )}
     >
       {Icon && <Icon className="w-4 h-4" aria-hidden="true" />}
@@ -48,7 +48,7 @@ export function FilterChip({ label, active, count, icon: Icon, onClick }: Filter
         <span
           className={cn(
             'inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold',
-            active ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600',
+            active ? 'bg-indigo-600 text-white' : 'bg-control text-ink-muted',
           )}
         >
           {count}
@@ -87,7 +87,7 @@ export function Segmented<V extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn('inline-flex items-center gap-1 bg-gray-100 rounded-lg p-1', className)}
+      className={cn('inline-flex items-center gap-1 bg-control rounded-lg p-1', className)}
     >
       {options.map((opt) => {
         const selected = opt.value === value;
@@ -101,7 +101,7 @@ export function Segmented<V extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              selected ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900',
+              selected ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink',
             )}
           >
             {Icon && <Icon className="w-4 h-4" aria-hidden="true" />}
