@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, ClipboardList, Trash2, Pencil, X, FileText, Ban, CheckCircle2, Calendar, Download, Upload } from 'lucide-react';
 import { assembliesApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -10,6 +10,8 @@ import SearchBar from '../components/SearchBar';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import MultipleFileUpload from '../components/MultipleFileUpload';
+import { PageHeader, Button, FilterBar, FilterChip, AsyncState, EmptyState, Badge } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse, DocumentDto } from '../types';
 
 const statusLabels: Record<string, string> = {
@@ -19,11 +21,11 @@ const statusLabels: Record<string, string> = {
   Cancelled: 'Cancelada',
 };
 
-const statusColors: Record<string, string> = {
-  Scheduled: 'bg-blue-100 text-blue-700',
-  InProgress: 'bg-yellow-100 text-yellow-700',
-  Completed: 'bg-green-100 text-green-700',
-  Cancelled: 'bg-gray-100 text-gray-500',
+const statusVariants: Record<string, BadgeVariant> = {
+  Scheduled: 'info',
+  InProgress: 'warning',
+  Completed: 'success',
+  Cancelled: 'neutral',
 };
 
 export default function AssembliesPage() {
@@ -624,30 +626,24 @@ export default function AssembliesPage() {
         onConfirm={confirmDeleteDocument}
         onCancel={() => setDeleteDocumentId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Assembleias</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Reuniões e assembleias de condóminos</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar assembleias..."
-            />
-          </div>
-          {isAdmin && (
-            <button
-              onClick={openNew}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Assembleias"
+        subtitle="Reuniões e assembleias de condóminos"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar assembleias..."
+          />
+        }
+        actions={
+          isAdmin && (
+            <Button icon={Plus} onClick={openNew} fullWidth className="sm:w-auto">
               Nova Assembleia
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+          )
+        }
+      />
 
       {/* Form */}
       <ModalPopup
@@ -658,120 +654,96 @@ export default function AssembliesPage() {
       >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Título</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Ex: Assembleia Geral Ordinária 2026"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 required
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 placeholder="Ordem de trabalhos e outras informações relevantes..."
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data e Hora</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Data e Hora</label>
               <input
                 type="datetime-local"
                 value={form.scheduledAt}
                 onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Local</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Local</label>
               <input
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Ex: Salão comum do condomínio"
               />
             </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowForm(false)} className="border border-line">
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Guardar
+              </Button>
             </div>
           </form>
       </ModalPopup>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <FilterBar>
         {['All', 'Scheduled', 'InProgress', 'Completed', 'Cancelled'].map((status) => (
-          <button
+          <FilterChip
             key={status}
+            label={status === 'All' ? 'Todas' : statusLabels[status] ?? status}
+            active={statusFilter === status}
+            count={status === 'All' ? undefined : assemblies.filter((a) => a.status === status).length}
             onClick={() => setStatusFilter(status)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              statusFilter === status 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {status === 'All' ? 'Todas' : statusLabels[status] ?? status}
-            {status !== 'All' && (
-              <span className="ml-1.5 text-xs opacity-75">
-                ({assemblies.filter(a => a.status === status).length})
-              </span>
-            )}
-          </button>
+          />
         ))}
-      </div>
+      </FilterBar>
 
       {/* List */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : loadError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        ) : filteredAssemblies.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            {statusFilter === 'All' ? 'Sem assembleias agendadas' : `Sem assembleias com estado "${statusLabels[statusFilter] ?? statusFilter}"`}
-          </div>
-        ) : (
-          <>
-            {filteredAssemblies.map((a) => {
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredAssemblies.length === 0}
+        skeleton="list"
+        empty={
+          <EmptyState
+            icon={ClipboardList}
+            title={statusFilter === 'All' ? 'Sem assembleias agendadas' : `Sem assembleias com estado "${statusLabels[statusFilter] ?? statusFilter}"`}
+          />
+        }
+      >
+        <div className="space-y-3">
+          {filteredAssemblies.map((a) => {
               const isDragOver = dragOverAssemblyId === a.id;
               const isDisabled = a.status === 'Cancelled';
               
               return (
                 <div 
                   key={a.id} 
-                  className={`bg-white rounded-xl shadow-sm border p-4 transition-all ${
+                  className={`bg-surface rounded-xl shadow-sm border p-4 transition-all ${
                     isDragOver && !isDisabled && isAdmin
                       ? 'border-indigo-400 border-2 bg-indigo-50 shadow-lg'
-                      : 'border-gray-100'
+                      : 'border-line'
                   } ${!isDisabled && isAdmin ? 'hover:shadow-md' : ''}`}
                   onDragOver={(e) => handleDragOver(e, a.id, isDisabled)}
                   onDragLeave={handleDragLeave}
@@ -792,21 +764,21 @@ export default function AssembliesPage() {
                       <div className="flex-1 min-w-0">
                         <button 
                           onClick={() => openDetails(a)}
-                          className="font-medium text-gray-900 hover:text-indigo-600 text-left"
+                          className="font-medium text-ink hover:text-indigo-600 text-left"
                         >
                           {a.title}
                         </button>
-                        {a.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{a.description}</p>}
+                        {a.description && <p className="text-sm text-ink-subtle mt-0.5 line-clamp-2">{a.description}</p>}
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[a.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          <Badge variant={statusVariants[a.status] ?? 'neutral'}>
                             {statusLabels[a.status] ?? a.status}
-                          </span>
-                          <span className="text-xs text-gray-400 flex items-center gap-1">
+                          </Badge>
+                          <span className="text-xs text-ink-subtle flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(a.scheduledAt).toLocaleString('pt-PT')}
                           </span>
                           {a.location && (
-                            <span className="text-xs text-gray-400">{a.location}</span>
+                            <span className="text-xs text-ink-subtle">{a.location}</span>
                           )}
                         </div>
                       </div>
@@ -853,10 +825,10 @@ export default function AssembliesPage() {
                       )}
                       {isAdmin && a.status === 'Scheduled' && (
                         <>
-                          <button onClick={() => openEdit(a)} className="text-gray-400 hover:text-indigo-500">
+                          <button onClick={() => openEdit(a)} className="text-ink-subtle hover:text-indigo-500">
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-500">
+                          <button onClick={() => handleDelete(a.id)} className="text-ink-subtle hover:text-red-500">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </>
@@ -874,9 +846,8 @@ export default function AssembliesPage() {
                 onPageChange={(page) => load(page)}
               />
             )}
-          </>
-        )}
-      </div>
+        </div>
+      </AsyncState>
 
       {/* Detail Modal */}
       <ModalPopup
@@ -889,42 +860,42 @@ export default function AssembliesPage() {
             {selectedAssembly && (
               <>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Título</label>
-                <p className="text-gray-900 mt-1">{selectedAssembly.title}</p>
+                <label className="text-xs font-medium text-ink-subtle uppercase">Título</label>
+                <p className="text-ink mt-1">{selectedAssembly.title}</p>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Descrição</label>
-                <p className="text-gray-700 mt-1 whitespace-pre-wrap">{selectedAssembly.description}</p>
+                <label className="text-xs font-medium text-ink-subtle uppercase">Descrição</label>
+                <p className="text-ink-muted mt-1 whitespace-pre-wrap">{selectedAssembly.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Data e Hora</label>
-                  <p className="text-gray-900 mt-1">{new Date(selectedAssembly.scheduledAt).toLocaleString('pt-PT')}</p>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">Data e Hora</label>
+                  <p className="text-ink mt-1">{new Date(selectedAssembly.scheduledAt).toLocaleString('pt-PT')}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Local</label>
-                  <p className="text-gray-900 mt-1">{selectedAssembly.location}</p>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">Local</label>
+                  <p className="text-ink mt-1">{selectedAssembly.location}</p>
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Estado</label>
+                <label className="text-xs font-medium text-ink-subtle uppercase">Estado</label>
                 <p className="mt-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[selectedAssembly.status]}`}>
+                  <Badge variant={statusVariants[selectedAssembly.status] ?? 'neutral'}>
                     {statusLabels[selectedAssembly.status]}
-                  </span>
+                  </Badge>
                 </p>
               </div>
               {selectedAssembly.notes && (
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Notas</label>
-                  <div className="mt-1 p-3 bg-gray-50 rounded-lg">
+                  <label className="text-xs font-medium text-ink-subtle uppercase">Notas</label>
+                  <div className="mt-1 p-3 bg-surface-muted rounded-lg">
                     <RichTextDisplay content={selectedAssembly.notes} className="text-sm" />
                   </div>
                 </div>
               )}
               {selectedAssembly.minutes && (selectedAssembly.status === 'Completed' || (selectedAssembly.status === 'InProgress' && isAdmin)) && (
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">
+                  <label className="text-xs font-medium text-ink-subtle uppercase">
                     Atas {selectedAssembly.status === 'InProgress' && '(Draft em edição)'}
                   </label>
                   <div className={`mt-1 p-3 rounded-lg border ${
@@ -938,17 +909,17 @@ export default function AssembliesPage() {
               )}
               {selectedAssembly.cancellationReason && (
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Motivo do Cancelamento</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">Motivo do Cancelamento</label>
                   <div className="mt-1 p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p className="text-sm text-gray-700">{selectedAssembly.cancellationReason}</p>
+                    <p className="text-sm text-ink-muted">{selectedAssembly.cancellationReason}</p>
                   </div>
                 </div>
               )}
 
               {/* Documents Section */}
-              <div className="border-t border-gray-200 pt-4">
+              <div className="border-t border-line pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-xs font-medium text-gray-500 uppercase">Documentos Anexados</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">Documentos Anexados</label>
                   {isAdmin && selectedAssembly.status !== 'Cancelled' && (
                     <button
                       onClick={() => setShowUploadDocument(!showUploadDocument)}
@@ -962,7 +933,7 @@ export default function AssembliesPage() {
 
                 {/* Upload Form */}
                 {showUploadDocument && isAdmin && selectedAssembly.status !== 'Cancelled' && (
-                  <form onSubmit={handleUploadDocument} className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+                  <form onSubmit={handleUploadDocument} className="bg-surface-muted rounded-lg p-4 mb-4 space-y-3">
                     <MultipleFileUpload
                       onFilesSelect={setUploadFiles}
                       currentFiles={uploadFiles}
@@ -971,19 +942,19 @@ export default function AssembliesPage() {
                       maxFiles={1}
                     />
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Nome do Documento *</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">Nome do Documento *</label>
                       <input
                         type="text"
                         value={uploadForm.name}
                         onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         placeholder="Ex: Ata da Assembleia"
                         required
                         disabled={uploadingDocument}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Tipo *</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">Tipo *</label>
                       <select
                         value={uploadForm.type}
                         onChange={(e) =>
@@ -992,7 +963,7 @@ export default function AssembliesPage() {
                             type: e.target.value as 'AssemblyMinutes' | 'AssemblyConvocation' | 'AssemblyAttachment',
                           })
                         }
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         required
                         disabled={uploadingDocument}
                       >
@@ -1002,35 +973,36 @@ export default function AssembliesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Descrição (opcional)</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">Descrição (opcional)</label>
                       <textarea
                         value={uploadForm.description}
                         onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                         rows={2}
                         placeholder="Adicione notas sobre o documento..."
                         disabled={uploadingDocument}
                       />
                     </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setShowUploadDocument(false);
                           setUploadFiles([]);
                         }}
-                        className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         disabled={uploadingDocument}
                       >
                         Cancelar
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
-                        disabled={uploadFiles.length === 0 || uploadingDocument}
-                        className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        size="sm"
+                        loading={uploadingDocument}
+                        disabled={uploadFiles.length === 0}
                       >
-                        {uploadingDocument ? 'A carregar...' : 'Carregar'}
-                      </button>
+                        Carregar
+                      </Button>
                     </div>
                   </form>
                 )}
@@ -1038,31 +1010,31 @@ export default function AssembliesPage() {
                 {/* Documents List */}
                 <div className="space-y-2">
                   {loadingDocuments ? (
-                    <div className="text-center py-4 text-sm text-gray-400">A carregar documentos...</div>
+                    <div className="text-center py-4 text-sm text-ink-subtle">A carregar documentos...</div>
                   ) : assemblyDocuments.length === 0 ? (
-                    <div className="text-center py-4 text-sm text-gray-400">
+                    <div className="text-center py-4 text-sm text-ink-subtle">
                       Nenhum documento anexado
                     </div>
                   ) : (
                     assemblyDocuments.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-surface-muted rounded-lg border border-line">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                          <FileText className="w-4 h-4 text-ink-subtle shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                            <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-ink-subtle">
                                 {documentTypeLabels[doc.type] || doc.type}
                               </span>
-                              <span className="text-gray-300">•</span>
-                              <span className="text-xs text-gray-500">{formatFileSize(doc.fileSize)}</span>
-                              <span className="text-gray-300">•</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-ink-subtle">•</span>
+                              <span className="text-xs text-ink-subtle">{formatFileSize(doc.fileSize)}</span>
+                              <span className="text-ink-subtle">•</span>
+                              <span className="text-xs text-ink-subtle">
                                 {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
                               </span>
                             </div>
                             {doc.description && (
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-1">{doc.description}</p>
+                              <p className="text-xs text-ink-subtle mt-1 line-clamp-1">{doc.description}</p>
                             )}
                           </div>
                         </div>
@@ -1089,10 +1061,10 @@ export default function AssembliesPage() {
                   )}
                 </div>
               </div>
-            <div className="border-t border-gray-200 pt-4 flex justify-end">
+            <div className="border-t border-line pt-4 flex justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                className="px-4 py-2 bg-control hover:bg-control-hover text-ink rounded-lg text-sm font-medium transition-colors"
               >
                 Fechar
               </button>
@@ -1108,21 +1080,21 @@ export default function AssembliesPage() {
         maxWidthClass="max-w-2xl"
         bodyClassName="p-0"
         header={
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="sticky top-0 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
                   Notas da Assembleia
                 </h2>
                 {notesAutoSaving && (
-                  <span className="text-xs text-gray-500 animate-pulse">A guardar...</span>
+                  <span className="text-xs text-ink-subtle animate-pulse">A guardar...</span>
                 )}
                 {!notesAutoSaving && notesLastSaved && (
                   <span className="text-xs text-green-600">✓ Guardado</span>
                 )}
               </div>
-              <button onClick={() => setShowNotesModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
-                <X className="w-5 h-5 text-gray-500" />
+              <button onClick={() => setShowNotesModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
+                <X className="w-5 h-5 text-ink-subtle" />
               </button>
           </div>
         }
@@ -1130,7 +1102,7 @@ export default function AssembliesPage() {
             {selectedAssembly && isAdmin && (
               <>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-500 mb-3">Utilize este espaço para tirar notas durante a assembleia em curso.</p>
+              <p className="text-sm text-ink-subtle mb-3">Utilize este espaço para tirar notas durante a assembleia em curso.</p>
               <RichTextEditor
                 value={notes}
                 onChange={setNotes}
@@ -1138,20 +1110,13 @@ export default function AssembliesPage() {
                 height="350px"
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowNotesModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-line flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowNotesModal(false)}>
                 Cancelar
-              </button>
-              <button
-                onClick={handleSaveNotes}
-                disabled={submitting}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar Notas'}
-              </button>
+              </Button>
+              <Button onClick={handleSaveNotes} loading={submitting}>
+                Guardar Notas
+              </Button>
             </div>
               </>
             )}
@@ -1164,21 +1129,21 @@ export default function AssembliesPage() {
         maxWidthClass="max-w-2xl"
         bodyClassName="p-0"
         header={
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="sticky top-0 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                   Atas da Assembleia
                 </h2>
                 {minutesAutoSaving && (
-                  <span className="text-xs text-gray-500 animate-pulse">A guardar...</span>
+                  <span className="text-xs text-ink-subtle animate-pulse">A guardar...</span>
                 )}
                 {!minutesAutoSaving && minutesLastSaved && (
                   <span className="text-xs text-green-600">✓ Guardado</span>
                 )}
               </div>
-              <button onClick={() => setShowMinutesModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
-                <X className="w-5 h-5 text-gray-500" />
+              <button onClick={() => setShowMinutesModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
+                <X className="w-5 h-5 text-ink-subtle" />
               </button>
           </div>
         }
@@ -1199,28 +1164,17 @@ export default function AssembliesPage() {
                 height="350px"
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between gap-3">
-              <button
-                onClick={() => setShowMinutesModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-line flex flex-wrap justify-between gap-3">
+              <Button variant="ghost" onClick={() => setShowMinutesModal(false)}>
                 Fechar
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveDraftMinutes}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium"
-                >
-                  {submitting ? 'A guardar...' : 'Guardar Draft'}
-                </button>
-                <button
-                  onClick={handleCompleteAssembly}
-                  disabled={submitting}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg text-sm font-medium"
-                >
+              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleSaveDraftMinutes} loading={submitting}>
+                  Guardar Draft
+                </Button>
+                <Button variant="success" onClick={handleCompleteAssembly} loading={submitting}>
                   Concluir Assembleia
-                </button>
+                </Button>
               </div>
             </div>
               </>
@@ -1234,13 +1188,13 @@ export default function AssembliesPage() {
         maxWidthClass="max-w-md"
         bodyClassName="p-0"
         header={
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <div className="sticky top-0 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                 <Ban className="w-5 h-5 text-red-600" />
                 Cancelar Assembleia
               </h2>
-              <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" type="button">
-                <X className="w-5 h-5 text-gray-500" />
+              <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
+                <X className="w-5 h-5 text-ink-subtle" />
               </button>
           </div>
         }
@@ -1248,31 +1202,24 @@ export default function AssembliesPage() {
             {selectedAssembly && isAdmin && (
               <>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-ink-muted mb-3">
                 Por favor indique o motivo do cancelamento desta assembleia.
               </p>
               <textarea
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
                 placeholder="Motivo do cancelamento..."
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+            <div className="px-6 py-4 border-t border-line flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowCancelModal(false)}>
                 Voltar
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={submitting}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A cancelar...' : 'Cancelar Assembleia'}
-              </button>
+              </Button>
+              <Button variant="danger" onClick={handleCancel} loading={submitting}>
+                Cancelar Assembleia
+              </Button>
             </div>
               </>
             )}
@@ -1285,22 +1232,22 @@ export default function AssembliesPage() {
         maxWidthClass="max-w-2xl"
         bodyClassName="p-0"
         header={
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="sticky top-0 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <Upload className="w-5 h-5 text-indigo-600" />
                   Adicionar Documento
                 </h2>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="text-sm text-ink-subtle mt-0.5">
                   {quickUploadAssembly?.title ?? ''}
                 </p>
               </div>
               <button 
                 onClick={() => setShowQuickUploadModal(false)} 
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-surface-hover rounded-lg transition-colors"
                 type="button"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-ink-subtle" />
               </button>
           </div>
         }
@@ -1310,7 +1257,7 @@ export default function AssembliesPage() {
 
             <form onSubmit={handleQuickUpload} className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-muted mb-2">
                   Arquivos (máx. 10 ficheiros)
                 </label>
                 <MultipleFileUpload
@@ -1320,35 +1267,28 @@ export default function AssembliesPage() {
                   disabled={uploadingDocument}
                   maxFiles={10}
                 />
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-ink-subtle">
                   Os tipos de documento serão detetados automaticamente com base nos nomes dos ficheiros.
                   Use palavras-chave como "ata", "convocatoria" ou "anexo" nos nomes.
                 </p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowQuickUploadModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={uploadingDocument}
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={uploadFiles.length === 0 || uploadingDocument}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  icon={Upload}
+                  loading={uploadingDocument}
+                  disabled={uploadFiles.length === 0}
                 >
-                  {uploadingDocument ? (
-                    <>A carregar...</>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
-                    </>
-                  )}
-                </button>
+                  Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
+                </Button>
               </div>
             </form>
               </>

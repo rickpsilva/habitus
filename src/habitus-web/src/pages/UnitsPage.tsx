@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Trash2, Pencil, Plus, X, Upload, Download, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Trash2, Pencil, Plus, X, Upload, Download } from 'lucide-react';
 import { unitsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
+import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -300,7 +301,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div className="text-center py-20 text-ink-subtle">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
         <p>Acesso restrito a administradores</p>
       </div>
@@ -320,10 +321,10 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       />
       {/* Header — standalone only */}
       {!embedded && (
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Frações</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{filteredUnits.length} frações registadas</p>
-        </div>
+        <PageHeader
+          title="Frações"
+          subtitle={`${filteredUnits.length} frações registadas`}
+        />
       )}
 
       {/* Toolbar */}
@@ -336,32 +337,28 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           />
         </div>
 
-        <button
+        <Button
+          variant="secondary"
+          icon={Download}
           onClick={handleCsvDownload}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
           title="Descarregar CSV (template ou exportação)"
         >
-          <Download className="w-4 h-4" />
           Descarregar CSV
-        </button>
+        </Button>
 
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
+        <Button icon={Plus} onClick={openCreate}>
           Nova Fração
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="secondary"
+          icon={Upload}
           onClick={() => csvInputRef.current?.click()}
           disabled={csvImporting}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
           title="Importar frações a partir de ficheiro CSV"
         >
-          <Upload className="w-4 h-4" />
           {csvImporting ? 'A importar...' : 'Importar CSV'}
-        </button>
+        </Button>
         <input
           ref={csvInputRef}
           type="file"
@@ -369,18 +366,18 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           className="hidden"
           onChange={handleCsvImport}
         />
-        <span className="text-xs text-gray-500">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
+        <span className="text-xs text-ink-subtle">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
       </div>
 
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-ink">
                 {editId ? 'Editar Fração' : 'Nova Fração'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowForm(false)} className="text-ink-subtle hover:text-ink-muted">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -391,7 +388,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número da Fração *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Número da Fração *</label>
                 <input
                   type="text"
                   name="number"
@@ -399,51 +396,51 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   onChange={handleChange}
                   required
                   placeholder="Ex: 101"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prédio</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Prédio</label>
                 <input
                   type="text"
                   name="building"
                   value={form.building || ''}
                   onChange={handleChange}
                   placeholder="Ex: Bloco A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Piso *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Piso *</label>
                 <input
                   type="number"
                   name="floor"
                   value={form.floor}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               {form.type === 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Apartamento</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Apartamento</label>
                   <input
                     type="text"
                     name="apartmentNumber"
                     value={form.apartmentNumber || ''}
                     onChange={handleChange}
                     placeholder="Ex: A, B, Esq, Dto"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Tipo *</label>
                 <select
                   name="type"
                   value={form.type}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface text-ink"
                 >
                   <option value={0}>Apartamento</option>
                   <option value={1}>Comercial</option>
@@ -451,7 +448,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Permilagem (‰) *
                 </label>
                 <input
@@ -463,11 +460,11 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   min={0}
                   step={0.01}
                   placeholder="Ex: 85.50"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Quota Mensal Base (€)
                 </label>
                 <input
@@ -478,97 +475,78 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   min={0}
                   step={0.01}
                   placeholder="Ex: 45.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Valor mensal da quota desta fração</p>
+                <p className="text-xs text-ink-subtle mt-1">Valor mensal da quota desta fração</p>
               </div>
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="border border-line"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition-colors"
-                >
-                  {saving ? 'A guardar...' : 'Guardar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={saving} fullWidth>
+                  Guardar
+                </Button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!loading && loadError && (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
-        ) : !loadError && filteredUnits.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            Sem frações registadas
-          </div>
-        ) : !loadError ? (
-          filteredUnits.map((u) => (
-            <div key={u.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredUnits.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Building2} title="Sem frações registadas" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredUnits.map((u) => (
+            <Card key={u.id} className="p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm shrink-0">
                     {u.number}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-ink">
                       Fração {u.number}{u.apartmentNumber && u.type === 0 ? ` - ${u.apartmentNumber}` : ''}
                     </p>
-                    <span className="text-xs text-gray-500">Piso {u.floor}</span>
+                    <span className="text-xs text-ink-subtle">Piso {u.floor}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(u)} className="text-gray-300 hover:text-indigo-500 transition-colors p-1">
+                  <button onClick={() => openEdit(u)} className="text-ink-subtle hover:text-indigo-500 transition-colors p-1">
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(u.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
+                  <button onClick={() => handleDelete(u.id)} className="text-ink-subtle hover:text-red-500 transition-colors p-1">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-              <div className="mt-3 space-y-1.5 text-sm text-gray-500">
+              <div className="mt-3 space-y-1.5 text-sm text-ink-subtle">
                 <div className="flex items-center justify-between">
                   <span>Prédio</span>
-                  <span className="font-medium text-gray-700">{u.building || '-'}</span>
+                  <span className="font-medium text-ink">{u.building || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Tipo</span>
-                  <span className="font-medium text-gray-700">{unitTypeLabels[u.type] ?? u.type}</span>
+                  <span className="font-medium text-ink">{unitTypeLabels[u.type] ?? u.type}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Permilagem</span>
-                  <span className="font-medium text-gray-700">{u.permillage.toFixed(2)} ‰</span>
+                  <span className="font-medium text-ink">{u.permillage.toFixed(2)} ‰</span>
                 </div>
               </div>
-            </div>
-          ))
-        ) : null}
-      </div>
+            </Card>
+          ))}
+        </div>
+      </AsyncState>
       
       {pagination && !loading && filteredUnits.length > 0 && (
         <Pagination

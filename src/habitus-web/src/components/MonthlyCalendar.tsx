@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReservationDto, SharedSpaceDto } from '../types';
+import { Card } from './ui';
 
 interface MonthlyCalendarProps {
   reservations: ReservationDto[];
@@ -100,12 +101,12 @@ export default function MonthlyCalendar({
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header with month/year selector */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+      <div className="flex items-center justify-between p-4 border-b border-line bg-surface-muted">
         <button
           onClick={() => changeMonth('prev')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+          className="p-2 hover:bg-control-hover rounded-lg transition-colors"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -114,7 +115,7 @@ export default function MonthlyCalendar({
           <select
             value={currentMonth}
             onChange={(e) => handleMonthChange(parseInt(e.target.value))}
-            className="px-3 py-1.5 text-sm font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-1.5 text-sm font-semibold border border-line bg-surface rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {MONTHS.map((month, index) => (
               <option key={index} value={index}>
@@ -126,7 +127,7 @@ export default function MonthlyCalendar({
           <select
             value={currentYear}
             onChange={(e) => handleYearChange(parseInt(e.target.value))}
-            className="px-3 py-1.5 text-sm font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-1.5 text-sm font-semibold border border-line bg-surface rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {yearOptions.map((year) => (
               <option key={year} value={year}>
@@ -138,7 +139,7 @@ export default function MonthlyCalendar({
         
         <button
           onClick={() => changeMonth('next')}
-          className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+          className="p-2 hover:bg-control-hover rounded-lg transition-colors"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -149,7 +150,7 @@ export default function MonthlyCalendar({
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-2 mb-2">
           {DAYS.map((day) => (
-            <div key={day} className="text-center text-xs font-semibold text-gray-500 py-2">
+            <div key={day} className="text-center text-xs font-semibold text-ink-subtle py-2">
               {day}
             </div>
           ))}
@@ -171,7 +172,7 @@ export default function MonthlyCalendar({
                 className={`aspect-square border rounded-lg p-2 cursor-pointer transition-all hover:shadow-md ${
                   isToday(day)
                     ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300'
+                    : 'border-line hover:border-indigo-300'
                 }`}
                 onClick={() => onSelectDay(new Date(currentYear, currentMonth, day))}
               >
@@ -179,7 +180,7 @@ export default function MonthlyCalendar({
                   {/* Day number */}
                   <div
                     className={`text-sm font-semibold mb-1 ${
-                      isToday(day) ? 'text-indigo-600' : 'text-gray-900'
+                      isToday(day) ? 'text-indigo-600' : 'text-ink'
                     }`}
                   >
                     {day}
@@ -215,7 +216,7 @@ export default function MonthlyCalendar({
                         );
                       })}
                       {dayReservations.length > 3 && (
-                        <div className="text-xs text-gray-500 font-medium">
+                        <div className="text-xs text-ink-subtle font-medium">
                           +{dayReservations.length - 3} mais
                         </div>
                       )}
@@ -229,16 +230,16 @@ export default function MonthlyCalendar({
       </div>
 
       {/* Legend */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-6 text-xs">
+      <div className="p-4 border-t border-line bg-surface-muted flex items-center gap-6 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-4 border-2 border-gray-400 border-dashed rounded"></div>
-          <span className="text-gray-600">Pendente</span>
+          <div className="w-8 h-4 border-2 border-ink-subtle border-dashed rounded"></div>
+          <span className="text-ink-muted">Pendente</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-4 border-2 border-gray-400 border-solid rounded"></div>
-          <span className="text-gray-600">Aprovada</span>
+          <div className="w-8 h-4 border-2 border-ink-subtle border-solid rounded"></div>
+          <span className="text-ink-muted">Aprovada</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

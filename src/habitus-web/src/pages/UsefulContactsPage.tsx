@@ -1,25 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Plus, Edit2, Trash2, PhoneCall, ShieldAlert, Wrench, Building2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, PhoneCall, ShieldAlert, Wrench, Building2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { usefulContactsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import SearchBar from '../components/SearchBar';
-import type { UsefulContactCategory, UsefulContactDto } from '../types';
+import Pagination from '../components/Pagination';
+import { PageHeader, Button, AsyncState, EmptyState, Card, FilterBar, FilterChip } from '../components/ui';
+import type { PaginatedResponse, UsefulContactCategory, UsefulContactDto } from '../types';
 
 type CategoryOption = {
   value: number;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   badgeClass: string;
 };
 
 const categoryOptions: CategoryOption[] = [
   { value: 0, label: 'Emergencia', icon: ShieldAlert, badgeClass: 'bg-red-100 text-red-700' },
   { value: 1, label: 'Servico', icon: Wrench, badgeClass: 'bg-indigo-100 text-indigo-700' },
-  { value: 2, label: 'Administrativo', icon: Building2, badgeClass: 'bg-slate-100 text-slate-700' },
+  { value: 2, label: 'Administrativo', icon: Building2, badgeClass: 'bg-control text-ink-muted' },
 ];
 
 const categoryByString: Record<string, number> = {
@@ -62,9 +65,12 @@ export default function UsefulContactsPage() {
   const [editingContact, setEditingContact] = useState<UsefulContactDto | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<number | 'all'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState(initialForm);
+  const pageSize = 9;
 
   useEffect(() => {
     if (isManager) {
@@ -100,11 +106,16 @@ export default function UsefulContactsPage() {
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    if (!query) {
-      return contacts;
-    }
-
     return contacts.filter((contact) => {
+      const matchesCategory = categoryFilter === 'all' || normalizeCategory(contact.category) === categoryFilter;
+      if (!matchesCategory) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
       const category = categoryMeta(contact.category).label.toLowerCase();
       return (
         contact.name.toLowerCase().includes(query) ||
@@ -112,7 +123,41 @@ export default function UsefulContactsPage() {
         category.includes(query)
       );
     });
-  }, [contacts, searchQuery]);
+  }, [contacts, searchQuery, categoryFilter]);
+
+  const categoryCounts = useMemo(
+    () =>
+      contacts.reduce<Record<number, number>>((acc, contact) => {
+        const value = normalizeCategory(contact.category);
+        acc[value] = (acc[value] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [contacts],
+  );
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryFilter = (category: number | 'all') => {
+    setCategoryFilter(category);
+    setCurrentPage(1);
+  };
+
+  const totalItems = filteredContacts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedContacts = filteredContacts.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination: PaginatedResponse<UsefulContactDto> = {
+    items: paginatedContacts,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   const openCreateModal = () => {
     setEditingContact(null);
@@ -219,81 +264,81 @@ export default function UsefulContactsPage() {
       >
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Nome</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: Bombeiros de Lisboa"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Telefone</label>
             <input
               type="text"
               value={form.phone}
               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: +351 213 000 000"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Email</label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: contacto@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Morada</label>
             <input
               type="text"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Ex: Rua Principal, 123"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal</label>
               <input
                 type="text"
                 value={form.postalCode}
                 onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: 1000-001"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Localidade</label>
               <input
                 type="text"
                 value={form.locality}
                 onChange={(e) => setForm((prev) => ({ ...prev, locality: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: Lisboa"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Categoria</label>
             <select
               value={form.category}
               onChange={(e) => setForm((prev) => ({ ...prev, category: Number(e.target.value) }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             >
               {categoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -303,81 +348,83 @@ export default function UsefulContactsPage() {
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={closeModal} className="border border-line">
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60 transition-colors"
-            >
-              {submitting ? 'A guardar...' : editingContact ? 'Guardar' : 'Criar'}
-            </button>
+            </Button>
+            <Button type="submit" loading={submitting}>
+              {editingContact ? 'Guardar' : 'Criar'}
+            </Button>
           </div>
         </form>
       </ModalPopup>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Phone className="w-7 h-7 text-indigo-600" />
-            Contactos Úteis
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Lista de contactos importantes do condomínio.
-          </p>
-        </div>
+      <PageHeader
+        title="Contactos Úteis"
+        subtitle="Lista de contactos importantes do condomínio."
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={handleSearch}
+            placeholder="Pesquisar por nome, telefone ou categoria..."
+          />
+        }
+        actions={
+          isAdmin && (
+            <Button icon={Plus} onClick={openCreateModal} fullWidth className="sm:w-auto">
+              Novo Contacto
+            </Button>
+          )
+        }
+      />
 
-        {isAdmin && (
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Contacto
-          </button>
-        )}
-      </div>
-
-      <div className="max-w-md">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Pesquisar por nome, telefone ou categoria..."
+      <FilterBar>
+        <FilterChip
+          label="Todos"
+          active={categoryFilter === 'all'}
+          count={contacts.length}
+          onClick={() => handleCategoryFilter('all')}
         />
-      </div>
+        {categoryOptions.map((option) => (
+          <FilterChip
+            key={option.value}
+            label={option.label}
+            icon={option.icon}
+            active={categoryFilter === option.value}
+            count={categoryCounts[option.value] ?? 0}
+            onClick={() => handleCategoryFilter(option.value)}
+          />
+        ))}
+      </FilterBar>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-48 text-gray-500">A carregar contactos...</div>
-      ) : loadError ? (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{loadError}</div>
-      ) : filteredContacts.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <PhoneCall className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Sem contactos úteis registados</p>
-          <p className="text-gray-400 text-sm mt-1">
-            {isAdmin ? 'Adicione o primeiro contacto para o condomínio.' : 'Ainda não existem contactos disponíveis.'}
-          </p>
-        </div>
-      ) : (
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={loadContacts}
+        isEmpty={filteredContacts.length === 0}
+        skeleton="card"
+        empty={
+          <EmptyState
+            icon={PhoneCall}
+            title="Sem contactos úteis registados"
+            description={
+              isAdmin
+                ? 'Adicione o primeiro contacto para o condomínio.'
+                : 'Ainda não existem contactos disponíveis.'
+            }
+          />
+        }
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredContacts.map((contact) => {
+          {paginatedContacts.map((contact) => {
             const meta = categoryMeta(contact.category);
             const Icon = meta.icon;
 
             return (
-              <div
-                key={contact.id}
-                className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow"
-              >
+              <Card key={contact.id} interactive className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">{contact.name}</h3>
+                    <h3 className="text-base font-semibold text-ink truncate">{contact.name}</h3>
                     <a href={`tel:${contact.phone}`} className="text-sm text-indigo-600 hover:text-indigo-700">
                       {contact.phone}
                     </a>
@@ -405,17 +452,17 @@ export default function UsefulContactsPage() {
 
                 <div className="mt-3 space-y-2 text-sm">
                   {contact.email && (
-                    <div className="text-gray-600">
+                    <div className="text-ink-muted">
                       <a href={`mailto:${contact.email}`} className="text-indigo-600 hover:text-indigo-700">
                         {contact.email}
                       </a>
                     </div>
                   )}
                   {contact.address && (
-                    <div className="text-gray-600">{contact.address}</div>
+                    <div className="text-ink-muted">{contact.address}</div>
                   )}
                   {(contact.postalCode || contact.locality) && (
-                    <div className="text-gray-600">
+                    <div className="text-ink-muted">
                       {contact.postalCode && <span>{contact.postalCode}</span>}
                       {contact.postalCode && contact.locality && <span>, </span>}
                       {contact.locality && <span>{contact.locality}</span>}
@@ -429,11 +476,16 @@ export default function UsefulContactsPage() {
                     {meta.label}
                   </span>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
-      )}
+        {filteredContacts.length > 0 && (
+          <div className="mt-4">
+            <Pagination pagination={pagination} currentPage={safeCurrentPage} onPageChange={setCurrentPage} />
+          </div>
+        )}
+      </AsyncState>
     </div>
   );
 }

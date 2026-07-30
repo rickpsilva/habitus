@@ -9,6 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { Button, Card, EmptyState } from '../components/ui';
 import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
 
 const roleLabels: Record<number, string> = {
@@ -20,7 +21,7 @@ const roleLabels: Record<number, string> = {
 const roleColors: Record<number, string> = {
   0: 'bg-emerald-100 text-emerald-700',
   1: 'bg-indigo-100 text-indigo-700',
-  2: 'bg-gray-100 text-gray-600',
+  2: 'bg-control text-ink-muted',
 };
 
 export default function UsersPage() {
@@ -64,6 +65,7 @@ export default function UsersPage() {
     unitId: undefined,
   });
   const [isActive, setIsActive] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isInternalAdmin, setIsInternalAdmin] = useState(false); // Admin Interno com fração
   const [pendingUsers, setPendingUsers] = useState<PendingUserDto[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -183,6 +185,7 @@ export default function UsersPage() {
         const currentUser = users.find(u => u.id === editingId);
         if (!currentUser) throw new Error('User not found');
         
+        setSubmitting(true);
         await usersApi.update(editingId, {
           id: editingId,
           name: formData.name,
@@ -194,6 +197,7 @@ export default function UsersPage() {
           isActive: isActive,
         });
       } else {
+        setSubmitting(true);
         await usersApi.create(formData);
       }
       setShowModal(false);
@@ -203,6 +207,8 @@ export default function UsersPage() {
     } catch (error) {
       console.error('Erro ao guardar utilizador:', error);
       toastError('Erro ao guardar utilizador. Tente novamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -291,7 +297,7 @@ export default function UsersPage() {
 
   if (!isManager && !isAdmin) {
     return (
-      <div className="text-center py-20 text-gray-400">
+      <div className="text-center py-20 text-ink-subtle">
         <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
         <p>Acesso restrito a gestores e administradores</p>
       </div>
@@ -320,8 +326,8 @@ export default function UsersPage() {
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Utilizadores</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{users.length} utilizadores registados</p>
+          <h1 className="text-2xl font-bold text-ink">Utilizadores</h1>
+          <p className="text-ink-subtle text-sm mt-0.5">{users.length} utilizadores registados</p>
         </div>
         <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
           <div className="w-full sm:w-80">
@@ -331,45 +337,41 @@ export default function UsersPage() {
               placeholder="Pesquisar utilizadores..."
             />
           </div>
-          <button
-            onClick={handleNew}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
+          <Button onClick={handleNew} icon={Plus} className="w-full sm:w-auto justify-center">
             Novo Utilizador
-          </button>
+          </Button>
         </div>
       </div>
 
       {isAdmin && (
-        <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-xl border border-amber-200 shadow-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setShowPendingApprovals((prev) => !prev)}
             className="w-full px-4 py-3 border-b border-amber-100 flex items-center justify-between text-left hover:bg-amber-50/60 transition-colors"
           >
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
               <Clock className="w-4 h-4 text-amber-500" />
               Aprovações pendentes
               <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
                 {pendingUsers.length}
               </span>
             </span>
-            {showPendingApprovals ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+            {showPendingApprovals ? <ChevronUp className="w-4 h-4 text-ink-subtle" /> : <ChevronDown className="w-4 h-4 text-ink-subtle" />}
           </button>
 
           {showPendingApprovals && (
             pendingLoading ? (
-              <div className="px-4 py-3 text-sm text-gray-400">A carregar…</div>
+              <div className="px-4 py-3 text-sm text-ink-subtle">A carregar…</div>
             ) : pendingUsers.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-gray-400">Nenhum pedido pendente.</div>
+              <div className="px-4 py-3 text-sm text-ink-subtle">Nenhum pedido pendente.</div>
             ) : (
-              <ul className="divide-y divide-gray-100 app-scrollbar max-h-64 overflow-y-auto">
+              <ul className="divide-y divide-line app-scrollbar max-h-64 overflow-y-auto">
                 {pendingUsers.map((u) => (
                   <li key={u.id} className="flex flex-wrap sm:flex-nowrap items-center justify-between px-4 py-3 gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
+                      <p className="text-sm font-medium text-ink truncate">{u.name}</p>
+                      <p className="text-xs text-ink-subtle truncate">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
                     </div>
                     <div className="w-full sm:w-auto flex gap-2 sm:flex-shrink-0">
                       <button
@@ -402,7 +404,7 @@ export default function UsersPage() {
           <select
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface"
           >
             <option value="">Todas as funções</option>
             <option value="1">Administrador</option>
@@ -429,18 +431,15 @@ export default function UsersPage() {
           </div>
         )}
         {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
+          <div className="col-span-full text-center py-12 text-ink-subtle">A carregar...</div>
         ) : !loadError && filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Nenhum utilizador encontrado</p>
-          </div>
+          <EmptyState icon={Users} title="Nenhum utilizador encontrado" className="col-span-full" />
         ) : !loadError ? (
           filtered.map((user) => (
-            <div key={user.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
+            <Card key={user.id} interactive className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                  <h3 className="font-semibold text-ink">{user.name}</h3>
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${roleColors[user.role]}`}>
                     {roleLabels[user.role]}
                   </span>
@@ -448,20 +447,20 @@ export default function UsersPage() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleEdit(user)}
-                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    className="p-1.5 text-ink-subtle hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(user.id)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    className="p-1.5 text-ink-subtle hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-ink-muted">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 shrink-0" />
                   <span className="flex-1 truncate">{user.email}</span>
@@ -483,7 +482,7 @@ export default function UsersPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           ))
         ) : null}
       </div>
@@ -508,46 +507,46 @@ export default function UsersPage() {
       >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Nome *</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Email *</label>
                 <input
                   type="email"
                   required
                   disabled={!!editingId}
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                 />
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">Senha *</label>
                   <input
                     type="password"
                     required={!editingId}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Telefone *</label>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               {isManager ? (
@@ -558,7 +557,7 @@ export default function UsersPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Função *</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">Função *</label>
                     <select
                       required
                       value={formData.role}
@@ -568,18 +567,18 @@ export default function UsersPage() {
                         if (newRole !== UserRole.Admin) setIsInternalAdmin(false);
                       }}
                       disabled={isAdmin && !editingId}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                      className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                     >
                       <option value="1">Administrador</option>
                       <option value="2">Morador</option>
                     </select>
                     {isAdmin && !editingId && (
-                      <p className="text-xs text-gray-500 mt-1">Admin só pode criar Admin e Morador</p>
+                      <p className="text-xs text-ink-subtle mt-1">Admin só pode criar Admin e Morador</p>
                     )}
                   </div>
                   {(formData.role === UserRole.Admin || formData.role === UserRole.Resident) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio *</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-1">Condomínio *</label>
                       <select
                         required
                         value={formData.condominiumId || ''}
@@ -587,7 +586,7 @@ export default function UsersPage() {
                           setFormData({ ...formData, condominiumId: e.target.value || undefined, unitId: undefined })
                         }
                         disabled={isAdmin}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                       >
                         <option value="">Selecione...</option>
                         {condominiums.map((c) => (
@@ -606,16 +605,16 @@ export default function UsersPage() {
                           setIsInternalAdmin(e.target.checked);
                           if (!e.target.checked) setFormData({ ...formData, unitId: undefined });
                         }}
-                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
                       />
-                      <label htmlFor="isInternalAdmin" className="text-sm font-medium text-gray-700">
+                      <label htmlFor="isInternalAdmin" className="text-sm font-medium text-ink-muted">
                         Admin Interno (com fração atribuída)
                       </label>
                     </div>
                   )}
                   {(formData.role === UserRole.Resident || (formData.role === UserRole.Admin && isInternalAdmin)) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fração *</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-1">Fração *</label>
                       {availableUnits.length === 0 ? (
                         <div className="w-full px-3 py-2 border border-amber-300 bg-amber-50 rounded-lg text-sm text-amber-700 flex items-center justify-between">
                           <span>Nenhuma fração registada</span>
@@ -632,7 +631,7 @@ export default function UsersPage() {
                           value={formData.unitId || ''}
                           onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
                           disabled={!formData.condominiumId}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-gray-100"
+                          className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                         >
                           <option value="">Selecione...</option>
                           {availableUnits.map((u) => (
@@ -653,30 +652,29 @@ export default function UsersPage() {
                     id="isActive"
                     checked={isActive}
                     onChange={(e) => setIsActive(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
                   />
-                  <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+                  <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
                     Utilizador Ativo
                   </label>
                 </div>
               )}
               <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={submitting}
+                  fullWidth
+                  className="border border-line"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
+                </Button>
+                <Button type="submit" fullWidth loading={submitting}>
                   {editingId ? 'Guardar' : 'Criar'}
-                </button>
+                </Button>
               </div>
             </form>
       </ModalPopup>

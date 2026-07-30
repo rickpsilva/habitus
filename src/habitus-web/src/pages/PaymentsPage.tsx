@@ -1,11 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download, RefreshCw, CreditCard } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
+import { PageHeader, Button, Skeleton, EmptyState, ErrorState, FilterBar, FilterChip } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -42,6 +45,10 @@ export default function PaymentsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [cancelPaymentId, setCancelPaymentId] = useState<string | null>(null);
@@ -120,6 +127,57 @@ export default function PaymentsPage() {
       mounted = false;
     };
   }, []);
+
+  const typeNames: Record<string, string> = {
+    MonthlyFee: 'Quotas',
+    ExtraordinaryFee: 'Quota Extraordinária',
+    Reservation: 'Reservas',
+    Other: 'Outros',
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: payments.length, Pending: 0, Approved: 0, Rejected: 0, Cancelled: 0 };
+    for (const p of payments) {
+      if (counts[p.status] !== undefined) counts[p.status] += 1;
+    }
+    return counts;
+  }, [payments]);
+
+  const filteredPayments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return payments.filter((p) => {
+      const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+      if (!matchesStatus) return false;
+      if (!query) return true;
+      const typeLabel = (typeNames[p.type] || p.type).toLowerCase();
+      return typeLabel.includes(query) || (p.description ?? '').toLowerCase().includes(query);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payments, searchQuery, statusFilter]);
+
+  const handleStatusFilter = (status: typeof statusFilter) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const totalItems = filteredPayments.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedPayments = filteredPayments.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination = {
+    items: paginatedPayments,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,7 +336,7 @@ export default function PaymentsPage() {
       Pending: { icon: Clock, color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
       Approved: { icon: CheckCircle, color: 'bg-green-100 text-green-800', label: 'Aprovado' },
       Rejected: { icon: XCircle, color: 'bg-red-100 text-red-800', label: 'Rejeitado' },
-      Cancelled: { icon: XCircle, color: 'bg-gray-100 text-gray-800', label: 'Cancelado' },
+      Cancelled: { icon: XCircle, color: 'bg-control text-ink-muted', label: 'Cancelado' },
     };
     const badge = badges[status as keyof typeof badges] || badges.Pending;
     const Icon = badge.icon;
@@ -311,9 +369,8 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-64 gap-3 text-gray-400">
-        <RefreshCw className="w-8 h-8 animate-spin" aria-hidden="true" />
-        <p className="text-sm">A carregar pagamentos...</p>
+      <div className="space-y-6">
+        <Skeleton variant="list" rows={5} />
       </div>
     );
   }
@@ -331,72 +388,76 @@ export default function PaymentsPage() {
       />
 
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pagamentos</h1>
-          <p className="text-gray-600">Gerencie os seus pagamentos ao condomínio</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Pagamento
-        </button>
-      </div>
+      <PageHeader
+        title="Pagamentos"
+        subtitle="Gerencie os seus pagamentos ao condomínio"
+        actions={
+          <Button onClick={() => setShowCreateModal(true)} icon={Plus} fullWidth className="sm:w-auto">
+            Novo Pagamento
+          </Button>
+        }
+      />
 
       {/* Payments List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Histórico de Pagamentos</h2>
-          <button
-            type="button"
-            onClick={() => loadPayments()}
-            className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" aria-hidden="true" />
-            Atualizar
-          </button>
+      <div className="bg-surface rounded-lg shadow">
+        <div className="p-4 border-b border-line flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ink">Histórico de Pagamentos</h2>
+            <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => loadPayments()}>
+              Atualizar
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <FilterBar>
+              <FilterChip label="Todos" count={statusCounts.All} active={statusFilter === 'All'} onClick={() => handleStatusFilter('All')} />
+              <FilterChip label="Pendente" icon={Clock} count={statusCounts.Pending} active={statusFilter === 'Pending'} onClick={() => handleStatusFilter('Pending')} />
+              <FilterChip label="Aprovado" icon={CheckCircle} count={statusCounts.Approved} active={statusFilter === 'Approved'} onClick={() => handleStatusFilter('Approved')} />
+              <FilterChip label="Rejeitado" icon={XCircle} count={statusCounts.Rejected} active={statusFilter === 'Rejected'} onClick={() => handleStatusFilter('Rejected')} />
+              <FilterChip label="Cancelado" icon={XCircle} count={statusCounts.Cancelled} active={statusFilter === 'Cancelled'} onClick={() => handleStatusFilter('Cancelled')} />
+            </FilterBar>
+            <div className="lg:w-64">
+              <SearchBar
+                value={searchQuery}
+                onChange={handleSearch}
+                placeholder="Pesquisar..."
+              />
+            </div>
+          </div>
         </div>
         {!loading && loadError && (
-          <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={loadPayments}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
+          <div className="mx-4 mt-4">
+            <ErrorState message={loadError} onRetry={loadPayments} />
           </div>
         )}
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-line">
           {!loadError && payments.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 p-10 text-gray-400">
-              <CreditCard className="w-10 h-10 opacity-40" aria-hidden="true" />
-              <p className="text-sm font-medium">Nenhum pagamento registado</p>
-              <p className="text-xs text-gray-400">Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.</p>
-            </div>
+            <EmptyState
+              icon={CreditCard}
+              title="Nenhum pagamento registado"
+              description='Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.'
+            />
+          ) : !loadError && filteredPayments.length === 0 ? (
+            <EmptyState
+              icon={CreditCard}
+              title="Sem resultados"
+              description="Nenhum pagamento corresponde aos filtros aplicados."
+            />
           ) : !loadError ? (
-            payments.map((payment) => (
+            paginatedPayments.map((payment) => (
               <div
                 key={payment.id}
-                className="p-4 hover:bg-gray-50 cursor-pointer"
+                className="p-4 hover:bg-surface-hover cursor-pointer"
                 onClick={() => setSelectedPayment(payment)}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900">{getTypeName(payment.type)}</h3>
+                      <h3 className="font-semibold text-ink">{getTypeName(payment.type)}</h3>
                       {getStatusBadge(payment.status)}
                     </div>
-                    <p className="text-sm text-gray-600">{payment.description}</p>
+                    <p className="text-sm text-ink-muted">{payment.description}</p>
                     <div className="flex items-center gap-3 mt-2">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-ink-subtle">
                         Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
                       </p>
                       {payment.proofOfPaymentUrl && (
@@ -414,13 +475,22 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">€{payment.amount.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-ink">€{payment.amount.toFixed(2)}</div>
                   </div>
                 </div>
               </div>
             ))
           ) : null}
         </div>
+        {!loadError && !loading && filteredPayments.length > 0 && (
+          <div className="p-4 border-t border-line">
+            <Pagination
+              pagination={pagination}
+              currentPage={safeCurrentPage}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       {/* Create Payment Modal */}
@@ -433,13 +503,13 @@ export default function PaymentsPage() {
         <div className="p-6">
           <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Tipo de Pagamento
                 </label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value as CreatePaymentRequest['type'] })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                 >
                   <option value="MonthlyFee">Quotas</option>
@@ -451,7 +521,7 @@ export default function PaymentsPage() {
               {/* Quota Periodicity Selector */}
               {form.type === 'MonthlyFee' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Periodicidade
                   </label>
                   <div className="flex gap-2">
@@ -463,7 +533,7 @@ export default function PaymentsPage() {
                         className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
                           quotaPeriodicity === p
                             ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
+                            : 'bg-surface text-ink-muted border-line hover:border-indigo-400'
                         }`}
                       >
                         {p === 'Monthly' ? 'Mensal' : p === 'Quarterly' ? 'Trimestral' : 'Anual'}
@@ -471,7 +541,7 @@ export default function PaymentsPage() {
                     ))}
                   </div>
                   {quotaPeriodicity === 'Monthly' && (
-                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                    <p className="text-xs text-ink-subtle mt-2 bg-surface-muted px-3 py-2 rounded">
                       Período: <strong>{PT_MONTHS[currentMonth]}</strong> {currentYear}
                     </p>
                   )}
@@ -480,7 +550,7 @@ export default function PaymentsPage() {
                       <select
                         value={trimestralStart}
                         onChange={(e) => setTrimestralStart(Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
                       >
                         <option value={1}>Janeiro – Abril</option>
                         <option value={5}>Maio – Agosto</option>
@@ -489,7 +559,7 @@ export default function PaymentsPage() {
                     </div>
                   )}
                   {quotaPeriodicity === 'Annual' && (
-                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-3 py-2 rounded">
+                    <p className="text-xs text-ink-subtle mt-2 bg-surface-muted px-3 py-2 rounded">
                       Período: <strong>Janeiro a Dezembro</strong> {currentYear}
                     </p>
                   )}
@@ -498,7 +568,7 @@ export default function PaymentsPage() {
               
               {/* Payment Method Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Método de Pagamento
                 </label>
                 <select
@@ -510,7 +580,7 @@ export default function PaymentsPage() {
                       setProofFile(null);
                     }
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                 >
                   {paymentMethods?.bankTransferEnabled && (
@@ -563,7 +633,7 @@ export default function PaymentsPage() {
               )}
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Valor (€)
                 </label>
                 <input
@@ -575,19 +645,19 @@ export default function PaymentsPage() {
                     const value = parseFloat(e.target.value);
                     setForm({ ...form, amount: isNaN(value) ? 0 : value });
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   required
                   placeholder="Ex: 50.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Descrição
                 </label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2"
                   rows={3}
                   required
                   placeholder="Ex: Pagamento quota Janeiro 2026"
@@ -597,10 +667,10 @@ export default function PaymentsPage() {
               {/* Proof of Payment Upload - Only for Bank Transfer */}
               {form.method === 'BankTransfer' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Comprovativo de Pagamento <span className="text-red-500">*</span>
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-indigo-500 transition-colors">
+                  <div className="border-2 border-dashed border-line rounded-lg p-4 text-center hover:border-indigo-500 transition-colors">
                     <input
                       type="file"
                       id="proof-upload"
@@ -623,18 +693,18 @@ export default function PaymentsPage() {
                       htmlFor="proof-upload"
                       className="cursor-pointer flex flex-col items-center gap-2"
                     >
-                      <Upload className="w-8 h-8 text-gray-400" />
+                      <Upload className="w-8 h-8 text-ink-subtle" />
                       {proofFile ? (
                         <div className="text-sm">
                           <p className="text-green-600 font-medium">{proofFile.name}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-ink-subtle">
                             {(proofFile.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-ink-muted">
                           <p className="font-medium">Clique para selecionar</p>
-                          <p className="text-xs text-gray-500">PDF ou Imagem (máx. {formatUploadSizeLabel(maxUploadSizeBytes)})</p>
+                          <p className="text-xs text-ink-subtle">PDF ou Imagem (máx. {formatUploadSizeLabel(maxUploadSizeBytes)})</p>
                         </div>
                       )}
                     </label>
@@ -642,31 +712,34 @@ export default function PaymentsPage() {
                 </div>
               )}
               
-              <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
+              <div className="text-xs text-blue-800 bg-blue-50 p-3 rounded border border-blue-200">
                 <AlertCircle className="w-4 h-4 inline mr-1" />
                 <strong>Importante:</strong> {form.method === 'BankTransfer' 
                   ? 'Efetue a transferência bancária e anexe o comprovativo antes de criar o pagamento.' 
                   : 'Para MB Way e Cartão, o processo de pagamento será automático após a criação do registo.'}
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowCreateModal(false);
                     setProofFile(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   disabled={submitting}
+                  fullWidth
+                  className="flex-1 border border-line"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg transition-colors"
-                  disabled={submitting || (form.method === 'BankTransfer' && !proofFile)}
+                  loading={submitting}
+                  disabled={form.method === 'BankTransfer' && !proofFile}
+                  fullWidth
+                  className="flex-1"
                 >
-                  {submitting ? 'A criar...' : 'Criar Pagamento'}
-                </button>
+                  Criar Pagamento
+                </Button>
               </div>
             </form>
         </div>
@@ -683,38 +756,38 @@ export default function PaymentsPage() {
         <div className="p-6">
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Estado:</span>
+              <span className="text-ink-muted">Estado:</span>
               {getStatusBadge(selectedPayment.status)}
               </div>
               <div className="flex justify-between">
-              <span className="text-gray-600">Tipo:</span>
+              <span className="text-ink-muted">Tipo:</span>
               <span className="font-medium">{getTypeName(selectedPayment.type)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Método:</span>
+              <span className="text-ink-muted">Método:</span>
               <span className="font-medium">{getMethodName(selectedPayment.method)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Valor:</span>
+              <span className="text-ink-muted">Valor:</span>
               <span className="font-bold text-lg">€{selectedPayment.amount.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-600 block mb-1">Descrição:</span>
+              <span className="text-ink-muted block mb-1">Descrição:</span>
               <p className="text-sm">{selectedPayment.description}</p>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Data de Criação:</span>
+              <span className="text-ink-muted">Data de Criação:</span>
               <span>{new Date(selectedPayment.createdDate).toLocaleString('pt-PT')}</span>
             </div>
             {selectedPayment.processedDate && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Data de Processamento:</span>
+                <span className="text-ink-muted">Data de Processamento:</span>
                 <span>{new Date(selectedPayment.processedDate).toLocaleString('pt-PT')}</span>
               </div>
             )}
             {selectedPayment.processedByUserName && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Processado por:</span>
+                <span className="text-ink-muted">Processado por:</span>
                 <span>{selectedPayment.processedByUserName}</span>
               </div>
             )}
@@ -751,47 +824,51 @@ export default function PaymentsPage() {
           
           {/* Document Actions */}
           {(selectedPayment.proofOfPaymentUrl || (selectedPayment.status === 'Approved' && selectedPayment.hasReceipt)) && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Documentos</h3>
+            <div className="mt-4 pt-4 border-t border-line">
+              <h3 className="text-sm font-semibold text-ink mb-2">Documentos</h3>
               <div className="flex flex-col gap-2">
                 {selectedPayment.proofOfPaymentUrl && (
-                  <button
+                  <Button
+                    icon={Download}
                     onClick={() => handleDownloadProof(selectedPayment.id, selectedPayment.description)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    fullWidth
                   >
-                    <Download className="w-4 h-4" />
                     Descarregar Comprovativo de Pagamento
-                  </button>
+                  </Button>
                 )}
                 {selectedPayment.status === 'Approved' && selectedPayment.hasReceipt && (
-                  <button
+                  <Button
+                    variant="success"
+                    icon={FileText}
                     onClick={() => handleDownloadReceipt(selectedPayment)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    fullWidth
                   >
-                    <FileText className="w-4 h-4" />
                     Descarregar Recibo
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           )}
           
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
             {selectedPayment.status === 'Pending' && (
-              <button
-                type="button"
+              <Button
+                variant="danger"
                 onClick={() => { setCancelPaymentId(selectedPayment.id); setSelectedPayment(null); }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                fullWidth
+                className="flex-1"
               >
                 Cancelar Pagamento
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setSelectedPayment(null)}
-              className={`${selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'} px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300`}
+              fullWidth
+              className={selectedPayment.status === 'Pending' ? 'flex-1' : 'w-full'}
             >
               Fechar
-            </button>
+            </Button>
           </div>
         </div>
         )}

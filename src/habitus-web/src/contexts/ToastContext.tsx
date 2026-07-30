@@ -53,15 +53,15 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) =
   return (
     <div
       role="alert"
-      className={`flex items-start gap-3 bg-white rounded-xl shadow-lg border border-l-4 border-gray-100 ${border} px-4 py-3 min-w-[280px] max-w-sm`}
+      className={`flex items-start gap-3 bg-surface rounded-xl shadow-lg border border-l-4 border-line ${border} px-4 py-3 min-w-[280px] max-w-sm`}
     >
       <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColor}`} aria-hidden="true" />
-      <p className="flex-1 text-sm font-medium text-gray-800">{item.message}</p>
+      <p className="flex-1 text-sm font-medium text-ink">{item.message}</p>
       <button
         type="button"
         onClick={() => onDismiss(item.id)}
         aria-label="Fechar"
-        className="text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+        className="text-ink-subtle hover:text-ink-muted transition-colors shrink-0"
       >
         <X className="w-4 h-4" />
       </button>

@@ -154,10 +154,10 @@ export default function FileUpload({
               <CheckCircle className="w-5 h-5 text-green-600" />
               <div>
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-600" />
-                  <p className="font-medium text-gray-900">{currentFile.name}</p>
+                  <FileText className="w-4 h-4 text-ink-muted" />
+                  <p className="font-medium text-ink">{currentFile.name}</p>
                 </div>
-                <p className="text-sm text-gray-600">{formatFileSize(currentFile.size)}</p>
+                <p className="text-sm text-ink-muted">{formatFileSize(currentFile.size)}</p>
               </div>
             </div>
             {removeFile && (
@@ -186,7 +186,7 @@ export default function FileUpload({
               ? 'border-blue-500 bg-blue-50' 
               : error 
                 ? 'border-red-300 bg-red-50' 
-                : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                : 'border-line hover:border-ink-subtle bg-surface-muted'
             }
             ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
           `}
@@ -195,18 +195,18 @@ export default function FileUpload({
             {error ? (
               <AlertCircle className="w-12 h-12 text-red-500" />
             ) : (
-              <Upload className={`w-12 h-12 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+              <Upload className={`w-12 h-12 ${isDragging ? 'text-blue-500' : 'text-ink-subtle'}`} />
             )}
             
             <div>
-              <p className={`font-medium ${error ? 'text-red-700' : 'text-gray-700'}`}>
+              <p className={`font-medium ${error ? 'text-red-700' : 'text-ink-muted'}`}>
                 {error || (isDragging 
                   ? 'Drop file here' 
                   : 'Click to upload or drag and drop'
                 )}
               </p>
               {!error && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-ink-subtle mt-1">
                   Tamanho máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)}
                 </p>
               )}

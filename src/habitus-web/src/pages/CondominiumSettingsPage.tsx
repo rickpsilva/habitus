@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, RefreshCw, Server, AlertCircle
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ModalPopup from '../components/ModalPopup';
+import { PageHeader, Spinner, ErrorState, Button, Card } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
 import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi } from '../api/services';
 import type {
@@ -77,23 +78,21 @@ export default function CondominiumSettingsPage() {
   if (!isAdmin && !isManager) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Acesso apenas para gestão</p>
+        <p className="text-ink-subtle">Acesso apenas para gestão</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          {isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
-        </p>
-      </div>
+      <PageHeader
+        title={isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}
+        subtitle={isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
+      />
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="flex overflow-x-auto border-b border-gray-200">
+      <Card className="overflow-hidden">
+        <div className="flex overflow-x-auto border-b border-line">
           {visibleTabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -101,7 +100,7 @@ export default function CondominiumSettingsPage() {
               className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                 activeTab === key
                   ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'border-transparent text-ink-subtle hover:text-ink-muted hover:bg-surface-hover'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -123,7 +122,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -202,113 +201,102 @@ function GeneralCondominiumContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Dados Gerais</h3>
-        <p className="text-sm text-gray-500">Gerir contactos e localização usados nos recibos e nas informações do condomínio</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Dados Gerais</h3>
+        <p className="text-sm text-ink-subtle">Gerir contactos e localização usados nos recibos e nas informações do condomínio</p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
-        <div className="border border-gray-200 rounded-lg p-5 bg-white space-y-4">
+        <div className="border border-line rounded-lg p-5 bg-surface space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Condomínio</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Condomínio</label>
             <input
               type="text"
               value={condominiumName}
               disabled
-              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              className="w-full px-3 py-2 border border-line bg-surface-muted text-ink-subtle rounded-lg"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Morada</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Morada</label>
             <textarea
               value={condominiumData?.address || ''}
               disabled
-              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              className="w-full px-3 py-2 border border-line bg-surface-muted text-ink-subtle rounded-lg"
               rows={3}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">NIPC</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">NIPC</label>
             <input
               type="text"
               value={condominiumData?.taxId || ''}
               disabled
-              className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+              className="w-full px-3 py-2 border border-line bg-surface-muted text-ink-subtle rounded-lg"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal</label>
               <input
                 type="text"
                 value={postalCode}
                 disabled
                 onChange={(e) => setPostalCode(e.target.value)}
                 placeholder="4000-123"
-                className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+                className="w-full px-3 py-2 border border-line bg-surface-muted text-ink-subtle rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Localidade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Localidade</label>
               <input
                 type="text"
                 value={locality}
                 disabled
                 onChange={(e) => setLocality(e.target.value)}
                 placeholder="Porto"
-                className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg"
+                className="w-full px-3 py-2 border border-line bg-surface-muted text-ink-subtle rounded-lg"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email do Condomínio</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Email do Condomínio</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="geral@condominio.pt"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <p className="text-xs text-gray-500 mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
+            <p className="text-xs text-ink-subtle mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone de Contacto</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Telefone de Contacto</label>
             <input
               type="tel"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="+351 220 000 000"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Dados'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Dados
+          </Button>
         </div>
       </div>
     </div>
@@ -373,42 +361,32 @@ function PlatformBillingContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Gateway de Pagamento</h3>
-        <p className="text-sm text-gray-500">Configure o provider e as credenciais do checkout global da plataforma</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Gateway de Pagamento</h3>
+        <p className="text-sm text-ink-subtle">Configure o provider e as credenciais do checkout global da plataforma</p>
       </div>
 
       <div className="space-y-4 max-w-3xl">
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">Checkout da Plataforma</p>
+                  <p className="font-medium text-ink">Checkout da Plataforma</p>
                   {form.gatewayEnabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Usado no pagamento online das faturas de subscrição</p>
+                <p className="text-sm text-ink-subtle">Usado no pagamento online das faturas de subscrição</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -422,7 +400,7 @@ function PlatformBillingContent() {
             </div>
           </div>
 
-          <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
+          <div className="px-4 pb-4 bg-surface-muted border-t border-line space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
               <p className="text-xs text-blue-900 font-medium mb-1">Configuração global</p>
               <p className="text-xs text-blue-700">
@@ -431,82 +409,77 @@ function PlatformBillingContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Provider</label>
               <select
                 value={form.gatewayProvider}
                 onChange={(e) => setForm({ ...form, gatewayProvider: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="stripe">Stripe</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Public Key</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Public Key</label>
               <input
                 type="text"
                 value={form.publicKey || ''}
                 onChange={(e) => setForm({ ...form, publicKey: e.target.value })}
                 placeholder="pk_live_..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant Display Name</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Merchant Display Name</label>
               <input
                 type="text"
                 value={form.merchantDisplayName || ''}
                 onChange={(e) => setForm({ ...form, merchantDisplayName: e.target.value })}
                 placeholder="Habitus Billing"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Secret Key</label>
               <input
                 type="password"
                 value={form.secretKey || ''}
                 onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
                 placeholder={settings?.hasSecretKey ? 'Já configurada. Preencha para substituir.' : 'sk_live_...'}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Webhook Secret</label>
               <input
                 type="password"
                 value={form.webhookSecret || ''}
                 onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
                 placeholder={settings?.hasWebhookSecret ? 'Já configurado. Preencha para substituir.' : 'whsec_...'}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                <p className="text-gray-500">Secret Key</p>
-                <p className="font-medium text-gray-900">{settings?.hasSecretKey ? 'Configurada' : 'Em falta'}</p>
+              <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+                <p className="text-ink-subtle">Secret Key</p>
+                <p className="font-medium text-ink">{settings?.hasSecretKey ? 'Configurada' : 'Em falta'}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                <p className="text-gray-500">Webhook Secret</p>
-                <p className="font-medium text-gray-900">{settings?.hasWebhookSecret ? 'Configurado' : 'Em falta'}</p>
+              <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+                <p className="text-ink-subtle">Webhook Secret</p>
+                <p className="font-medium text-ink">{settings?.hasWebhookSecret ? 'Configurado' : 'Em falta'}</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
         </div>
       </div>
     </div>
@@ -577,34 +550,24 @@ function PlatformUploadContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Limites de Upload</h3>
-        <p className="text-sm text-gray-500">Configure o tamanho máximo de ficheiros enviados para o sistema.</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Limites de Upload</h3>
+        <p className="text-sm text-ink-subtle">Configure o tamanho máximo de ficheiros enviados para o sistema.</p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
-        <div className="border border-gray-200 rounded-lg p-4 bg-white space-y-3">
+        <div className="border border-line rounded-lg p-4 bg-surface space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho máximo por ficheiro (KB)</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">Tamanho máximo por ficheiro (KB)</label>
             <input
               type="number"
               min={minSizeKb}
@@ -619,12 +582,12 @@ function PlatformUploadContent() {
                 const nextBytes = normalizedKb * 1024;
                 setForm({ maxUploadSizeBytes: nextBytes });
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ink-subtle mt-1">
               Intervalo permitido: {formatUploadSizeLabel(minSizeKb * 1024)} a {formatUploadSizeLabel(maxSizeKb * 1024)}.
             </p>
-            <p className="text-xs text-gray-500 mt-1">Valor atual: {formatUploadSizeLabel(form.maxUploadSizeBytes)}</p>
+            <p className="text-xs text-ink-subtle mt-1">Valor atual: {formatUploadSizeLabel(form.maxUploadSizeBytes)}</p>
           </div>
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
@@ -632,21 +595,16 @@ function PlatformUploadContent() {
           </div>
 
           {settings && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+            <div className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink-muted">
               Última atualização: {new Date(settings.updatedAt).toLocaleString('pt-PT')}
             </div>
           )}
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Limite'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Limite
+          </Button>
         </div>
       </div>
     </div>
@@ -948,35 +906,29 @@ function ReceiptTemplateContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Template de Recibos</h3>
-        <p className="text-sm text-gray-500">Escolha quais dados do condomínio (definidos em Geral) devem aparecer no cabeçalho dos recibos</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Template de Recibos</h3>
+        <p className="text-sm text-ink-subtle">Escolha quais dados do condomínio (definidos em Geral) devem aparecer no cabeçalho dos recibos</p>
       </div>
 
       <form className="space-y-4 max-w-2xl" onSubmit={handleSubmit}>
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-          <p className="text-sm font-medium text-gray-900">Informações do condomínio no cabeçalho</p>
-          <p className="text-xs text-gray-600">Os valores são geridos na tab Geral. Aqui decide apenas o que incluir no recibo.</p>
+        <div className="rounded-lg border border-line bg-surface-muted p-4 space-y-3">
+          <p className="text-sm font-medium text-ink">Informações do condomínio no cabeçalho</p>
+          <p className="text-xs text-ink-muted">Os valores são geridos na tab Geral. Aqui decide apenas o que incluir no recibo.</p>
 
           <div className="space-y-2">
             {receiptInfoToggleOptions.map((item) => (
-              <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2">
-                <span className="text-sm text-gray-800">{item.label}</span>
+              <div key={item.key} className="flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-2">
+                <span className="text-sm text-ink">{item.label}</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -1001,13 +953,13 @@ function ReceiptTemplateContent() {
                 key={option.key}
                 type="button"
                 onClick={() => setActiveTemplateType(option.key)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTemplateType === option.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTemplateType === option.key ? 'bg-indigo-600 text-white' : 'bg-control text-ink hover:bg-control-hover'}`}
               >
                 {option.label}
               </button>
             ))}
           </div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Template</label>
+          <label className="block text-sm font-medium text-ink-muted mb-1">Template</label>
           <RichTextEditor 
             value={template[activeTemplateField]}
             onChange={(v) => setTemplate({ ...template, [activeTemplateField]: v })}
@@ -1024,14 +976,9 @@ function ReceiptTemplateContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Template'}
-          </button>
+          <Button type="submit" icon={Save} loading={saving}>
+            Guardar Template
+          </Button>
         </div>
       </form>
     </div>
@@ -1195,46 +1142,40 @@ function PaymentMethodsContent() {
   // Only admins (regular or internal) can access payment methods
   if (!isAdmin) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-ink-subtle">
         <p>Acesso apenas para Administrador</p>
       </div>
     );
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Métodos de Pagamento</h3>
-        <p className="text-sm text-gray-500">Configure os métodos de pagamento disponíveis para os residentes</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Métodos de Pagamento</h3>
+        <p className="text-sm text-ink-subtle">Configure os métodos de pagamento disponíveis para os residentes</p>
       </div>
 
       <div className="space-y-4 max-w-3xl">
         {/* Transferência Bancária */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">Transferência Bancária</p>
+                  <p className="font-medium text-ink">Transferência Bancária</p>
                   {methods.bankTransfer.enabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Pagamento via transferência bancária tradicional</p>
+                <p className="text-sm text-ink-subtle">Pagamento via transferência bancária tradicional</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1248,10 +1189,10 @@ function PaymentMethodsContent() {
             </div>
           </div>
           {methods.bankTransfer.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">IBAN: {methods.bankTransfer.iban || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Titular: {methods.bankTransfer.accountHolder || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">IBAN: {methods.bankTransfer.iban || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Titular: {methods.bankTransfer.accountHolder || 'Não configurado'}</p>
               </div>
               <button
                 type="button"
@@ -1265,17 +1206,17 @@ function PaymentMethodsContent() {
         </div>
 
         {/* Referência Multibanco */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">Pagamento por Referência Multibanco</p>
+                  <p className="font-medium text-ink">Pagamento por Referência Multibanco</p>
                   {methods.mbReference.enabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Pagamento via Entidade e Referência (disponível em Multibancos e Homebanking)</p>
+                <p className="text-sm text-ink-subtle">Pagamento via Entidade e Referência (disponível em Multibancos e Homebanking)</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1290,10 +1231,10 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.mbReference.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">Entidade: {methods.mbReference.entity || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Referência base: {methods.mbReference.reference || 'Não configurada'}</p>
+                <p className="text-sm text-ink-muted">Entidade: {methods.mbReference.entity || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Referência base: {methods.mbReference.reference || 'Não configurada'}</p>
               </div>
               <button type="button" onClick={() => setActiveMethodModal('mbReference')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1301,17 +1242,17 @@ function PaymentMethodsContent() {
         </div>
 
         {/* MB Way */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">MB Way</p>
+                  <p className="font-medium text-ink">MB Way</p>
                   {methods.mbWay.enabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Pagamento instantâneo via MB Way</p>
+                <p className="text-sm text-ink-subtle">Pagamento instantâneo via MB Way</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1326,10 +1267,10 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.mbWay.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">Telefone: {methods.mbWay.phoneNumber || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Merchant ID: {methods.mbWay.merchantId || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">Telefone: {methods.mbWay.phoneNumber || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Merchant ID: {methods.mbWay.merchantId || 'Não configurado'}</p>
               </div>
               <button type="button" onClick={() => setActiveMethodModal('mbWay')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1337,17 +1278,17 @@ function PaymentMethodsContent() {
         </div>
 
         {/* Cartão de Crédito/Débito */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">Cartão de Crédito/Débito</p>
+                  <p className="font-medium text-ink">Cartão de Crédito/Débito</p>
                   {methods.card.enabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Pagamento online com cartão via gateway de pagamentos</p>
+                <p className="text-sm text-ink-subtle">Pagamento online com cartão via gateway de pagamentos</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1362,10 +1303,10 @@ function PaymentMethodsContent() {
           </div>
           
           {methods.card.enabled && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">Gateway: {methods.card.provider || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Merchant ID: {methods.card.merchantId || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">Gateway: {methods.card.provider || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Merchant ID: {methods.card.merchantId || 'Não configurado'}</p>
               </div>
               <button type="button" onClick={() => setActiveMethodModal('card')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1373,14 +1314,9 @@ function PaymentMethodsContent() {
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
         </div>
       </div>
 
@@ -1401,12 +1337,12 @@ function PaymentMethodsContent() {
         {activeMethodModal === 'bankTransfer' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">IBAN <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.bankTransfer.iban} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, iban: e.target.value } })} placeholder="PT50 0000 0000 0000 0000 0000 0" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">IBAN <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.bankTransfer.iban} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, iban: e.target.value } })} placeholder="PT50 0000 0000 0000 0000 0000 0" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Titular da Conta <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.bankTransfer.accountHolder} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value } })} placeholder="Nome do condomínio" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">Titular da Conta <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.bankTransfer.accountHolder} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value } })} placeholder="Nome do condomínio" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
@@ -1419,14 +1355,14 @@ function PaymentMethodsContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Entidade <span className="text-red-500">*</span></label>
-                <input type="text" value={methods.mbReference.entity} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, entity: e.target.value } })} placeholder="12345" maxLength={5} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-xs text-gray-500 mt-1">5 dígitos</p>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Entidade <span className="text-red-500">*</span></label>
+                <input type="text" value={methods.mbReference.entity} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, entity: e.target.value } })} placeholder="12345" maxLength={5} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-xs text-ink-subtle mt-1">5 dígitos</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Referência Base <span className="text-gray-400">(opcional)</span></label>
-                <input type="text" value={methods.mbReference.reference} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, reference: e.target.value } })} placeholder="999 999 999" maxLength={9} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-xs text-gray-500 mt-1">9 dígitos</p>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Referência Base <span className="text-ink-subtle">(opcional)</span></label>
+                <input type="text" value={methods.mbReference.reference} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, reference: e.target.value } })} placeholder="999 999 999" maxLength={9} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-xs text-ink-subtle mt-1">9 dígitos</p>
               </div>
             </div>
           </div>
@@ -1439,13 +1375,13 @@ function PaymentMethodsContent() {
               <p className="text-xs text-blue-700">Necessita de integração com gateway de pagamentos (ex: Easypay, SIBS, IfiPay). O gateway gera pedidos de pagamento MB Way e encaminha o dinheiro para o IBAN configurado.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Número de Telefone do Condomínio <span className="text-red-500">*</span></label>
-              <input type="tel" value={methods.mbWay.phoneNumber} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, phoneNumber: e.target.value } })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-gray-500 mt-1">Telefone associado à conta MB Way mercante</p>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Número de Telefone do Condomínio <span className="text-red-500">*</span></label>
+              <input type="tel" value={methods.mbWay.phoneNumber} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, phoneNumber: e.target.value } })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-ink-subtle mt-1">Telefone associado à conta MB Way mercante</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant ID / API Key <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.mbWay.merchantId} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, merchantId: e.target.value } })} placeholder="Fornecido pelo gateway de pagamentos" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">Merchant ID / API Key <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.mbWay.merchantId} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, merchantId: e.target.value } })} placeholder="Fornecido pelo gateway de pagamentos" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
@@ -1457,30 +1393,30 @@ function PaymentMethodsContent() {
               <p className="text-xs text-blue-700">Necessita de conta em gateway de pagamentos internacional (ex: Stripe, PayPal, Easypay). Os cartões são processados pelo gateway e o valor transferido para o IBAN do condomínio.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Gateway de Pagamentos <span className="text-red-500">*</span></label>
-              <select value={methods.card.provider} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, provider: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label className="block text-sm font-medium text-ink-muted mb-1">Gateway de Pagamentos <span className="text-red-500">*</span></label>
+              <select value={methods.card.provider} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, provider: e.target.value } })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="stripe">Stripe</option><option value="easypay">Easypay</option><option value="sibs">SIBS</option><option value="paypal">PayPal</option><option value="ifthenpay">IfthenPay</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Public/Publishable Key <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.card.publicKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, publicKey: e.target.value } })} placeholder="pk_live_..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">Public/Publishable Key <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.card.publicKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, publicKey: e.target.value } })} placeholder="pk_live_..." className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Secret/API Key <span className="text-red-500">*</span></label>
-              <input type="password" value={methods.card.secretKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, secretKey: e.target.value } })} placeholder="sk_live_... (deixe em branco para manter o atual)" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-gray-500 mt-1">Nunca partilhe esta chave. Será guardada de forma segura.</p>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Secret/API Key <span className="text-red-500">*</span></label>
+              <input type="password" value={methods.card.secretKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, secretKey: e.target.value } })} placeholder="sk_live_... (deixe em branco para manter o atual)" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-ink-subtle mt-1">Nunca partilhe esta chave. Será guardada de forma segura.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Merchant ID</label>
-              <input type="text" value={methods.card.merchantId} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, merchantId: e.target.value } })} placeholder="ID da conta comerciante (opcional)" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">Merchant ID</label>
+              <input type="text" value={methods.card.merchantId} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, merchantId: e.target.value } })} placeholder="ID da conta comerciante (opcional)" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
-          <button type="button" onClick={() => setActiveMethodModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
-          <button type="button" onClick={saveAndCloseMethodModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        <div className="mt-6 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={() => setActiveMethodModal(null)} className="border border-line">Fechar</Button>
+          <Button icon={Save} onClick={saveAndCloseMethodModal} loading={saving}>Guardar Configurações</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1584,7 +1520,7 @@ function CommunicationChannelsContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">A carregar...</div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   if (!settings) return null;
@@ -1592,27 +1528,21 @@ function CommunicationChannelsContent() {
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Canais de Comunicação</h3>
-        <p className="text-sm text-gray-500">Configure os canais para enviar notificações, recibos e comunicados aos residentes</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">Canais de Comunicação</h3>
+        <p className="text-sm text-ink-subtle">Configure os canais para enviar notificações, recibos e comunicados aos residentes</p>
       </div>
 
       <div className="space-y-6 max-w-4xl">
         {/* Announcements Configuration */}
-        <div className="border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="border border-line rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-gray-900">Comunicados</p>
-              <p className="text-sm text-gray-500">Permitir comentários e respostas nos comunicados</p>
+              <p className="font-semibold text-ink">Comunicados</p>
+              <p className="text-sm text-ink-subtle">Permitir comentários e respostas nos comunicados</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1624,17 +1554,17 @@ function CommunicationChannelsContent() {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-subtle">
             Quando desativado, os comunicados ficam apenas em modo de visualização.
           </p>
         </div>
 
         {/* Email Configuration */}
-        <div className="border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="border border-line rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-gray-900">Email (SMTP)</p>
-              <p className="text-sm text-gray-500">Configure o servidor SMTP para envio de emails (Gmail, Outlook, etc.)</p>
+              <p className="font-semibold text-ink">Email (SMTP)</p>
+              <p className="text-sm text-ink-subtle">Configure o servidor SMTP para envio de emails (Gmail, Outlook, etc.)</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1648,10 +1578,10 @@ function CommunicationChannelsContent() {
           </div>
 
           {settings.emailEnabled && (
-            <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">SMTP: {settings.emailSmtpHost || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Username: {settings.emailUsername || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">SMTP: {settings.emailSmtpHost || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Username: {settings.emailUsername || 'Não configurado'}</p>
               </div>
               <button type="button" onClick={() => setActiveChannelModal('email')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1659,11 +1589,11 @@ function CommunicationChannelsContent() {
         </div>
 
         {/* WhatsApp Configuration */}
-        <div className="border border-gray-200 rounded-lg p-5 space-y-4">
+        <div className="border border-line rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-gray-900">WhatsApp Business</p>
-              <p className="text-sm text-gray-500">Configure API para envio de mensagens WhatsApp (requer conta Business)</p>
+              <p className="font-semibold text-ink">WhatsApp Business</p>
+              <p className="text-sm text-ink-subtle">Configure API para envio de mensagens WhatsApp (requer conta Business)</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1677,10 +1607,10 @@ function CommunicationChannelsContent() {
           </div>
 
           {settings.whatsAppEnabled && (
-            <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-gray-700">Número: {settings.whatsAppPhoneNumber || 'Não configurado'}</p>
-                <p className="text-xs text-gray-500 mt-1">Provedor: {settings.whatsAppApiProvider || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">Número: {settings.whatsAppPhoneNumber || 'Não configurado'}</p>
+                <p className="text-xs text-ink-subtle mt-1">Provedor: {settings.whatsAppApiProvider || 'Não configurado'}</p>
               </div>
               <button type="button" onClick={() => setActiveChannelModal('whatsApp')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
             </div>
@@ -1688,11 +1618,11 @@ function CommunicationChannelsContent() {
         </div>
 
         {/* SMS Configuration (Disabled for now) */}
-        <div className="border border-gray-200 rounded-lg p-5 opacity-60">
+        <div className="border border-line rounded-lg p-5 opacity-60">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-gray-900">SMS</p>
-              <p className="text-sm text-gray-500">Notificações via SMS (funcionalidade em desenvolvimento)</p>
+              <p className="font-semibold text-ink">SMS</p>
+              <p className="text-sm text-ink-subtle">Notificações via SMS (funcionalidade em desenvolvimento)</p>
             </div>
             <label className="relative inline-flex items-center cursor-not-allowed">
               <input
@@ -1708,23 +1638,9 @@ function CommunicationChannelsContent() {
 
         {/* Save Button */}
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                A guardar...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Guardar Configurações
-              </>
-            )}
-          </button>
+          <Button icon={Save} onClick={handleSave} loading={saving} className="px-6 py-2.5">
+            Guardar Configurações
+          </Button>
         </div>
       </div>
 
@@ -1738,31 +1654,31 @@ function CommunicationChannelsContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Servidor SMTP <span className="text-gray-500 font-normal ml-1">(ex: smtp.gmail.com)</span></label>
-                <input type="text" value={settings.emailSmtpHost || ''} onChange={(e) => setSettings({ ...settings, emailSmtpHost: e.target.value })} placeholder="smtp.gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-ink-muted mb-1">Servidor SMTP <span className="text-ink-subtle font-normal ml-1">(ex: smtp.gmail.com)</span></label>
+                <input type="text" value={settings.emailSmtpHost || ''} onChange={(e) => setSettings({ ...settings, emailSmtpHost: e.target.value })} placeholder="smtp.gmail.com" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Porta <span className="text-gray-500 font-normal ml-1">(geralmente 587)</span></label>
-                <input type="number" value={settings.emailSmtpPort || 587} onChange={(e) => setSettings({ ...settings, emailSmtpPort: parseInt(e.target.value, 10) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-ink-muted mb-1">Porta <span className="text-ink-subtle font-normal ml-1">(geralmente 587)</span></label>
+                <input type="number" value={settings.emailSmtpPort || 587} onChange={(e) => setSettings({ ...settings, emailSmtpPort: parseInt(e.target.value, 10) || 0 })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email / Username</label>
-                <input type="text" value={settings.emailUsername || ''} onChange={(e) => setSettings({ ...settings, emailUsername: e.target.value })} placeholder="condominio@gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-ink-muted mb-1">Email / Username</label>
+                <input type="text" value={settings.emailUsername || ''} onChange={(e) => setSettings({ ...settings, emailUsername: e.target.value })} placeholder="condominio@gmail.com" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password / App Password</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Password / App Password</label>
                 <div className="relative">
-                  <input type={showEmailPassword ? 'text' : 'password'} value={emailPassword} placeholder="(manter existente se vazio)" onChange={(e) => setEmailPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs">{showEmailPassword ? 'Ocultar' : 'Mostrar'}</button>
+                  <input type={showEmailPassword ? 'text' : 'password'} value={emailPassword} placeholder="(manter existente se vazio)" onChange={(e) => setEmailPassword(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showEmailPassword ? 'Ocultar' : 'Mostrar'}</button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Gmail: use App Password (não a senha normal)</p>
+                <p className="text-xs text-ink-subtle mt-1">Gmail: use App Password (não a senha normal)</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="emailUseSslModal" checked={settings.emailUseSsl} onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })} className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
-              <label htmlFor="emailUseSslModal" className="text-sm text-gray-700">Usar SSL/TLS (recomendado)</label>
+              <input type="checkbox" id="emailUseSslModal" checked={settings.emailUseSsl} onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })} className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500" />
+              <label htmlFor="emailUseSslModal" className="text-sm text-ink-muted">Usar SSL/TLS (recomendado)</label>
             </div>
           </div>
         )}
@@ -1771,12 +1687,12 @@ function CommunicationChannelsContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número WhatsApp Business</label>
-                <input type="tel" value={settings.whatsAppPhoneNumber || ''} onChange={(e) => setSettings({ ...settings, whatsAppPhoneNumber: e.target.value })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-ink-muted mb-1">Número WhatsApp Business</label>
+                <input type="tel" value={settings.whatsAppPhoneNumber || ''} onChange={(e) => setSettings({ ...settings, whatsAppPhoneNumber: e.target.value })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Provedor API</label>
-                <select value={settings.whatsAppApiProvider || ''} onChange={(e) => setSettings({ ...settings, whatsAppApiProvider: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <label className="block text-sm font-medium text-ink-muted mb-1">Provedor API</label>
+                <select value={settings.whatsAppApiProvider || ''} onChange={(e) => setSettings({ ...settings, whatsAppApiProvider: e.target.value })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   <option value="">Selecione...</option>
                   <option value="twilio">Twilio</option>
                   <option value="whatsapp-business-api">WhatsApp Business API</option>
@@ -1786,23 +1702,23 @@ function CommunicationChannelsContent() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">API Key / Token</label>
               <div className="relative">
-                <input type={showWhatsAppKey ? 'text' : 'password'} value={whatsAppApiKey} placeholder="(manter existente se vazio)" onChange={(e) => setWhatsAppApiKey(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <button type="button" onClick={() => setShowWhatsAppKey(!showWhatsAppKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs">{showWhatsAppKey ? 'Ocultar' : 'Mostrar'}</button>
+                <input type={showWhatsAppKey ? 'text' : 'password'} value={whatsAppApiKey} placeholder="(manter existente se vazio)" onChange={(e) => setWhatsAppApiKey(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button type="button" onClick={() => setShowWhatsAppKey(!showWhatsAppKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showWhatsAppKey ? 'Ocultar' : 'Mostrar'}</button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ID do Grupo WhatsApp <span className="text-gray-500 font-normal ml-1">(opcional)</span></label>
-              <input type="text" value={settings.whatsAppGroupId || ''} onChange={(e) => setSettings({ ...settings, whatsAppGroupId: e.target.value })} placeholder="120363xxxxx@g.us" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-gray-500 mt-1">Para enviar mensagens para um grupo específico</p>
+              <label className="block text-sm font-medium text-ink-muted mb-1">ID do Grupo WhatsApp <span className="text-ink-subtle font-normal ml-1">(opcional)</span></label>
+              <input type="text" value={settings.whatsAppGroupId || ''} onChange={(e) => setSettings({ ...settings, whatsAppGroupId: e.target.value })} placeholder="120363xxxxx@g.us" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-ink-subtle mt-1">Para enviar mensagens para um grupo específico</p>
             </div>
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
-          <button type="button" onClick={() => setActiveChannelModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Fechar</button>
-          <button type="button" onClick={saveAndCloseChannelModal} disabled={saving} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors">{saving ? 'A guardar...' : 'Guardar Configurações'}</button>
+        <div className="mt-6 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
+          <Button variant="ghost" onClick={() => setActiveChannelModal(null)} className="border border-line">Fechar</Button>
+          <Button icon={Save} onClick={saveAndCloseChannelModal} loading={saving}>Guardar Configurações</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1881,28 +1797,18 @@ function SystemEmailContent() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />A carregar...
-      </div>
-    );
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
   }
 
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2"><AlertCircle className="w-4 h-4" />{loadError}</span>
-          <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-        </div>
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">Email de Sistema</h3>
-        <p className="text-sm text-gray-500">
+        <h3 className="text-lg font-semibold text-ink mb-1">Email de Sistema</h3>
+        <p className="text-sm text-ink-subtle">
           Configure o servidor de email para envio de notificações automáticas da plataforma para os condomínios (ex: novas notificações, pedidos de aprovação).
         </p>
       </div>
@@ -1916,17 +1822,17 @@ function SystemEmailContent() {
       </div>
 
       <div className="space-y-4 max-w-3xl">
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 bg-white">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-gray-900">Email de Sistema Ativo</p>
+                  <p className="font-medium text-ink">Email de Sistema Ativo</p>
                   {form.emailEnabled && (
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">Enviar emails automáticos de sistema para os condomínios</p>
+                <p className="text-sm text-ink-subtle">Enviar emails automáticos de sistema para os condomínios</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1940,49 +1846,49 @@ function SystemEmailContent() {
             </div>
           </div>
 
-          <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200 space-y-3">
+          <div className="px-4 pb-4 bg-surface-muted border-t border-line space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Servidor SMTP</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Servidor SMTP</label>
                 <input
                   type="text"
                   value={form.smtpHost || ''}
                   onChange={(e) => setForm({ ...form, smtpHost: e.target.value })}
                   placeholder="smtp.exemplo.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Porta</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">Porta</label>
                 <input
                   type="number"
                   value={form.smtpPort}
                   onChange={(e) => setForm({ ...form, smtpPort: parseInt(e.target.value) || 587 })}
                   placeholder="587"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Utilizador</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Utilizador</label>
               <input
                 type="text"
                 value={form.username || ''}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
                 placeholder="no-reply@habituscond.pt"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Palavra-passe</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Palavra-passe</label>
               <input
                 type="password"
                 value={form.password || ''}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder={settings?.hasPassword ? 'Já configurada. Preencha para substituir.' : 'Palavra-passe do servidor SMTP'}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -1992,36 +1898,33 @@ function SystemEmailContent() {
                 id="useSsl"
                 checked={form.useSsl}
                 onChange={(e) => setForm({ ...form, useSsl: e.target.checked })}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
               />
-              <label htmlFor="useSsl" className="text-sm text-gray-700">Usar SSL/TLS (recomendado)</label>
+              <label htmlFor="useSsl" className="text-sm text-ink-muted">Usar SSL/TLS (recomendado)</label>
             </div>
 
             {settings && (
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                <p className="text-gray-500">Palavra-passe</p>
-                <p className="font-medium text-gray-900">{settings.hasPassword ? 'Configurada' : 'Não configurada'}</p>
+              <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+                <p className="text-ink-subtle">Palavra-passe</p>
+                <p className="font-medium text-ink">{settings.hasPassword ? 'Configurada' : 'Não configurada'}</p>
               </div>
             )}
           </div>
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Save className="w-4 h-4 inline mr-2" />
-            {saving ? 'A guardar...' : 'Guardar Configurações'}
-          </button>
-          <button
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            Guardar Configurações
+          </Button>
+          <Button
+            variant="ghost"
             onClick={handleTest}
-            disabled={testing || !form.emailEnabled}
-            className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-colors"
+            loading={testing}
+            disabled={!form.emailEnabled}
+            className="border border-line"
           >
-            {testing ? 'A verificar...' : 'Verificar Configuração'}
-          </button>
+            Verificar Configuração
+          </Button>
         </div>
       </div>
     </div>

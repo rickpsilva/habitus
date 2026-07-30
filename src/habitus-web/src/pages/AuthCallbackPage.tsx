@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthResponse, UserRole } from '../types';
+import { Spinner } from '../components/ui';
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -52,12 +53,14 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="w-full max-w-md bg-surface rounded-2xl shadow-xl p-8 text-center">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
           <Building2 className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Habitus</h1>
-        <p className="text-gray-500 mt-2">Completing sign-in...</p>
+        <h1 className="text-2xl font-bold text-ink">Habitus</h1>
+        <div className="flex justify-center mt-4 text-ink-subtle">
+          <Spinner label="Completing sign-in..." />
+        </div>
       </div>
     </div>
   );

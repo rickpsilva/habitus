@@ -79,20 +79,38 @@ public class SuppliersController : ControllerBase
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
-        
-        var suppliers = await _repository.FindAsync(s => s.CondominiumId == condominiumId);
-        var dtos = suppliers.Select(MapToDto).OrderBy(s => s.Name);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+
+        // Supplier e-mail is stored encrypted, so a search covering e-mail cannot be translated
+        // to SQL. Without a search we paginate at the database level; with a search we decrypt in
+        // memory (bounded to this condominium's suppliers) to match name/e-mail/specialty.
+        if (string.IsNullOrWhiteSpace(search))
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(s =>
+            var paged = await _repository.GetPagedAsync(
+                page,
+                pageSize,
+                s => s.CondominiumId == condominiumId,
+                s => s.Name,
+                descending: false);
+
+            return Ok(new PaginatedResponse<SupplierDto>
+            {
+                Items = paged.Items.Select(MapToDto).ToList(),
+                Page = paged.Page,
+                PageSize = paged.PageSize,
+                TotalItems = paged.TotalItems,
+                TotalPages = paged.TotalPages
+            });
+        }
+
+        var suppliers = await _repository.FindAsync(s => s.CondominiumId == condominiumId);
+        var searchLower = search.ToLower();
+        var dtos = suppliers.Select(MapToDto)
+            .Where(s =>
                 s.Name.ToLower().Contains(searchLower) ||
                 (s.Email ?? "").ToLower().Contains(searchLower) ||
-                (s.Specialty ?? "").ToLower().Contains(searchLower)
-            ).OrderBy(s => s.Name);
-        }
-        
+                (s.Specialty ?? "").ToLower().Contains(searchLower))
+            .OrderBy(s => s.Name);
+
         return Ok(PaginationHelper.Paginate(dtos, page, pageSize));
     }
 

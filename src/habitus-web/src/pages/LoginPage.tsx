@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { authApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
@@ -62,8 +63,13 @@ export default function LoginPage() {
 
       login(data);
       navigate('/dashboard');
-    } catch {
-      setError('Email ou password incorretos.');
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 429) {
+        setError('Demasiadas tentativas de início de sessão. Por favor, aguarde alguns minutos e tente novamente.');
+      } else {
+        setError('Email ou password incorretos.');
+      }
     } finally {
       setLoading(false);
     }
@@ -111,12 +117,12 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Habitus</h1>
-          <p className="text-gray-500 mt-1">Gestão de Condomínio</p>
+          <h1 className="text-3xl font-bold text-ink">Habitus</h1>
+          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+        <div className="bg-surface rounded-2xl shadow-xl p-8">
+          <h2 className="text-xl font-semibold text-ink mb-6">
             {requiresTwoFactor ? 'Two-Factor Authentication' : 'Iniciar Sessão'}
           </h2>
 
@@ -130,36 +136,36 @@ export default function LoginPage() {
             <>
               <form onSubmit={handlePasswordLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1.5">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                       placeholder="o.seu@email.com"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1.5">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink-muted"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -171,41 +177,41 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-                >
+                <Button type="submit" loading={loading} fullWidth>
                   {loading ? 'A entrar...' : 'Entrar'}
-                </button>
+                </Button>
               </form>
 
               <div className="mt-6">
-                <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400 mb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
+                <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-ink-subtle mb-4">
+                  <div className="h-px flex-1 bg-line" />
                   <span>or continue with</span>
-                  <div className="h-px flex-1 bg-gray-200" />
+                  <div className="h-px flex-1 bg-line" />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    fullWidth
                     onClick={() => startSocialLogin('google')}
-                    className="w-full py-2.5 px-4 border border-gray-300 hover:border-gray-400 text-gray-800 font-medium rounded-lg transition-colors text-sm"
+                    className="border border-line text-ink"
                   >
                     Continue with Google
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    fullWidth
                     onClick={() => startSocialLogin('microsoft')}
-                    className="w-full py-2.5 px-4 border border-gray-300 hover:border-gray-400 text-gray-800 font-medium rounded-lg transition-colors text-sm"
+                    className="border border-line text-ink"
                   >
                     Continue with Microsoft
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <p className="text-center text-sm text-gray-500 mt-6">
+              <p className="text-center text-sm text-ink-subtle mt-6">
                 Não tem conta?{' '}
                 <Link to="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">
                   Registar
@@ -223,7 +229,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">
                   {useRecoveryCode ? 'Recovery Code' : 'Authentication Code'}
                 </label>
                 <input
@@ -232,36 +238,33 @@ export default function LoginPage() {
                   onChange={(e) => setTwoFactorCode(e.target.value)}
                   required
                   autoFocus
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm tracking-widest"
+                  className="w-full px-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm tracking-widest"
                   placeholder={useRecoveryCode ? 'ABCDE-12345' : '123456'}
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-gray-600">
+              <label className="flex items-center gap-2 text-sm text-ink-muted">
                 <input
                   type="checkbox"
                   checked={useRecoveryCode}
                   onChange={(e) => setUseRecoveryCode(e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-line text-indigo-600 focus:ring-indigo-500"
                 />
                 Use recovery code instead
               </label>
 
               <div className="flex gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={resetTwoFactorState}
-                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg transition-colors text-sm hover:bg-gray-50"
+                  className="flex-1 border border-line text-ink hover:bg-surface-hover"
                 >
                   Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-                >
+                </Button>
+                <Button type="submit" loading={loading} className="flex-1">
                   {loading ? 'A verificar...' : 'Verificar'}
-                </button>
+                </Button>
               </div>
             </form>
           )}

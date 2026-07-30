@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
@@ -50,30 +51,21 @@ public class NotificationService : INotificationService
 
     public async Task<PaginatedResponse<Notification>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole, Guid userId)
     {
-        var allNotifications = await _repository.GetAllAsync();
-        
-        // User-targeted notifications are private. Role-targeted notifications are shared by role.
-        var filtered = allNotifications
-            .Where(n => CanUserAccessNotification(n, condominiumId, userRole, userId))
-            .OrderByDescending(n => n.SentAt)
-            .ToList();
-        
-        var totalItems = filtered.Count;
-        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
-        
-        var items = filtered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        return new PaginatedResponse<Notification>
-        {
-            Items = items,
-            Page = page,
-            PageSize = pageSize,
-            TotalItems = totalItems,
-            TotalPages = totalPages
-        };
+        // Access mirrors CanUserAccessNotification, expressed as a SQL-translatable predicate.
+        // User-targeted notifications are private; role-targeted notifications are shared by role.
+        var isManager = IsManagerRole(userRole);
+
+        Expression<Func<Notification, bool>> filter = isManager
+            ? n => (n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
+                   (!n.TargetUserId.HasValue && n.TargetRole != null && n.TargetRole.ToLower() == "manager")
+            : n => n.CondominiumId == condominiumId &&
+                   ((n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
+                    (!n.TargetUserId.HasValue && (n.TargetRole == userRole || n.TargetRole == null || n.TargetRole == "")));
+
+        return await _repository.GetPagedAsync(page, pageSize, filter, n => n.SentAt, descending: true);
     }
 
     public async Task<Notification?> GetByIdAsync(Guid id)

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FileText, Download, Trash2, Plus, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench, AlertCircle, RefreshCw } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, Upload as UploadIcon, ChevronDown, ChevronRight, Calendar, Home, Wrench } from 'lucide-react';
 import { documentsApi, assembliesApi, unitsApi, maintenanceApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -9,6 +9,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
+import { PageHeader, Button, ErrorState, Card, EmptyState, Skeleton } from '../components/ui';
 import type { DocumentDto, PaginatedResponse, AssemblyDto, UnitDto, MaintenanceRequestDto } from '../types';
 
 const contextLabels: Record<string, string> = {
@@ -44,7 +45,7 @@ const typeLabels: Record<string, string> = {
 const typeColors: Record<string, string> = {
   UnitInsurance: 'bg-blue-100 text-blue-700',
   UnitOwnershipProof: 'bg-purple-100 text-purple-700',
-  UnitOther: 'bg-gray-100 text-gray-600',
+  UnitOther: 'bg-control text-ink-muted',
   AssemblyMinutes: 'bg-indigo-100 text-indigo-700',
   AssemblyConvocation: 'bg-violet-100 text-violet-700',
   AssemblyAttachment: 'bg-purple-100 text-purple-700',
@@ -56,11 +57,11 @@ const typeColors: Record<string, string> = {
   FinancialBudget: 'bg-cyan-100 text-cyan-700',
   FinancialAudit: 'bg-sky-100 text-sky-700',
   FinancialTaxDocument: 'bg-blue-100 text-blue-700',
-  FinancialOther: 'bg-slate-100 text-slate-600',
+  FinancialOther: 'bg-control text-ink-muted',
   CondominiumRegulation: 'bg-blue-100 text-blue-700',
   CondominiumInsurance: 'bg-cyan-100 text-cyan-700',
   CondominiumContract: 'bg-teal-100 text-teal-700',
-  Other: 'bg-gray-100 text-gray-600',
+  Other: 'bg-control text-ink-muted',
 };
 
 const documentTypesByContext: Record<string, string[]> = {
@@ -394,7 +395,7 @@ export default function DocumentsPage() {
       InProgress: 'bg-blue-100 text-blue-700',
       Completed: 'bg-green-100 text-green-700',
     };
-    return colors[normalizedStatus] || 'bg-gray-100 text-gray-600';
+    return colors[normalizedStatus] || 'bg-control text-ink-muted';
   };
 
   const getMaintenanceStatusLabel = (status: string) => {
@@ -414,7 +415,7 @@ export default function DocumentsPage() {
       Completed: 'bg-green-100 text-green-700',
       Cancelled: 'bg-red-100 text-red-700',
     };
-    return colors[status] || 'bg-gray-100 text-gray-600';
+    return colors[status] || 'bg-control text-ink-muted';
   };
 
   const getStatusLabel = (status: string) => {
@@ -438,33 +439,27 @@ export default function DocumentsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Documentos e arquivos do condomínio</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar documentos..."
-            />
-          </div>
-          {isAdmin && (
-            <button
-              onClick={openUploadModal}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Documentos"
+        subtitle="Documentos e arquivos do condomínio"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar documentos..."
+          />
+        }
+        actions={
+          isAdmin && (
+            <Button onClick={openUploadModal} icon={Plus} fullWidth className="sm:w-auto">
               Novo Documento
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+          )
+        }
+      />
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-line">
         <div className="flex gap-1 overflow-x-auto app-scrollbar pb-1">
           {Object.entries(contextLabels)
             .filter(([key]) => isAdmin || key !== 'Unit') // Hide Unit tab for non-admin users
@@ -475,7 +470,7 @@ export default function DocumentsPage() {
               className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
                 activeTab === key
                   ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-ink-subtle hover:text-ink-muted'
               }`}
             >
               {label}
@@ -488,39 +483,18 @@ export default function DocumentsPage() {
       {activeTab === 'Assembly' || activeTab === 'Unit' || activeTab === 'Maintenance' || activeTab === 'Financial' ? (
         <div className="space-y-3">
           {loading ? (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-              A carregar...
-            </div>
+            <Skeleton variant="list" rows={4} />
           ) : loadError ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                {loadError}
-              </span>
-              <button
-                type="button"
-                onClick={() => load(currentPage)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Tentar novamente
-              </button>
-            </div>
+            <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           ) : documents.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-              <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              {searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos de assembleias'}
-            </div>
+            <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos de assembleias'} />
           ) : activeTab === 'Assembly' ? (
             (() => {
               const groupedDocs = getDocumentsByAssembly();
               const assemblyIds = Array.from(groupedDocs.keys());
               
               return assemblyIds.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de assembleias
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de assembleias" />
               ) : (
                 assemblyIds.map(assemblyId => {
                   const assemblyDocs = groupedDocs.get(assemblyId) || [];
@@ -528,23 +502,23 @@ export default function DocumentsPage() {
                   const isExpanded = expandedAssemblies.has(assemblyId);
                   
                   return (
-                    <div key={assemblyId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <Card key={assemblyId} className="overflow-hidden">
                       {/* Assembly Header */}
                       <button
                         onClick={() => toggleAssembly(assemblyId)}
-                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-hover transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="shrink-0">
                             {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                              <ChevronDown className="w-5 h-5 text-ink-subtle" />
                             ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-400" />
+                              <ChevronRight className="w-5 h-5 text-ink-subtle" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 text-left">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold text-gray-900">
+                              <h3 className="font-semibold text-ink">
                                 {assembly?.title || `Assembleia ${assemblyId.substring(0, 8)}`}
                               </h3>
                               {assembly && (
@@ -554,7 +528,7 @@ export default function DocumentsPage() {
                               )}
                             </div>
                             {assembly && (
-                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                              <div className="flex items-center gap-2 mt-1 text-xs text-ink-subtle">
                                 <Calendar className="w-3.5 h-3.5" />
                                 <span>{new Date(assembly.scheduledAt).toLocaleDateString('pt-PT', { 
                                   day: 'numeric', 
@@ -576,28 +550,28 @@ export default function DocumentsPage() {
 
                       {/* Documents List */}
                       {isExpanded && (
-                        <div className="border-t border-gray-100 bg-gray-50/50">
+                        <div className="border-t border-line bg-surface-muted">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                             {assemblyDocs.map((d) => (
-                              <div key={d.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3">
+                              <div key={d.id} className="bg-surface rounded-lg shadow-sm border border-line p-3">
                                 <div className="flex items-start gap-3">
                                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 shrink-0">
                                     <FileText className="w-4 h-4 text-blue-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-gray-900 truncate" title={d.name}>{d.name}</p>
-                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    <p className="font-medium text-sm text-ink truncate" title={d.name}>{d.name}</p>
+                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-control text-ink-muted'}`}>
                                       {typeLabels[d.type] ?? d.type}
                                     </span>
                                     {d.description && (
-                                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{d.description}</p>
+                                      <p className="text-xs text-ink-subtle mt-1 line-clamp-1">{d.description}</p>
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-xs text-gray-400">
+                                      <p className="text-xs text-ink-subtle">
                                         {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
                                       </p>
-                                      <span className="text-gray-300">•</span>
-                                      <p className="text-xs text-gray-400">{formatFileSize(d.fileSize)}</p>
+                                      <span className="text-ink-subtle">•</span>
+                                      <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -624,7 +598,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -635,10 +609,7 @@ export default function DocumentsPage() {
               const unitIds = Array.from(groupedDocs.keys());
               
               return unitIds.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de frações
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de frações" />
               ) : (
                 unitIds.map(unitId => {
                   const unitDocs = groupedDocs.get(unitId) || [];
@@ -646,33 +617,33 @@ export default function DocumentsPage() {
                   const isExpanded = expandedUnits.has(unitId);
                   
                   return (
-                    <div key={unitId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <Card key={unitId} className="overflow-hidden">
                       {/* Unit Header */}
                       <button
                         onClick={() => toggleUnit(unitId)}
-                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-hover transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="shrink-0">
                             {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                              <ChevronDown className="w-5 h-5 text-ink-subtle" />
                             ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-400" />
+                              <ChevronRight className="w-5 h-5 text-ink-subtle" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 text-left">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Home className="w-4 h-4 text-gray-600" />
-                              <h3 className="font-semibold text-gray-900">
+                              <Home className="w-4 h-4 text-ink-muted" />
+                              <h3 className="font-semibold text-ink">
                                 {unit ? `Fração ${unit.number}` : `Fração ${unitId.substring(0, 8)}`}
                               </h3>
                               {unit && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-control text-ink-muted">
                                   Piso {unit.floor}
                                 </span>
                               )}
                               {unit?.apartmentNumber && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-ink-subtle">
                                   • Apt {unit.apartmentNumber}
                                 </span>
                               )}
@@ -688,28 +659,28 @@ export default function DocumentsPage() {
 
                       {/* Documents List */}
                       {isExpanded && (
-                        <div className="border-t border-gray-100 bg-gray-50/50">
+                        <div className="border-t border-line bg-surface-muted">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                             {unitDocs.map((d) => (
-                              <div key={d.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3">
+                              <div key={d.id} className="bg-surface rounded-lg shadow-sm border border-line p-3">
                                 <div className="flex items-start gap-3">
                                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 shrink-0">
                                     <FileText className="w-4 h-4 text-blue-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-gray-900 truncate" title={d.name}>{d.name}</p>
-                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    <p className="font-medium text-sm text-ink truncate" title={d.name}>{d.name}</p>
+                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-control text-ink-muted'}`}>
                                       {typeLabels[d.type] ?? d.type}
                                     </span>
                                     {d.description && (
-                                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{d.description}</p>
+                                      <p className="text-xs text-ink-subtle mt-1 line-clamp-1">{d.description}</p>
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-xs text-gray-400">
+                                      <p className="text-xs text-ink-subtle">
                                         {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
                                       </p>
-                                      <span className="text-gray-300">•</span>
-                                      <p className="text-xs text-gray-400">{formatFileSize(d.fileSize)}</p>
+                                      <span className="text-ink-subtle">•</span>
+                                      <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -736,7 +707,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -747,10 +718,7 @@ export default function DocumentsPage() {
               const maintenanceIds = Array.from(groupedDocs.keys());
               
               return maintenanceIds.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos de manutenções
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos de manutenções" />
               ) : (
                 maintenanceIds.map(maintenanceId => {
                   const maintenanceDocs = groupedDocs.get(maintenanceId) || [];
@@ -758,24 +726,24 @@ export default function DocumentsPage() {
                   const isExpanded = expandedMaintenance.has(maintenanceId);
                   
                   return (
-                    <div key={maintenanceId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <Card key={maintenanceId} className="overflow-hidden">
                       {/* Maintenance Header */}
                       <button
                         onClick={() => toggleMaintenance(maintenanceId)}
-                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-hover transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="shrink-0">
                             {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                              <ChevronDown className="w-5 h-5 text-ink-subtle" />
                             ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-400" />
+                              <ChevronRight className="w-5 h-5 text-ink-subtle" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 text-left">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <Wrench className="w-4 h-4 text-gray-600" />
-                              <h3 className="font-semibold text-gray-900">
+                              <Wrench className="w-4 h-4 text-ink-muted" />
+                              <h3 className="font-semibold text-ink">
                                 {maintenance?.title || `Manutenção ${maintenanceId.substring(0, 8)}`}
                               </h3>
                               {maintenance && (
@@ -785,7 +753,7 @@ export default function DocumentsPage() {
                               )}
                             </div>
                             {maintenance?.description && (
-                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                              <div className="flex items-center gap-2 mt-1 text-xs text-ink-subtle">
                                 <span className="line-clamp-1">{maintenance.description}</span>
                               </div>
                             )}
@@ -800,28 +768,28 @@ export default function DocumentsPage() {
 
                       {/* Documents List */}
                       {isExpanded && (
-                        <div className="border-t border-gray-100 bg-gray-50/50">
+                        <div className="border-t border-line bg-surface-muted">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                             {maintenanceDocs.map((d) => (
-                              <div key={d.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3">
+                              <div key={d.id} className="bg-surface rounded-lg shadow-sm border border-line p-3">
                                 <div className="flex items-start gap-3">
                                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 shrink-0">
                                     <FileText className="w-4 h-4 text-orange-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-gray-900 truncate" title={d.name}>{d.name}</p>
-                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    <p className="font-medium text-sm text-ink truncate" title={d.name}>{d.name}</p>
+                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-control text-ink-muted'}`}>
                                       {typeLabels[d.type] ?? d.type}
                                     </span>
                                     {d.description && (
-                                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{d.description}</p>
+                                      <p className="text-xs text-ink-subtle mt-1 line-clamp-1">{d.description}</p>
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-xs text-gray-400">
+                                      <p className="text-xs text-ink-subtle">
                                         {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
                                       </p>
-                                      <span className="text-gray-300">•</span>
-                                      <p className="text-xs text-gray-400">{formatFileSize(d.fileSize)}</p>
+                                      <span className="text-ink-subtle">•</span>
+                                      <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -848,7 +816,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -859,34 +827,31 @@ export default function DocumentsPage() {
               const years = Array.from(groupedDocs.keys()).sort((a, b) => b - a);
               
               return years.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  Sem documentos financeiros
-                </div>
+                <EmptyState icon={FileText} title="Sem documentos financeiros" />
               ) : (
                 years.map(year => {
                   const yearDocs = groupedDocs.get(year) || [];
                   const isExpanded = expandedYears.has(year);
                   
                   return (
-                    <div key={year} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <Card key={year} className="overflow-hidden">
                       {/* Year Header */}
                       <button
                         onClick={() => toggleYear(year)}
-                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-hover transition-colors"
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="shrink-0">
                             {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                              <ChevronDown className="w-5 h-5 text-ink-subtle" />
                             ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-400" />
+                              <ChevronRight className="w-5 h-5 text-ink-subtle" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 text-left">
                             <div className="flex items-center gap-2 flex-wrap">
                               <Calendar className="w-4 h-4 text-emerald-600" />
-                              <h3 className="font-semibold text-gray-900">
+                              <h3 className="font-semibold text-ink">
                                 Ano {year}
                               </h3>
                             </div>
@@ -901,28 +866,28 @@ export default function DocumentsPage() {
 
                       {/* Documents List */}
                       {isExpanded && (
-                        <div className="border-t border-gray-100 bg-gray-50/50">
+                        <div className="border-t border-line bg-surface-muted">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                             {yearDocs.map((d) => (
-                              <div key={d.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-3">
+                              <div key={d.id} className="bg-surface rounded-lg shadow-sm border border-line p-3">
                                 <div className="flex items-start gap-3">
                                   <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 shrink-0">
                                     <FileText className="w-4 h-4 text-emerald-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-gray-900 truncate" title={d.name}>{d.name}</p>
-                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    <p className="font-medium text-sm text-ink truncate" title={d.name}>{d.name}</p>
+                                    <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-control text-ink-muted'}`}>
                                       {typeLabels[d.type] ?? d.type}
                                     </span>
                                     {d.description && (
-                                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{d.description}</p>
+                                      <p className="text-xs text-ink-subtle mt-1 line-clamp-1">{d.description}</p>
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
-                                      <p className="text-xs text-gray-400">
+                                      <p className="text-xs text-ink-subtle">
                                         {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
                                       </p>
-                                      <span className="text-gray-300">•</span>
-                                      <p className="text-xs text-gray-400">{formatFileSize(d.fileSize)}</p>
+                                      <span className="text-ink-subtle">•</span>
+                                      <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -949,7 +914,7 @@ export default function DocumentsPage() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 })
               );
@@ -959,48 +924,34 @@ export default function DocumentsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full text-center py-12 text-gray-400">A carregar...</div>
+          <div className="col-span-full text-center py-12 text-ink-subtle">A carregar...</div>
         ) : loadError ? (
-          <div className="col-span-full rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={() => load(currentPage)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
+          <div className="col-span-full">
+            <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           </div>
         ) : documents.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            {searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos nesta categoria'}
-          </div>
+          <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos nesta categoria'} className="col-span-full" />
         ) : (
           documents.map((d) => (
-            <div key={d.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <Card key={d.id} className="p-4">
               <div className="flex items-start gap-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 shrink-0">
                   <FileText className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate" title={d.name}>{d.name}</p>
-                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <p className="font-medium text-ink truncate" title={d.name}>{d.name}</p>
+                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${typeColors[d.type] ?? 'bg-control text-ink-muted'}`}>
                     {typeLabels[d.type] ?? d.type}
                   </span>
                   {d.description && (
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{d.description}</p>
+                    <p className="text-xs text-ink-subtle mt-1 line-clamp-2">{d.description}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ink-subtle">
                       {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
                     </p>
-                    <span className="text-gray-300">•</span>
-                    <p className="text-xs text-gray-400">{formatFileSize(d.fileSize)}</p>
+                    <span className="text-ink-subtle">•</span>
+                    <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
                   </div>
                 </div>
               </div>
@@ -1022,7 +973,7 @@ export default function DocumentsPage() {
                   </button>
                 )}
               </div>
-            </div>
+            </Card>
           ))
         )}
       </div>
@@ -1045,7 +996,7 @@ export default function DocumentsPage() {
       >
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink-muted mb-2">
                   Arquivo
                 </label>
                 <FileUpload
@@ -1057,14 +1008,14 @@ export default function DocumentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Nome do Documento *
                 </label>
                 <input
                   type="text"
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Ex: Seguro Multi-risco 2024"
                   required
                   disabled={uploading}
@@ -1072,13 +1023,13 @@ export default function DocumentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Tipo *
                 </label>
                 <select
                   value={uploadForm.type}
                   onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   required
                   disabled={uploading}
                 >
@@ -1091,13 +1042,13 @@ export default function DocumentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Descrição (opcional)
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows={3}
                   placeholder="Adicione notas ou detalhes sobre o documento..."
                   disabled={uploading}
@@ -1107,13 +1058,13 @@ export default function DocumentsPage() {
               {/* Context-specific fields */}
               {activeTab === 'Unit' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Fração *
                   </label>
                   <select
                     value={uploadForm.unitId}
                     onChange={(e) => setUploadForm({ ...uploadForm, unitId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                     disabled={uploading}
                   >
@@ -1129,13 +1080,13 @@ export default function DocumentsPage() {
 
               {activeTab === 'Assembly' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Assembleia *
                   </label>
                   <select
                     value={uploadForm.assemblyId}
                     onChange={(e) => setUploadForm({ ...uploadForm, assemblyId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                     disabled={uploading}
                   >
@@ -1151,13 +1102,13 @@ export default function DocumentsPage() {
 
               {activeTab === 'Maintenance' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Pedido de Manutenção *
                   </label>
                   <select
                     value={uploadForm.maintenanceRequestId}
                     onChange={(e) => setUploadForm({ ...uploadForm, maintenanceRequestId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                     disabled={uploading}
                   >
@@ -1173,13 +1124,13 @@ export default function DocumentsPage() {
 
               {activeTab === 'Financial' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-muted mb-1">
                     Ano *
                   </label>
                   <select
                     value={uploadForm.year}
                     onChange={(e) => setUploadForm({ ...uploadForm, year: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                     disabled={uploading}
                   >
@@ -1190,29 +1141,22 @@ export default function DocumentsPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-line">
+                <Button
+                  variant="ghost"
                   onClick={() => setShowUploadModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   disabled={uploading}
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  icon={UploadIcon}
+                  loading={uploading}
+                  disabled={!uploadFile}
                 >
-                  {uploading ? (
-                    <>A carregar...</>
-                  ) : (
-                    <>
-                      <UploadIcon className="w-4 h-4" />
-                      Carregar
-                    </>
-                  )}
-                </button>
+                  Carregar
+                </Button>
               </div>
             </form>
       </ModalPopup>

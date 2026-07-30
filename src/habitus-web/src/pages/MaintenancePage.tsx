@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, RefreshCw, Eye } from 'lucide-react';
+import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, Eye } from 'lucide-react';
 import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,19 +8,21 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
+import { PageHeader, Button, AsyncState, EmptyState, Badge, Card } from '../components/ui';
+import type { BadgeVariant } from '../components/ui';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
-const statusMap: Record<string, { label: string; className: string; icon: React.ElementType }> = {
-  Open: { label: 'Aberto', className: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  InProgress: { label: 'Em curso', className: 'bg-blue-100 text-blue-700', icon: Clock },
-  Completed: { label: 'Concluído', className: 'bg-green-100 text-green-700', icon: CheckCircle2 },
+const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: React.ElementType }> = {
+  Open: { label: 'Aberto', variant: 'warning', icon: AlertCircle },
+  InProgress: { label: 'Em curso', variant: 'info', icon: Clock },
+  Completed: { label: 'Concluído', variant: 'success', icon: CheckCircle2 },
 };
 
-const priorityMap: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-600',
-  Medium: 'bg-yellow-100 text-yellow-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+const priorityVariants: Record<string, BadgeVariant> = {
+  Low: 'neutral',
+  Medium: 'warning',
+  High: 'attention',
+  Critical: 'danger',
 };
 
 const priorityLabels: Record<string, string> = {
@@ -397,28 +399,22 @@ export default function MaintenancePage() {
         onConfirm={confirmDocDelete}
         onCancel={() => setDeleteDocId(null)}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manutenção</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Pedidos de manutenção do condomínio</p>
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Pesquisar pedidos..."
-            />
-          </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
+      <PageHeader
+        title="Manutenção"
+        subtitle="Pedidos de manutenção do condomínio"
+        search={
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Pesquisar pedidos..."
+          />
+        }
+        actions={
+          <Button onClick={() => setShowForm(!showForm)} icon={Plus} fullWidth className="sm:w-auto">
             Novo Pedido
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
@@ -447,58 +443,54 @@ export default function MaintenancePage() {
       >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Título</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Ex: Torneira avariada na cozinha"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 required
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Localização</label>
               <input
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Ex: Fração 3A"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">Prioridade</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {Object.keys(priorityLabels).map((p) => (
                   <option key={p} value={p}>{priorityLabels[p]}</option>
                 ))}
               </select>
             </div>
-            <div className="sm:col-span-2 flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
+              <Button variant="ghost" onClick={() => setShowForm(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium"
-              >
-                {submitting ? 'A guardar...' : 'Guardar'}
-              </button>
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Guardar
+              </Button>
             </div>
           </form>
       </ModalPopup>
@@ -510,7 +502,7 @@ export default function MaintenancePage() {
             key={s}
             onClick={() => setFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              filter === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              filter === s ? 'bg-indigo-600 text-white' : 'bg-surface text-ink-muted border border-line hover:bg-surface-hover'
             }`}
           >
             {s === 'All' ? `Todos (${requests.length})` : `${statusMap[s]?.label ?? s} (${statusCounts[s as 'Open' | 'InProgress' | 'Completed']})`}
@@ -520,47 +512,31 @@ export default function MaintenancePage() {
 
       {/* List */}
       <div className="space-y-3">
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">A carregar...</div>
-        ) : loadError ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {loadError}
-            </span>
-            <button
-              type="button"
-              onClick={load}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
-            </button>
-          </div>
-        ) : paginatedRequests.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100">
-            <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            Sem pedidos de manutenção
-          </div>
-        ) : (
+        <AsyncState
+          loading={loading}
+          error={loadError || null}
+          onRetry={load}
+          isEmpty={paginatedRequests.length === 0}
+          empty={<EmptyState icon={Wrench} title="Sem pedidos de manutenção" />}
+        >
           <>
             {paginatedRequests.map((m) => {
-              const { label, className, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
+              const { label, variant, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
               return (
-                <div key={m.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <Card key={m.id} className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
-                      <Icon className="w-5 h-5 mt-0.5 shrink-0 text-gray-400" />
+                      <Icon className="w-5 h-5 mt-0.5 shrink-0 text-ink-subtle" />
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900">{m.title}</p>
-                        <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{m.description}</p>
+                        <p className="font-medium text-ink">{m.title}</p>
+                        <p className="text-sm text-ink-subtle mt-0.5 line-clamp-2">{m.description}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>{label}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityMap[m.priority] ?? 'bg-gray-100 text-gray-600'}`}>
+                          <Badge variant={variant}>{label}</Badge>
+                          <Badge variant={priorityVariants[m.priority] ?? 'neutral'}>
                             {priorityLabels[m.priority] ?? m.priority}
-                          </span>
+                          </Badge>
                           {m.location && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{m.location}</span>
+                            <Badge variant="neutral">{m.location}</Badge>
                           )}
                         </div>
                       </div>
@@ -575,17 +551,17 @@ export default function MaintenancePage() {
                     ) : (
                       <button
                         onClick={() => handleOpenStatusPanel(m)}
-                        className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
+                        className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-surface-hover border border-line rounded-lg transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Detalhes
                       </button>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-ink-subtle mt-2">
                     Criado em: {new Date(m.createdAt).toLocaleDateString('pt-PT')}
                   </p>
-                </div>
+                </Card>
               );
             })}
             
@@ -597,7 +573,7 @@ export default function MaintenancePage() {
               />
             )}
           </>
-        )}
+        </AsyncState>
       </div>
 
       {/* Status Management Modal */}
@@ -611,11 +587,11 @@ export default function MaintenancePage() {
         {selectedRequest && (
           <>
               {/* Request Info */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="font-medium text-gray-900">{selectedRequest.title}</p>
-                <p className="text-sm text-gray-500 mt-1">{selectedRequest.description}</p>
+              <div className="bg-surface-muted rounded-lg p-4">
+                <p className="font-medium text-ink">{selectedRequest.title}</p>
+                <p className="text-sm text-ink-subtle mt-1">{selectedRequest.description}</p>
                 {selectedRequest.location && (
-                  <p className="text-xs text-gray-400 mt-2">{selectedRequest.location}</p>
+                  <p className="text-xs text-ink-subtle mt-2">{selectedRequest.location}</p>
                 )}
               </div>
 
@@ -624,12 +600,12 @@ export default function MaintenancePage() {
                 <form onSubmit={handleStatusUpdate} className="space-y-4">
                   {/* Status Select */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">Estado</label>
                     <select
                       value={statusForm.status}
                       onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       {getAvailableStatusOptions(selectedRequest.status).map((value) => (
                         <option key={value} value={value}>{statusMap[value]?.label ?? value}</option>
@@ -639,13 +615,13 @@ export default function MaintenancePage() {
 
                   {/* Supplier Select */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fornecedor <span className="text-gray-400 font-normal">(opcional)</span>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">
+                      Fornecedor <span className="text-ink-subtle font-normal">(opcional)</span>
                     </label>
                     <select
                       value={statusForm.supplierId}
                       onChange={(e) => setStatusForm({ ...statusForm, supplierId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value="">Sem fornecedor</option>
                       {suppliers.map((s) => (
@@ -687,25 +663,25 @@ export default function MaintenancePage() {
 
                   {/* Admin Comments */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Comentário <span className="text-gray-400 font-normal">(opcional)</span>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">
+                      Comentário <span className="text-ink-subtle font-normal">(opcional)</span>
                     </label>
                     <textarea
                       value={statusForm.adminComments}
                       onChange={(e) => setStatusForm({ ...statusForm, adminComments: e.target.value })}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                      className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                       placeholder="Adicione um comentário sobre esta atualização..."
                     />
                   </div>
 
                   {isCompletedStatus(statusForm.status) && (
-                    <div className="border-t border-gray-200 pt-4 space-y-4">
+                    <div className="border-t border-line pt-4 space-y-4">
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-1">
+                        <p className="text-sm font-medium text-ink-muted mb-1">
                           Custo da Manutenção <span className="text-red-500">*</span>
                         </p>
-                        <p className="text-xs text-gray-500 mb-3">
+                        <p className="text-xs text-ink-subtle mb-3">
                           O custo é obrigatório para registar a manutenção como concluída.
                         </p>
                       </div>
@@ -713,11 +689,11 @@ export default function MaintenancePage() {
                       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
                         {/* Expense Amount */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-ink-muted mb-1">
                             Valor da Despesa <span className="text-red-500">*</span>
                           </label>
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle">€</span>
                             <input
                               type="number"
                               step="0.01"
@@ -725,7 +701,7 @@ export default function MaintenancePage() {
                               value={statusForm.expenseAmount}
                               onChange={(e) => setStatusForm({ ...statusForm, expenseAmount: e.target.value })}
                               required
-                              className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-full pl-8 pr-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               placeholder="0.00"
                             />
                           </div>
@@ -733,13 +709,13 @@ export default function MaintenancePage() {
 
                         {/* Invoice Document */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Fatura <span className="text-gray-400 font-normal">(opcional)</span>
+                          <label className="block text-sm font-medium text-ink-muted mb-1">
+                            Fatura <span className="text-ink-subtle font-normal">(opcional)</span>
                           </label>
                           <select
                             value={statusForm.invoiceDocumentId}
                             onChange={(e) => setStatusForm({ ...statusForm, invoiceDocumentId: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">Selecione a fatura (opcional)</option>
                             {maintenanceDocuments
@@ -751,7 +727,7 @@ export default function MaintenancePage() {
                               ))}
                           </select>
                           {maintenanceDocuments.filter(doc => doc.type === 'MaintenanceInvoice').length === 0 && (
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-ink-subtle">
                               Pode adicionar uma fatura na secção de documentos abaixo.
                             </p>
                           )}
@@ -763,18 +739,18 @@ export default function MaintenancePage() {
                   {/* Comment History */}
                   {selectedRequest.adminComments && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Histórico de Comentários</label>
-                      <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                        <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
+                      <label className="block text-sm font-medium text-ink-muted mb-2">Histórico de Comentários</label>
+                      <div className="bg-surface-muted rounded-lg p-3 max-h-40 overflow-y-auto">
+                        <pre className="text-xs text-ink-muted whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
                       </div>
                     </div>
                   )}
 
                   {/* Documents Section */}
                   {!isCompletedStatus(selectedRequest.status) && (
-                    <div className="border-t border-gray-200 pt-4">
+                    <div className="border-t border-line pt-4">
                       <div className="flex items-center justify-between mb-3">
-                        <label className="block text-sm font-medium text-gray-700">Documentos</label>
+                        <label className="block text-sm font-medium text-ink-muted">Documentos</label>
                         <button
                           type="button"
                           onClick={() => setShowDocUploadModal(true)}
@@ -786,7 +762,7 @@ export default function MaintenancePage() {
                       </div>
 
                       {maintenanceDocuments.length === 0 ? (
-                        <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg">
+                        <div className="text-center py-6 text-ink-subtle bg-surface-muted rounded-lg">
                           <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                           <p className="text-xs">Nenhum documento anexado</p>
                         </div>
@@ -795,13 +771,13 @@ export default function MaintenancePage() {
                           {maintenanceDocuments.map((doc) => (
                             <div
                               key={doc.id}
-                              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                              className="flex items-center justify-between p-3 border border-line rounded-lg hover:bg-surface-hover transition-colors"
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                                <FileText className="w-4 h-4 text-ink-subtle shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
-                                  <p className="text-xs text-gray-400">
+                                  <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
+                                  <p className="text-xs text-ink-subtle">
                                     {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
                                   </p>
                                 </div>
@@ -832,29 +808,26 @@ export default function MaintenancePage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      variant="ghost"
                       onClick={handleCloseStatusPanel}
-                      className="flex-1 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      fullWidth
+                      className="flex-1 border border-line"
                     >
                       Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      {submitting ? 'A guardar...' : 'Guardar Alterações'}
-                    </button>
+                    </Button>
+                    <Button type="submit" loading={submitting} fullWidth className="flex-1">
+                      Guardar Alterações
+                    </Button>
                   </div>
                 </form>
               ) : (
                 <div className="space-y-4">
                   {/* Read-only Status */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900">
+                    <label className="block text-sm font-medium text-ink-muted mb-1">Estado</label>
+                    <div className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface-muted text-ink">
                       {statusMap[selectedRequest.status as keyof typeof statusMap]?.label || selectedRequest.status}
                     </div>
                   </div>
@@ -865,8 +838,8 @@ export default function MaintenancePage() {
                       const supplier = suppliers.find(s => s.id === selectedRequest.supplierId);
                       return supplier ? (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Fornecedor</label>
-                          <div className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-900">
+                          <label className="block text-sm font-medium text-ink-muted mb-1">Fornecedor</label>
+                          <div className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface-muted text-ink">
                             {supplier.name} - {supplier.specialty}
                           </div>
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 mt-2">
@@ -899,18 +872,18 @@ export default function MaintenancePage() {
                   {/* Read-only Comment History */}
                   {selectedRequest.adminComments && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Comentários</label>
-                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
+                      <label className="block text-sm font-medium text-ink-muted mb-2">Comentários</label>
+                      <div className="bg-surface-muted rounded-lg p-3 border border-line">
+                        <pre className="text-xs text-ink-muted whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
                       </div>
                     </div>
                   )}
 
                   {/* Read-only Documents */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Documentos</label>
+                  <div className="border-t border-line pt-4">
+                    <label className="block text-sm font-medium text-ink-muted mb-3">Documentos</label>
                     {maintenanceDocuments.length === 0 ? (
-                      <div className="text-center py-6 text-gray-400 bg-gray-50 rounded-lg">
+                      <div className="text-center py-6 text-ink-subtle bg-surface-muted rounded-lg">
                         <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                         <p className="text-xs">Nenhum documento anexado</p>
                       </div>
@@ -919,13 +892,13 @@ export default function MaintenancePage() {
                         {maintenanceDocuments.map((doc) => (
                           <div
                             key={doc.id}
-                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="flex items-center justify-between p-3 border border-line rounded-lg hover:bg-surface-hover transition-colors"
                           >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                              <FileText className="w-4 h-4 text-ink-subtle shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
+                                <p className="text-xs text-ink-subtle">
                                   {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
                                 </p>
                               </div>
@@ -949,7 +922,7 @@ export default function MaintenancePage() {
                     <button
                       type="button"
                       onClick={handleCloseStatusPanel}
-                      className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="w-full px-4 py-2 bg-control hover:bg-control-hover text-ink rounded-lg text-sm font-medium transition-colors"
                     >
                       Fechar
                     </button>
@@ -975,19 +948,19 @@ export default function MaintenancePage() {
               <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
                 <Upload className="w-5 h-5" />
               </div>
-              <p className="text-sm text-gray-500">Orçamento, fatura ou outro documento</p>
+              <p className="text-sm text-ink-subtle">Orçamento, fatura ou outro documento</p>
             </div>
 
             <form onSubmit={handleDocUpload} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Tipo de Documento *
                 </label>
                 <select
                   required
                   value={uploadForm.type}
                   onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="MaintenanceInvoice">Fatura</option>
                   <option value="MaintenanceQuote">Orçamento</option>
@@ -996,7 +969,7 @@ export default function MaintenancePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Nome do Documento *
                 </label>
                 <input
@@ -1005,12 +978,12 @@ export default function MaintenancePage() {
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
                   placeholder="Ex: Fatura de Reparação"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-ink-muted mb-1">
                   Descrição (opcional)
                 </label>
                 <textarea
@@ -1018,7 +991,7 @@ export default function MaintenancePage() {
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                   placeholder="Detalhes sobre este documento..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
 
@@ -1028,25 +1001,22 @@ export default function MaintenancePage() {
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
+              <div className="flex flex-wrap gap-3 pt-4">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setShowDocUploadModal(false);
                     setUploadFile(null);
                     setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  fullWidth
+                  className="flex-1 border border-line"
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!uploadFile || uploading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? 'A carregar...' : 'Adicionar'}
-                </button>
+                </Button>
+                <Button type="submit" loading={uploading} disabled={!uploadFile} fullWidth className="flex-1">
+                  Adicionar
+                </Button>
               </div>
             </form>
       </ModalPopup>

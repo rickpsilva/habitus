@@ -20,15 +20,15 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
 
   if (pagination.totalPages <= 1) {
     return (
-      <div className="flex items-center bg-white rounded-xl border border-gray-100 px-4 py-3">
-        <p className="text-sm text-gray-500">{itemsLabel}</p>
+      <div className="flex items-center bg-surface rounded-xl border border-line px-4 py-3">
+        <p className="text-sm text-ink-subtle">{itemsLabel}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-white rounded-xl border border-gray-100 px-4 py-3">
-      <div className="text-sm text-gray-600">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-surface rounded-xl border border-line px-4 py-3">
+      <div className="text-sm text-ink-muted">
         Página {pagination.page} de {pagination.totalPages} • {itemsLabel}
       </div>
       <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -36,7 +36,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
           onClick={() => goToPage(currentPage - 1)}
           disabled={!pagination.hasPreviousPage}
           aria-label="Página anterior"
-          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
+          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-control text-ink hover:bg-control-hover disabled:hover:bg-control"
         >
           <ChevronLeft className="w-4 h-4" />
           Anterior
@@ -56,7 +56,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
               
               return (
                 <div key={page} className="flex items-center gap-1">
-                  {showEllipsis && <span className="px-2 text-gray-400" aria-hidden="true">...</span>}
+                  {showEllipsis && <span className="px-2 text-ink-subtle" aria-hidden="true">...</span>}
                   <button
                     onClick={() => goToPage(page)}
                     aria-label={`Página ${page}`}
@@ -64,7 +64,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       page === currentPage
                         ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-control text-ink hover:bg-control-hover'
                     }`}
                   >
                     {page}
@@ -78,7 +78,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
           onClick={() => goToPage(currentPage + 1)}
           disabled={!pagination.hasNextPage}
           aria-label="Próxima página"
-          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
+          className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-control text-ink hover:bg-control-hover disabled:hover:bg-control"
         >
           Seguinte
           <ChevronRight className="w-4 h-4" />

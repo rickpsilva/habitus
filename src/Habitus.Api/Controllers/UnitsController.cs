@@ -56,21 +56,26 @@ public class UnitsController : ControllerBase
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var units = await _repository.GetAllAsync();
-        var ordered = units
-            .Where(u => u.CondominiumId == condominiumId)
-            .OrderBy(u => u.Number);
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
 
-        if (!string.IsNullOrWhiteSpace(search))
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            u => u.CondominiumId == condominiumId &&
+                 (searchLower == null ||
+                  u.Number.ToLower().Contains(searchLower) ||
+                  (u.ApartmentNumber ?? "").ToLower().Contains(searchLower)),
+            u => u.Number,
+            descending: false);
+
+        return Ok(new PaginatedResponse<object>
         {
-            var searchLower = search.ToLower();
-            ordered = ordered.Where(u =>
-                u.Number.ToLower().Contains(searchLower) ||
-                (u.ApartmentNumber ?? "").ToLower().Contains(searchLower)
-            ).OrderBy(u => u.Number);
-        }
-
-        return Ok(PaginationHelper.Paginate(ordered.Select(MapUnit), page, pageSize));
+            Items = paged.Items.Select(MapUnit).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        });
     }
 
     [HttpGet("{id}")]
@@ -139,9 +144,9 @@ public class UnitsController : ControllerBase
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
         var lineNumber = 0;
 
-        while (!reader.EndOfStream)
+        string? line;
+        while ((line = await reader.ReadLineAsync()) != null)
         {
-            var line = await reader.ReadLineAsync();
             lineNumber++;
 
             // Skip header line

@@ -49,7 +49,7 @@ public class MaintenanceServiceIsolationTests
     }
 
     [Fact]
-    public async Task GetAllAsync_Resident_OnlyReturnsOwnCondominiumAndOwnRequests()
+    public async Task GetAllAsync_Resident_SeesAllRequestsWithinOwnCondominiumButNotOthers()
     {
         var request1 = new MaintenanceRequest { Id = Guid.NewGuid(), Title = "Own Request", CondominiumId = _condominiumA, UnitId = _unitId, CreatedBy = _residentUserId };
         var request2 = new MaintenanceRequest { Id = Guid.NewGuid(), Title = "Other Resident Request", CondominiumId = _condominiumA, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() };
@@ -58,8 +58,23 @@ public class MaintenanceServiceIsolationTests
 
         var result = (await _service.GetAllAsync(_condominiumA, "Resident", _residentUserId, _unitId)).ToList();
 
-        result.Should().HaveCount(1);
-        result[0].Title.Should().Be("Own Request");
+        result.Should().HaveCount(2);
+        result.Should().Contain(r => r.Title == "Own Request");
+        result.Should().Contain(r => r.Title == "Other Resident Request");
+        result.Should().NotContain(r => r.Title == "Other Condo Request");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_Resident_CanViewAnotherResidentsRequestInSameCondominium()
+    {
+        var id = Guid.NewGuid();
+        var request = new MaintenanceRequest { Id = id, Title = "Building lift", CondominiumId = _condominiumA, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() };
+        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(request);
+
+        var result = await _service.GetByIdAsync(id, _condominiumA, "Resident", _residentUserId, _unitId);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Building lift");
     }
 
     [Fact]

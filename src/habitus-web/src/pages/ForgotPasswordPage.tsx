@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Mail, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/services';
+import { Button } from '../components/ui';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -33,13 +34,13 @@ export default function ForgotPasswordPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Habitus</h1>
-          <p className="text-gray-500 mt-1">Recuperar Password</p>
+          <h1 className="text-3xl font-bold text-ink">Habitus</h1>
+          <p className="text-ink-subtle mt-1">Recuperar Password</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Esqueceu a password?</h2>
-          <p className="text-gray-600 text-sm mb-6">
+        <div className="bg-surface rounded-2xl shadow-xl p-8">
+          <h2 className="text-xl font-semibold text-ink mb-2">Esqueceu a password?</h2>
+          <p className="text-ink-muted text-sm mb-6">
             Introduza o seu email e enviaremos um link para redefinir a sua password.
           </p>
 
@@ -57,27 +58,23 @@ export default function ForgotPasswordPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1.5">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                   placeholder="o.seu@email.com"
                 />
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors text-sm"
-            >
+            <Button type="submit" loading={loading} fullWidth>
               {loading ? 'A enviar...' : 'Enviar Link de Recuperação'}
-            </button>
+            </Button>
           </form>
 
           <div className="flex items-center justify-center mt-6">

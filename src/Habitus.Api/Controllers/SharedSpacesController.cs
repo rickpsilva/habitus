@@ -55,20 +55,27 @@ public class SharedSpacesController : ControllerBase
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
-        
-        var spaces = await _repository.FindAsync(s => s.CondominiumId == condominiumId);
-        var dtos = spaces.Select(MapToDto).OrderBy(s => s.Name);
-        
-        if (!string.IsNullOrWhiteSpace(search))
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        var paged = await _repository.GetPagedAsync(
+            page,
+            pageSize,
+            s => s.CondominiumId == condominiumId &&
+                 (searchLower == null ||
+                  s.Name.ToLower().Contains(searchLower) ||
+                  s.Description.ToLower().Contains(searchLower)),
+            s => s.Name,
+            descending: false);
+
+        return Ok(new PaginatedResponse<SharedSpaceDto>
         {
-            var searchLower = search.ToLower();
-            dtos = dtos.Where(s =>
-                s.Name.ToLower().Contains(searchLower) ||
-                (s.Description ?? "").ToLower().Contains(searchLower)
-            ).OrderBy(s => s.Name);
-        }
-        
-        return Ok(PaginationHelper.Paginate(dtos, page, pageSize));
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        });
     }
 
     [HttpGet("{id}")]

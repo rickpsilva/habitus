@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Truck, Mail, Phone, MapPin, Edit2, Trash2 } from 'lucide-react';
 import { suppliersApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,6 +8,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
+import { PageHeader, Button, Segmented, AsyncState, EmptyState } from '../components/ui';
 
 type SupplierForm = CreateSupplierRequest & { isActive: boolean };
 
@@ -168,19 +169,36 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         onCancel={() => setDeleteId(null)}
       />
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Truck className="w-7 h-7 text-indigo-600" />
-              Fornecedores
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Gerir fornecedores de serviços do condomínio
-            </p>
-          </div>
-        )}
-        <div className={`flex items-center gap-3 flex-wrap sm:flex-nowrap ${!embedded ? 'w-full sm:w-auto sm:ml-auto justify-end' : 'w-full justify-between'}`}>
+      {!embedded ? (
+        <PageHeader
+          title="Fornecedores"
+          subtitle="Gerir fornecedores de serviços do condomínio"
+          search={
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Pesquisar fornecedores..."
+            />
+          }
+          actions={
+            isAdmin && (
+              <Button
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(initialSupplierForm);
+                  setShowForm(true);
+                }}
+                icon={Plus}
+                fullWidth
+                className="sm:w-auto"
+              >
+                Novo Fornecedor
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <div className="flex w-full items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
           <div className="w-full sm:w-72">
             <SearchBar
               value={searchQuery}
@@ -189,37 +207,33 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             />
           </div>
           {isAdmin && (
-            <button
+            <Button
               onClick={() => {
                 setEditingId(null);
                 setForm(initialSupplierForm);
                 setShowForm(true);
               }}
-              className="w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              icon={Plus}
+              fullWidth
+              className="sm:w-auto"
             >
-              <Plus className="w-5 h-5" />
               Novo Fornecedor
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Filter */}
-      <div className="flex gap-2">
-        {['all', 'active', 'inactive'].map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setFilterActive(filter)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filterActive === filter
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {filter === 'all' ? 'Todos' : filter === 'active' ? 'Ativos' : 'Inativos'}
-          </button>
-        ))}
-      </div>
+      <Segmented<string>
+        ariaLabel="Filtrar fornecedores por estado"
+        value={filterActive}
+        onChange={setFilterActive}
+        options={[
+          { value: 'all', label: 'Todos' },
+          { value: 'active', label: 'Ativos' },
+          { value: 'inactive', label: 'Inativos' },
+        ]}
+      />
 
       {/* Form Modal */}
       <ModalPopup
@@ -235,7 +249,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Nome *
               </label>
               <input
@@ -243,13 +257,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Nome do fornecedor"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Especialidade *
               </label>
               <input
@@ -257,7 +271,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.specialty}
                 onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Ex: Canalizador, Eletricista..."
               />
             </div>
@@ -267,7 +281,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink-muted mb-1">
                 Telefone *
               </label>
               <input
@@ -275,34 +289,34 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 required
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="+351 XXX XXX XXX"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-muted mb-1">
               Email
             </label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="email@exemplo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-muted mb-1">
               Morada
             </label>
             <textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               placeholder="Morada completa"
             />
           </div>
@@ -314,79 +328,56 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 id="isActive"
                 checked={(form as UpdateSupplierRequest).isActive}
                 onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
               />
-              <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+              <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
                 Fornecedor Ativo
               </label>
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
+          <div className="flex flex-wrap justify-end gap-3 pt-4">
+            <Button
+              variant="secondary"
               onClick={() => {
                 setShowForm(false);
                 setEditingId(null);
                 setForm(initialSupplierForm);
               }}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'A guardar...' : editingId ? 'Guardar' : 'Criar'}
-            </button>
+            </Button>
+            <Button type="submit" loading={submitting}>
+              {editingId ? 'Guardar' : 'Criar'}
+            </Button>
           </div>
         </form>
       </ModalPopup>
 
       {/* Suppliers Grid */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-          <p className="text-gray-500 mt-2">A carregar fornecedores...</p>
-        </div>
-      ) : loadError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {loadError}
-          </span>
-          <button
-            type="button"
-            onClick={() => load(currentPage)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Tentar novamente
-          </button>
-        </div>
-      ) : filteredSuppliers.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Truck className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-500">Sem fornecedores registados</p>
-        </div>
-      ) : (
-        <>
+      <AsyncState
+        loading={loading}
+        error={loadError || null}
+        onRetry={() => load(currentPage)}
+        isEmpty={filteredSuppliers.length === 0}
+        skeleton="card"
+        empty={<EmptyState icon={Truck} title="Sem fornecedores registados" />}
+      >
+        <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSuppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className={`bg-white rounded-xl p-5 shadow-sm border ${
-                  supplier.isActive ? 'border-gray-200' : 'border-gray-300 bg-gray-50'
+                className={`bg-surface rounded-xl p-5 shadow-sm border ${
+                  supplier.isActive ? 'border-line' : 'border-line bg-surface-muted'
                 } hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-ink flex items-center gap-2">
                       {supplier.name}
                       {!supplier.isActive && (
-                        <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                        <span className="text-xs px-2 py-0.5 bg-control text-ink-muted rounded-full">
                           Inativo
                         </span>
                       )}
@@ -415,14 +406,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
                 <div className="space-y-2 text-sm">
                   
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2 text-ink-muted">
                     <Phone className="w-4 h-4 flex-shrink-0" />
                     <a href={`tel:${supplier.phone}`} className="hover:text-indigo-600">
                       {supplier.phone}
                     </a>
                   </div>
                   {supplier.email && (
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-ink-muted">
                       <Mail className="w-4 h-4 flex-shrink-0" />
                       <a href={`mailto:${supplier.email}`} className="hover:text-indigo-600 truncate">
                         {supplier.email}
@@ -430,7 +421,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                     </div>
                   )}
                   {supplier.address && (
-                    <div className="flex items-start gap-2 text-gray-600">
+                    <div className="flex items-start gap-2 text-ink-muted">
                       <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
                       <span className="text-xs leading-relaxed">{supplier.address}</span>
                     </div>
@@ -447,8 +438,8 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
               onPageChange={(page) => load(page)}
             />
           )}
-        </>
-      )}
+        </div>
+      </AsyncState>
     </div>
   );
 }

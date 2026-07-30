@@ -176,8 +176,8 @@ export default function MultipleFileUpload({
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <FileText className="w-4 h-4 text-green-600 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                  <p className="text-xs text-gray-600">{formatFileSize(file.size)}</p>
+                  <p className="text-sm font-medium text-ink truncate">{file.name}</p>
+                  <p className="text-xs text-ink-muted">{formatFileSize(file.size)}</p>
                 </div>
               </div>
               {removeFile && (
@@ -209,7 +209,7 @@ export default function MultipleFileUpload({
             ? 'border-blue-500 bg-blue-50' 
             : error 
               ? 'border-red-300 bg-red-50' 
-              : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+              : 'border-line hover:border-ink-subtle bg-surface-muted'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         `}
@@ -218,11 +218,11 @@ export default function MultipleFileUpload({
           {error ? (
             <AlertCircle className="w-10 h-10 text-red-500" />
           ) : (
-            <Upload className={`w-10 h-10 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+            <Upload className={`w-10 h-10 ${isDragging ? 'text-blue-500' : 'text-ink-subtle'}`} />
           )}
           
           <div>
-            <p className={`text-sm font-medium ${error ? 'text-red-700' : 'text-gray-700'}`}>
+            <p className={`text-sm font-medium ${error ? 'text-red-700' : 'text-ink-muted'}`}>
               {error || (isDragging 
                 ? 'Soltar ficheiros aqui' 
                 : currentFiles.length > 0
@@ -231,7 +231,7 @@ export default function MultipleFileUpload({
               )}
             </p>
             {!error && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-ink-subtle mt-1">
                 Máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)} por ficheiro • {maxFiles} ficheiros no total
               </p>
             )}
