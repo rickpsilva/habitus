@@ -28,7 +28,7 @@ public class MaintenanceService
     {
         var requests = await _repository.GetAllAsync();
         return requests
-            .Where(r => CanUserAccessMaintenance(r, condominiumId, userRole, userId, unitId))
+            .Where(r => CanUserViewMaintenance(r, condominiumId, userRole))
             .Select(MapToDto)
             .OrderByDescending(r => r.CreatedAt);
     }
@@ -45,9 +45,9 @@ public class MaintenanceService
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        // Access rules mirror CanUserAccessMaintenance: only Admin (all requests in the
-        // condominium) or Resident (own requests / own unit) may list. Resolve the role once
-        // so the predicate only references row columns and captured values (translatable to SQL).
+        // Access rules mirror CanUserViewMaintenance: Admin and Resident may list every
+        // request in the condominium (residents get read visibility over building-wide
+        // maintenance). Write access remains gated per-request by CanUserAccessMaintenance.
         var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase);
         var isResident = string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
 
@@ -69,7 +69,6 @@ public class MaintenanceService
             page,
             pageSize,
             r => r.CondominiumId == condominiumId &&
-                 (isAdmin || r.CreatedBy == userId || (unitId.HasValue && r.UnitId == unitId.Value)) &&
                  (searchLower == null ||
                   r.Title.ToLower().Contains(searchLower) ||
                   (r.Description ?? "").ToLower().Contains(searchLower) ||
@@ -91,7 +90,7 @@ public class MaintenanceService
     {
         var request = await _repository.GetByIdAsync(id);
         if (request == null) return null;
-        if (!CanUserAccessMaintenance(request, condominiumId, userRole, userId, unitId)) return null;
+        if (!CanUserViewMaintenance(request, condominiumId, userRole)) return null;
 
         return MapToDto(request);
     }
@@ -330,6 +329,22 @@ public class MaintenanceService
         return IsCompletedStatus(status)
             ? nameof(MaintenanceStatus.Completed)
             : status.ToString();
+    }
+
+    private static bool CanUserViewMaintenance(
+        MaintenanceRequest request,
+        Guid condominiumId,
+        string userRole)
+    {
+        if (!request.CondominiumId.Equals(condominiumId))
+        {
+            return false;
+        }
+
+        // Admins and residents share read visibility over every maintenance request in the
+        // condominium; write operations stay gated by CanUserAccessMaintenance.
+        return string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool CanUserAccessMaintenance(

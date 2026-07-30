@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, PhoneCall, ShieldAlert, Wrench, Building2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { usefulContactsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import SearchBar from '../components/SearchBar';
-import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
-import type { UsefulContactCategory, UsefulContactDto } from '../types';
+import Pagination from '../components/Pagination';
+import { PageHeader, Button, AsyncState, EmptyState, Card, FilterBar, FilterChip } from '../components/ui';
+import type { PaginatedResponse, UsefulContactCategory, UsefulContactDto } from '../types';
 
 type CategoryOption = {
   value: number;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   badgeClass: string;
 };
 
@@ -63,9 +65,12 @@ export default function UsefulContactsPage() {
   const [editingContact, setEditingContact] = useState<UsefulContactDto | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<number | 'all'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [form, setForm] = useState(initialForm);
+  const pageSize = 9;
 
   useEffect(() => {
     if (isManager) {
@@ -101,11 +106,16 @@ export default function UsefulContactsPage() {
   const filteredContacts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    if (!query) {
-      return contacts;
-    }
-
     return contacts.filter((contact) => {
+      const matchesCategory = categoryFilter === 'all' || normalizeCategory(contact.category) === categoryFilter;
+      if (!matchesCategory) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
       const category = categoryMeta(contact.category).label.toLowerCase();
       return (
         contact.name.toLowerCase().includes(query) ||
@@ -113,7 +123,41 @@ export default function UsefulContactsPage() {
         category.includes(query)
       );
     });
-  }, [contacts, searchQuery]);
+  }, [contacts, searchQuery, categoryFilter]);
+
+  const categoryCounts = useMemo(
+    () =>
+      contacts.reduce<Record<number, number>>((acc, contact) => {
+        const value = normalizeCategory(contact.category);
+        acc[value] = (acc[value] ?? 0) + 1;
+        return acc;
+      }, {}),
+    [contacts],
+  );
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryFilter = (category: number | 'all') => {
+    setCategoryFilter(category);
+    setCurrentPage(1);
+  };
+
+  const totalItems = filteredContacts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedContacts = filteredContacts.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination: PaginatedResponse<UsefulContactDto> = {
+    items: paginatedContacts,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   const openCreateModal = () => {
     setEditingContact(null);
@@ -321,7 +365,7 @@ export default function UsefulContactsPage() {
         search={
           <SearchBar
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={handleSearch}
             placeholder="Pesquisar por nome, telefone ou categoria..."
           />
         }
@@ -333,6 +377,25 @@ export default function UsefulContactsPage() {
           )
         }
       />
+
+      <FilterBar>
+        <FilterChip
+          label="Todos"
+          active={categoryFilter === 'all'}
+          count={contacts.length}
+          onClick={() => handleCategoryFilter('all')}
+        />
+        {categoryOptions.map((option) => (
+          <FilterChip
+            key={option.value}
+            label={option.label}
+            icon={option.icon}
+            active={categoryFilter === option.value}
+            count={categoryCounts[option.value] ?? 0}
+            onClick={() => handleCategoryFilter(option.value)}
+          />
+        ))}
+      </FilterBar>
 
       <AsyncState
         loading={loading}
@@ -353,7 +416,7 @@ export default function UsefulContactsPage() {
         }
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredContacts.map((contact) => {
+          {paginatedContacts.map((contact) => {
             const meta = categoryMeta(contact.category);
             const Icon = meta.icon;
 
@@ -417,6 +480,11 @@ export default function UsefulContactsPage() {
             );
           })}
         </div>
+        {filteredContacts.length > 0 && (
+          <div className="mt-4">
+            <Pagination pagination={pagination} currentPage={safeCurrentPage} onPageChange={setCurrentPage} />
+          </div>
+        )}
       </AsyncState>
     </div>
   );

@@ -211,8 +211,8 @@ export const financialApi = {
   getDashboard: (condominiumId: string, fiscalYear?: number) =>
     api.get<FinancialDashboardDto>(`/condominiums/${condominiumId}/financial/dashboard${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
   getFiscalYears: (condominiumId: string) => api.get<number[]>(`/condominiums/${condominiumId}/financial/fiscal-years`),
-  getByYear: (condominiumId: string, fiscalYear: number, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/by-year?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getByYear: (condominiumId: string, fiscalYear: number, page: number = 1, pageSize: number = 10, search?: string, type?: string) =>
+    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/by-year?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${type ? `&type=${encodeURIComponent(type)}` : ''}`),
   create: (condominiumId: string, data: CreateFinancialRecordRequest) => api.post<FinancialRecordDto>(`/condominiums/${condominiumId}/financial`, data),
   delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/financial/${id}`),
   

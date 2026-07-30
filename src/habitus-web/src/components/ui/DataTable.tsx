@@ -44,6 +44,10 @@ export interface DataTableProps<T> {
   footer?: ReactNode;
   /** Optional totals card rendered after the stacked cards on mobile. */
   mobileFooter?: ReactNode;
+  /** Keep the header row visible while the body scrolls vertically. Defaults to true. */
+  stickyHeader?: boolean;
+  /** Alternate row background for easier row scanning. Defaults to false. */
+  zebra?: boolean;
   className?: string;
 }
 
@@ -90,6 +94,8 @@ export default function DataTable<T>({
   onSort,
   footer,
   mobileFooter,
+  stickyHeader = true,
+  zebra = false,
   className,
 }: DataTableProps<T>) {
   const empty = emptyState ?? <EmptyState title="Sem resultados" />;
@@ -100,7 +106,7 @@ export default function DataTable<T>({
       {/* Desktop / tablet: real table */}
       <div className="hidden sm:block bg-surface rounded-xl border border-line overflow-x-auto app-scrollbar">
         <table className="w-full text-sm">
-          <thead className="bg-surface-muted border-b border-line">
+          <thead className={cn('bg-surface-muted border-b border-line', stickyHeader && 'sticky top-0 z-10')}>
             <tr>
               {columns.map((col) => {
                 const key = col.sortKey ?? col.key;
@@ -156,8 +162,9 @@ export default function DataTable<T>({
                   key={rowKey(row)}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
-                    'border-b border-line last:border-0',
-                    onRowClick && 'cursor-pointer hover:bg-surface-muted',
+                    'border-b border-line last:border-0 transition-colors hover:bg-surface-muted',
+                    zebra && 'even:bg-surface-muted/40',
+                    onRowClick && 'cursor-pointer',
                   )}
                 >
                   {columns.map((col) => (

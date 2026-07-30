@@ -23,6 +23,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
+import Pagination from '../components/Pagination';
 import { PageHeader, Button, AsyncState, EmptyState, Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import {
@@ -38,6 +39,7 @@ import type {
   CreateAnnouncementRequest,
   UpdateAnnouncementRequest,
   CreateAnnouncementCommentRequest,
+  PaginatedResponse,
 } from '../types';
 
 const categoryLabels: Record<string, string> = {
@@ -185,6 +187,22 @@ export default function AnnouncementsPage() {
     () => [...filteredAnnouncements].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [filteredAnnouncements]
   );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalItems = sortedAnnouncements.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAnnouncements = sortedAnnouncements.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination: PaginatedResponse<AnnouncementDto> = {
+    items: paginatedAnnouncements,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   const loadData = useCallback(async () => {
     if (!condominiumId) {
@@ -627,7 +645,7 @@ export default function AnnouncementsPage() {
         empty={<EmptyState icon={Megaphone} title="Sem comunicados ainda" />}
       >
         <div className="space-y-3">
-          {sortedAnnouncements.map((a) => (
+          {paginatedAnnouncements.map((a) => (
             <div key={a.id} className="bg-surface border border-line rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -695,6 +713,11 @@ export default function AnnouncementsPage() {
             </div>
           ))}
         </div>
+        {sortedAnnouncements.length > 0 && (
+          <div className="mt-4">
+            <Pagination pagination={pagination} currentPage={safeCurrentPage} onPageChange={setCurrentPage} />
+          </div>
+        )}
       </AsyncState>
 
       <ModalPopup

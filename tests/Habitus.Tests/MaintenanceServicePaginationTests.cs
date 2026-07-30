@@ -62,7 +62,7 @@ public class MaintenanceServicePaginationTests
     }
 
     [Fact]
-    public async Task GetPagedAsync_Resident_SeesOwnRequestsOrOwnUnitOnly()
+    public async Task GetPagedAsync_Resident_SeesAllRequestsWithinCondominium()
     {
         var condo = Guid.NewGuid();
         var userId = Guid.NewGuid();
@@ -75,7 +75,7 @@ public class MaintenanceServicePaginationTests
         var predicate = captured!.Compile();
         predicate(Request(condo, userId, Guid.NewGuid())).Should().BeTrue();          // own request
         predicate(Request(condo, Guid.NewGuid(), unitId)).Should().BeTrue();          // request on own unit
-        predicate(Request(condo, Guid.NewGuid(), Guid.NewGuid())).Should().BeFalse(); // foreign request/unit
+        predicate(Request(condo, Guid.NewGuid(), Guid.NewGuid())).Should().BeTrue();  // another resident's request in same condo
         predicate(Request(Guid.NewGuid(), userId, unitId)).Should().BeFalse();        // other condominium
     }
 

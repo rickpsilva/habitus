@@ -8,7 +8,7 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Button, Skeleton, ErrorState, DataTable, Card } from '../components/ui';
+import { PageHeader, Button, Skeleton, ErrorState, DataTable, Card, FilterBar, FilterChip } from '../components/ui';
 import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -90,6 +90,7 @@ export default function FinancialPage() {
   const [pagination, setPagination] = useState<PaginatedResponse<FinancialRecordDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
   const pageSize = 10;
 
   useEffect(() => {
@@ -159,7 +160,7 @@ export default function FinancialPage() {
     if (!condominiumId) return;
     setRecordsLoadError('');
 
-    financialApi.getByYear(condominiumId, selectedYear, page, pageSize, debouncedSearch)
+    financialApi.getByYear(condominiumId, selectedYear, page, pageSize, debouncedSearch, typeFilter === 'All' ? undefined : typeFilter)
       .then((r) => {
         setPagination(r.data);
         setRecords(r.data.items);
@@ -169,7 +170,7 @@ export default function FinancialPage() {
         console.error('Erro ao carregar registos:', error);
         setRecordsLoadError('Não foi possível carregar os registos financeiros.');
       });
-  }, [condominiumId, selectedYear, pageSize, debouncedSearch]);
+  }, [condominiumId, selectedYear, pageSize, debouncedSearch, typeFilter]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -750,14 +751,21 @@ export default function FinancialPage() {
 
           {/* Records List */}
           <Card className="overflow-hidden">
-            <div className="px-5 py-4 border-b border-line flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-line flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold text-ink">Registos de {selectedYear}</h2>
-              <div className="w-64">
-                <SearchBar
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Pesquisar..."
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                <FilterBar>
+                  <FilterChip label="Todos" active={typeFilter === 'All'} onClick={() => setTypeFilter('All')} />
+                  <FilterChip label="Receitas" icon={TrendingUp} active={typeFilter === 'Income'} onClick={() => setTypeFilter('Income')} />
+                  <FilterChip label="Despesas" icon={TrendingDown} active={typeFilter === 'Expense'} onClick={() => setTypeFilter('Expense')} />
+                </FilterBar>
+                <div className="w-64">
+                  <SearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Pesquisar..."
+                  />
+                </div>
               </div>
             </div>
             {recordsLoadError && (
@@ -808,7 +816,7 @@ export default function FinancialPage() {
                     </div>
                   ))}
                 </div>
-                {pagination && pagination.totalPages > 1 && (
+                {pagination && records.length > 0 && (
                   <div className="p-4 border-t border-line">
                     <Pagination
                       pagination={pagination}

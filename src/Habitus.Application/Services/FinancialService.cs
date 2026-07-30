@@ -186,12 +186,19 @@ public class FinancialService
         int fiscalYear, 
         int page, 
         int pageSize, 
-        string? search = null)
+        string? search = null,
+        string? type = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
         var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        FinancialType? typeFilter = null;
+        if (!string.IsNullOrWhiteSpace(type) && Enum.TryParse<FinancialType>(type, ignoreCase: true, out var parsedType))
+        {
+            typeFilter = parsedType;
+        }
 
         var matchingCategories = searchLower is null
             ? Array.Empty<FinancialCategory>()
@@ -204,6 +211,7 @@ public class FinancialService
             pageSize,
             r => r.CondominiumId == condominiumId &&
                  r.FiscalYear == fiscalYear &&
+                 (typeFilter == null || r.Type == typeFilter.Value) &&
                  (searchLower == null ||
                   r.Description.ToLower().Contains(searchLower) ||
                   matchingCategories.Contains(r.Category)),

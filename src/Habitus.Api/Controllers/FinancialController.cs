@@ -125,14 +125,15 @@ public class FinancialController : ControllerBase
         [FromQuery] int fiscalYear, 
         [FromQuery] int page = 1, 
         [FromQuery] int pageSize = 10, 
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? type = null)
     {
         if (!HasCondominiumAccess(condominiumId))
             return Forbid();
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
-        return Ok(await _service.GetPagedByYearAsync(condominiumId, fiscalYear, page, pageSize, search));
+        return Ok(await _service.GetPagedByYearAsync(condominiumId, fiscalYear, page, pageSize, search, type));
     }
 
     // Reserve Fund endpoints

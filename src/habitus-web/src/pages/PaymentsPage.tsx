@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download, RefreshCw, CreditCard } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
+import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
 import type { PaymentDto, CreatePaymentRequest, PaymentMethodsDto } from '../types';
-import { PageHeader, Button, Skeleton, EmptyState, ErrorState } from '../components/ui';
+import { PageHeader, Button, Skeleton, EmptyState, ErrorState, FilterBar, FilterChip } from '../components/ui';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -43,6 +45,10 @@ export default function PaymentsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
   const [cancelPaymentId, setCancelPaymentId] = useState<string | null>(null);
@@ -121,6 +127,57 @@ export default function PaymentsPage() {
       mounted = false;
     };
   }, []);
+
+  const typeNames: Record<string, string> = {
+    MonthlyFee: 'Quotas',
+    ExtraordinaryFee: 'Quota Extraordinária',
+    Reservation: 'Reservas',
+    Other: 'Outros',
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: payments.length, Pending: 0, Approved: 0, Rejected: 0, Cancelled: 0 };
+    for (const p of payments) {
+      if (counts[p.status] !== undefined) counts[p.status] += 1;
+    }
+    return counts;
+  }, [payments]);
+
+  const filteredPayments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return payments.filter((p) => {
+      const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+      if (!matchesStatus) return false;
+      if (!query) return true;
+      const typeLabel = (typeNames[p.type] || p.type).toLowerCase();
+      return typeLabel.includes(query) || (p.description ?? '').toLowerCase().includes(query);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payments, searchQuery, statusFilter]);
+
+  const handleStatusFilter = (status: typeof statusFilter) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const totalItems = filteredPayments.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedPayments = filteredPayments.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const pagination = {
+    items: paginatedPayments,
+    page: safeCurrentPage,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasPreviousPage: safeCurrentPage > 1,
+    hasNextPage: safeCurrentPage < totalPages,
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,11 +400,29 @@ export default function PaymentsPage() {
 
       {/* Payments List */}
       <div className="bg-surface rounded-lg shadow">
-        <div className="p-4 border-b border-line flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink">Histórico de Pagamentos</h2>
-          <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => loadPayments()}>
-            Atualizar
-          </Button>
+        <div className="p-4 border-b border-line flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ink">Histórico de Pagamentos</h2>
+            <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => loadPayments()}>
+              Atualizar
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <FilterBar>
+              <FilterChip label="Todos" count={statusCounts.All} active={statusFilter === 'All'} onClick={() => handleStatusFilter('All')} />
+              <FilterChip label="Pendente" icon={Clock} count={statusCounts.Pending} active={statusFilter === 'Pending'} onClick={() => handleStatusFilter('Pending')} />
+              <FilterChip label="Aprovado" icon={CheckCircle} count={statusCounts.Approved} active={statusFilter === 'Approved'} onClick={() => handleStatusFilter('Approved')} />
+              <FilterChip label="Rejeitado" icon={XCircle} count={statusCounts.Rejected} active={statusFilter === 'Rejected'} onClick={() => handleStatusFilter('Rejected')} />
+              <FilterChip label="Cancelado" icon={XCircle} count={statusCounts.Cancelled} active={statusFilter === 'Cancelled'} onClick={() => handleStatusFilter('Cancelled')} />
+            </FilterBar>
+            <div className="lg:w-64">
+              <SearchBar
+                value={searchQuery}
+                onChange={handleSearch}
+                placeholder="Pesquisar..."
+              />
+            </div>
+          </div>
         </div>
         {!loading && loadError && (
           <div className="mx-4 mt-4">
@@ -361,8 +436,14 @@ export default function PaymentsPage() {
               title="Nenhum pagamento registado"
               description='Clique em "Novo Pagamento" para submeter o seu primeiro pagamento.'
             />
+          ) : !loadError && filteredPayments.length === 0 ? (
+            <EmptyState
+              icon={CreditCard}
+              title="Sem resultados"
+              description="Nenhum pagamento corresponde aos filtros aplicados."
+            />
           ) : !loadError ? (
-            payments.map((payment) => (
+            paginatedPayments.map((payment) => (
               <div
                 key={payment.id}
                 className="p-4 hover:bg-surface-hover cursor-pointer"
@@ -401,6 +482,15 @@ export default function PaymentsPage() {
             ))
           ) : null}
         </div>
+        {!loadError && !loading && filteredPayments.length > 0 && (
+          <div className="p-4 border-t border-line">
+            <Pagination
+              pagination={pagination}
+              currentPage={safeCurrentPage}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       {/* Create Payment Modal */}
