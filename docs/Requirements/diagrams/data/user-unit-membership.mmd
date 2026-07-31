@@ -1,0 +1,35 @@
+erDiagram
+  USER ||--o{ UNIT_MEMBERSHIP : "owns/occupies"
+  UNIT ||--o{ UNIT_MEMBERSHIP : "assigned via"
+  CONDOMINIUM ||--o{ UNIT : contains
+  CONDOMINIUM ||--o{ USER_CONDOMINIUM : "grants access"
+  USER ||--o{ USER_CONDOMINIUM : "member of"
+
+  USER {
+    guid Id
+    string Name
+    UserRole Role
+    guid ActiveCondominiumId "current context (nullable)"
+    guid ActiveUnitId "current context (nullable)"
+  }
+  UNIT_MEMBERSHIP {
+    guid Id
+    guid UserId
+    guid UnitId
+    guid CondominiumId "denormalized for scoped queries"
+    bool IsPrimary "default fraction"
+    datetime CreatedAt
+  }
+  UNIT {
+    guid Id
+    guid CondominiumId
+    string Number
+  }
+  CONDOMINIUM {
+    guid Id
+    string Name
+  }
+  USER_CONDOMINIUM {
+    guid UserId
+    guid CondominiumId
+  }

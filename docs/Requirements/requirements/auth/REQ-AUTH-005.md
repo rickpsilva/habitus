@@ -14,16 +14,24 @@ relatedRequirements:
   - REQ-SEC-002
   - REQ-SEC-003
   - REQ-SEC-004
+  - REQ-SEC-005
+  - REQ-SEC-006
+  - REQ-AUTH-006
 designRefs:
   - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
   - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/first-login-rgpd-acceptance.mmd
 implementationRefs:
   - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/AuthController.cs
   - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/UserRegistrationController.cs
+  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/MeController.cs
+  - /home/rick/workspace/habitus/src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs
+  - /home/rick/workspace/habitus/src/Habitus.Application/Services/ConsentService.cs
   - /home/rick/workspace/habitus/src/habitus-web/src/App.tsx
   - /home/rick/workspace/habitus/src/habitus-web/src/pages/ProfilePage.tsx
 testRefs:
   - /home/rick/workspace/habitus/tests/Habitus.Tests/AuthServiceTests.cs
+  - /home/rick/workspace/habitus/tests/Habitus.Tests/ConsentServiceTests.cs
+  - /home/rick/workspace/habitus/tests/Habitus.Api.IntegrationTests/ConsentGateIntegrationTests.cs
 ---
 
 # REQ-AUTH-005

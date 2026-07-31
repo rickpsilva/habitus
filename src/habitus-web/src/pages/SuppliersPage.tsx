@@ -9,6 +9,7 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { SupplierDto, CreateSupplierRequest, UpdateSupplierRequest, PaginatedResponse } from '../types';
 import { PageHeader, Button, Segmented, AsyncState, EmptyState } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 
 type SupplierForm = CreateSupplierRequest & { isActive: boolean };
 
@@ -23,6 +24,7 @@ const initialSupplierForm: SupplierForm = {
 };
 
 export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
+  const { t } = useTranslation();
   const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
@@ -53,7 +55,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         setPagination(null);
         setSuppliers([]);
         setCurrentPage(page);
-        setLoadError('Condomínio não identificado.');
+        setLoadError(t('suppliers.error.noCondominium'));
         return;
       }
 
@@ -63,11 +65,11 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar fornecedores:', error);
-      setLoadError('Não foi possível carregar os fornecedores.');
+      setLoadError(t('suppliers.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, debouncedSearch]);
+  }, [condominiumId, debouncedSearch, t]);
 
   useEffect(() => { load(1); }, [load]);
 
@@ -75,7 +77,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     e.preventDefault();
     
     if (!condominiumId) {
-      toastError('Dados de utilizador incompletos. Por favor, recarregue a página.');
+      toastError(t('suppliers.error.incompleteUser'));
       return;
     }
     
@@ -109,7 +111,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       load();
     } catch (error) {
       console.error('Erro ao guardar fornecedor:', error);
-      toastError('Erro ao guardar fornecedor. Tente novamente.');
+      toastError(t('suppliers.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -137,7 +139,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     if (!deleteId) return;
     try {
       if (!condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('suppliers.error.noCondominium'));
         return;
       }
 
@@ -145,7 +147,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       load();
     } catch (error) {
       console.error('Erro ao eliminar fornecedor:', error);
-      toastError('Erro ao eliminar fornecedor. Tente novamente.');
+      toastError(t('suppliers.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -161,9 +163,9 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     <div className="space-y-6">
       <ConfirmModal
         open={deleteId !== null}
-        title="Eliminar fornecedor"
-        message="Tem a certeza que deseja eliminar este fornecedor? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('suppliers.delete.title')}
+        message={t('suppliers.delete.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
@@ -171,13 +173,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
       {/* Header */}
       {!embedded ? (
         <PageHeader
-          title="Fornecedores"
-          subtitle="Gerir fornecedores de serviços do condomínio"
+          title={t('suppliers.title')}
+          subtitle={t('suppliers.subtitle')}
           search={
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Pesquisar fornecedores..."
+              placeholder={t('suppliers.searchPlaceholder')}
             />
           }
           actions={
@@ -192,7 +194,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 fullWidth
                 className="sm:w-auto"
               >
-                Novo Fornecedor
+                {t('suppliers.new')}
               </Button>
             )
           }
@@ -203,7 +205,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Pesquisar fornecedores..."
+              placeholder={t('suppliers.searchPlaceholder')}
             />
           </div>
           {isAdmin && (
@@ -217,7 +219,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
               fullWidth
               className="sm:w-auto"
             >
-              Novo Fornecedor
+              {t('suppliers.new')}
             </Button>
           )}
         </div>
@@ -225,13 +227,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
       {/* Filter */}
       <Segmented<string>
-        ariaLabel="Filtrar fornecedores por estado"
+        ariaLabel={t('suppliers.filterAriaLabel')}
         value={filterActive}
         onChange={setFilterActive}
         options={[
-          { value: 'all', label: 'Todos' },
-          { value: 'active', label: 'Ativos' },
-          { value: 'inactive', label: 'Inativos' },
+          { value: 'all', label: t('suppliers.filter.all') },
+          { value: 'active', label: t('suppliers.filter.active') },
+          { value: 'inactive', label: t('suppliers.filter.inactive') },
         ]}
       />
 
@@ -243,14 +245,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
           setEditingId(null);
           setForm(initialSupplierForm);
         }}
-        title={editingId ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+        title={editingId ? t('suppliers.form.editTitle') : t('suppliers.new')}
         maxWidthClass="max-w-2xl"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Nome *
+                {t('suppliers.form.name')}
               </label>
               <input
                 type="text"
@@ -258,13 +260,13 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Nome do fornecedor"
+                placeholder={t('suppliers.form.namePlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Especialidade *
+                {t('suppliers.form.specialty')}
               </label>
               <input
                 type="text"
@@ -272,7 +274,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 value={form.specialty}
                 onChange={(e) => setForm({ ...form, specialty: e.target.value })}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ex: Canalizador, Eletricista..."
+                placeholder={t('suppliers.form.specialtyPlaceholder')}
               />
             </div>
           </div>
@@ -282,7 +284,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Telefone *
+                {t('suppliers.form.phone')}
               </label>
               <input
                 type="tel"
@@ -297,7 +299,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
           <div>
             <label className="block text-sm font-medium text-ink-muted mb-1">
-              Email
+              {t('common.email')}
             </label>
             <input
               type="email"
@@ -310,14 +312,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
           <div>
             <label className="block text-sm font-medium text-ink-muted mb-1">
-              Morada
+              {t('suppliers.form.address')}
             </label>
             <textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               rows={2}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-              placeholder="Morada completa"
+              placeholder={t('suppliers.form.addressPlaceholder')}
             />
           </div>
 
@@ -331,7 +333,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
               />
               <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
-                Fornecedor Ativo
+                {t('suppliers.form.activeLabel')}
               </label>
             </div>
           )}
@@ -345,10 +347,10 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 setForm(initialSupplierForm);
               }}
             >
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" loading={submitting}>
-              {editingId ? 'Guardar' : 'Criar'}
+              {editingId ? t('suppliers.form.save') : t('suppliers.form.create')}
             </Button>
           </div>
         </form>
@@ -361,7 +363,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
         onRetry={() => load(currentPage)}
         isEmpty={filteredSuppliers.length === 0}
         skeleton="card"
-        empty={<EmptyState icon={Truck} title="Sem fornecedores registados" />}
+        empty={<EmptyState icon={Truck} title={t('suppliers.empty')} />}
       >
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -378,7 +380,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                       {supplier.name}
                       {!supplier.isActive && (
                         <span className="text-xs px-2 py-0.5 bg-control text-ink-muted rounded-full">
-                          Inativo
+                          {t('common.inactive')}
                         </span>
                       )}
                     </h3>
@@ -389,14 +391,14 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                       <button
                         onClick={() => handleEdit(supplier)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
+                        title={t('common.edit')}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(supplier.id)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

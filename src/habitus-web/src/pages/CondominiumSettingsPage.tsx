@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server, Languages
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import ModalPopup from '../components/ModalPopup';
 import { PageHeader, Spinner, ErrorState, Button, Card } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi } from '../api/services';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi, platformLocalizationApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
@@ -20,6 +22,7 @@ import type {
   UpdatePlatformUploadSettingsRequest,
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
+  PlatformLocalizationSettingsDto,
 } from '../types';
 import { formatUploadSizeLabel, invalidatePlatformUploadSizeCache } from '../utils/uploadLimits';
 import SharedSpacesPage from './SharedSpacesPage';
@@ -37,7 +40,7 @@ const templateToEditorHtml = (value: string) => {
   return isHtmlTemplate(trimmed) ? trimmed : (marked.parse(trimmed) as string);
 };
 
-type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email' | 'localization';
 
 interface Tab {
   key: TabKey;
@@ -45,26 +48,28 @@ interface Tab {
   icon: LucideIcon;
 }
 
-const adminTabs: Tab[] = [
-  { key: 'general', label: 'Geral', icon: Home },
-  { key: 'spaces', label: 'Espaços Comuns', icon: Warehouse },
-  { key: 'suppliers', label: 'Fornecedores', icon: Truck },
-  { key: 'units', label: 'Frações', icon: Home },
-  { key: 'receipts', label: 'Template Recibos', icon: FileText },
-  { key: 'payments', label: 'Métodos de Pagamento', icon: CreditCard },
-  { key: 'communication', label: 'Canais de Comunicação', icon: Mail },
+const getAdminTabs = (t: TranslateFn): Tab[] => [
+  { key: 'general', label: t('condoSettings.tab.general'), icon: Home },
+  { key: 'spaces', label: t('condoSettings.tab.spaces'), icon: Warehouse },
+  { key: 'suppliers', label: t('condoSettings.tab.suppliers'), icon: Truck },
+  { key: 'units', label: t('condoSettings.tab.units'), icon: Home },
+  { key: 'receipts', label: t('condoSettings.tab.receipts'), icon: FileText },
+  { key: 'payments', label: t('condoSettings.tab.payments'), icon: CreditCard },
+  { key: 'communication', label: t('condoSettings.tab.communication'), icon: Mail },
 ];
 
-const managerTabs: Tab[] = [
-  { key: 'platform-billing', label: 'Gateway de Pagamento', icon: KeyRound },
-  { key: 'platform-upload', label: 'Limites de Upload', icon: FileText },
-  { key: 'system-email', label: 'Email de Sistema', icon: Server },
+const getManagerTabs = (t: TranslateFn): Tab[] => [
+  { key: 'platform-billing', label: t('condoSettings.tab.platformBilling'), icon: KeyRound },
+  { key: 'platform-upload', label: t('condoSettings.tab.platformUpload'), icon: FileText },
+  { key: 'system-email', label: t('condoSettings.tab.systemEmail'), icon: Server },
+  { key: 'localization', label: t('localization.tab'), icon: Languages },
 ];
 
 export default function CondominiumSettingsPage() {
   const { isAdmin, isManager } = useAuth();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const visibleTabs = isManager ? managerTabs : adminTabs;
+  const visibleTabs = isManager ? getManagerTabs(t) : getAdminTabs(t);
 
   const tabParam = searchParams.get('tab') as TabKey | null;
   const activeTab = tabParam && visibleTabs.some((tab) => tab.key === tabParam)
@@ -78,7 +83,7 @@ export default function CondominiumSettingsPage() {
   if (!isAdmin && !isManager) {
     return (
       <div className="text-center py-12">
-        <p className="text-ink-subtle">Acesso apenas para gestão</p>
+        <p className="text-ink-subtle">{t('condoSettings.accessManagementOnly')}</p>
       </div>
     );
   }
@@ -86,8 +91,8 @@ export default function CondominiumSettingsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={isManager ? 'Configurações da Plataforma' : 'Configuração do Condomínio'}
-        subtitle={isManager ? 'Gerir configurações globais da plataforma' : 'Gerir todas as configurações do condomínio'}
+        title={isManager ? t('condoSettings.platformTitle') : t('condoSettings.condoTitle')}
+        subtitle={isManager ? t('condoSettings.platformSubtitle') : t('condoSettings.condoSubtitle')}
       />
 
       {/* Tabs */}
@@ -104,7 +109,7 @@ export default function CondominiumSettingsPage() {
               }`}
             >
               <Icon className="w-4 h-4" />
-              {label}
+              {key === 'localization' ? t('localization.tab') : label}
             </button>
           ))}
         </div>
@@ -121,6 +126,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'platform-billing' && <PlatformBillingContent />}
           {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
+          {activeTab === 'localization' && <LocalizationContent />}
         </div>
       </Card>
     </div>
@@ -130,6 +136,7 @@ export default function CondominiumSettingsPage() {
 function GeneralCondominiumContent() {
   const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const [condominiumData, setCondominiumData] = useState<{ name: string; address: string; taxId: string; isActive: boolean } | null>(null);
   const [email, setEmail] = useState('');
   const [postalCode, setPostalCode] = useState('');
@@ -160,15 +167,15 @@ function GeneralCondominiumContent() {
         });
       } catch (error) {
         console.error('Error loading condominium data:', error);
-        setLoadError('Não foi possível carregar os dados do condomínio.');
-        toastError('Erro ao carregar dados do condomínio.');
+        setLoadError(t('condoSettings.general.errorLoad'));
+        toastError(t('condoSettings.general.errorLoadToast'));
       } finally {
         setLoading(false);
       }
     };
 
     loadCondominium();
-  }, [condominiumId, toastError]);
+  }, [condominiumId, toastError, t]);
 
   const handleSave = async () => {
     if (!condominiumId || !condominiumData) return;
@@ -191,17 +198,17 @@ function GeneralCondominiumContent() {
           isActive: condominiumData.isActive,
         });
       }
-      toastSuccess('Dados do condomínio guardados com sucesso!');
+      toastSuccess(t('condoSettings.general.saveSuccess'));
     } catch (error) {
       console.error('Error saving condominium data:', error);
-      toastError('Erro ao guardar dados do condomínio.');
+      toastError(t('condoSettings.general.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -211,14 +218,14 @@ function GeneralCondominiumContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Dados Gerais</h3>
-        <p className="text-sm text-ink-subtle">Gerir contactos e localização usados nos recibos e nas informações do condomínio</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.general.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.general.subtitle')}</p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
         <div className="border border-line rounded-lg p-5 bg-surface space-y-4">
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Condomínio</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.condominium')}</label>
             <input
               type="text"
               value={condominiumName}
@@ -227,7 +234,7 @@ function GeneralCondominiumContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Morada</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.address')}</label>
             <textarea
               value={condominiumData?.address || ''}
               disabled
@@ -236,7 +243,7 @@ function GeneralCondominiumContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">NIPC</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.taxId')}</label>
             <input
               type="text"
               value={condominiumData?.taxId || ''}
@@ -246,7 +253,7 @@ function GeneralCondominiumContent() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.postalCode')}</label>
               <input
                 type="text"
                 value={postalCode}
@@ -257,7 +264,7 @@ function GeneralCondominiumContent() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Localidade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.locality')}</label>
               <input
                 type="text"
                 value={locality}
@@ -270,7 +277,7 @@ function GeneralCondominiumContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Email do Condomínio</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.condoEmail')}</label>
             <input
               type="email"
               value={email}
@@ -278,11 +285,11 @@ function GeneralCondominiumContent() {
               placeholder="geral@condominio.pt"
               className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <p className="text-xs text-ink-subtle mt-1">Este email aparece no perfil dos utilizadores e é usado como contacto do condomínio.</p>
+            <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.general.emailHint')}</p>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Telefone de Contacto</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.general.contactPhone')}</label>
             <input
               type="tel"
               value={contactPhone}
@@ -295,7 +302,7 @@ function GeneralCondominiumContent() {
 
         <div className="flex gap-3 pt-2">
           <Button icon={Save} onClick={handleSave} loading={saving}>
-            Guardar Dados
+            {t('condoSettings.general.saveButton')}
           </Button>
         </div>
       </div>
@@ -305,6 +312,7 @@ function GeneralCondominiumContent() {
 
 function PlatformBillingContent() {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<PlatformBillingSettingsDto | null>(null);
   const [form, setForm] = useState<UpdatePlatformBillingSettingsRequest>({
     gatewayEnabled: false,
@@ -335,15 +343,15 @@ function PlatformBillingContent() {
         });
       } catch (error) {
         console.error('Error loading platform billing settings:', error);
-        setLoadError('Não foi possível carregar as configurações do gateway.');
-        toastError('Erro ao carregar configurações do gateway.');
+        setLoadError(t('condoSettings.billing.errorLoad'));
+        toastError(t('condoSettings.billing.errorLoadToast'));
       } finally {
         setLoading(false);
       }
     };
 
     loadSettings();
-  }, [toastError]);
+  }, [toastError, t]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -351,17 +359,17 @@ function PlatformBillingContent() {
       const response = await platformBillingSettingsApi.update(form);
       setSettings(response.data);
       setForm((prev) => ({ ...prev, secretKey: '', webhookSecret: '' }));
-      toastSuccess('Configurações do gateway guardadas com sucesso!');
+      toastSuccess(t('condoSettings.billing.saveSuccess'));
     } catch (error) {
       console.error('Error saving platform billing settings:', error);
-      toastError('Erro ao guardar configurações do gateway.');
+      toastError(t('condoSettings.billing.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -371,8 +379,8 @@ function PlatformBillingContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Gateway de Pagamento</h3>
-        <p className="text-sm text-ink-subtle">Configure o provider e as credenciais do checkout global da plataforma</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.billing.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.billing.subtitle')}</p>
       </div>
 
       <div className="space-y-4 max-w-3xl">
@@ -381,12 +389,12 @@ function PlatformBillingContent() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-ink">Checkout da Plataforma</p>
+                  <p className="font-medium text-ink">{t('condoSettings.billing.checkoutName')}</p>
                   {form.gatewayEnabled && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Usado no pagamento online das faturas de subscrição</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.billing.checkoutDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -402,9 +410,9 @@ function PlatformBillingContent() {
 
           <div className="px-4 pb-4 bg-surface-muted border-t border-line space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-              <p className="text-xs text-blue-900 font-medium mb-1">Configuração global</p>
+              <p className="text-xs text-blue-900 font-medium mb-1">{t('condoSettings.billing.globalConfigTitle')}</p>
               <p className="text-xs text-blue-700">
-                Estas credenciais pertencem à plataforma Habitus e não às definições individuais de cada condomínio.
+                {t('condoSettings.billing.globalConfigDesc')}
               </p>
             </div>
 
@@ -447,7 +455,7 @@ function PlatformBillingContent() {
                 type="password"
                 value={form.secretKey || ''}
                 onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-                placeholder={settings?.hasSecretKey ? 'Já configurada. Preencha para substituir.' : 'sk_live_...'}
+                placeholder={settings?.hasSecretKey ? t('condoSettings.billing.secretConfiguredPlaceholder') : 'sk_live_...'}
                 className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -458,7 +466,7 @@ function PlatformBillingContent() {
                 type="password"
                 value={form.webhookSecret || ''}
                 onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
-                placeholder={settings?.hasWebhookSecret ? 'Já configurado. Preencha para substituir.' : 'whsec_...'}
+                placeholder={settings?.hasWebhookSecret ? t('condoSettings.billing.webhookConfiguredPlaceholder') : 'whsec_...'}
                 className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -466,11 +474,11 @@ function PlatformBillingContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
                 <p className="text-ink-subtle">Secret Key</p>
-                <p className="font-medium text-ink">{settings?.hasSecretKey ? 'Configurada' : 'Em falta'}</p>
+                <p className="font-medium text-ink">{settings?.hasSecretKey ? t('condoSettings.billing.configuredF') : t('condoSettings.billing.missing')}</p>
               </div>
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
                 <p className="text-ink-subtle">Webhook Secret</p>
-                <p className="font-medium text-ink">{settings?.hasWebhookSecret ? 'Configurado' : 'Em falta'}</p>
+                <p className="font-medium text-ink">{settings?.hasWebhookSecret ? t('condoSettings.billing.configuredM') : t('condoSettings.billing.missing')}</p>
               </div>
             </div>
           </div>
@@ -478,7 +486,7 @@ function PlatformBillingContent() {
 
         <div className="flex gap-3 pt-4">
           <Button icon={Save} onClick={handleSave} loading={saving}>
-            Guardar Configurações
+            {t('condoSettings.saveSettings')}
           </Button>
         </div>
       </div>
@@ -488,6 +496,7 @@ function PlatformBillingContent() {
 
 function PlatformUploadContent() {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const minSizeKb = 50;
   const maxSizeKb = 512000;
   const [settings, setSettings] = useState<PlatformUploadSettingsDto | null>(null);
@@ -508,15 +517,15 @@ function PlatformUploadContent() {
         setForm({ maxUploadSizeBytes: response.data.maxUploadSizeBytes });
       } catch (error) {
         console.error('Error loading upload settings:', error);
-        setLoadError('Não foi possível carregar as configurações de upload.');
-        toastError('Erro ao carregar configurações de upload.');
+        setLoadError(t('condoSettings.upload.errorLoad'));
+        toastError(t('condoSettings.upload.errorLoadToast'));
       } finally {
         setLoading(false);
       }
     };
 
     loadSettings();
-  }, [toastError]);
+  }, [toastError, t]);
 
   const handleSave = async () => {
     const normalizedBytes = Math.round(form.maxUploadSizeBytes);
@@ -524,7 +533,7 @@ function PlatformUploadContent() {
     const maxBytes = maxSizeKb * 1024;
 
     if (!Number.isFinite(normalizedBytes) || normalizedBytes < minBytes || normalizedBytes > maxBytes) {
-      toastError(`O tamanho máximo deve estar entre ${formatUploadSizeLabel(minBytes)} e ${formatUploadSizeLabel(maxBytes)}.`);
+      toastError(t('condoSettings.upload.rangeError', { min: formatUploadSizeLabel(minBytes), max: formatUploadSizeLabel(maxBytes) }));
       return;
     }
 
@@ -534,7 +543,7 @@ function PlatformUploadContent() {
       setSettings(response.data);
       setForm({ maxUploadSizeBytes: response.data.maxUploadSizeBytes });
       invalidatePlatformUploadSizeCache();
-      toastSuccess('Limite de upload guardado com sucesso!');
+      toastSuccess(t('condoSettings.upload.saveSuccess'));
     } catch (error: unknown) {
       console.error('Error saving upload settings:', error);
       const apiMessage =
@@ -543,14 +552,14 @@ function PlatformUploadContent() {
         'response' in error &&
         (error as { response?: { data?: { message?: string } } }).response?.data?.message;
 
-      toastError(apiMessage || 'Erro ao guardar limite de upload.');
+      toastError(apiMessage || t('condoSettings.upload.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -560,14 +569,14 @@ function PlatformUploadContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Limites de Upload</h3>
-        <p className="text-sm text-ink-subtle">Configure o tamanho máximo de ficheiros enviados para o sistema.</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.upload.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.upload.subtitle')}</p>
       </div>
 
       <div className="space-y-4 max-w-2xl">
         <div className="border border-line rounded-lg p-4 bg-surface space-y-3">
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Tamanho máximo por ficheiro (KB)</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.upload.maxSizeLabel')}</label>
             <input
               type="number"
               min={minSizeKb}
@@ -585,27 +594,129 @@ function PlatformUploadContent() {
               className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <p className="text-xs text-ink-subtle mt-1">
-              Intervalo permitido: {formatUploadSizeLabel(minSizeKb * 1024)} a {formatUploadSizeLabel(maxSizeKb * 1024)}.
+              {t('condoSettings.upload.rangeHint', { min: formatUploadSizeLabel(minSizeKb * 1024), max: formatUploadSizeLabel(maxSizeKb * 1024) })}
             </p>
-            <p className="text-xs text-ink-subtle mt-1">Valor atual: {formatUploadSizeLabel(form.maxUploadSizeBytes)}</p>
+            <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.upload.currentValue', { value: formatUploadSizeLabel(form.maxUploadSizeBytes) })}</p>
           </div>
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-            Este limite é aplicado na API e no frontend para todos os uploads de ficheiros, imagens e anexos.
+            {t('condoSettings.upload.appliedInfo')}
           </div>
 
           {settings && (
             <div className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink-muted">
-              Última atualização: {new Date(settings.updatedAt).toLocaleString('pt-PT')}
+              {t('condoSettings.upload.lastUpdate', { date: new Date(settings.updatedAt).toLocaleString('pt-PT') })}
             </div>
           )}
         </div>
 
         <div className="flex gap-3 pt-2">
           <Button icon={Save} onClick={handleSave} loading={saving}>
-            Guardar Limite
+            {t('condoSettings.upload.saveButton')}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Platform-wide default language (REQ-I18N-001): pick the default language
+// applied to all users. Multilanguage support is a subscription-plan feature,
+// managed in the Billing/Plan editor. The PUT is Manager-only server-side; the
+// UI is guarded to match.
+function LocalizationContent() {
+  const { isManager } = useAuth();
+  const { t } = useTranslation();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const languageOptions: ('pt' | 'en')[] = ['pt', 'en'];
+  const [settings, setSettings] = useState<PlatformLocalizationSettingsDto | null>(null);
+  const [defaultLanguage, setDefaultLanguage] = useState<'pt' | 'en'>('pt');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const response = await platformLocalizationApi.get();
+        setSettings(response.data);
+        setDefaultLanguage(response.data.defaultLanguage === 'en' ? 'en' : 'pt');
+      } catch {
+        setLoadError(t('localization.errorLoad'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [t]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await platformLocalizationApi.update({
+        defaultLanguage,
+      });
+      setSettings(response.data);
+      setDefaultLanguage(response.data.defaultLanguage === 'en' ? 'en' : 'pt');
+      toastSuccess(t('localization.saved'));
+    } catch {
+      toastError(t('localization.errorSave'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="..." /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {loadError && (
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
+      )}
+
+      <div>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('localization.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('localization.subtitle')}</p>
+        <p className="mt-1 text-xs text-ink-subtle">{t('localization.scopeHint')}</p>
+      </div>
+
+      <div className="space-y-4 max-w-2xl">
+        <div className="border border-line rounded-lg p-4 bg-surface space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('localization.defaultLanguage')}</label>
+            <select
+              value={defaultLanguage}
+              onChange={(e) => setDefaultLanguage(e.target.value === 'en' ? 'en' : 'pt')}
+              disabled={!isManager}
+              className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {languageOptions.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang === 'pt' ? t('localization.pt') : t('localization.en')}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {settings && settings.id && (
+            <div className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink-muted">
+              {new Date(settings.updatedAt).toLocaleString('pt-PT')}
+            </div>
+          )}
+        </div>
+
+        {isManager && (
+          <div className="flex gap-3 pt-2">
+            <Button icon={Save} onClick={handleSave} loading={saving}>
+              {t('localization.save')}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -629,6 +740,7 @@ function UnitsContent() {
 function ReceiptTemplateContent() {
   const { condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const [activeTemplateType, setActiveTemplateType] = useState<'monthlyFee' | 'monthlyFeeQuarterly' | 'monthlyFeeAnnual' | 'reservation' | 'other'>('monthlyFee');
   const [template, setTemplate] = useState({
     template: '',
@@ -653,100 +765,100 @@ function ReceiptTemplateContent() {
   const tagDefinitions: RichTextTokenDefinition[] = useMemo(() => [
     {
       token: '{resident_name}',
-      label: 'Nome do pagador',
-      description: 'Nome do residente ou admin interno que criou o pagamento.',
+      label: t('condoSettings.receipt.tag.residentName.label'),
+      description: t('condoSettings.receipt.tag.residentName.desc'),
       example: 'Joana Silva',
-      missingBehavior: 'Fica vazio.',
-      category: 'Pagador',
+      missingBehavior: t('condoSettings.receipt.missing.empty'),
+      category: t('condoSettings.receipt.cat.payer'),
     },
     {
       token: '{unit_number}',
-      label: 'Número da fração',
-      description: 'Número ou identificador principal da fração.',
+      label: t('condoSettings.receipt.tag.unitNumber.label'),
+      description: t('condoSettings.receipt.tag.unitNumber.desc'),
       example: 'A-12',
-      missingBehavior: 'Fica vazio.',
-      category: 'Fração',
+      missingBehavior: t('condoSettings.receipt.missing.empty'),
+      category: t('condoSettings.receipt.cat.unit'),
     },
     {
       token: '{unit_port}',
-      label: 'Piso / porta',
-      description: 'Piso associado à fração.',
+      label: t('condoSettings.receipt.tag.unitPort.label'),
+      description: t('condoSettings.receipt.tag.unitPort.desc'),
       example: '3',
-      missingBehavior: 'Fica vazio.',
-      category: 'Fração',
+      missingBehavior: t('condoSettings.receipt.missing.empty'),
+      category: t('condoSettings.receipt.cat.unit'),
     },
     {
       token: '{unit_build}',
-      label: 'Nome do condomínio',
-      description: 'Nome do condomínio associado ao pagamento.',
-      example: 'Condomínio Jardins do Sol',
-      missingBehavior: 'Fica vazio.',
-      category: 'Condomínio',
+      label: t('condoSettings.receipt.tag.unitBuild.label'),
+      description: t('condoSettings.receipt.tag.unitBuild.desc'),
+      example: t('condoSettings.receipt.example.condoName'),
+      missingBehavior: t('condoSettings.receipt.missing.empty'),
+      category: t('condoSettings.receipt.cat.condominium'),
     },
     {
       token: '{value_amount}',
-      label: 'Valor pago',
-      description: 'Valor monetário do pagamento formatado em euros.',
+      label: t('condoSettings.receipt.tag.valueAmount.label'),
+      description: t('condoSettings.receipt.tag.valueAmount.desc'),
       example: '75.00',
-      missingBehavior: 'Fica 0.00 se não existir valor.',
-      category: 'Pagamento',
+      missingBehavior: t('condoSettings.receipt.missing.zeroValue'),
+      category: t('condoSettings.receipt.cat.payment'),
     },
     {
       token: '{quote_period_month_start}',
-      label: 'Mês inicial do período',
-      description: 'Mês inicial do período da quota.',
-      example: 'janeiro',
-      missingBehavior: 'Fica vazio até existirem campos estruturados de período.',
-      category: 'Quota',
+      label: t('condoSettings.receipt.tag.periodMonthStart.label'),
+      description: t('condoSettings.receipt.tag.periodMonthStart.desc'),
+      example: t('condoSettings.receipt.example.january'),
+      missingBehavior: t('condoSettings.receipt.missing.untilPeriod'),
+      category: t('condoSettings.receipt.cat.fee'),
     },
     {
       token: '{quote_period_month_end}',
-      label: 'Mês final do período',
-      description: 'Mês final do período da quota.',
-      example: 'março',
-      missingBehavior: 'Fica vazio até existirem campos estruturados de período.',
-      category: 'Quota',
+      label: t('condoSettings.receipt.tag.periodMonthEnd.label'),
+      description: t('condoSettings.receipt.tag.periodMonthEnd.desc'),
+      example: t('condoSettings.receipt.example.march'),
+      missingBehavior: t('condoSettings.receipt.missing.untilPeriod'),
+      category: t('condoSettings.receipt.cat.fee'),
     },
     {
       token: '{quote_period_month}',
-      label: 'Mês do período mensal',
-      description: 'Mês da quota quando o pagamento é mensal.',
-      example: 'janeiro',
-      missingBehavior: 'Fica vazio quando o pagamento não é mensal.',
-      category: 'Quota',
+      label: t('condoSettings.receipt.tag.periodMonth.label'),
+      description: t('condoSettings.receipt.tag.periodMonth.desc'),
+      example: t('condoSettings.receipt.example.january'),
+      missingBehavior: t('condoSettings.receipt.missing.notMonthly'),
+      category: t('condoSettings.receipt.cat.fee'),
     },
     {
       token: '{current_day}',
-      label: 'Dia atual',
-      description: 'Dia da emissão do recibo.',
+      label: t('condoSettings.receipt.tag.currentDay.label'),
+      description: t('condoSettings.receipt.tag.currentDay.desc'),
       example: '13',
-      missingBehavior: 'Usa a data atual.',
-      category: 'Data',
+      missingBehavior: t('condoSettings.receipt.missing.usesCurrentDate'),
+      category: t('common.date'),
     },
     {
       token: '{current_month}',
-      label: 'Mês atual',
-      description: 'Mês por extenso da emissão do recibo.',
-      example: 'maio',
-      missingBehavior: 'Usa a data atual.',
-      category: 'Data',
+      label: t('condoSettings.receipt.tag.currentMonth.label'),
+      description: t('condoSettings.receipt.tag.currentMonth.desc'),
+      example: t('condoSettings.receipt.example.may'),
+      missingBehavior: t('condoSettings.receipt.missing.usesCurrentDate'),
+      category: t('common.date'),
     },
     {
       token: '{current_year}',
-      label: 'Ano atual',
-      description: 'Ano da emissão do recibo.',
+      label: t('condoSettings.receipt.tag.currentYear.label'),
+      description: t('condoSettings.receipt.tag.currentYear.desc'),
       example: '2026',
-      missingBehavior: 'Usa a data atual.',
-      category: 'Data',
+      missingBehavior: t('condoSettings.receipt.missing.usesCurrentDate'),
+      category: t('common.date'),
     },
-  ], []);
+  ], [t]);
 
   const templateTypeOptions = [
-    { key: 'monthlyFee', label: 'Quotas - Mensal' },
-    { key: 'monthlyFeeQuarterly', label: 'Quotas - Trimestral' },
-    { key: 'monthlyFeeAnnual', label: 'Quotas - Anual' },
-    { key: 'reservation', label: 'Reservas' },
-    { key: 'other', label: 'Outros' },
+    { key: 'monthlyFee', label: t('condoSettings.receipt.type.monthly') },
+    { key: 'monthlyFeeQuarterly', label: t('condoSettings.receipt.type.quarterly') },
+    { key: 'monthlyFeeAnnual', label: t('condoSettings.receipt.type.annual') },
+    { key: 'reservation', label: t('condoSettings.receipt.type.reservation') },
+    { key: 'other', label: t('condoSettings.receipt.type.other') },
   ] as const;
 
   const templateFieldByType = {
@@ -768,13 +880,13 @@ function ReceiptTemplateContent() {
       | 'includeContactPhone';
     label: string;
   }> = [
-    { key: 'includeCondominiumName', label: 'Nome do condomínio' },
-    { key: 'includeTaxId', label: 'NIPC' },
-    { key: 'includeAddress', label: 'Morada' },
-    { key: 'includePostalCode', label: 'Código Postal' },
-    { key: 'includeLocality', label: 'Localidade' },
+    { key: 'includeCondominiumName', label: t('condoSettings.receipt.info.condoName') },
+    { key: 'includeTaxId', label: t('condoSettings.general.taxId') },
+    { key: 'includeAddress', label: t('condoSettings.general.address') },
+    { key: 'includePostalCode', label: t('condoSettings.general.postalCode') },
+    { key: 'includeLocality', label: t('condoSettings.general.locality') },
     { key: 'includeEmail', label: 'Email' },
-    { key: 'includeContactPhone', label: 'Telefone de Contacto' },
+    { key: 'includeContactPhone', label: t('condoSettings.general.contactPhone') },
   ];
 
   const activeTemplateField = templateFieldByType[activeTemplateType];
@@ -843,15 +955,15 @@ function ReceiptTemplateContent() {
           return;
         }
 
-        setLoadError('Não foi possível carregar o template de recibos.');
+        setLoadError(t('condoSettings.receipt.errorLoad'));
 
         const errorMessage =
           typeof error === 'object' &&
           error !== null &&
           'response' in error &&
           typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar template de recibos.'
-            : 'Erro ao carregar template de recibos.';
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('condoSettings.receipt.errorLoadToast')
+            : t('condoSettings.receipt.errorLoadToast');
         toastError(errorMessage);
       } finally {
         setLoading(false);
@@ -859,7 +971,7 @@ function ReceiptTemplateContent() {
     };
 
     loadTemplate();
-  }, [condominiumId, toastError]);
+  }, [condominiumId, toastError, t]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -883,7 +995,7 @@ function ReceiptTemplateContent() {
         includeEmail: template.includeEmail,
         includeContactPhone: template.includeContactPhone,
       });
-      toastSuccess('Template de recibos guardado com sucesso!');
+      toastSuccess(t('condoSettings.receipt.saveSuccess'));
     } catch (error) {
       console.error('Error saving receipt template settings:', error);
       const errorMessage =
@@ -892,13 +1004,13 @@ function ReceiptTemplateContent() {
         'response' in error &&
         typeof (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 'number' &&
         (error as { response?: { status?: number; data?: { message?: string } } }).response?.status === 404
-          ? 'Endpoint de template de recibos não encontrado na API. Reinicie/atualize o backend.'
+          ? t('condoSettings.receipt.errorNotFound')
           : typeof error === 'object' &&
               error !== null &&
               'response' in error &&
               typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao guardar template de recibos.'
-            : 'Erro ao guardar template de recibos.';
+            ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('condoSettings.receipt.saveError')
+            : t('condoSettings.receipt.saveError');
       toastError(errorMessage);
     } finally {
       setSaving(false);
@@ -906,7 +1018,7 @@ function ReceiptTemplateContent() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -916,14 +1028,14 @@ function ReceiptTemplateContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Template de Recibos</h3>
-        <p className="text-sm text-ink-subtle">Escolha quais dados do condomínio (definidos em Geral) devem aparecer no cabeçalho dos recibos</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.receipt.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.receipt.subtitle')}</p>
       </div>
 
       <form className="space-y-4 max-w-2xl" onSubmit={handleSubmit}>
         <div className="rounded-lg border border-line bg-surface-muted p-4 space-y-3">
-          <p className="text-sm font-medium text-ink">Informações do condomínio no cabeçalho</p>
-          <p className="text-xs text-ink-muted">Os valores são geridos na tab Geral. Aqui decide apenas o que incluir no recibo.</p>
+          <p className="text-sm font-medium text-ink">{t('condoSettings.receipt.headerInfoTitle')}</p>
+          <p className="text-xs text-ink-muted">{t('condoSettings.receipt.headerInfoDesc')}</p>
 
           <div className="space-y-2">
             {receiptInfoToggleOptions.map((item) => (
@@ -963,21 +1075,21 @@ function ReceiptTemplateContent() {
           <RichTextEditor 
             value={template[activeTemplateField]}
             onChange={(v) => setTemplate({ ...template, [activeTemplateField]: v })}
-            placeholder="Escreva o conteúdo do recibo e use as tags disponíveis para preencher os dados automaticamente."
+            placeholder={t('condoSettings.receipt.editorPlaceholder')}
             height="240px"
             tokenDefinitions={tagDefinitions}
           />
           {unknownTags.length > 0 && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-              <p className="font-medium">Existem tags desconhecidas no template.</p>
-              <p className="mt-1 text-xs">Pode guardar na mesma, mas estas tags não serão preenchidas automaticamente: {unknownTags.join(', ')}</p>
+              <p className="font-medium">{t('condoSettings.receipt.unknownTagsTitle')}</p>
+              <p className="mt-1 text-xs">{t('condoSettings.receipt.unknownTagsDesc', { tags: unknownTags.join(', ') })}</p>
             </div>
           )}
         </div>
 
         <div className="flex gap-3 pt-4">
           <Button type="submit" icon={Save} loading={saving}>
-            Guardar Template
+            {t('condoSettings.receipt.saveButton')}
           </Button>
         </div>
       </form>
@@ -988,6 +1100,7 @@ function ReceiptTemplateContent() {
 function PaymentMethodsContent() {
   const { condominiumId, isAdmin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   
   const [activeMethodModal, setActiveMethodModal] = useState<'bankTransfer' | 'mbReference' | 'mbWay' | 'card' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1056,15 +1169,15 @@ function PaymentMethodsContent() {
         error !== null &&
         'response' in error &&
         typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao carregar configurações'
-          : 'Erro ao carregar configurações';
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('condoSettings.payments.errorLoadToast')
+          : t('condoSettings.payments.errorLoadToast');
       console.error('Error loading payment settings:', error);
-      setLoadError('Não foi possível carregar as configurações de pagamento.');
+      setLoadError(t('condoSettings.payments.errorLoad'));
       toastError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, toastError]);
+  }, [condominiumId, toastError, t]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -1095,7 +1208,7 @@ function PaymentMethodsContent() {
       };
 
       await paymentSettingsApi.update(condominiumId, requestData);
-      toastSuccess('Configurações guardadas com sucesso!');
+      toastSuccess(t('condoSettings.saveSuccess'));
       
       // Reload to get updated values without secret key
       await loadPaymentSettings();
@@ -1106,8 +1219,8 @@ function PaymentMethodsContent() {
         error !== null &&
         'response' in error &&
         typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Erro ao guardar configurações'
-          : 'Erro ao guardar configurações';
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('condoSettings.payments.saveErrorToast')
+          : t('condoSettings.payments.saveErrorToast');
       console.error('Error saving payment settings:', error);
       toastError(errorMessage);
       return false;
@@ -1143,13 +1256,13 @@ function PaymentMethodsContent() {
   if (!isAdmin) {
     return (
       <div className="text-center py-12 text-ink-subtle">
-        <p>Acesso apenas para Administrador</p>
+        <p>{t('condoSettings.payments.adminOnly')}</p>
       </div>
     );
   }
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -1159,8 +1272,8 @@ function PaymentMethodsContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Métodos de Pagamento</h3>
-        <p className="text-sm text-ink-subtle">Configure os métodos de pagamento disponíveis para os residentes</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.payments.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.payments.subtitle')}</p>
       </div>
 
       <div className="space-y-4 max-w-3xl">
@@ -1170,12 +1283,12 @@ function PaymentMethodsContent() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-ink">Transferência Bancária</p>
+                  <p className="font-medium text-ink">{t('condoSettings.payments.bankTransfer')}</p>
                   {methods.bankTransfer.enabled && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Pagamento via transferência bancária tradicional</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.payments.bankTransferDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1191,15 +1304,15 @@ function PaymentMethodsContent() {
           {methods.bankTransfer.enabled && (
             <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">IBAN: {methods.bankTransfer.iban || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Titular: {methods.bankTransfer.accountHolder || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.payments.ibanValue', { value: methods.bankTransfer.iban || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.holderValue', { value: methods.bankTransfer.accountHolder || t('condoSettings.notConfiguredM') })}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveMethodModal('bankTransfer')}
                 className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
               >
-                Configurar
+                {t('condoSettings.configure')}
               </button>
             </div>
           )}
@@ -1211,12 +1324,12 @@ function PaymentMethodsContent() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-ink">Pagamento por Referência Multibanco</p>
+                  <p className="font-medium text-ink">{t('condoSettings.payments.mbReference')}</p>
                   {methods.mbReference.enabled && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Pagamento via Entidade e Referência (disponível em Multibancos e Homebanking)</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.payments.mbReferenceDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1233,10 +1346,10 @@ function PaymentMethodsContent() {
           {methods.mbReference.enabled && (
             <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">Entidade: {methods.mbReference.entity || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Referência base: {methods.mbReference.reference || 'Não configurada'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.payments.entityValue', { value: methods.mbReference.entity || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.referenceValue', { value: methods.mbReference.reference || t('condoSettings.notConfiguredF') })}</p>
               </div>
-              <button type="button" onClick={() => setActiveMethodModal('mbReference')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
+              <button type="button" onClick={() => setActiveMethodModal('mbReference')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">{t('condoSettings.configure')}</button>
             </div>
           )}
         </div>
@@ -1252,7 +1365,7 @@ function PaymentMethodsContent() {
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Pagamento instantâneo via MB Way</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.payments.mbWayDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1269,10 +1382,10 @@ function PaymentMethodsContent() {
           {methods.mbWay.enabled && (
             <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">Telefone: {methods.mbWay.phoneNumber || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Merchant ID: {methods.mbWay.merchantId || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.payments.phoneValue', { value: methods.mbWay.phoneNumber || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.merchantIdValue', { value: methods.mbWay.merchantId || t('condoSettings.notConfiguredM') })}</p>
               </div>
-              <button type="button" onClick={() => setActiveMethodModal('mbWay')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
+              <button type="button" onClick={() => setActiveMethodModal('mbWay')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">{t('condoSettings.configure')}</button>
             </div>
           )}
         </div>
@@ -1283,12 +1396,12 @@ function PaymentMethodsContent() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-ink">Cartão de Crédito/Débito</p>
+                  <p className="font-medium text-ink">{t('condoSettings.payments.card')}</p>
                   {methods.card.enabled && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Pagamento online com cartão via gateway de pagamentos</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.payments.cardDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1305,17 +1418,17 @@ function PaymentMethodsContent() {
           {methods.card.enabled && (
             <div className="px-4 pb-4 bg-surface-muted border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">Gateway: {methods.card.provider || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Merchant ID: {methods.card.merchantId || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.payments.gatewayValue', { value: methods.card.provider || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.merchantIdValue', { value: methods.card.merchantId || t('condoSettings.notConfiguredM') })}</p>
               </div>
-              <button type="button" onClick={() => setActiveMethodModal('card')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
+              <button type="button" onClick={() => setActiveMethodModal('card')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">{t('condoSettings.configure')}</button>
             </div>
           )}
         </div>
 
         <div className="flex gap-3 pt-4">
           <Button icon={Save} onClick={handleSave} loading={saving}>
-            Guardar Configurações
+            {t('condoSettings.saveSettings')}
           </Button>
         </div>
       </div>
@@ -1325,12 +1438,12 @@ function PaymentMethodsContent() {
         onClose={() => setActiveMethodModal(null)}
         title={
           activeMethodModal === 'bankTransfer'
-            ? 'Configurar Transferência Bancária'
+            ? t('condoSettings.payments.modalBankTransfer')
             : activeMethodModal === 'mbReference'
-              ? 'Configurar Referência Multibanco'
+              ? t('condoSettings.payments.modalMbReference')
               : activeMethodModal === 'mbWay'
-                ? 'Configurar MB Way'
-                : 'Configurar Cartão'
+                ? t('condoSettings.payments.modalMbWay')
+                : t('condoSettings.payments.modalCard')
         }
         maxWidthClass="max-w-2xl"
       >
@@ -1341,8 +1454,8 @@ function PaymentMethodsContent() {
               <input type="text" value={methods.bankTransfer.iban} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, iban: e.target.value } })} placeholder="PT50 0000 0000 0000 0000 0000 0" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Titular da Conta <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.bankTransfer.accountHolder} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value } })} placeholder="Nome do condomínio" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.payments.accountHolder')} <span className="text-red-500">*</span></label>
+              <input type="text" value={methods.bankTransfer.accountHolder} onChange={(e) => setMethods({ ...methods, bankTransfer: { ...methods.bankTransfer, accountHolder: e.target.value } })} placeholder={t('condoSettings.payments.condoNamePlaceholder')} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
@@ -1350,19 +1463,19 @@ function PaymentMethodsContent() {
         {activeMethodModal === 'mbReference' && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-900 font-medium mb-1">Como obter Entidade e Referência?</p>
-              <p className="text-xs text-blue-700">Necessita de contrato com instituição de pagamentos (ex: Easypay, SIBS, IfiPay, Eupago). Estas entidades fornecem a Entidade e geram Referências dinâmicas por pagamento.</p>
+              <p className="text-xs text-blue-900 font-medium mb-1">{t('condoSettings.payments.mbRefHelpTitle')}</p>
+              <p className="text-xs text-blue-700">{t('condoSettings.payments.mbRefHelpDesc')}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Entidade <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.payments.entity')} <span className="text-red-500">*</span></label>
                 <input type="text" value={methods.mbReference.entity} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, entity: e.target.value } })} placeholder="12345" maxLength={5} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-xs text-ink-subtle mt-1">5 dígitos</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.fiveDigits')}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Referência Base <span className="text-ink-subtle">(opcional)</span></label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.payments.baseReference')} <span className="text-ink-subtle">{t('condoSettings.optional')}</span></label>
                 <input type="text" value={methods.mbReference.reference} onChange={(e) => setMethods({ ...methods, mbReference: { ...methods.mbReference, reference: e.target.value } })} placeholder="999 999 999" maxLength={9} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-xs text-ink-subtle mt-1">9 dígitos</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.nineDigits')}</p>
               </div>
             </div>
           </div>
@@ -1371,17 +1484,17 @@ function PaymentMethodsContent() {
         {activeMethodModal === 'mbWay' && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-900 font-medium mb-1">Requisitos MB Way</p>
-              <p className="text-xs text-blue-700">Necessita de integração com gateway de pagamentos (ex: Easypay, SIBS, IfiPay). O gateway gera pedidos de pagamento MB Way e encaminha o dinheiro para o IBAN configurado.</p>
+              <p className="text-xs text-blue-900 font-medium mb-1">{t('condoSettings.payments.mbWayReqTitle')}</p>
+              <p className="text-xs text-blue-700">{t('condoSettings.payments.mbWayReqDesc')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Número de Telefone do Condomínio <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.payments.condoPhoneNumber')} <span className="text-red-500">*</span></label>
               <input type="tel" value={methods.mbWay.phoneNumber} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, phoneNumber: e.target.value } })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-ink-subtle mt-1">Telefone associado à conta MB Way mercante</p>
+              <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.mbWayPhoneHint')}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">Merchant ID / API Key <span className="text-red-500">*</span></label>
-              <input type="text" value={methods.mbWay.merchantId} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, merchantId: e.target.value } })} placeholder="Fornecido pelo gateway de pagamentos" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" value={methods.mbWay.merchantId} onChange={(e) => setMethods({ ...methods, mbWay: { ...methods.mbWay, merchantId: e.target.value } })} placeholder={t('condoSettings.payments.providedByGateway')} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
@@ -1389,11 +1502,11 @@ function PaymentMethodsContent() {
         {activeMethodModal === 'card' && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-900 font-medium mb-1">Requisitos Pagamento por Cartão</p>
-              <p className="text-xs text-blue-700">Necessita de conta em gateway de pagamentos internacional (ex: Stripe, PayPal, Easypay). Os cartões são processados pelo gateway e o valor transferido para o IBAN do condomínio.</p>
+              <p className="text-xs text-blue-900 font-medium mb-1">{t('condoSettings.payments.cardReqTitle')}</p>
+              <p className="text-xs text-blue-700">{t('condoSettings.payments.cardReqDesc')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Gateway de Pagamentos <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.payments.paymentGateway')} <span className="text-red-500">*</span></label>
               <select value={methods.card.provider} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, provider: e.target.value } })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="stripe">Stripe</option><option value="easypay">Easypay</option><option value="sibs">SIBS</option><option value="paypal">PayPal</option><option value="ifthenpay">IfthenPay</option>
               </select>
@@ -1404,19 +1517,19 @@ function PaymentMethodsContent() {
             </div>
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">Secret/API Key <span className="text-red-500">*</span></label>
-              <input type="password" value={methods.card.secretKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, secretKey: e.target.value } })} placeholder="sk_live_... (deixe em branco para manter o atual)" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-ink-subtle mt-1">Nunca partilhe esta chave. Será guardada de forma segura.</p>
+              <input type="password" value={methods.card.secretKey} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, secretKey: e.target.value } })} placeholder={t('condoSettings.payments.secretKeyPlaceholder')} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.payments.secretKeyHint')}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">Merchant ID</label>
-              <input type="text" value={methods.card.merchantId} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, merchantId: e.target.value } })} placeholder="ID da conta comerciante (opcional)" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" value={methods.card.merchantId} onChange={(e) => setMethods({ ...methods, card: { ...methods.card, merchantId: e.target.value } })} placeholder={t('condoSettings.payments.merchantIdPlaceholder')} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         )}
 
         <div className="mt-6 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
-          <Button variant="ghost" onClick={() => setActiveMethodModal(null)} className="border border-line">Fechar</Button>
-          <Button icon={Save} onClick={saveAndCloseMethodModal} loading={saving}>Guardar Configurações</Button>
+          <Button variant="ghost" onClick={() => setActiveMethodModal(null)} className="border border-line">{t('condoSettings.close')}</Button>
+          <Button icon={Save} onClick={saveAndCloseMethodModal} loading={saving}>{t('condoSettings.saveSettings')}</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1426,6 +1539,7 @@ function PaymentMethodsContent() {
 function CommunicationChannelsContent() {
   const { condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const [activeChannelModal, setActiveChannelModal] = useState<'email' | 'whatsApp' | null>(null);
   const [settings, setSettings] = useState<CommunicationSettingsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1445,12 +1559,12 @@ function CommunicationChannelsContent() {
       setSettings(response.data);
     } catch (error) {
       console.error('Error loading communication settings:', error);
-      setLoadError('Não foi possível carregar as configurações de comunicação.');
-      toastError('Erro ao carregar configurações de comunicação.');
+      setLoadError(t('condoSettings.comm.errorLoad'));
+      toastError(t('condoSettings.comm.errorLoadToast'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, toastError]);
+  }, [condominiumId, toastError, t]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -1483,11 +1597,11 @@ function CommunicationChannelsContent() {
       };
       
       await communicationSettingsApi.update(condominiumId, request);
-      toastSuccess('Configurações guardadas com sucesso!');
+      toastSuccess(t('condoSettings.saveSuccess'));
       return true;
     } catch (error) {
       console.error('Error saving communication settings:', error);
-      toastError('Erro ao guardar configurações.');
+      toastError(t('condoSettings.comm.saveError'));
       return false;
     } finally {
       setSaving(false);
@@ -1520,7 +1634,7 @@ function CommunicationChannelsContent() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   if (!settings) return null;
@@ -1532,8 +1646,8 @@ function CommunicationChannelsContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Canais de Comunicação</h3>
-        <p className="text-sm text-ink-subtle">Configure os canais para enviar notificações, recibos e comunicados aos residentes</p>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.comm.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.comm.subtitle')}</p>
       </div>
 
       <div className="space-y-6 max-w-4xl">
@@ -1541,8 +1655,8 @@ function CommunicationChannelsContent() {
         <div className="border border-line rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-ink">Comunicados</p>
-              <p className="text-sm text-ink-subtle">Permitir comentários e respostas nos comunicados</p>
+              <p className="font-semibold text-ink">{t('condoSettings.comm.announcements')}</p>
+              <p className="text-sm text-ink-subtle">{t('condoSettings.comm.announcementsDesc')}</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1555,7 +1669,7 @@ function CommunicationChannelsContent() {
             </label>
           </div>
           <p className="text-xs text-ink-subtle">
-            Quando desativado, os comunicados ficam apenas em modo de visualização.
+            {t('condoSettings.comm.announcementsHint')}
           </p>
         </div>
 
@@ -1564,7 +1678,7 @@ function CommunicationChannelsContent() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-ink">Email (SMTP)</p>
-              <p className="text-sm text-ink-subtle">Configure o servidor SMTP para envio de emails (Gmail, Outlook, etc.)</p>
+              <p className="text-sm text-ink-subtle">{t('condoSettings.comm.emailDesc')}</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1580,10 +1694,10 @@ function CommunicationChannelsContent() {
           {settings.emailEnabled && (
             <div className="pt-3 border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">SMTP: {settings.emailSmtpHost || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Username: {settings.emailUsername || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.comm.smtpValue', { value: settings.emailSmtpHost || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.comm.usernameValue', { value: settings.emailUsername || t('condoSettings.notConfiguredM') })}</p>
               </div>
-              <button type="button" onClick={() => setActiveChannelModal('email')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
+              <button type="button" onClick={() => setActiveChannelModal('email')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">{t('condoSettings.configure')}</button>
             </div>
           )}
         </div>
@@ -1593,7 +1707,7 @@ function CommunicationChannelsContent() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-ink">WhatsApp Business</p>
-              <p className="text-sm text-ink-subtle">Configure API para envio de mensagens WhatsApp (requer conta Business)</p>
+              <p className="text-sm text-ink-subtle">{t('condoSettings.comm.whatsAppDesc')}</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -1609,10 +1723,10 @@ function CommunicationChannelsContent() {
           {settings.whatsAppEnabled && (
             <div className="pt-3 border-t border-line flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-ink-muted">Número: {settings.whatsAppPhoneNumber || 'Não configurado'}</p>
-                <p className="text-xs text-ink-subtle mt-1">Provedor: {settings.whatsAppApiProvider || 'Não configurado'}</p>
+                <p className="text-sm text-ink-muted">{t('condoSettings.comm.numberValue', { value: settings.whatsAppPhoneNumber || t('condoSettings.notConfiguredM') })}</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.comm.providerValue', { value: settings.whatsAppApiProvider || t('condoSettings.notConfiguredM') })}</p>
               </div>
-              <button type="button" onClick={() => setActiveChannelModal('whatsApp')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">Configurar</button>
+              <button type="button" onClick={() => setActiveChannelModal('whatsApp')} className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">{t('condoSettings.configure')}</button>
             </div>
           )}
         </div>
@@ -1622,7 +1736,7 @@ function CommunicationChannelsContent() {
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-ink">SMS</p>
-              <p className="text-sm text-ink-subtle">Notificações via SMS (funcionalidade em desenvolvimento)</p>
+              <p className="text-sm text-ink-subtle">{t('condoSettings.comm.smsDesc')}</p>
             </div>
             <label className="relative inline-flex items-center cursor-not-allowed">
               <input
@@ -1639,7 +1753,7 @@ function CommunicationChannelsContent() {
         {/* Save Button */}
         <div className="flex gap-3 pt-4">
           <Button icon={Save} onClick={handleSave} loading={saving} className="px-6 py-2.5">
-            Guardar Configurações
+            {t('condoSettings.saveSettings')}
           </Button>
         </div>
       </div>
@@ -1647,18 +1761,18 @@ function CommunicationChannelsContent() {
       <ModalPopup
         open={activeChannelModal !== null}
         onClose={() => setActiveChannelModal(null)}
-        title={activeChannelModal === 'email' ? 'Configurar Email (SMTP)' : 'Configurar WhatsApp Business'}
+        title={activeChannelModal === 'email' ? t('condoSettings.comm.modalEmail') : t('condoSettings.comm.modalWhatsApp')}
         maxWidthClass="max-w-3xl"
       >
         {activeChannelModal === 'email' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Servidor SMTP <span className="text-ink-subtle font-normal ml-1">(ex: smtp.gmail.com)</span></label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.smtpServer')} <span className="text-ink-subtle font-normal ml-1">{t('condoSettings.comm.smtpServerHint')}</span></label>
                 <input type="text" value={settings.emailSmtpHost || ''} onChange={(e) => setSettings({ ...settings, emailSmtpHost: e.target.value })} placeholder="smtp.gmail.com" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Porta <span className="text-ink-subtle font-normal ml-1">(geralmente 587)</span></label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.port')} <span className="text-ink-subtle font-normal ml-1">{t('condoSettings.comm.portHint')}</span></label>
                 <input type="number" value={settings.emailSmtpPort || 587} onChange={(e) => setSettings({ ...settings, emailSmtpPort: parseInt(e.target.value, 10) || 0 })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
@@ -1670,15 +1784,15 @@ function CommunicationChannelsContent() {
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">Password / App Password</label>
                 <div className="relative">
-                  <input type={showEmailPassword ? 'text' : 'password'} value={emailPassword} placeholder="(manter existente se vazio)" onChange={(e) => setEmailPassword(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showEmailPassword ? 'Ocultar' : 'Mostrar'}</button>
+                  <input type={showEmailPassword ? 'text' : 'password'} value={emailPassword} placeholder={t('condoSettings.comm.keepIfEmpty')} onChange={(e) => setEmailPassword(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showEmailPassword ? t('condoSettings.hide') : t('condoSettings.show')}</button>
                 </div>
-                <p className="text-xs text-ink-subtle mt-1">Gmail: use App Password (não a senha normal)</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.comm.gmailHint')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="emailUseSslModal" checked={settings.emailUseSsl} onChange={(e) => setSettings({ ...settings, emailUseSsl: e.target.checked })} className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500" />
-              <label htmlFor="emailUseSslModal" className="text-sm text-ink-muted">Usar SSL/TLS (recomendado)</label>
+              <label htmlFor="emailUseSslModal" className="text-sm text-ink-muted">{t('condoSettings.useSsl')}</label>
             </div>
           </div>
         )}
@@ -1687,38 +1801,38 @@ function CommunicationChannelsContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Número WhatsApp Business</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.whatsAppNumber')}</label>
                 <input type="tel" value={settings.whatsAppPhoneNumber || ''} onChange={(e) => setSettings({ ...settings, whatsAppPhoneNumber: e.target.value })} placeholder="+351 912 345 678" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Provedor API</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.apiProvider')}</label>
                 <select value={settings.whatsAppApiProvider || ''} onChange={(e) => setSettings({ ...settings, whatsAppApiProvider: e.target.value })} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">Selecione...</option>
+                  <option value="">{t('condoSettings.select')}</option>
                   <option value="twilio">Twilio</option>
                   <option value="whatsapp-business-api">WhatsApp Business API</option>
                   <option value="360dialog">360dialog</option>
-                  <option value="other">Outro</option>
+                  <option value="other">{t('condoSettings.other')}</option>
                 </select>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">API Key / Token</label>
               <div className="relative">
-                <input type={showWhatsAppKey ? 'text' : 'password'} value={whatsAppApiKey} placeholder="(manter existente se vazio)" onChange={(e) => setWhatsAppApiKey(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <button type="button" onClick={() => setShowWhatsAppKey(!showWhatsAppKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showWhatsAppKey ? 'Ocultar' : 'Mostrar'}</button>
+                <input type={showWhatsAppKey ? 'text' : 'password'} value={whatsAppApiKey} placeholder={t('condoSettings.comm.keepIfEmpty')} onChange={(e) => setWhatsAppApiKey(e.target.value)} className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button type="button" onClick={() => setShowWhatsAppKey(!showWhatsAppKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs">{showWhatsAppKey ? t('condoSettings.hide') : t('condoSettings.show')}</button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">ID do Grupo WhatsApp <span className="text-ink-subtle font-normal ml-1">(opcional)</span></label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.whatsAppGroupId')} <span className="text-ink-subtle font-normal ml-1">{t('condoSettings.optional')}</span></label>
               <input type="text" value={settings.whatsAppGroupId || ''} onChange={(e) => setSettings({ ...settings, whatsAppGroupId: e.target.value })} placeholder="120363xxxxx@g.us" className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <p className="text-xs text-ink-subtle mt-1">Para enviar mensagens para um grupo específico</p>
+              <p className="text-xs text-ink-subtle mt-1">{t('condoSettings.comm.whatsAppGroupHint')}</p>
             </div>
           </div>
         )}
 
         <div className="mt-6 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
-          <Button variant="ghost" onClick={() => setActiveChannelModal(null)} className="border border-line">Fechar</Button>
-          <Button icon={Save} onClick={saveAndCloseChannelModal} loading={saving}>Guardar Configurações</Button>
+          <Button variant="ghost" onClick={() => setActiveChannelModal(null)} className="border border-line">{t('condoSettings.close')}</Button>
+          <Button icon={Save} onClick={saveAndCloseChannelModal} loading={saving}>{t('condoSettings.saveSettings')}</Button>
         </div>
       </ModalPopup>
     </div>
@@ -1728,6 +1842,7 @@ function CommunicationChannelsContent() {
 
 function SystemEmailContent() {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<SystemEmailSettingsDto | null>(null);
   const [form, setForm] = useState<UpdateSystemEmailSettingsRequest>({
     emailEnabled: false,
@@ -1759,14 +1874,14 @@ function SystemEmailContent() {
         });
       } catch (error) {
         console.error('Erro ao carregar configurações de email do sistema:', error);
-        setLoadError('Não foi possível carregar as configurações de email do sistema.');
-        toastError('Erro ao carregar configurações de email do sistema.');
+        setLoadError(t('condoSettings.systemEmail.errorLoad'));
+        toastError(t('condoSettings.systemEmail.errorLoadToast'));
       } finally {
         setLoading(false);
       }
     };
     loadSettings();
-  }, [toastError]);
+  }, [toastError, t]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -1774,10 +1889,10 @@ function SystemEmailContent() {
       const response = await systemEmailSettingsApi.update(form);
       setSettings(response.data);
       setForm((prev) => ({ ...prev, password: '' }));
-      toastSuccess('Configurações de email do sistema guardadas com sucesso!');
+      toastSuccess(t('condoSettings.systemEmail.saveSuccess'));
     } catch (error) {
       console.error('Erro ao guardar configurações de email do sistema:', error);
-      toastError('Erro ao guardar configurações de email do sistema.');
+      toastError(t('condoSettings.systemEmail.saveError'));
     } finally {
       setSaving(false);
     }
@@ -1790,14 +1905,14 @@ function SystemEmailContent() {
       toastSuccess(response.data.message);
     } catch (error) {
       console.error('Erro ao testar configurações de email:', error);
-      toastError('Erro ao testar a ligação de email. Verifique as configurações.');
+      toastError(t('condoSettings.systemEmail.testError'));
     } finally {
       setTesting(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label="A carregar..." /></div>;
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
   }
 
   return (
@@ -1807,17 +1922,16 @@ function SystemEmailContent() {
       )}
 
       <div>
-        <h3 className="text-lg font-semibold text-ink mb-1">Email de Sistema</h3>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.systemEmail.title')}</h3>
         <p className="text-sm text-ink-subtle">
-          Configure o servidor de email para envio de notificações automáticas da plataforma para os condomínios (ex: novas notificações, pedidos de aprovação).
+          {t('condoSettings.systemEmail.subtitle')}
         </p>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <p className="text-xs text-blue-900 font-medium mb-1">Email de sistema vs. Email do condomínio</p>
+        <p className="text-xs text-blue-900 font-medium mb-1">{t('condoSettings.systemEmail.compareTitle')}</p>
         <p className="text-xs text-blue-700">
-          Este email é enviado pelo sistema (no-reply) para os administradores dos condomínios a alertar sobre novas notificações e pedidos de aprovação.
-          É diferente do email de cada condomínio, que é usado para comunicar com os residentes.
+          {t('condoSettings.systemEmail.compareDesc')}
         </p>
       </div>
 
@@ -1827,12 +1941,12 @@ function SystemEmailContent() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-ink">Email de Sistema Ativo</p>
+                  <p className="font-medium text-ink">{t('condoSettings.systemEmail.enabledTitle')}</p>
                   {form.emailEnabled && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Ativo</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
                   )}
                 </div>
-                <p className="text-sm text-ink-subtle">Enviar emails automáticos de sistema para os condomínios</p>
+                <p className="text-sm text-ink-subtle">{t('condoSettings.systemEmail.enabledDesc')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -1849,7 +1963,7 @@ function SystemEmailContent() {
           <div className="px-4 pb-4 bg-surface-muted border-t border-line space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Servidor SMTP</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.smtpServer')}</label>
                 <input
                   type="text"
                   value={form.smtpHost || ''}
@@ -1859,7 +1973,7 @@ function SystemEmailContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Porta</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.comm.port')}</label>
                 <input
                   type="number"
                   value={form.smtpPort}
@@ -1871,7 +1985,7 @@ function SystemEmailContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Utilizador</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.systemEmail.user')}</label>
               <input
                 type="text"
                 value={form.username || ''}
@@ -1882,12 +1996,12 @@ function SystemEmailContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Palavra-passe</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('condoSettings.systemEmail.password')}</label>
               <input
                 type="password"
                 value={form.password || ''}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={settings?.hasPassword ? 'Já configurada. Preencha para substituir.' : 'Palavra-passe do servidor SMTP'}
+                placeholder={settings?.hasPassword ? t('condoSettings.billing.secretConfiguredPlaceholder') : t('condoSettings.systemEmail.passwordPlaceholder')}
                 className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -1900,13 +2014,13 @@ function SystemEmailContent() {
                 onChange={(e) => setForm({ ...form, useSsl: e.target.checked })}
                 className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
               />
-              <label htmlFor="useSsl" className="text-sm text-ink-muted">Usar SSL/TLS (recomendado)</label>
+              <label htmlFor="useSsl" className="text-sm text-ink-muted">{t('condoSettings.useSsl')}</label>
             </div>
 
             {settings && (
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
-                <p className="text-ink-subtle">Palavra-passe</p>
-                <p className="font-medium text-ink">{settings.hasPassword ? 'Configurada' : 'Não configurada'}</p>
+                <p className="text-ink-subtle">{t('condoSettings.systemEmail.password')}</p>
+                <p className="font-medium text-ink">{settings.hasPassword ? t('condoSettings.billing.configuredF') : t('condoSettings.notConfiguredF')}</p>
               </div>
             )}
           </div>
@@ -1914,7 +2028,7 @@ function SystemEmailContent() {
 
         <div className="flex gap-3 pt-4">
           <Button icon={Save} onClick={handleSave} loading={saving}>
-            Guardar Configurações
+            {t('condoSettings.saveSettings')}
           </Button>
           <Button
             variant="ghost"
@@ -1923,7 +2037,7 @@ function SystemEmailContent() {
             disabled={!form.emailEnabled}
             className="border border-line"
           >
-            Verificar Configuração
+            {t('condoSettings.systemEmail.testButton')}
           </Button>
         </div>
       </div>

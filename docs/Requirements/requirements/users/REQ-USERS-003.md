@@ -13,6 +13,7 @@ relatedRequirements:
   - REQ-AUTH-005
   - REQ-SEC-003
   - REQ-SEC-004
+  - REQ-SEC-005
   - REQ-USERS-002
 designRefs:
   - /home/rick/workspace/habitus/docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd

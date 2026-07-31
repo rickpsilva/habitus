@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReservationDto, SharedSpaceDto } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import { Card } from './ui';
 
 interface MonthlyCalendarProps {
@@ -10,10 +12,31 @@ interface MonthlyCalendarProps {
   onSelectReservation: (reservation: ReservationDto) => void;
 }
 
-const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const MONTHS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+// Weekday abbreviations, index 0 = Sunday (matches Date.getDay()).
+const buildDays = (t: TranslateFn): string[] => [
+  t('calendar.day.short.0'),
+  t('calendar.day.short.1'),
+  t('calendar.day.short.2'),
+  t('calendar.day.short.3'),
+  t('calendar.day.short.4'),
+  t('calendar.day.short.5'),
+  t('calendar.day.short.6'),
+];
+
+// Full month names, index 0 = January (matches Date.getMonth()).
+const buildMonths = (t: TranslateFn): string[] => [
+  t('calendar.month.0'),
+  t('calendar.month.1'),
+  t('calendar.month.2'),
+  t('calendar.month.3'),
+  t('calendar.month.4'),
+  t('calendar.month.5'),
+  t('calendar.month.6'),
+  t('calendar.month.7'),
+  t('calendar.month.8'),
+  t('calendar.month.9'),
+  t('calendar.month.10'),
+  t('calendar.month.11'),
 ];
 
 export default function MonthlyCalendar({
@@ -22,6 +45,9 @@ export default function MonthlyCalendar({
   onSelectDay,
   onSelectReservation,
 }: MonthlyCalendarProps) {
+  const { t } = useTranslation();
+  const DAYS = useMemo(() => buildDays(t), [t]);
+  const MONTHS = useMemo(() => buildMonths(t), [t]);
   const [currentDate, setCurrentDate] = useState(new Date());
   
   const currentYear = currentDate.getFullYear();
@@ -217,7 +243,7 @@ export default function MonthlyCalendar({
                       })}
                       {dayReservations.length > 3 && (
                         <div className="text-xs text-ink-subtle font-medium">
-                          +{dayReservations.length - 3} mais
+                          {t('calendar.moreEvents', { count: dayReservations.length - 3 })}
                         </div>
                       )}
                     </div>
@@ -233,11 +259,11 @@ export default function MonthlyCalendar({
       <div className="p-4 border-t border-line bg-surface-muted flex items-center gap-6 text-xs">
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 border-2 border-ink-subtle border-dashed rounded"></div>
-          <span className="text-ink-muted">Pendente</span>
+          <span className="text-ink-muted">{t('calendar.legend.pending')}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 border-2 border-ink-subtle border-solid rounded"></div>
-          <span className="text-ink-muted">Aprovada</span>
+          <span className="text-ink-muted">{t('calendar.legend.approved')}</span>
         </div>
       </div>
     </Card>

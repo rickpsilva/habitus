@@ -112,7 +112,9 @@ public static class DependencyInjection
         services.AddScoped<InvoiceService>();
         services.AddScoped<InvoicePdfService>();
         services.AddScoped<SaftXmlService>();
-
+        services.AddScoped<UnitMembershipService>();
+        services.AddScoped<IConsentService, ConsentService>();
+        services.AddScoped<IFeatureEntitlementService, FeatureEntitlementService>();
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();

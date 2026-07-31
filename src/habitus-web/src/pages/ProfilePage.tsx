@@ -1,28 +1,40 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, Star, ExternalLink, Settings } from 'lucide-react';
 import QRCode from 'qrcode';
-import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi } from '../api/services';
+import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi, meApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Spinner, Button, Card, Skeleton } from '../components/ui';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { PageHeader, Spinner, Button, Card, Skeleton, Badge, AsyncState } from '../components/ui';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest } from '../types';
+import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
+import type { CookieConsent } from '../utils/cookieConsent';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslationKey, TranslateFn } from '../i18n/types';
+import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest, MembershipCondominiumDto, ConsentItem } from '../types';
+import { ConsentDecision } from '../types';
 
-const roleLabels: Record<number, string> = {
-  0: 'Gestor',
-  1: 'Administrador',
-  2: 'Morador',
+// i18n overrides for well-known consent keys; unknown keys keep the DB title.
+const consentTitleKeys: Record<string, TranslationKey> = {
+  terms: 'consent.terms.title',
+  privacy: 'consent.privacy.title',
 };
 
-const unitDocumentTypes: Record<string, string> = {
-  UnitInsurance: 'Seguro da Fração',
-  UnitOwnershipProof: 'Escritura',
-  UnitOther: 'Outro',
-};
+const roleLabels = (t: TranslateFn): Record<number, string> => ({
+  0: t('profile.role.manager'),
+  1: t('profile.role.admin'),
+  2: t('profile.role.resident'),
+});
+
+const unitDocumentTypes = (t: TranslateFn): Record<string, string> => ({
+  UnitInsurance: t('profile.documents.typeInsurance'),
+  UnitOwnershipProof: t('profile.documents.typeDeed'),
+  UnitOther: t('profile.documents.typeOther'),
+});
 
 const unitDocumentColors: Record<string, string> = {
   UnitInsurance: 'bg-blue-100 text-blue-700',
@@ -33,8 +45,9 @@ const unitDocumentColors: Record<string, string> = {
 export default function ProfilePage() {
   const { user, isManager } = useAuth();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'documents'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences' | 'documents' | 'privacy'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -43,6 +56,7 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserDto | null>(null);
   const [condominium, setCondominium] = useState<CondominiumDto | null>(null);
   const [unit, setUnit] = useState<UnitDto | null>(null);
+  const [memberships, setMemberships] = useState<MembershipCondominiumDto[]>([]);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -54,6 +68,10 @@ export default function ProfilePage() {
     confirmPassword: '',
   });
   const [unitDocuments, setUnitDocuments] = useState<DocumentDto[]>([]);
+  const [consents, setConsents] = useState<ConsentItem[]>([]);
+  const [loadingConsents, setLoadingConsents] = useState(true);
+  const [consentsError, setConsentsError] = useState<string | null>(null);
+  const [consentActionKey, setConsentActionKey] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({
@@ -63,6 +81,7 @@ export default function ProfilePage() {
   });
   const [uploading, setUploading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
+  const [cookieConsent, setCookieConsentState] = useState<CookieConsent | null>(() => getCookieConsent());
   const [securityData, setSecurityData] = useState<TwoFactorSecurityResponse | null>(null);
   const [loadingSecurity, setLoadingSecurity] = useState(false);
   const [processingSecurity, setProcessingSecurity] = useState(false);
@@ -89,14 +108,41 @@ export default function ProfilePage() {
     });
   }, []);
 
+  // Load the user's memberships so the profile can list every fraction the user
+  // holds in the active condominium (REQ-UNITS-002 / REQ-UNITS-003).
+  useEffect(() => {
+    if (!user) return;
+    meApi.getMemberships()
+      .then((r) => setMemberships(r.data.condominiums ?? []))
+      .catch(() => {
+        // Silent: falls back to the single active-unit display below.
+      });
+  }, [user]);
+
+  // RGPD/GDPR consents load in their own effect so the privacy panel is
+  // independent of the profile/security/documents data (F4).
+  useEffect(() => {
+    if (!user) return;
+    meApi.getConsents()
+      .then((r) => {
+        setConsents(r.data.consents);
+        setConsentsError(null);
+        setLoadingConsents(false);
+      })
+      .catch(() => {
+        setConsentsError(t('profile.privacy.errorLoad'));
+        setLoadingConsents(false);
+      });
+  }, [user, t]);
+
   useEffect(() => {
     const securityStatus = searchParams.get('securityStatus');
     if (!securityStatus) return;
 
     const messages: Record<string, string> = {
-      linked_google: 'Conta Google associada com sucesso.',
-      linked_microsoft: 'Conta Microsoft associada com sucesso.',
-      link_failed: 'Não foi possível associar o fornecedor selecionado.',
+      linked_google: t('profile.security.linkedGoogle'),
+      linked_microsoft: t('profile.security.linkedMicrosoft'),
+      link_failed: t('profile.security.linkFailed'),
     };
 
     const message = messages[securityStatus];
@@ -107,69 +153,84 @@ export default function ProfilePage() {
         setError(message);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const handleToggleTheme = () => {
     const nextIsDark = toggleTheme();
     setIsDarkMode(nextIsDark);
   };
 
+  const handleConsentDecision = async (consent: ConsentItem, accepted: boolean) => {
+    setConsentActionKey(consent.key);
+    try {
+      const res = await meApi.recordConsent({
+        key: consent.key,
+        version: consent.version,
+        accepted,
+      });
+      setConsents(res.data.consents);
+      setSuccess(accepted ? t('profile.privacy.recorded') : t('profile.privacy.withdrawnMsg'));
+    } catch {
+      toastError(t('profile.privacy.errorUpdate'));
+    } finally {
+      setConsentActionKey(null);
+    }
+  };
+
+  // Account-identity fields (id, role, isActive and the editable name/email/phone
+  // form) come from getMe and are independent of the active fraction.
   useEffect(() => {
     const loadUserData = async () => {
       setLoading(true);
       try {
-        // Get current authenticated user
         const userResponse = await usersApi.getMe();
         const currentUser = userResponse.data;
         setUserData(currentUser);
-        
+
         setProfileData({
           name: currentUser.name,
           email: currentUser.email,
           phone: currentUser.phone,
         });
-
-        // Render profile content as soon as the core user payload is available.
-        setLoading(false);
-
-        const backgroundRequests: Promise<unknown>[] = [];
-
-        if (currentUser.condominiumId) {
-          backgroundRequests.push(
-            condominiumsApi.getById(currentUser.condominiumId)
-              .then((condoResponse) => setCondominium(condoResponse.data))
-              .catch((err) => {
-                console.error('Failed to load condominium:', err);
-              })
-          );
-        }
-
-        if (currentUser.unitId && currentUser.condominiumId) {
-          backgroundRequests.push(
-            unitsApi.getById(currentUser.condominiumId, currentUser.unitId)
-              .then((unitResponse) => setUnit(unitResponse.data))
-              .catch((err) => {
-                console.error('Failed to load unit:', err);
-              })
-          );
-
-          backgroundRequests.push(loadUnitDocuments(currentUser.condominiumId, currentUser.unitId));
-        }
-
-        if (backgroundRequests.length > 0) {
-          await Promise.allSettled(backgroundRequests);
-        }
       } catch (error) {
         console.error('Failed to load user data:', error);
-        setError('Erro ao carregar dados do utilizador');
+        setError(t('profile.error.loadUser'));
+      } finally {
         setLoading(false);
       }
     };
-    
+
     if (user) {
       loadUserData();
     }
-  }, [user]);
+  }, [user, t]);
+
+  // The active fraction (condominium, unit + quotas, and unit documents) follows
+  // the auth-context active context, which the backend re-scopes on fraction
+  // switch. Re-fetch whenever that context changes so Quotas and fraction
+  // details track the selected fraction instead of the persisted default.
+  useEffect(() => {
+    const condominiumId = user?.condominiumId;
+    const unitId = user?.unitId;
+
+    if (!condominiumId) return;
+
+    condominiumsApi.getById(condominiumId)
+      .then((condoResponse) => setCondominium(condoResponse.data))
+      .catch((err) => {
+        console.error('Failed to load condominium:', err);
+      });
+
+    if (!unitId) return;
+
+    unitsApi.getById(condominiumId, unitId)
+      .then((unitResponse) => setUnit(unitResponse.data))
+      .catch((err) => {
+        console.error('Failed to load unit:', err);
+      });
+
+    loadUnitDocuments(condominiumId, unitId);
+  }, [user?.condominiumId, user?.unitId]);
 
   useEffect(() => {
     if (user) {
@@ -208,7 +269,7 @@ export default function ProfilePage() {
       setTwoFactorSetup(response.data);
       setTwoFactorSetupCode('');
     } catch {
-      setError('Erro ao iniciar configuração da autenticação de dois fatores.');
+      setError(t('profile.security.setupError'));
     } finally {
       setProcessingSecurity(false);
     }
@@ -223,10 +284,10 @@ export default function ProfilePage() {
       setRecoveryCodes(response.data.recoveryCodes);
       setTwoFactorSetup(null);
       setTwoFactorSetupCode('');
-      setSuccess('Autenticação de dois fatores ativada com sucesso.');
+      setSuccess(t('profile.security.enabledSuccess'));
       loadSecurityOverview();
     } catch {
-      setError('Código inválido. Verifique a app autenticadora e tente novamente.');
+      setError(t('profile.security.invalidCode'));
     } finally {
       setProcessingSecurity(false);
     }
@@ -238,12 +299,12 @@ export default function ProfilePage() {
     setError('');
     try {
       await authApi.disableTwoFactor(disableTwoFactorData);
-      setSuccess('Autenticação de dois fatores desativada.');
+      setSuccess(t('profile.security.disabledSuccess'));
       setShowDisableTwoFactor(false);
       setDisableTwoFactorData({ currentPassword: '', code: '', useRecoveryCode: false });
       loadSecurityOverview();
     } catch {
-      setError('Não foi possível desativar a autenticação de dois fatores.');
+      setError(t('profile.security.disableError'));
     } finally {
       setProcessingSecurity(false);
     }
@@ -256,12 +317,12 @@ export default function ProfilePage() {
     try {
       const response = await authApi.regenerateRecoveryCodes(regenerateRecoveryCodesData);
       setRecoveryCodes(response.data.recoveryCodes);
-      setSuccess('Códigos de recuperação gerados com sucesso.');
+      setSuccess(t('profile.security.recoveryRegenerated'));
       setShowRegenerateRecoveryCodes(false);
       setRegenerateRecoveryCodesData({ currentPassword: '', code: '', useRecoveryCode: false });
       loadSecurityOverview();
     } catch {
-      setError('Não foi possível regenerar os códigos de recuperação.');
+      setError(t('profile.security.recoveryRegenerateError'));
     } finally {
       setProcessingSecurity(false);
     }
@@ -274,10 +335,10 @@ export default function ProfilePage() {
   const handleUnlinkProvider = async (provider: 'google' | 'microsoft') => {
     try {
       await authApi.unlinkProvider(provider);
-      setSuccess('Conta externa removida com sucesso.');
+      setSuccess(t('profile.security.providerUnlinked'));
       loadSecurityOverview();
     } catch {
-      setError('Não foi possível remover a conta externa.');
+      setError(t('profile.security.providerUnlinkError'));
     }
   };
 
@@ -294,7 +355,7 @@ export default function ProfilePage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !userData?.unitId || !userData.condominiumId) return;
+    if (!uploadFile || !user?.unitId || !user.condominiumId) return;
 
     setUploading(true);
     setError('');
@@ -306,17 +367,17 @@ export default function ProfilePage() {
       formData.append('type', uploadForm.type);
       formData.append('context', 'Unit');
       formData.append('description', uploadForm.description);
-      formData.append('unitId', userData.unitId);
+      formData.append('unitId', user.unitId);
 
-      await documentsApi.upload(userData.condominiumId, formData);
-      setSuccess('Documento carregado com sucesso!');
+      await documentsApi.upload(user.condominiumId, formData);
+      setSuccess(t('profile.documents.uploadSuccess'));
       setTimeout(() => setSuccess(''), 3000);
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
-      loadUnitDocuments(userData.condominiumId, userData.unitId);
+      loadUnitDocuments(user.condominiumId, user.unitId);
     } catch (err) {
-      setError('Erro ao carregar documento');
+      setError(t('profile.documents.uploadError'));
       console.error(err);
     } finally {
       setUploading(false);
@@ -328,14 +389,14 @@ export default function ProfilePage() {
   };
 
   const confirmDeleteDoc = async () => {
-    if (!deleteDocId || !userData?.unitId || !userData.condominiumId) return;
+    if (!deleteDocId || !user?.unitId || !user.condominiumId) return;
     try {
-      await documentsApi.delete(userData.condominiumId, deleteDocId);
-      setSuccess('Documento eliminado com sucesso!');
+      await documentsApi.delete(user.condominiumId, deleteDocId);
+      setSuccess(t('profile.documents.deleteSuccess'));
       setTimeout(() => setSuccess(''), 3000);
-      loadUnitDocuments(userData.condominiumId, userData.unitId);
+      loadUnitDocuments(user.condominiumId, user.unitId);
     } catch (err) {
-      toastError('Erro ao eliminar documento.');
+      toastError(t('profile.documents.deleteError'));
       console.error(err);
     } finally {
       setDeleteDocId(null);
@@ -343,15 +404,15 @@ export default function ProfilePage() {
   };
 
   const handleDownload = async (id: string, fileName: string) => {
-    if (!userData?.condominiumId) {
-      setError('Condomínio não identificado.');
+    if (!user?.condominiumId) {
+      setError(t('profile.documents.noCondominium'));
       return;
     }
 
     try {
-      await documentsApi.download(userData.condominiumId, id, fileName);
+      await documentsApi.download(user.condominiumId, id, fileName);
     } catch (err) {
-      setError('Erro ao baixar documento');
+      setError(t('profile.documents.downloadError'));
       console.error(err);
     }
   };
@@ -377,10 +438,10 @@ export default function ProfilePage() {
       };
 
       await usersApi.update(userData.id, updateData);
-      setSuccess('Perfil atualizado com sucesso!');
+      setSuccess(t('profile.personal.updateSuccess'));
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Erro ao atualizar perfil');
+      setError(t('profile.personal.updateError'));
       console.error(err);
     } finally {
       setSaving(false);
@@ -392,12 +453,12 @@ export default function ProfilePage() {
     if (!userData) return;
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('As senhas não coincidem');
+      setError(t('profile.password.mismatch'));
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres');
+      setError(t('profile.password.tooShort'));
       return;
     }
 
@@ -410,11 +471,11 @@ export default function ProfilePage() {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      setSuccess('Senha atualizada com sucesso!');
+      setSuccess(t('profile.password.updateSuccess'));
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Erro ao atualizar senha. Verifique a senha atual.');
+      setError(t('profile.password.updateError'));
       console.error(err);
     } finally {
       setSaving(false);
@@ -429,21 +490,25 @@ export default function ProfilePage() {
     );
   }
 
+  const activeCondoUnits =
+    memberships.find((c) => c.condominiumId === user?.condominiumId)?.units ?? [];
+  const activeUnitNumber = activeCondoUnits.find((u) => u.unitId === user?.unitId)?.unitNumber;
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <ConfirmModal
         open={deleteDocId !== null}
-        title="Eliminar documento"
-        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('profile.documents.confirmTitle')}
+        message={t('profile.documents.confirmMessage')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDeleteDoc}
         onCancel={() => setDeleteDocId(null)}
       />
       {/* Header */}
       <PageHeader
-        title="Meu Perfil"
-        subtitle="Gerencie suas informações pessoais e segurança"
+        title={t('profile.title')}
+        subtitle={t('profile.subtitle')}
       />
 
       {/* Tabs */}
@@ -458,7 +523,7 @@ export default function ProfilePage() {
             }`}
           >
             <User className="w-4 h-4" />
-            Perfil
+            {t('profile.tab.profile')}
           </button>
           <button
             onClick={() => setActiveTab('security')}
@@ -469,7 +534,29 @@ export default function ProfilePage() {
             }`}
           >
             <Shield className="w-4 h-4" />
-            Segurança
+            {t('profile.tab.security')}
+          </button>
+          <button
+            onClick={() => setActiveTab('preferences')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'preferences'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-ink-subtle hover:text-ink-muted'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            {t('profile.preferences.tab')}
+          </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+              activeTab === 'privacy'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-ink-subtle hover:text-ink-muted'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            {t('profile.privacy.tab')}
           </button>
           {!isManager && unit && (
             <button
@@ -481,7 +568,7 @@ export default function ProfilePage() {
               }`}
             >
               <FileText className="w-4 h-4" />
-              Documentos
+              {t('profile.tab.documents')}
             </button>
           )}
         </div>
@@ -509,8 +596,8 @@ export default function ProfilePage() {
                 <User className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-ink">Informações Pessoais</h2>
-                <p className="text-sm text-ink-subtle">Atualize seus dados pessoais</p>
+                <h2 className="text-lg font-semibold text-ink">{t('profile.personal.title')}</h2>
+                <p className="text-sm text-ink-subtle">{t('profile.personal.subtitle')}</p>
               </div>
             </div>
 
@@ -519,7 +606,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-ink-muted mb-1">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Nome
+                    {t('common.name')}
                   </div>
                 </label>
                 <input
@@ -535,7 +622,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-ink-muted mb-1">
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4" />
-                    Email
+                    {t('common.email')}
                   </div>
                 </label>
                 <input
@@ -550,7 +637,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-ink-muted mb-1">
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    Telefone
+                    {t('common.phone')}
                   </div>
                 </label>
                 <input
@@ -564,7 +651,7 @@ export default function ProfilePage() {
 
               <div className="pt-4">
                 <Button type="submit" icon={Save} loading={saving}>
-                  Guardar Alterações
+                  {t('profile.personal.save')}
                 </Button>
               </div>
             </form>
@@ -574,16 +661,16 @@ export default function ProfilePage() {
           <div className="bg-surface-muted rounded-xl border border-line p-6">
             <h3 className="font-semibold text-ink mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-ink-muted" />
-              Informações de Conta
+              {t('profile.account.title')}
             </h3>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between py-2 border-b border-line">
                 <span className="text-ink-muted flex items-center gap-2">
                   <Shield className="w-4 h-4" />
-                  Função:
+                  {t('profile.account.role')}
                 </span>
                 <span className="font-medium text-ink">
-                  {userData && roleLabels[userData.role]}
+                  {userData && roleLabels(t)[userData.role]}
                 </span>
               </div>
               
@@ -591,7 +678,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between py-2 border-b border-line">
                   <span className="text-ink-muted flex items-center gap-2">
                     <Building2 className="w-4 h-4" />
-                    Condomínio:
+                    {t('profile.account.condominium')}
                   </span>
                   <span className="font-medium text-ink">{condominium.name}</span>
                 </div>
@@ -601,21 +688,61 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between py-2 border-b border-line">
                   <span className="text-ink-muted flex items-center gap-2">
                     <Mail className="w-4 h-4" />
-                    Email do condomínio:
+                    {t('profile.account.condominiumEmail')}
                   </span>
-                  <span className="font-medium text-ink">{condominium.email || 'Sem email configurado'}</span>
+                  <span className="font-medium text-ink">{condominium.email || t('profile.account.noEmail')}</span>
                 </div>
               )}
               
-              {!isManager && unit && (
+              {!isManager && unit && activeCondoUnits.length <= 1 && (
                 <div className="flex items-center justify-between py-2 border-b border-line">
                   <span className="text-ink-muted flex items-center gap-2">
                     <Home className="w-4 h-4" />
-                    Fração:
+                    {t('profile.account.unit')}
                   </span>
                   <span className="font-medium text-ink">
-                    Fração {unit.number} – Piso {unit.floor}
+                    {t('profile.account.unitFloor', { number: unit.number, floor: unit.floor })}
                   </span>
+                </div>
+              )}
+
+              {!isManager && activeCondoUnits.length > 1 && (
+                <div className="py-2 border-b border-line">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Home className="w-4 h-4 text-ink-muted" />
+                      <span className="text-ink-muted font-medium">{t('profile.account.myUnits')}</span>
+                    </div>
+                    {activeUnitNumber && (
+                      <span className="flex items-center gap-1.5 text-sm text-ink-muted">
+                        {t('profile.account.activeUnit')}
+                        <span className="font-semibold text-ink">{t('common.fraction', { number: activeUnitNumber })}</span>
+                      </span>
+                    )}
+                  </div>
+                  <ul className="ml-6 space-y-2">
+                    {activeCondoUnits.map((u) => {
+                      const isActive = u.unitId === user?.unitId;
+                      return (
+                        <li
+                          key={u.unitId}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="text-sm font-medium text-ink">
+                            {t('common.fraction', { number: u.unitNumber })}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            {u.isPrimary && (
+                              <Badge variant="brand" icon={Star}>
+                                {t('profile.account.primary')}
+                              </Badge>
+                            )}
+                            {isActive && <Badge variant="success">{t('profile.account.unitActive')}</Badge>}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
               
@@ -624,24 +751,24 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-4 h-4 text-indigo-600" />
                     <span className="text-ink-muted font-medium">
-                      Quotas {new Date().getFullYear()}:
+                      {t('profile.account.quotas', { year: new Date().getFullYear() })}
                     </span>
                   </div>
                   <div className="ml-6 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-ink-muted">Mensal:</span>
+                      <span className="text-sm text-ink-muted">{t('profile.account.monthly')}</span>
                       <span className="text-sm font-semibold text-ink">
                         €{unit.monthlyQuota.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-ink-muted">Trimestral:</span>
+                      <span className="text-sm text-ink-muted">{t('profile.account.quarterly')}</span>
                       <span className="text-sm font-semibold text-ink">
                         €{(unit.monthlyQuota * 3).toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-ink-muted">Anual:</span>
+                      <span className="text-sm text-ink-muted">{t('profile.account.annual')}</span>
                       <span className="text-sm font-semibold text-indigo-600">
                         €{(unit.monthlyQuota * 12).toFixed(2)}
                       </span>
@@ -654,32 +781,32 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between py-2 border-b border-line">
                   <span className="text-ink-muted flex items-center gap-2">
                     {isDarkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                    Tema:
+                    {t('profile.account.theme')}
                   </span>
                   <Button size="sm" onClick={handleToggleTheme}>
-                    {isDarkMode ? 'Mudar para claro' : 'Mudar para escuro'}
+                    {isDarkMode ? t('profile.account.switchLight') : t('profile.account.switchDark')}
                   </Button>
                 </div>
               )}
 
               {userData && (
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-ink-muted">Estado:</span>
+                  <span className="text-ink-muted">{t('profile.account.status')}</span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     userData.isActive 
                       ? 'bg-emerald-100 text-emerald-700' 
                       : 'bg-red-100 text-red-700'
                   }`}>
-                    {userData.isActive ? 'Ativo' : 'Inativo'}
+                    {userData.isActive ? t('common.active') : t('common.inactive')}
                   </span>
                 </div>
               )}
               
               <div className="pt-3 mt-2 border-t border-line">
                 <p className="text-xs text-ink-subtle">
-                  <strong>Nota:</strong> {isManager
-                    ? 'A área de Gestor é focada em segurança e informações gerais da plataforma.'
-                    : 'Para alterar função, condomínio ou fração, entre em contacto com o gestor ou administrador.'}
+                  <strong>{t('profile.account.noteLabel')}</strong> {isManager
+                    ? t('profile.account.noteManager')
+                    : t('profile.account.noteResident')}
                 </p>
               </div>
             </div>
@@ -697,13 +824,13 @@ export default function ProfilePage() {
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-ink">Autenticação de Dois Fatores</h2>
-                  <p className="text-sm text-ink-subtle">Adicione uma camada extra de proteção à sua conta.</p>
+                  <h2 className="text-lg font-semibold text-ink">{t('profile.security.twoFactorTitle')}</h2>
+                  <p className="text-sm text-ink-subtle">{t('profile.security.twoFactorSubtitle')}</p>
                 </div>
               </div>
               {securityData && (
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${securityData.twoFactorEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-control text-ink-muted'}`}>
-                  {securityData.twoFactorEnabled ? 'Ativada' : 'Desativada'}
+                  {securityData.twoFactorEnabled ? t('profile.security.enabled') : t('profile.security.disabled')}
                 </span>
               )}
             </div>
@@ -711,13 +838,13 @@ export default function ProfilePage() {
             {loadingSecurity ? (
               <p className="text-sm text-ink-subtle">
                 {loadingSecurity ? (
-                  <span className="flex items-center gap-2"><Spinner size="sm" label="A carregar definições de segurança..." /></span>
+                  <span className="flex items-center gap-2"><Spinner size="sm" label={t('profile.security.loading')} /></span>
                 ) : null}
               </p>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-lg border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
-                  Códigos de recuperação restantes: <span className="font-semibold text-ink">{securityData?.recoveryCodesRemaining ?? 0}</span>
+                  {t('profile.security.recoveryRemaining')} <span className="font-semibold text-ink">{securityData?.recoveryCodesRemaining ?? 0}</span>
                 </div>
 
                 {!securityData?.twoFactorEnabled && !twoFactorSetup && (
@@ -726,31 +853,31 @@ export default function ProfilePage() {
                     onClick={handleStartTwoFactorSetup}
                     loading={processingSecurity}
                   >
-                    Configurar 2FA
+                    {t('profile.security.setup2fa')}
                   </Button>
                 )}
 
                 {twoFactorSetup && (
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-5 space-y-4">
                     <div>
-                      <h3 className="font-semibold text-indigo-900">Configure a sua aplicação autenticadora</h3>
-                      <p className="text-sm text-indigo-700 mt-1">Leia o código QR ou introduza a chave de configuração manualmente no Google Authenticator, Microsoft Authenticator, ou numa aplicação compatível.</p>
+                      <h3 className="font-semibold text-indigo-900">{t('profile.security.setupTitle')}</h3>
+                      <p className="text-sm text-indigo-700 mt-1">{t('profile.security.setupInstructions')}</p>
                     </div>
 
                     {twoFactorQrCode && (
                       <div className="flex justify-center">
-                        <img src={twoFactorQrCode} alt="2FA QR Code" className="w-44 h-44 rounded-lg border border-[#ffffff] shadow-sm bg-[#ffffff] p-3" />
+                        <img src={twoFactorQrCode} alt={t('profile.security.qrAlt')} className="w-44 h-44 rounded-lg border border-[#ffffff] shadow-sm bg-[#ffffff] p-3" />
                       </div>
                     )}
 
                     <div className="rounded-lg border border-indigo-200 bg-surface px-4 py-3">
-                      <p className="text-xs uppercase tracking-wide text-ink-subtle mb-1">Chave de configuração manual</p>
+                      <p className="text-xs uppercase tracking-wide text-ink-subtle mb-1">{t('profile.security.manualKey')}</p>
                       <p className="font-mono text-sm text-ink break-all">{twoFactorSetup.manualEntryKey}</p>
                     </div>
 
                     <form onSubmit={handleVerifyTwoFactorSetup} className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-indigo-900 mb-1">Código de verificação</label>
+                        <label className="block text-sm font-medium text-indigo-900 mb-1">{t('profile.security.verificationCode')}</label>
                         <input
                           type="text"
                           value={twoFactorSetupCode}
@@ -770,10 +897,10 @@ export default function ProfilePage() {
                           }}
                           className="border border-line"
                         >
-                          Cancelar
+                          {t('common.cancel')}
                         </Button>
                         <Button type="submit" loading={processingSecurity}>
-                          Verificar e ativar
+                          {t('profile.security.verifyActivate')}
                         </Button>
                       </div>
                     </form>
@@ -788,26 +915,26 @@ export default function ProfilePage() {
                       onClick={() => setShowRegenerateRecoveryCodes((value) => !value)}
                       className="border border-line"
                     >
-                      Regenerar códigos de recuperação
+                      {t('profile.security.regenerateRecovery')}
                     </Button>
                     <Button
                       variant="danger"
                       onClick={() => setShowDisableTwoFactor((value) => !value)}
                     >
-                      Desativar 2FA
+                      {t('profile.security.disable2fa')}
                     </Button>
                   </div>
                 )}
 
                 {showDisableTwoFactor && (
                   <form onSubmit={handleDisableTwoFactor} className="rounded-lg border border-red-100 bg-red-50 p-4 space-y-3">
-                    <h3 className="font-semibold text-red-900">Desativar autenticação de dois fatores</h3>
+                    <h3 className="font-semibold text-red-900">{t('profile.security.disableTitle')}</h3>
                     <input
                       type="password"
                       value={disableTwoFactorData.currentPassword}
                       onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, currentPassword: e.target.value })}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Palavra-passe atual"
+                      placeholder={t('profile.security.currentPassword')}
                       required
                     />
                     <input
@@ -815,7 +942,7 @@ export default function ProfilePage() {
                       value={disableTwoFactorData.code}
                       onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, code: e.target.value })}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder={disableTwoFactorData.useRecoveryCode ? 'Código de recuperação' : 'Código de autenticação'}
+                      placeholder={disableTwoFactorData.useRecoveryCode ? t('profile.security.recoveryCode') : t('profile.security.authCode')}
                       required
                     />
                     <label className="flex items-center gap-2 text-sm text-red-800">
@@ -824,23 +951,23 @@ export default function ProfilePage() {
                         checked={disableTwoFactorData.useRecoveryCode}
                         onChange={(e) => setDisableTwoFactorData({ ...disableTwoFactorData, useRecoveryCode: e.target.checked })}
                       />
-                      Usar código de recuperação
+                      {t('profile.security.useRecoveryCode')}
                     </label>
                     <Button type="submit" variant="danger" loading={processingSecurity}>
-                      Confirmar desativação
+                      {t('profile.security.confirmDisable')}
                     </Button>
                   </form>
                 )}
 
                 {showRegenerateRecoveryCodes && (
                   <form onSubmit={handleRegenerateRecoveryCodes} className="rounded-lg border border-amber-100 bg-amber-50 p-4 space-y-3">
-                    <h3 className="font-semibold text-amber-900">Regenerar códigos de recuperação</h3>
+                    <h3 className="font-semibold text-amber-900">{t('profile.security.regenerateRecovery')}</h3>
                     <input
                       type="password"
                       value={regenerateRecoveryCodesData.currentPassword}
                       onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, currentPassword: e.target.value })}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="Palavra-passe atual"
+                      placeholder={t('profile.security.currentPassword')}
                       required
                     />
                     <input
@@ -848,7 +975,7 @@ export default function ProfilePage() {
                       value={regenerateRecoveryCodesData.code}
                       onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, code: e.target.value })}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder={regenerateRecoveryCodesData.useRecoveryCode ? 'Código de recuperação' : 'Código de autenticação'}
+                      placeholder={regenerateRecoveryCodesData.useRecoveryCode ? t('profile.security.recoveryCode') : t('profile.security.authCode')}
                       required
                     />
                     <label className="flex items-center gap-2 text-sm text-amber-800">
@@ -857,18 +984,18 @@ export default function ProfilePage() {
                         checked={regenerateRecoveryCodesData.useRecoveryCode}
                         onChange={(e) => setRegenerateRecoveryCodesData({ ...regenerateRecoveryCodesData, useRecoveryCode: e.target.checked })}
                       />
-                      Usar código de recuperação
+                      {t('profile.security.useRecoveryCode')}
                     </label>
                     <Button type="submit" variant="warning" loading={processingSecurity}>
-                      Gerar novos códigos
+                      {t('profile.security.generateNew')}
                     </Button>
                   </form>
                 )}
 
                 {recoveryCodes.length > 0 && (
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 space-y-2">
-                    <h3 className="font-semibold text-emerald-900">Códigos de recuperação</h3>
-                    <p className="text-sm text-emerald-700">Guarde estes códigos num local seguro. Cada código só pode ser utilizado uma vez.</p>
+                    <h3 className="font-semibold text-emerald-900">{t('profile.security.recoveryCodesTitle')}</h3>
+                    <p className="text-sm text-emerald-700">{t('profile.security.recoveryCodesHint')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {recoveryCodes.map((code) => (
                         <div key={code} className="font-mono text-sm bg-surface rounded border border-emerald-100 px-3 py-2 text-ink">
@@ -888,8 +1015,8 @@ export default function ProfilePage() {
                 <Link2 className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-ink">Contas Associadas</h2>
-                <p className="text-sm text-ink-subtle">Associe Google ou Microsoft para iniciar sessão sem introduzir a palavra-passe.</p>
+                <h2 className="text-lg font-semibold text-ink">{t('profile.security.linkedAccounts')}</h2>
+                <p className="text-sm text-ink-subtle">{t('profile.security.linkedAccountsSubtitle')}</p>
               </div>
             </div>
 
@@ -903,7 +1030,7 @@ export default function ProfilePage() {
                     <div>
                       <p className="font-medium text-ink">{provider}</p>
                       <p className="text-sm text-ink-subtle">
-                        {linkedProvider ? `Associada a ${linkedProvider.providerEmail}` : 'Não associada'}
+                        {linkedProvider ? t('profile.security.linkedTo', { email: linkedProvider.providerEmail ?? '' }) : t('profile.security.notLinked')}
                       </p>
                     </div>
                     {linkedProvider ? (
@@ -912,11 +1039,11 @@ export default function ProfilePage() {
                         onClick={() => handleUnlinkProvider(providerKey)}
                         className="border border-red-200 text-red-700 hover:bg-red-50"
                       >
-                        Desassociar
+                        {t('profile.security.unlink')}
                       </Button>
                     ) : (
                       <Button onClick={() => handleStartProviderLink(providerKey)}>
-                        Associar {provider}
+                        {t('profile.security.linkProvider', { provider })}
                       </Button>
                     )}
                   </div>
@@ -931,14 +1058,14 @@ export default function ProfilePage() {
                 <Lock className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-ink">Alterar Senha</h2>
-                <p className="text-sm text-ink-subtle">Atualize sua senha de acesso</p>
+                <h2 className="text-lg font-semibold text-ink">{t('profile.password.title')}</h2>
+                <p className="text-sm text-ink-subtle">{t('profile.password.subtitle')}</p>
               </div>
             </div>
 
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Senha Atual</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('profile.password.current')}</label>
                 <input
                   type="password"
                   required
@@ -949,7 +1076,7 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Nova Senha</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('profile.password.new')}</label>
                 <input
                   type="password"
                   required
@@ -958,11 +1085,11 @@ export default function ProfilePage() {
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <p className="text-xs text-ink-subtle mt-1">Mínimo de 6 caracteres</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('profile.password.minHint')}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Confirmar Nova Senha</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('profile.password.confirm')}</label>
                 <input
                   type="password"
                   required
@@ -974,7 +1101,7 @@ export default function ProfilePage() {
 
               <div className="pt-4">
                 <Button type="submit" variant="warning" icon={Lock} loading={saving}>
-                  Alterar Senha
+                  {t('profile.password.title')}
                 </Button>
               </div>
             </form>
@@ -982,7 +1109,177 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Preferences Tab */}
+      {activeTab === 'preferences' && (
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700">
+              <Settings className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-ink">{t('profile.preferences.title')}</h2>
+              <p className="text-sm text-ink-subtle">{t('profile.preferences.subtitle')}</p>
+            </div>
+          </div>
+          <div className="max-w-md border border-line rounded-lg p-4 bg-surface">
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('profile.preferences.language')}</label>
+            <LanguageSwitcher variant="full" />
+            <p className="mt-2 text-xs text-ink-subtle">{t('profile.preferences.languageScope')}</p>
+          </div>
+          <div className="max-w-md border border-line rounded-lg p-4 bg-surface mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-4 h-4 text-ink-muted" />
+              <label className="block text-sm font-medium text-ink-muted">{t('cookie.settingsTitle')}</label>
+            </div>
+            <p className="text-xs text-ink-subtle">{t('cookie.settingsSubtitle')}</p>
+            <p className="mt-3 text-sm text-ink">
+              {cookieConsent === 'accepted'
+                ? t('cookie.statusAccepted')
+                : cookieConsent === 'rejected'
+                  ? t('cookie.statusRejected')
+                  : t('cookie.statusUnset')}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCookieConsent('accepted');
+                  setCookieConsentState('accepted');
+                }}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  cookieConsent === 'accepted'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'border-line text-ink-muted hover:bg-surface-hover'
+                }`}
+              >
+                {t('cookie.accept')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCookieConsent('rejected');
+                  setCookieConsentState('rejected');
+                }}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  cookieConsent === 'rejected'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'border-line text-ink-muted hover:bg-surface-hover'
+                }`}
+              >
+                {t('cookie.reject')}
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Documents Tab */}
+      {/* Privacy / RGPD Tab */}
+      {activeTab === 'privacy' && (
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 text-indigo-700">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-ink">{t('profile.privacy.title')}</h2>
+              <p className="text-sm text-ink-subtle">
+                {t('profile.privacy.subtitle')}
+              </p>
+            </div>
+          </div>
+
+          <AsyncState
+            loading={loadingConsents}
+            error={consentsError}
+            isEmpty={consents.length === 0}
+            onRetry={() => {
+              setLoadingConsents(true);
+              setConsentsError(null);
+              meApi.getConsents()
+                .then((r) => {
+                  setConsents(r.data.consents);
+                  setLoadingConsents(false);
+                })
+                .catch(() => {
+                  setConsentsError(t('profile.privacy.errorLoad'));
+                  setLoadingConsents(false);
+                });
+            }}
+            skeleton="list"
+            skeletonRows={2}
+            empty={
+              <div className="text-center py-12 text-ink-subtle">
+                <ShieldCheck className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">{t('profile.privacy.empty')}</p>
+              </div>
+            }
+          >
+            <div className="space-y-3">
+              {consents.map((consent) => {
+                const accepted = consent.decision === ConsentDecision.Accepted;
+                const withdrawn = consent.decision === ConsentDecision.Withdrawn;
+                const busy = consentActionKey === consent.key;
+                return (
+                  <div
+                    key={consent.key}
+                    className="flex flex-col gap-3 p-4 border border-line rounded-lg sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p className="font-medium text-ink">{consentTitleKeys[consent.key] ? t(consentTitleKeys[consent.key]) : consent.title}</p>
+                        {accepted && <Badge variant="success">{t('consent.statusAccepted')}</Badge>}
+                        {withdrawn && <Badge variant="danger">{t('consent.statusWithdrawn')}</Badge>}
+                        {!accepted && !withdrawn && <Badge variant="warning">{t('consent.statusPending')}</Badge>}
+                        {consent.isMandatory && (
+                          <Badge variant="neutral">{t('consent.mandatory')}</Badge>
+                        )}
+                      </div>
+                      {consent.decidedAt && (
+                        <p className="text-xs text-ink-subtle">
+                          {t('consent.lastDecision', { date: new Date(consent.decidedAt).toLocaleString('pt-PT') })}
+                        </p>
+                      )}
+                      {consent.url && (
+                        <a
+                          href={consent.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-1"
+                        >
+                          {t('consent.viewDocument')}
+                          <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {accepted ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          loading={busy}
+                          onClick={() => handleConsentDecision(consent, false)}
+                        >
+                          {t('consent.withdraw')}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          loading={busy}
+                          onClick={() => handleConsentDecision(consent, true)}
+                        >
+                          {t('consent.accept')}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </AsyncState>
+        </Card>
+      )}
+
       {activeTab === 'documents' && unit && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -991,21 +1288,21 @@ export default function ProfilePage() {
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-ink">Documentos da Minha Fração</h2>
-                <p className="text-sm text-ink-subtle">Gerencie os documentos da sua habitação</p>
+                <h2 className="text-lg font-semibold text-ink">{t('profile.documents.title')}</h2>
+                <p className="text-sm text-ink-subtle">{t('profile.documents.subtitle')}</p>
               </div>
             </div>
             <Button icon={Upload} onClick={() => setShowUploadModal(true)}>
-              Carregar Documento
+              {t('profile.documents.upload')}
             </Button>
           </div>
 
           {unitDocuments.length === 0 ? (
             <div className="text-center py-12 text-ink-subtle">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Nenhum documento carregado ainda.</p>
+              <p className="text-sm">{t('profile.documents.empty')}</p>
               <p className="text-xs mt-2">
-                Carregue documentos como apólice de seguro, escritura, etc.
+                {t('profile.documents.emptyHint')}
               </p>
             </div>
           ) : (
@@ -1023,14 +1320,14 @@ export default function ProfilePage() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                           unitDocumentColors[doc.type] || 'bg-control text-ink-muted'
                         }`}>
-                          {unitDocumentTypes[doc.type] || doc.type}
+                          {unitDocumentTypes(t)[doc.type] || doc.type}
                         </span>
                       </div>
                       {doc.description && (
                         <p className="text-sm text-ink-subtle truncate">{doc.description}</p>
                       )}
                       <p className="text-xs text-ink-subtle mt-1">
-                        Atualizado: {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                        {t('profile.documents.updatedAt', { date: new Date(doc.uploadedAt).toLocaleDateString('pt-PT') })}
                       </p>
                     </div>
                   </div>
@@ -1038,14 +1335,14 @@ export default function ProfilePage() {
                     <button
                       onClick={() => handleDownload(doc.id, doc.name)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Baixar"
+                      title={t('profile.documents.tooltipDownload')}
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(doc.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Excluir"
+                      title={t('profile.documents.tooltipDelete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1065,7 +1362,7 @@ export default function ProfilePage() {
           setUploadFile(null);
           setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
         }}
-        title="Carregar Documento"
+        title={t('profile.documents.upload')}
         maxWidthClass="max-w-lg"
       >
             <div className="flex items-center gap-3 mb-6">
@@ -1073,14 +1370,14 @@ export default function ProfilePage() {
                 <Upload className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-ink-subtle">Adicione um documento à sua fração</p>
+                <p className="text-sm text-ink-subtle">{t('profile.documents.uploadModalSubtitle')}</p>
               </div>
             </div>
 
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Tipo de Documento *
+                  {t('profile.documents.typeLabel')}
                 </label>
                 <select
                   required
@@ -1088,7 +1385,7 @@ export default function ProfilePage() {
                   onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {Object.entries(unitDocumentTypes).map(([value, label]) => (
+                  {Object.entries(unitDocumentTypes(t)).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
@@ -1096,26 +1393,26 @@ export default function ProfilePage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Nome do Documento *
+                  {t('profile.documents.nameLabel')}
                 </label>
                 <input
                   type="text"
                   required
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
-                  placeholder="Ex: Apólice de Seguro 2026"
+                  placeholder={t('profile.documents.namePlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Descrição (opcional)
+                  {t('profile.documents.descriptionLabel')}
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                  placeholder="Adicione detalhes sobre este documento..."
+                  placeholder={t('profile.documents.descriptionPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
@@ -1138,10 +1435,10 @@ export default function ProfilePage() {
                   fullWidth
                   className="flex-1 border border-line"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" loading={uploading} disabled={!uploadFile} fullWidth className="flex-1">
-                  Carregar
+                  {t('profile.documents.uploadSubmit')}
                 </Button>
               </div>
             </form>

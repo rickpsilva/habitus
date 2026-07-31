@@ -27,6 +27,7 @@ public class Condominium
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<UsefulContact> UsefulContacts { get; set; } = new List<UsefulContact>();
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+    public ICollection<UnitMembership> UnitMemberships { get; set; } = new List<UnitMembership>();
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

@@ -24,9 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Habitus.Api\Habitus.Api.csproj" />
     <ProjectReference Include="..\..\src\Habitus.Application\Habitus.Application.csproj" />
     <ProjectReference Include="..\..\src\Habitus.Domain\Habitus.Domain.csproj" />
     <ProjectReference Include="..\..\src\Habitus.Infrastructure\Habitus.Infrastructure.csproj" />
   </ItemGroup>
-
 </Project>

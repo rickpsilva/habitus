@@ -6,12 +6,14 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import type { ResidentDto, UnitDto } from '../types';
 import { PageHeader, AsyncState, EmptyState, Card } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 
-const roleLabels: Record<string, string> = {
-  Admin: 'Administrador',
-  Resident: 'Morador',
-  Manager: 'Gestor',
-};
+const roleLabels = (t: TranslateFn): Record<string, string> => ({
+  Admin: t('role.admin'),
+  Resident: t('role.resident'),
+  Manager: t('role.manager'),
+});
 
 const roleColors: Record<string, string> = {
   Admin: 'bg-indigo-100 text-indigo-700',
@@ -22,6 +24,7 @@ const roleColors: Record<string, string> = {
 export default function ResidentsPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
   const [residents, setResidents] = useState<ResidentDto[]>([]);
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +39,7 @@ export default function ResidentsPage() {
     if (!condominiumId) {
       setResidents([]);
       setUnits([]);
-      setLoadError('Condomínio não identificado.');
+      setLoadError(t('residents.error.noCondominium'));
       setLoading(false);
       return;
     }
@@ -45,9 +48,9 @@ export default function ResidentsPage() {
       residentsApi.getAll().then((r) => setResidents(r.data)),
       unitsApi.getAll(condominiumId).then((r) => setUnits(r.data)),
     ])
-      .catch(() => setLoadError('Não foi possível carregar os moradores.'))
+      .catch(() => setLoadError(t('residents.error.load')))
       .finally(() => setLoading(false));
-  }, [condominiumId]);
+  }, [condominiumId, t]);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -67,7 +70,7 @@ export default function ResidentsPage() {
       await residentsApi.delete(deleteId);
       load();
     } catch {
-      toastError('Erro ao remover morador.');
+      toastError(t('residents.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -75,7 +78,9 @@ export default function ResidentsPage() {
 
   const unitLabel = (unitId: string) => {
     const u = units.find((u) => u.id === unitId);
-    return u ? `Fração ${u.number} – Piso ${u.floor}` : `${unitId.slice(0, 8)}…`;
+    return u
+      ? t('residents.unitLabel', { number: u.number ?? '', floor: u.floor ?? '' })
+      : `${unitId.slice(0, 8)}…`;
   };
 
   const filtered = residents.filter((r) => {
@@ -90,7 +95,7 @@ export default function ResidentsPage() {
     return (
       <div className="text-center py-20 text-ink-subtle">
         <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a administradores</p>
+        <p>{t('residents.accessDenied')}</p>
       </div>
     );
   }
@@ -99,22 +104,22 @@ export default function ResidentsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Remover morador"
-        message="Tem a certeza que deseja remover este morador?"
-        confirmLabel="Remover"
+        title={t('residents.delete.title')}
+        message={t('residents.delete.message')}
+        confirmLabel={t('residents.delete.confirm')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
       <PageHeader
-        title="Moradores"
-        subtitle={`${residents.length} moradores registados`}
+        title={t('residents.title')}
+        subtitle={t('residents.subtitle', { count: residents.length })}
         search={
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Pesquisar por nome ou email..."
+            placeholder={t('residents.searchPlaceholder')}
             className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         }
@@ -124,10 +129,10 @@ export default function ResidentsPage() {
             onChange={(e) => setFilterUnitId(e.target.value)}
             className="w-full sm:w-auto px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface"
           >
-            <option value="">Todas as frações</option>
+            <option value="">{t('residents.filter.allUnits')}</option>
             {units.map((u) => (
               <option key={u.id} value={u.id}>
-                Fração {u.number} – Piso {u.floor}
+                {t('residents.unitLabel', { number: u.number ?? '', floor: u.floor ?? '' })}
               </option>
             ))}
           </select>
@@ -140,7 +145,7 @@ export default function ResidentsPage() {
         onRetry={load}
         isEmpty={filtered.length === 0}
         skeleton="card"
-        empty={<EmptyState icon={Users} title="Sem moradores encontrados" />}
+        empty={<EmptyState icon={Users} title={t('residents.empty')} />}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((r) => (
@@ -153,7 +158,7 @@ export default function ResidentsPage() {
                   <div>
                     <p className="font-medium text-ink">{r.name}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${roleColors[r.role] ?? 'bg-control text-ink-muted'}`}>
-                      {roleLabels[r.role] ?? r.role}
+                      {roleLabels(t)[r.role] ?? r.role}
                     </span>
                   </div>
                 </div>

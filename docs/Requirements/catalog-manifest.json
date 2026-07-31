@@ -27,6 +27,14 @@
       ]
     },
     {
+      "id": "REQ-AUTH-006",
+      "file": "requirements/auth/REQ-AUTH-006.md",
+      "diagrams": [
+        "diagrams/sequences/active-context-selection.mmd",
+        "diagrams/data/user-unit-membership.mmd"
+      ]
+    },
+    {
       "id": "REQ-USERS-001",
       "file": "requirements/users/REQ-USERS-001.md",
       "diagrams": []
@@ -63,6 +71,21 @@
       "diagrams": []
     },
     {
+      "id": "REQ-SEC-005",
+      "file": "requirements/security/REQ-SEC-005.md",
+      "diagrams": [
+        "diagrams/sequences/cookie-and-rgpd-consent.mmd",
+        "diagrams/use-cases/gdpr-self-service.mmd"
+      ]
+    },
+    {
+      "id": "REQ-SEC-006",
+      "file": "requirements/security/REQ-SEC-006.md",
+      "diagrams": [
+        "diagrams/sequences/cookie-and-rgpd-consent.mmd"
+      ]
+    },
+    {
       "id": "REQ-CONDO-001",
       "file": "requirements/condominium/REQ-CONDO-001.md",
       "diagrams": []
@@ -71,6 +94,20 @@
       "id": "REQ-UNITS-001",
       "file": "requirements/units/REQ-UNITS-001.md",
       "diagrams": []
+    },
+    {
+      "id": "REQ-UNITS-002",
+      "file": "requirements/units/REQ-UNITS-002.md",
+      "diagrams": [
+        "diagrams/data/user-unit-membership.mmd"
+      ]
+    },
+    {
+      "id": "REQ-UNITS-003",
+      "file": "requirements/units/REQ-UNITS-003.md",
+      "diagrams": [
+        "diagrams/data/user-unit-membership.mmd"
+      ]
     },
     {
       "id": "REQ-PAY-001",
@@ -125,6 +162,16 @@
     {
       "id": "REQ-NOTIF-001",
       "file": "requirements/notifications/REQ-NOTIF-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-I18N-001",
+      "file": "requirements/localization/REQ-I18N-001.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-I18N-002",
+      "file": "requirements/localization/REQ-I18N-002.md",
       "diagrams": []
     }
   ]

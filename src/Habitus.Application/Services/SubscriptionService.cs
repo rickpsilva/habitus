@@ -29,6 +29,7 @@ public class SubscriptionService
         ("user_registration", "Registo e Gestão de Utilizadores"),
         ("analytics", "Analytics Avançado"),
         ("api_access", "Acesso à API REST"),
+        ("multilanguage", "Multilíngua (PT/EN)"),
     ];
 
     private readonly IRepository<SubscriptionPlan> _plansRepo;

@@ -11,15 +11,17 @@ import MonthlyCalendar from '../components/MonthlyCalendar';
 import type { ReservationDto, SharedSpaceDto, UserDto, UnitDto, PaginatedResponse } from '../types';
 import { PageHeader, Button, Segmented, ErrorState, DataTable, EmptyState, Badge, Card } from '../components/ui';
 import type { Column, BadgeVariant } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 
-const statusLabels: Record<string, string> = {
-  Pending: 'Pendente',
-  Approved: 'Aprovado',
-  Rejected: 'Rejeitado',
-  CancellationRequested: 'Pedido Cancelamento',
-  Cancelled: 'Cancelado',
-  Completed: 'Terminado',
-};
+const getStatusLabels = (t: TranslateFn): Record<string, string> => ({
+  Pending: t('status.pending'),
+  Approved: t('reservations.status.approved'),
+  Rejected: t('reservations.status.rejected'),
+  CancellationRequested: t('reservations.status.cancellationRequested'),
+  Cancelled: t('status.cancelled'),
+  Completed: t('status.completed'),
+});
 
 const statusVariants: Record<string, BadgeVariant> = {
   Pending: 'warning',
@@ -34,8 +36,10 @@ type SortField = 'spaceName' | 'startTime' | 'endTime' | 'status' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReservationsPage() {
+  const { t } = useTranslation();
   const { isAdmin } = useAuth();
   const { error: toastError } = useToast();
+  const statusLabels = getStatusLabels(t);
   const [reservations, setReservations] = useState<ReservationDto[]>([]);
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -109,10 +113,9 @@ export default function ReservationsPage() {
         setUnits([]);
         setPagination(null);
         setCurrentPage(page);
-        setLoadError('Condomínio não identificado para o utilizador atual.');
+        setLoadError(t('reservations.error.condominiumNotIdentifiedUser'));
         return;
       }
-      
       // Load reservations and spaces (always needed)
       const [reservationsRes, spacesRes, unitsRes] = await Promise.all([
         reservationsApi.getPaged(scopedCondominiumId, page, pageSize, debouncedSearch),
@@ -150,11 +153,11 @@ export default function ReservationsPage() {
       setForm(prev => ({ ...prev, userId, condominiumId: scopedCondominiumId || '' }));
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      setLoadError('Não foi possível carregar as reservas.');
+      setLoadError(t('reservations.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, debouncedSearch]);
+  }, [isAdmin, debouncedSearch, t]);
 
   useEffect(() => { load(1); }, [load]);
 
@@ -162,12 +165,12 @@ export default function ReservationsPage() {
     e.preventDefault();
     
     if (!form.userId || !form.spaceId) {
-      toastError('Dados incompletos. Por favor, recarregue a página.');
+      toastError(t('reservations.error.incompleteData'));
       return;
     }
     
     if (!form.startTime || !form.endTime) {
-      toastError('Por favor, preencha as datas de início e fim.');
+      toastError(t('reservations.error.fillDates'));
       return;
     }
     
@@ -175,19 +178,19 @@ export default function ReservationsPage() {
     const startDate = new Date(form.startTime);
     const endDate = new Date(form.endTime);
     if (endDate <= startDate) {
-      toastError('A data/hora de fim deve ser posterior à data/hora de início.');
+      toastError(t('reservations.error.endAfterStart'));
       return;
     }
     
     // Validate that start time is not in the past
     const now = new Date();
     if (startDate.getTime() < now.getTime() - 60000) {
-      toastError('A data de início deve ser igual ou posterior à data atual.');
+      toastError(t('reservations.error.startNotPast'));
       return;
     }
 
     if (!form.condominiumId) {
-      toastError('Condomínio não identificado.');
+      toastError(t('reservations.error.condominiumNotIdentified'));
       return;
     }
     
@@ -239,7 +242,7 @@ export default function ReservationsPage() {
           : typeof msg === 'object' && msg !== null && 'message' in msg
             ? (msg as { message?: string }).message
             : undefined;
-      setError(normalizedMessage ?? 'Conflito de horário. Tente outro período.');
+      setError(normalizedMessage ?? t('reservations.error.timeConflict'));
     } finally {
       setSubmitting(false);
     }
@@ -286,7 +289,7 @@ export default function ReservationsPage() {
     
     try {
       if (!form.condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('reservations.error.condominiumNotIdentified'));
         return;
       }
 
@@ -296,7 +299,7 @@ export default function ReservationsPage() {
       load();
     } catch (error: unknown) {
       console.error('Erro ao eliminar reserva:', error);
-      toastError('Erro ao eliminar reserva. Tente novamente.');
+      toastError(t('reservations.error.delete'));
     }
   };
 
@@ -309,7 +312,7 @@ export default function ReservationsPage() {
   
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
-    return user?.name ?? 'Utilizador desconhecido';
+    return user?.name ?? t('reservations.unknownUser');
   };
   
   const getUserUnit = (userId: string) => {
@@ -389,7 +392,7 @@ export default function ReservationsPage() {
       const { type, id } = commentAction;
 
       if (!form.condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('reservations.error.condominiumNotIdentified'));
         return;
       }
       
@@ -410,10 +413,10 @@ export default function ReservationsPage() {
         
         // Append new comment with timestamp and action type
         const actionLabels: Record<string, string> = {
-          'approve': 'Aprovado',
-          'reject': 'Rejeitado',
-          'approveCancellation': 'Cancelamento Aprovado',
-          'rejectCancellation': 'Cancelamento Rejeitado'
+          'approve': t('reservations.status.approved'),
+          'reject': t('reservations.status.rejected'),
+          'approveCancellation': t('reservations.log.cancellationApproved'),
+          'rejectCancellation': t('reservations.log.cancellationRejected')
         };
         
         const newComment = `[${timestamp}] ${actionLabels[type]}: ${finalComment}`;
@@ -446,9 +449,9 @@ export default function ReservationsPage() {
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : error instanceof Error
             ? error.message
-            : 'Erro ao alterar estado';
+            : t('reservations.error.statusChange');
       console.error('Erro ao alterar estado:', error);
-      toastError(`Erro: ${errorMessage}`);
+      toastError(t('reservations.error.generic', { message: errorMessage ?? '' }));
     }
   };
 
@@ -460,7 +463,7 @@ export default function ReservationsPage() {
     if (!cancelId) return;
     try {
       if (!form.condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('reservations.error.condominiumNotIdentified'));
         return;
       }
 
@@ -475,9 +478,9 @@ export default function ReservationsPage() {
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : error instanceof Error
             ? error.message
-            : 'Erro ao pedir cancelamento';
+            : t('reservations.error.requestCancellation');
       console.error('Erro ao pedir cancelamento:', error);
-      toastError(`Erro: ${errorMessage}`);
+      toastError(t('reservations.error.generic', { message: errorMessage ?? '' }));
     } finally {
       setCancelId(null);
     }
@@ -507,15 +510,15 @@ export default function ReservationsPage() {
     if (isAdmin) {
       if (reservation.status === 'Pending') {
         actions.push(
-          { label: 'Aprovar', action: () => openCommentModal('approve', reservation.id), color: 'green' },
-          { label: 'Rejeitar', action: () => openCommentModal('reject', reservation.id), color: 'red' }
+          { label: t('reservations.action.approve'), action: () => openCommentModal('approve', reservation.id), color: 'green' },
+          { label: t('reservations.action.reject'), action: () => openCommentModal('reject', reservation.id), color: 'red' }
         );
       }
       
       if (reservation.status === 'CancellationRequested') {
         actions.push(
-          { label: 'Aceitar Cancelamento', action: () => openCommentModal('approveCancellation', reservation.id), color: 'green' },
-          { label: 'Rejeitar Cancelamento', action: () => openCommentModal('rejectCancellation', reservation.id), color: 'red' }
+          { label: t('reservations.action.acceptCancellation'), action: () => openCommentModal('approveCancellation', reservation.id), color: 'green' },
+          { label: t('reservations.action.rejectCancellation'), action: () => openCommentModal('rejectCancellation', reservation.id), color: 'red' }
         );
       }
     }
@@ -523,7 +526,7 @@ export default function ReservationsPage() {
     // User can request cancellation only if approved and not expired
     if (canRequestCancellation(reservation)) {
       actions.push(
-        { label: 'Pedir Cancelamento', action: () => handleRequestCancellation(reservation.id), color: 'orange' }
+        { label: t('reservations.action.requestCancellation'), action: () => handleRequestCancellation(reservation.id), color: 'orange' }
       );
     }
     
@@ -616,16 +619,16 @@ export default function ReservationsPage() {
   const reservationColumns: Column<ReservationDto>[] = [
     {
       key: 'spaceName',
-      header: 'Espaço',
+      header: t('reservations.column.space'),
       sortable: true,
-      mobileLabel: 'Espaço',
+      mobileLabel: t('reservations.column.space'),
       render: (r) => <span className="font-medium text-ink">{spaceName(r.spaceId)}</span>,
     },
     {
       key: 'startTime',
-      header: 'Início',
+      header: t('reservations.column.start'),
       sortable: true,
-      mobileLabel: 'Início',
+      mobileLabel: t('reservations.column.start'),
       render: (r) =>
         new Date(r.startTime).toLocaleString('pt-PT', {
           day: '2-digit',
@@ -637,9 +640,9 @@ export default function ReservationsPage() {
     },
     {
       key: 'endTime',
-      header: 'Fim',
+      header: t('reservations.column.end'),
       sortable: true,
-      mobileLabel: 'Fim',
+      mobileLabel: t('reservations.column.end'),
       render: (r) =>
         new Date(r.endTime).toLocaleString('pt-PT', {
           day: '2-digit',
@@ -651,9 +654,9 @@ export default function ReservationsPage() {
     },
     {
       key: 'status',
-      header: 'Estado',
+      header: t('reservations.column.status'),
       sortable: true,
-      mobileLabel: 'Estado',
+      mobileLabel: t('reservations.column.status'),
       render: (r) => (
         <Badge variant={statusVariants[r.status] ?? 'neutral'}>
           {statusLabels[r.status] ?? r.status}
@@ -662,9 +665,9 @@ export default function ReservationsPage() {
     },
     {
       key: 'createdAt',
-      header: 'Criado em',
+      header: t('reservations.column.createdAt'),
       sortable: true,
-      mobileLabel: 'Criado em',
+      mobileLabel: t('reservations.column.createdAt'),
       render: (r) =>
         new Date(r.createdAt).toLocaleString('pt-PT', {
           day: '2-digit',
@@ -676,9 +679,9 @@ export default function ReservationsPage() {
     },
     {
       key: 'actions',
-      header: 'Ações',
+      header: t('reservations.column.actions'),
       align: 'right',
-      mobileLabel: 'Ações',
+      mobileLabel: t('reservations.column.actions'),
       render: (r) => (
         <div className="flex items-center justify-end gap-2 flex-wrap">
           {canEdit(r) && (
@@ -686,14 +689,14 @@ export default function ReservationsPage() {
               <button
                 onClick={() => handleEdit(r)}
                 className="inline-flex items-center gap-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="Editar reserva"
+                title={t('reservations.action.editReservation')}
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleDelete(r.id)}
                 className="inline-flex items-center gap-1 px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="Eliminar reserva"
+                title={t('reservations.action.deleteReservation')}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -719,10 +722,10 @@ export default function ReservationsPage() {
           <button
             onClick={() => openDetailsModal(r)}
             className="inline-flex items-center gap-1 px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors text-xs font-medium"
-            title="Ver detalhes"
+            title={t('reservations.action.viewDetails')}
           >
             <Eye className="w-4 h-4" />
-            Detalhes
+            {t('reservations.details')}
           </button>
         </div>
       ),
@@ -733,22 +736,22 @@ export default function ReservationsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={cancelId !== null}
-        title="Pedir cancelamento"
-        message="Tem a certeza que deseja pedir o cancelamento desta reserva?"
-        confirmLabel="Pedir cancelamento"
+        title={t('reservations.cancelModal.title')}
+        message={t('reservations.cancelModal.message')}
+        confirmLabel={t('reservations.cancelModal.title')}
         variant="warning"
         onConfirm={confirmCancellation}
         onCancel={() => setCancelId(null)}
       />
       <PageHeader
-        title="Reservas"
-        subtitle="Reservas dos espaços comuns"
+        title={t('reservations.title')}
+        subtitle={t('reservations.subtitle')}
         search={
           viewMode === 'table' ? (
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Pesquisar reservas..."
+              placeholder={t('reservations.searchPlaceholder')}
             />
           ) : undefined
         }
@@ -760,28 +763,28 @@ export default function ReservationsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full sm:w-auto px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Todos os estados</option>
-                <option value="Pending">Pendente</option>
-                <option value="Approved">Aprovado</option>
-                <option value="Rejected">Rejeitado</option>
-                <option value="CancellationRequested">Pedido Cancelamento</option>
-                <option value="Cancelled">Cancelado</option>
-                <option value="Completed">Terminado</option>
+                <option value="">{t('reservations.filter.allStatuses')}</option>
+                <option value="Pending">{t('status.pending')}</option>
+                <option value="Approved">{t('reservations.status.approved')}</option>
+                <option value="Rejected">{t('reservations.status.rejected')}</option>
+                <option value="CancellationRequested">{t('reservations.status.cancellationRequested')}</option>
+                <option value="Cancelled">{t('status.cancelled')}</option>
+                <option value="Completed">{t('status.completed')}</option>
               </select>
             )}
             <Segmented<'table' | 'week' | 'month'>
-              ariaLabel="Modo de visualização"
+              ariaLabel={t('reservations.viewMode')}
               value={viewMode}
               onChange={setViewMode}
               className="w-full sm:w-auto"
               options={[
-                { value: 'table', label: 'Tabela', icon: TableIcon },
-                { value: 'week', label: 'Semanal', icon: Calendar },
-                { value: 'month', label: 'Mensal', icon: CalendarDays },
+                { value: 'table', label: t('reservations.view.table'), icon: TableIcon },
+                { value: 'week', label: t('reservations.view.week'), icon: Calendar },
+                { value: 'month', label: t('reservations.view.month'), icon: CalendarDays },
               ]}
             />
             <Button onClick={() => setShowForm(true)} icon={Plus} fullWidth className="sm:w-auto">
-              Nova Reserva
+              {t('reservations.new')}
             </Button>
           </>
         }
@@ -796,7 +799,7 @@ export default function ReservationsPage() {
                 <h3 className="font-medium text-ink">{s.name}</h3>
               </div>
               {s.description && <p className="text-xs text-ink-subtle mb-2">{s.description}</p>}
-              {s.capacity && s.capacity > 0 && <p className="text-xs text-ink-subtle">Capacidade: {s.capacity} pessoas</p>}
+              {s.capacity && s.capacity > 0 && <p className="text-xs text-ink-subtle">{t('reservations.capacity', { count: s.capacity })}</p>}
             </Card>
           ))}
         </div>
@@ -806,29 +809,29 @@ export default function ReservationsPage() {
       <ModalPopup
         open={showForm}
         onClose={handleCancelForm}
-        title={editingId ? 'Editar Reserva' : 'Nova Reserva'}
+        title={editingId ? t('reservations.form.editTitle') : t('reservations.new')}
         maxWidthClass="max-w-2xl"
       >
         {error && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-ink-muted mb-1">Espaço</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('reservations.form.space')}</label>
             <select
               value={form.spaceId}
               onChange={(e) => setForm({ ...form, spaceId: e.target.value })}
               required
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">Selecionar espaço</option>
+              <option value="">{t('reservations.form.selectSpace')}</option>
               {spaces.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}{s.capacity && s.capacity > 0 ? ` (máx. ${s.capacity} pessoas)` : ''}
+                  {s.name}{s.capacity && s.capacity > 0 ? t('reservations.form.spaceCapacityOption', { count: s.capacity }) : ''}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Início</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('reservations.form.start')}</label>
             <input
               type="datetime-local"
               value={form.startTime}
@@ -838,7 +841,7 @@ export default function ReservationsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Fim</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('reservations.form.end')}</label>
             <input
               type="datetime-local"
               value={form.endTime}
@@ -849,10 +852,10 @@ export default function ReservationsPage() {
           </div>
           <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
             <Button variant="ghost" onClick={handleCancelForm} className="border border-line">
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" loading={submitting}>
-              {editingId ? 'Atualizar' : 'Reservar'}
+              {editingId ? t('reservations.form.update') : t('reservations.form.create')}
             </Button>
           </div>
         </form>
@@ -898,8 +901,8 @@ export default function ReservationsPage() {
             emptyState={
               <EmptyState
                 icon={Calendar}
-                title="Sem reservas"
-                description="Crie a primeira reserva de espaço comum"
+                title={t('reservations.empty')}
+                description={t('reservations.emptyDescription')}
               />
             }
           />
@@ -910,7 +913,7 @@ export default function ReservationsPage() {
       <ModalPopup
         open={showCommentModal}
         onClose={closeCommentModal}
-        title="Comentário do Admin (opcional)"
+        title={t('reservations.commentModal.title')}
         maxWidthClass="max-w-md"
       >
             
@@ -921,10 +924,10 @@ export default function ReservationsPage() {
                   <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-red-800 mb-1">
-                      ⚠️ Atenção: Reservas Sobrepostas
+                      {t('reservations.overlap.title')}
                     </p>
                     <p className="text-xs text-red-700 mb-2">
-                      Existem {overlappingReservations.length} reserva(s) aprovada(s) para o mesmo espaço no mesmo período:
+                      {t('reservations.overlap.message', { count: overlappingReservations.length })}
                     </p>
                     <ul className="text-xs text-red-700 space-y-1">
                       {overlappingReservations.map(r => (
@@ -949,16 +952,16 @@ export default function ReservationsPage() {
             <textarea
               value={adminComment}
               onChange={(e) => setAdminComment(e.target.value)}
-              placeholder="Digite um comentário se desejar..."
+              placeholder={t('reservations.commentModal.placeholder')}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               rows={4}
             />
             <div className="flex flex-wrap justify-end gap-3 mt-4">
               <Button variant="ghost" onClick={closeCommentModal} className="border border-line">
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleStatusAction}>
-                Confirmar
+                {t('reservations.commentModal.confirm')}
               </Button>
             </div>
       </ModalPopup>
@@ -967,7 +970,7 @@ export default function ReservationsPage() {
       <ModalPopup
         open={showDetailsModal && selectedReservation !== null}
         onClose={closeDetailsModal}
-        title="Detalhes da Reserva"
+        title={t('reservations.details.title')}
         maxWidthClass="max-w-lg"
       >
         {selectedReservation && (
@@ -975,25 +978,25 @@ export default function ReservationsPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-ink-subtle">Espaço</label>
+                <label className="text-sm font-medium text-ink-subtle">{t('reservations.form.space')}</label>
                 <p className="text-base text-ink">{spaceName(selectedReservation.spaceId)}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Morador</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('role.resident')}</label>
                   <p className="text-base text-ink">{getUserName(selectedReservation.userId)}</p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Fração</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.fraction')}</label>
                   <p className="text-base text-ink">{getUserUnit(selectedReservation.userId)}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Data/Hora Início</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.startDateTime')}</label>
                   <p className="text-base text-ink">
                     {new Date(selectedReservation.startTime).toLocaleString('pt-PT', { 
                       day: '2-digit', 
@@ -1006,7 +1009,7 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Data/Hora Fim</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.endDateTime')}</label>
                   <p className="text-base text-ink">
                     {new Date(selectedReservation.endTime).toLocaleString('pt-PT', { 
                       day: '2-digit', 
@@ -1021,7 +1024,7 @@ export default function ReservationsPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Estado</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('reservations.column.status')}</label>
                   <p>
                     <Badge variant={statusVariants[selectedReservation.status] ?? 'neutral'}>
                       {statusLabels[selectedReservation.status]}
@@ -1030,7 +1033,7 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle">Data de Criação</label>
+                  <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.createdAt')}</label>
                   <p className="text-base text-ink">
                     {new Date(selectedReservation.createdAt).toLocaleString('pt-PT', { 
                       day: '2-digit', 
@@ -1045,7 +1048,7 @@ export default function ReservationsPage() {
               
               {selectedReservation.adminComments && (
                 <div>
-                  <label className="text-sm font-medium text-ink-subtle mb-2 block">Histórico de Comentários</label>
+                  <label className="text-sm font-medium text-ink-subtle mb-2 block">{t('reservations.details.commentHistory')}</label>
                   <div className="space-y-2">
                     {selectedReservation.adminComments.split('\n').map((comment, idx) => {
                       // Parse comment format: [DD/MM/YYYY HH:MM] Action: Comment
@@ -1080,7 +1083,7 @@ export default function ReservationsPage() {
             
             <div className="flex justify-end mt-6">
               <Button variant="secondary" onClick={closeDetailsModal}>
-                Fechar
+                {t('reservations.details.close')}
               </Button>
             </div>
           </>
@@ -1090,10 +1093,10 @@ export default function ReservationsPage() {
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         open={showDeleteModal}
-        title="Confirmar eliminação"
-        message="Tem a certeza que pretende eliminar esta reserva? Esta ação não pode ser revertida."
-        confirmLabel="Sim, eliminar"
-        cancelLabel="Não, cancelar"
+        title={t('reservations.deleteModal.title')}
+        message={t('reservations.deleteModal.message')}
+        confirmLabel={t('reservations.deleteModal.confirm')}
+        cancelLabel={t('reservations.deleteModal.cancel')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}

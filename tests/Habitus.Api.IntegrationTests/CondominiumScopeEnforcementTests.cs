@@ -15,18 +15,17 @@ namespace Habitus.Api.IntegrationTests;
 /// lacks a tenant role (Manager has no CondominiumId and is excluded from
 /// [Authorize(Roles = "Admin,Resident")] endpoints).
 /// </summary>
-public class CondominiumScopeEnforcementTests : IClassFixture<WebApplicationFactory<Program>>
+public class CondominiumScopeEnforcementTests : IClassFixture<CustomWebApplicationFactory>
 {
     private const string SecretKey = "habitus-super-secret-key-for-development-only";
     private const string Issuer = "habitus";
     private const string Audience = "habitus-users";
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public CondominiumScopeEnforcementTests(WebApplicationFactory<Program> factory)
+    public CondominiumScopeEnforcementTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-            builder.UseEnvironment("Development"));
+        _factory = factory;
     }
 
     // ── Token helper ──────────────────────────────────────────────────────────

@@ -521,6 +521,53 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("CondominiumSubscriptions");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.ConsentDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key", "Version")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "IsActive", "IsMandatory" }, "IX_ConsentDefinitions_IsActive_IsMandatory");
+
+                    b.ToTable("ConsentDefinitions");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.Document", b =>
                 {
                     b.Property<Guid>("Id")
@@ -801,6 +848,28 @@ namespace Habitus.Infrastructure.Migrations
                         .HasDatabaseName("IX_Invoice_Unique_CondominiumYear");
 
                     b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.LocalizationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("DefaultLanguage")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LocalizationSettings");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceConfirmation", b =>
@@ -1948,6 +2017,45 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("Units");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.UnitMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("UserId", "UnitId")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "UserId", "CondominiumId" }, "IX_UnitMemberships_UserId_CondominiumId");
+
+                    b.HasIndex(new[] { "UserId", "CondominiumId" }, "IX_UnitMemberships_UserId_CondominiumId_Primary")
+                        .IsUnique()
+                        .HasFilter("\"IsPrimary\" = true");
+
+                    b.ToTable("UnitMemberships");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.UsefulContact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2055,6 +2163,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
 
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<int>("Role")
                         .HasColumnType("integer");
 
@@ -2140,6 +2252,43 @@ namespace Habitus.Infrastructure.Migrations
                     b.HasIndex("CondominiumId");
 
                     b.ToTable("UserCondominiums");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.UserConsent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Accepted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ConsentDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DecidedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsentDefinitionId");
+
+                    b.HasIndex(new[] { "UserId", "ConsentDefinitionId" }, "IX_UserConsents_UserId_ConsentDefinitionId");
+
+                    b.HasIndex(new[] { "UserId", "DecidedAt" }, "IX_UserConsents_UserId_DecidedAt");
+
+                    b.ToTable("UserConsents");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.UserRecoveryCode", b =>
@@ -2727,6 +2876,33 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Condominium");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.UnitMembership", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("UnitMemberships")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.Unit", "Unit")
+                        .WithMany("UnitMemberships")
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.User", "User")
+                        .WithMany("UnitMemberships")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+
+                    b.Navigation("Unit");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.UsefulContact", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Building", null)
@@ -2785,6 +2961,25 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Condominium");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.UserConsent", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.ConsentDefinition", "ConsentDefinition")
+                        .WithMany("UserConsents")
+                        .HasForeignKey("ConsentDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Habitus.Domain.Entities.User", "User")
+                        .WithMany("UserConsents")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConsentDefinition");
 
                     b.Navigation("User");
                 });
@@ -2857,6 +3052,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Navigation("Suppliers");
 
+                    b.Navigation("UnitMemberships");
+
                     b.Navigation("Units");
 
                     b.Navigation("UsefulContacts");
@@ -2869,6 +3066,11 @@ namespace Habitus.Infrastructure.Migrations
             modelBuilder.Entity("Habitus.Domain.Entities.CondominiumSubscription", b =>
                 {
                     b.Navigation("Invoices");
+                });
+
+            modelBuilder.Entity("Habitus.Domain.Entities.ConsentDefinition", b =>
+                {
+                    b.Navigation("UserConsents");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.MaintenanceRequest", b =>
@@ -2910,6 +3112,8 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Navigation("MaintenanceRequests");
 
+                    b.Navigation("UnitMemberships");
+
                     b.Navigation("Users");
                 });
 
@@ -2921,7 +3125,11 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.Navigation("RecoveryCodes");
 
+                    b.Navigation("UnitMemberships");
+
                     b.Navigation("UserCondominiums");
+
+                    b.Navigation("UserConsents");
                 });
 #pragma warning restore 612, 618
         }

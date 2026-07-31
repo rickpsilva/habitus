@@ -19,8 +19,12 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const code = error.response?.data?.code;
+    const requestUrl: string = error.config?.url ?? '';
+    // The active-context switch handles 403/423 locally (see AuthContext.switchContext)
+    // so it must not trigger the global session-wipe/redirect below.
+    const isActiveContextRequest = requestUrl.includes('/me/active-context');
 
-    if (status === 423 || code === 'condominium_inactive') {
+    if ((status === 423 || code === 'condominium_inactive') && !isActiveContextRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       if (window.location.pathname !== '/condominium-inactive') {
@@ -29,7 +33,18 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (status === 401) {
+    // Global RGPD/GDPR consent gate (HTTP 451). The user must stay authenticated
+    // to POST their acceptance, so we redirect WITHOUT wiping the token. The
+    // consent GET/POST endpoints are allow-listed and never return 451.
+    const isConsentRequest = requestUrl.includes('/me/consents');
+    if ((status === 451 || code === 'consent_required') && !isConsentRequest) {
+      if (window.location.pathname !== '/consent-required') {
+        window.location.href = '/consent-required';
+      }
+      return Promise.reject(error);
+    }
+
+    if (status === 401 && !isActiveContextRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

@@ -1,4 +1,5 @@
 import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -15,13 +16,17 @@ export default function ConfirmModal({
   open,
   title,
   message,
-  confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   variant = 'danger',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   if (!open) return null;
+
+  const resolvedConfirm = confirmLabel ?? t('common.confirm');
+  const resolvedCancel = cancelLabel ?? t('common.cancel');
 
   const iconBg =
     variant === 'danger'
@@ -64,7 +69,7 @@ export default function ConfirmModal({
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Fechar"
+            aria-label={t('common.close')}
             className="text-ink-subtle hover:text-ink-muted transition-colors"
           >
             <X className="w-5 h-5" />
@@ -76,14 +81,14 @@ export default function ConfirmModal({
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-ink bg-surface border border-line rounded-lg hover:bg-surface-hover transition-colors"
           >
-            {cancelLabel}
+            {resolvedCancel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${confirmBtn}`}
           >
-            {confirmLabel}
+            {resolvedConfirm}
           </button>
         </div>
       </div>

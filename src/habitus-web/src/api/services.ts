@@ -14,6 +14,8 @@ import type {
   RecoveryCodesResponse,
   CondominiumPublicDto,
   UnitPublicDto,
+  MembershipsResponse,
+  SetActiveContextRequest,
   PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
@@ -87,6 +89,13 @@ import type {
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
   CsvImportResult,
+  ConsentStatusResponse,
+  RecordConsentRequest,
+  MeLocalizationDto,
+  SetLanguageRequest,
+  PlatformLocalizationSettingsDto,
+  UpdatePlatformLocalizationSettingsRequest,
+  PublicLocalizationDefaultDto,
 } from '../types';
 
 export const authApi = {
@@ -104,6 +113,30 @@ export const authApi = {
   regenerateRecoveryCodes: (data: RegenerateRecoveryCodesRequest) =>
     api.post<RecoveryCodesResponse>('/platform/auth/2fa/recovery-codes/regenerate', data),
   unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/platform/auth/providers/${provider}`),
+};
+
+// Current user memberships & active-context switching (REQ-AUTH-006)
+export const meApi = {
+  getMemberships: () => api.get<MembershipsResponse>('/platform/me/memberships'),
+  setActiveContext: (data: SetActiveContextRequest) =>
+    api.post<AuthResponse>('/platform/me/active-context', data),
+  getConsents: () => api.get<ConsentStatusResponse>('/platform/me/consents'),
+  recordConsent: (data: RecordConsentRequest) =>
+    api.post<ConsentStatusResponse>('/platform/me/consents', data),
+  getLocalization: () => api.get<MeLocalizationDto>('/platform/me/localization'),
+  setLanguage: (data: SetLanguageRequest) =>
+    api.put<MeLocalizationDto>('/platform/me/language', data),
+};
+
+// Platform-wide localization settings (REQ-I18N-001). Read allowed for any
+// authenticated user; PUT is Manager-only server-side.
+export const platformLocalizationApi = {
+  get: () =>
+    api.get<PlatformLocalizationSettingsDto>('/platform/localization-settings'),
+  update: (data: UpdatePlatformLocalizationSettingsRequest) =>
+    api.put<PlatformLocalizationSettingsDto>('/platform/localization-settings', data),
+  getPublicDefault: () =>
+    api.get<PublicLocalizationDefaultDto>('/platform/localization-settings/public'),
 };
 
 // New users API

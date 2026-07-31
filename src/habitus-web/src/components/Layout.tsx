@@ -1,9 +1,12 @@
 import { useState, useEffect, Fragment } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { announcementsApi, notificationsApi, subscriptionsApi } from '../api/services';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslationKey } from '../i18n/types';
+import { announcementsApi, notificationsApi, subscriptionsApi, meApi } from '../api/services';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import CommandPalette from './CommandPalette';
+import LanguageSwitcher from './LanguageSwitcher';
 import {
   LayoutDashboard,
   Wrench,
@@ -27,12 +30,14 @@ import {
   Search,
   PanelLeftClose,
   PanelLeft,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { MembershipCondominiumDto } from '../types';
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: TranslationKey;
   icon: LucideIcon;
   managerOnly?: boolean;
   managerOrAdminOnly?: boolean;
@@ -41,20 +46,20 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/maintenance', label: 'Manutenção', icon: Wrench, featureKey: 'maintenance' },
-  { to: '/financial', label: 'Financeiro', icon: DollarSign, featureKey: 'financial' },
-  { to: '/payments', label: 'Pagamentos', icon: CreditCard, residentOnly: true, featureKey: 'financial' },
-  { to: '/notifications', label: 'Notificações', icon: Bell },
-  { to: '/announcements', label: 'Comunicados', icon: Megaphone, featureKey: 'announcements' },
-  { to: '/reservations', label: 'Reservas', icon: Calendar, featureKey: 'reservations' },
-  { to: '/documents', label: 'Documentos', icon: FileText, featureKey: 'documents' },
-  { to: '/useful-contacts', label: 'Contactos Uteis', icon: Phone, featureKey: 'useful_contacts' },
-  { to: '/assemblies', label: 'Assembleias', icon: ClipboardList, featureKey: 'assemblies' },
-  { to: '/settings', label: 'Configurações', icon: Settings, managerOrAdminOnly: true },
-  { to: '/condominiums', label: 'Condomínios', icon: Building2, managerOnly: true },
-  { to: '/billing', label: 'Faturação', icon: CreditCard, managerOnly: true },
-  { to: '/users', label: 'Utilizadores', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
+  { to: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/maintenance', labelKey: 'nav.maintenance', icon: Wrench, featureKey: 'maintenance' },
+  { to: '/financial', labelKey: 'nav.financial', icon: DollarSign, featureKey: 'financial' },
+  { to: '/payments', labelKey: 'nav.payments', icon: CreditCard, residentOnly: true, featureKey: 'financial' },
+  { to: '/notifications', labelKey: 'nav.notifications', icon: Bell },
+  { to: '/announcements', labelKey: 'nav.announcements', icon: Megaphone, featureKey: 'announcements' },
+  { to: '/reservations', labelKey: 'nav.reservations', icon: Calendar, featureKey: 'reservations' },
+  { to: '/documents', labelKey: 'nav.documents', icon: FileText, featureKey: 'documents' },
+  { to: '/useful-contacts', labelKey: 'nav.usefulContacts', icon: Phone, featureKey: 'useful_contacts' },
+  { to: '/assemblies', labelKey: 'nav.assemblies', icon: ClipboardList, featureKey: 'assemblies' },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings, managerOrAdminOnly: true },
+  { to: '/condominiums', labelKey: 'nav.condominiums', icon: Building2, managerOnly: true },
+  { to: '/billing', labelKey: 'nav.billing', icon: CreditCard, managerOnly: true },
+  { to: '/users', labelKey: 'nav.users', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
 ];
 
 const fallbackFreeFeatures = new Set(['maintenance', 'announcements', 'documents']);
@@ -97,14 +102,14 @@ const managerMenuOrder = [
 
 // Visual grouping only. Sections are contiguous within every role menu order
 // above, so headers never reorder or hide any item.
-const navSections: { id: string; label: string; routes: string[] }[] = [
-  { id: 'general', label: 'Geral', routes: ['/dashboard', '/notifications', '/announcements'] },
+const navSections: { id: string; labelKey: TranslationKey; routes: string[] }[] = [
+  { id: 'general', labelKey: 'section.general', routes: ['/dashboard', '/notifications', '/announcements'] },
   {
     id: 'operations',
-    label: 'Operações',
+    labelKey: 'section.operations',
     routes: ['/maintenance', '/financial', '/reservations', '/payments', '/documents', '/useful-contacts', '/assemblies'],
   },
-  { id: 'admin', label: 'Administração', routes: ['/users', '/settings', '/condominiums', '/billing'] },
+  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/settings', '/condominiums', '/billing'] },
 ];
 
 const sectionIdForRoute = (to: string): string =>
@@ -112,6 +117,7 @@ const sectionIdForRoute = (to: string): string =>
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAdmin, isManager, isResident } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -120,6 +126,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
   const [featureAccessLoaded, setFeatureAccessLoaded] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [canSwitchContext, setCanSwitchContext] = useState(false);
+  const [memberships, setMemberships] = useState<MembershipCondominiumDto[]>([]);
+  const [multilanguageEnabled, setMultilanguageEnabled] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('habitus.sidebarCollapsed') === '1';
@@ -195,6 +204,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Determine whether the user holds more than one condominium/unit membership,
+  // so the "switch context" entry can stay hidden for single-membership users.
+  useEffect(() => {
+    if (isManager) return;
+    meApi.getMemberships()
+      .then((r) => {
+        const condos = r.data.condominiums ?? [];
+        const totalUnits = condos.reduce((sum, c) => sum + Math.max(c.units.length, 1), 0);
+        setMemberships(condos);
+        setCanSwitchContext(condos.length > 1 || totalUnits > 1);
+      })
+      .catch(() => {
+        // Keep the entry hidden if memberships cannot be loaded.
+      });
+  }, [isManager]);
+
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -205,6 +230,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // Whether the language selector should be shown, gated by the active
+  // condominium's multilanguage flag (REQ-I18N-002). Setters run inside .then.
+  useEffect(() => {
+    meApi.getLocalization()
+      .then((r) => {
+        setMultilanguageEnabled(r.data.multilanguageEnabled);
+      })
+      .catch(() => {
+        // Keep the selector hidden if localization settings cannot be loaded.
+      });
+  }, [user?.condominiumId]);
 
   const handleLogout = () => {
     logout();
@@ -257,24 +294,34 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       const sectionId = sectionIdForRoute(item.to);
       const previous = acc[acc.length - 1];
       const previousSectionId = previous ? sectionIdForRoute(previous.item.to) : null;
-      const header =
+      const sectionLabelKey =
         sectionId !== previousSectionId
-          ? navSections.find((section) => section.id === sectionId)?.label ?? null
+          ? navSections.find((section) => section.id === sectionId)?.labelKey ?? null
           : null;
-      acc.push({ item, header });
+      acc.push({ item, header: sectionLabelKey ? t(sectionLabelKey) : null });
       return acc;
     },
     [],
   );
 
+  // Active fraction number for multi-fraction users, derived from the loaded
+  // memberships and the auth-context active unit (shown next to the name).
+  const activeFractionNumber = canSwitchContext
+    ? memberships
+        .find((c) => c.condominiumId === user?.condominiumId)
+        ?.units.find((u) => u.unitId === user?.unitId)?.unitNumber
+    : undefined;
+
   const commandItems = [
-    ...orderedNavItems.map(({ to, label, icon }) => ({
+    ...orderedNavItems.map(({ to, labelKey, icon }) => ({
       to,
-      label,
+      label: t(labelKey),
       icon,
-      section: navSections.find((section) => section.routes.includes(to))?.label,
+      section: navSections.find((section) => section.routes.includes(to))?.labelKey
+        ? t(navSections.find((section) => section.routes.includes(to))!.labelKey)
+        : undefined,
     })),
-    { to: '/profile', label: 'Meu Perfil', icon: UserCircle, section: undefined },
+    { to: '/profile', label: t('layout.myProfile'), icon: UserCircle, section: undefined },
   ];
 
   return (
@@ -303,8 +350,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               className="ml-auto hidden lg:flex text-ink-subtle hover:text-ink-muted"
               onClick={toggleCollapsed}
-              title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-              aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+              title={collapsed ? t('layout.expandMenu') : t('layout.collapseMenu')}
+              aria-label={collapsed ? t('layout.expandMenu') : t('layout.collapseMenu')}
             >
               {collapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
             </button>
@@ -321,13 +368,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
-              title="Pesquisar (Ctrl/⌘ K)"
+              title={t('layout.searchTitle')}
               className={`flex w-full items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-ink-subtle transition-colors hover:bg-surface-hover ${
                 collapsed ? 'lg:justify-center lg:px-2' : ''
               }`}
             >
               <Search className="w-4 h-4 shrink-0" />
-              <span className={collapsed ? 'lg:hidden' : ''}>Pesquisar</span>
+              <span className={collapsed ? 'lg:hidden' : ''}>{t('layout.search')}</span>
               <kbd className={`ml-auto rounded border border-line bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-ink-subtle ${collapsed ? 'lg:hidden' : ''}`}>
                 ⌘K
               </kbd>
@@ -336,7 +383,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navWithSections.map(({ item: { to, label, icon: Icon }, header }) => (
+            {navWithSections.map(({ item: { to, labelKey, icon: Icon }, header }) => {
+              const label = t(labelKey);
+              return (
               <Fragment key={to}>
                 {header && (
                   <p className={`px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle first:pt-1 ${collapsed ? 'lg:hidden' : ''}`}>
@@ -373,7 +422,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
                 </NavLink>
               </Fragment>
-            ))}
+              );
+            })}
           </nav>
 
           {/* User */}
@@ -385,14 +435,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className={`flex-1 min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
                 <p className="text-sm font-medium text-ink truncate">{user?.name}</p>
                 <p className="text-xs text-ink-subtle truncate capitalize">
-                  {user?.role === 0 ? 'Gestor' : user?.role === 1 ? 'Administrador' : 'Morador'}
+                  {user?.role === 0 ? t('role.manager') : user?.role === 1 ? t('role.admin') : t('role.resident')}
                 </p>
+                {activeFractionNumber && (
+                  <span className="mt-1 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                    {t('common.fraction', { number: activeFractionNumber })}
+                  </span>
+                )}
               </div>
             </div>
+            {multilanguageEnabled && (
+              <div className={collapsed ? 'mb-2 lg:flex lg:justify-center' : 'mb-2'}>
+                <LanguageSwitcher variant={collapsed ? 'icon' : 'menu'} />
+              </div>
+            )}
             <NavLink
               to="/profile"
               onClick={() => setSidebarOpen(false)}
-              title={collapsed ? 'Meu Perfil' : undefined}
+              title={collapsed ? t('layout.myProfile') : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-2 w-full px-3 py-2 mb-2 text-sm rounded-lg transition-colors ${
                   collapsed ? 'lg:justify-center' : ''
@@ -404,23 +464,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }
             >
               <UserCircle className="w-4 h-4 shrink-0" />
-              <span className={collapsed ? 'lg:hidden' : ''}>Meu Perfil</span>
+              <span className={collapsed ? 'lg:hidden' : ''}>{t('layout.myProfile')}</span>
             </NavLink>
+            {canSwitchContext && (
+              <button
+                onClick={() => { setSidebarOpen(false); navigate('/select-context'); }}
+                title={collapsed ? t('layout.switchContext') : undefined}
+                className={`flex items-center gap-2 w-full px-3 py-2 mb-2 text-sm text-ink-muted hover:bg-surface-hover rounded-lg transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
+              >
+                <ArrowLeftRight className="w-4 h-4 shrink-0" />
+                <span className={collapsed ? 'lg:hidden' : ''}>{t('layout.switchContext')}</span>
+              </button>
+            )}
             <button
               onClick={handleToggleTheme}
-              title={collapsed ? (isDarkMode ? 'Modo claro' : 'Modo escuro') : undefined}
+              title={collapsed ? (isDarkMode ? t('layout.lightMode') : t('layout.darkMode')) : undefined}
               className={`flex items-center gap-2 w-full px-3 py-2 mb-2 text-sm text-ink-muted hover:bg-surface-hover rounded-lg transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
             >
               {isDarkMode ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
-              <span className={collapsed ? 'lg:hidden' : ''}>{isDarkMode ? 'Modo claro' : 'Modo escuro'}</span>
+              <span className={collapsed ? 'lg:hidden' : ''}>{isDarkMode ? t('layout.lightMode') : t('layout.darkMode')}</span>
             </button>
             <button
               onClick={handleLogout}
-              title={collapsed ? 'Terminar sessão' : undefined}
+              title={collapsed ? t('layout.logout') : undefined}
               className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              <span className={collapsed ? 'lg:hidden' : ''}>Terminar sessão</span>
+              <span className={collapsed ? 'lg:hidden' : ''}>{t('layout.logout')}</span>
             </button>
           </div>
         </div>
@@ -443,7 +513,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setPaletteOpen(true)}
             className="text-ink-subtle hover:text-ink"
-            aria-label="Pesquisar"
+            aria-label={t('layout.search')}
           >
             <Search className="w-5 h-5" />
           </button>

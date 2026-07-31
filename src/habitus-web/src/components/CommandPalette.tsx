@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export interface CommandItem {
   to: string;
@@ -20,6 +21,7 @@ interface CommandPaletteProps {
  * its internal state always starts fresh — no reset effects required.
  */
 export default function CommandPalette({ items, onNavigate, onClose }: CommandPaletteProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +64,7 @@ export default function CommandPalette({ items, onNavigate, onClose }: CommandPa
       className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh]"
       role="dialog"
       aria-modal="true"
-      aria-label="Pesquisa rápida"
+      aria-label={t('commandPalette.ariaLabel')}
       onKeyDown={handleKeyDown}
     >
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
@@ -76,14 +78,14 @@ export default function CommandPalette({ items, onNavigate, onClose }: CommandPa
               setQuery(event.target.value);
               setHighlighted(0);
             }}
-            placeholder="Ir para…"
+            placeholder={t('commandPalette.placeholder')}
             className="w-full bg-transparent py-3.5 text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
           />
         </div>
 
         <ul className="max-h-72 overflow-y-auto py-2">
           {filtered.length === 0 ? (
-            <li className="px-4 py-6 text-center text-sm text-ink-subtle">Sem resultados</li>
+            <li className="px-4 py-6 text-center text-sm text-ink-subtle">{t('commandPalette.empty')}</li>
           ) : (
             filtered.map((item, index) => {
               const Icon = item.icon;

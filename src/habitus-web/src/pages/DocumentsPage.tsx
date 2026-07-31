@@ -11,36 +11,38 @@ import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
 import { PageHeader, Button, ErrorState, Card, EmptyState, Skeleton } from '../components/ui';
 import type { DocumentDto, PaginatedResponse, AssemblyDto, UnitDto, MaintenanceRequestDto } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 
-const contextLabels: Record<string, string> = {
-  Condominium: 'Condomínio',
-  Unit: 'Frações',
-  Assembly: 'Assembleias',
-  Maintenance: 'Manutenção',
-  Financial: 'Financeiro',
-};
+const getContextLabels = (t: TranslateFn): Record<string, string> => ({
+  Condominium: t('documents.context.condominium'),
+  Unit: t('documents.context.unit'),
+  Assembly: t('documents.context.assembly'),
+  Maintenance: t('documents.context.maintenance'),
+  Financial: t('documents.context.financial'),
+});
 
-const typeLabels: Record<string, string> = {
-  UnitInsurance: 'Seguro da Fração',
-  UnitOwnershipProof: 'Escritura',
-  UnitOther: 'Outro',
-  AssemblyMinutes: 'Ata',
-  AssemblyConvocation: 'Convocatória',
-  AssemblyAttachment: 'Anexo',
-  MaintenanceInvoice: 'Fatura',
-  MaintenanceQuote: 'Orçamento',
-  MaintenanceReport: 'Relatório',
-  FinancialBankStatement: 'Extrato Bancário',
-  FinancialAnnualReport: 'Relatório Anual',
-  FinancialBudget: 'Orçamento Anual',
-  FinancialAudit: 'Auditoria',
-  FinancialTaxDocument: 'Documentos Fiscais',
-  FinancialOther: 'Outros',
-  CondominiumRegulation: 'Regulamento',
-  CondominiumInsurance: 'Seguro',
-  CondominiumContract: 'Contrato',
-  Other: 'Outro',
-};
+const getTypeLabels = (t: TranslateFn): Record<string, string> => ({
+  UnitInsurance: t('documents.type.unitInsurance'),
+  UnitOwnershipProof: t('documents.type.unitOwnershipProof'),
+  UnitOther: t('documents.type.unitOther'),
+  AssemblyMinutes: t('documents.type.assemblyMinutes'),
+  AssemblyConvocation: t('documents.type.assemblyConvocation'),
+  AssemblyAttachment: t('documents.type.assemblyAttachment'),
+  MaintenanceInvoice: t('documents.type.maintenanceInvoice'),
+  MaintenanceQuote: t('documents.type.maintenanceQuote'),
+  MaintenanceReport: t('documents.type.maintenanceReport'),
+  FinancialBankStatement: t('documents.type.financialBankStatement'),
+  FinancialAnnualReport: t('documents.type.financialAnnualReport'),
+  FinancialBudget: t('documents.type.financialBudget'),
+  FinancialAudit: t('documents.type.financialAudit'),
+  FinancialTaxDocument: t('documents.type.financialTaxDocument'),
+  FinancialOther: t('documents.type.financialOther'),
+  CondominiumRegulation: t('documents.type.condominiumRegulation'),
+  CondominiumInsurance: t('documents.type.condominiumInsurance'),
+  CondominiumContract: t('documents.type.condominiumContract'),
+  Other: t('documents.type.other'),
+});
 
 const typeColors: Record<string, string> = {
   UnitInsurance: 'bg-blue-100 text-blue-700',
@@ -75,6 +77,9 @@ const documentTypesByContext: Record<string, string[]> = {
 export default function DocumentsPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
+  const contextLabels = getContextLabels(t);
+  const typeLabels = getTypeLabels(t);
   const [searchParams] = useSearchParams();
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -115,7 +120,7 @@ export default function DocumentsPage() {
     if (!condominiumId) {
       setDocuments([]);
       setPagination(null);
-      setLoadError('Condomínio não identificado.');
+      setLoadError(t('documents.error.noCondominium'));
       setLoading(false);
       return;
     }
@@ -129,10 +134,10 @@ export default function DocumentsPage() {
         setCurrentPage(page);
       })
       .catch(() => {
-        setLoadError('Não foi possível carregar os documentos.');
+        setLoadError(t('documents.error.loadFailed'));
       })
       .finally(() => setLoading(false));
-  }, [activeTab, condominiumId, debouncedSearch, pageSize]);
+  }, [activeTab, condominiumId, debouncedSearch, pageSize, t]);
 
   const loadAssemblies = useCallback(() => {
     if (!condominiumId) {
@@ -184,7 +189,7 @@ export default function DocumentsPage() {
       await documentsApi.delete(condominiumId, deleteId);
       load();
     } catch {
-      toastError('Erro ao eliminar documento.');
+      toastError(t('documents.error.deleteFailed'));
     } finally {
       setDeleteId(null);
     }
@@ -192,7 +197,7 @@ export default function DocumentsPage() {
 
   const handleDownload = async (id: string, fileName: string) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('documents.error.noCondominiumSelected'));
       return;
     }
 
@@ -200,7 +205,7 @@ export default function DocumentsPage() {
       await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      toastError('Erro ao fazer download do documento.');
+      toastError(t('documents.error.downloadFailed'));
     }
   };
 
@@ -248,7 +253,7 @@ export default function DocumentsPage() {
       });
       load();
     } catch {
-      toastError('Erro ao fazer upload do documento.');
+      toastError(t('documents.error.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -401,9 +406,9 @@ export default function DocumentsPage() {
   const getMaintenanceStatusLabel = (status: string) => {
     const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
     const labels: Record<string, string> = {
-      Open: 'Aberto',
-      InProgress: 'Em Curso',
-      Completed: 'Concluído',
+      Open: t('status.open'),
+      InProgress: t('documents.status.inProgress'),
+      Completed: t('status.completed'),
     };
     return labels[normalizedStatus] || normalizedStatus;
   };
@@ -420,10 +425,10 @@ export default function DocumentsPage() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      Scheduled: 'Agendada',
-      InProgress: 'Em Curso',
-      Completed: 'Concluída',
-      Cancelled: 'Cancelada',
+      Scheduled: t('documents.status.scheduled'),
+      InProgress: t('documents.status.inProgress'),
+      Completed: t('documents.status.completed'),
+      Cancelled: t('documents.status.cancelled'),
     };
     return labels[status] || status;
   };
@@ -432,27 +437,27 @@ export default function DocumentsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Eliminar documento"
-        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('documents.deleteModal.title')}
+        message={t('documents.deleteModal.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
       <PageHeader
-        title="Documentos"
-        subtitle="Documentos e arquivos do condomínio"
+        title={t('documents.title')}
+        subtitle={t('documents.subtitle')}
         search={
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Pesquisar documentos..."
+            placeholder={t('documents.searchPlaceholder')}
           />
         }
         actions={
           isAdmin && (
             <Button onClick={openUploadModal} icon={Plus} fullWidth className="sm:w-auto">
-              Novo Documento
+              {t('documents.newDocument')}
             </Button>
           )
         }
@@ -487,14 +492,14 @@ export default function DocumentsPage() {
           ) : loadError ? (
             <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           ) : documents.length === 0 ? (
-            <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos de assembleias'} />
+            <EmptyState icon={FileText} title={searchQuery ? t('documents.empty.noResults') : t('documents.empty.assembly')} />
           ) : activeTab === 'Assembly' ? (
             (() => {
               const groupedDocs = getDocumentsByAssembly();
               const assemblyIds = Array.from(groupedDocs.keys());
               
               return assemblyIds.length === 0 ? (
-                <EmptyState icon={FileText} title="Sem documentos de assembleias" />
+                <EmptyState icon={FileText} title={t('documents.empty.assembly')} />
               ) : (
                 assemblyIds.map(assemblyId => {
                   const assemblyDocs = groupedDocs.get(assemblyId) || [];
@@ -519,7 +524,7 @@ export default function DocumentsPage() {
                           <div className="flex-1 min-w-0 text-left">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-semibold text-ink">
-                                {assembly?.title || `Assembleia ${assemblyId.substring(0, 8)}`}
+                                {assembly?.title || t('documents.assemblyFallback', { id: assemblyId.substring(0, 8) })}
                               </h3>
                               {assembly && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(assembly.status)}`}>
@@ -581,7 +586,7 @@ export default function DocumentsPage() {
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
-                                    Descarregar
+                                    {t('documents.download')}
                                   </button>
                                   {isAdmin && (
                                     <button
@@ -589,7 +594,7 @@ export default function DocumentsPage() {
                                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                                     >
                                       <Trash2 className="w-3 h-3" />
-                                      Eliminar
+                                      {t('common.delete')}
                                     </button>
                                   )}
                                 </div>
@@ -609,7 +614,7 @@ export default function DocumentsPage() {
               const unitIds = Array.from(groupedDocs.keys());
               
               return unitIds.length === 0 ? (
-                <EmptyState icon={FileText} title="Sem documentos de frações" />
+                <EmptyState icon={FileText} title={t('documents.empty.unit')} />
               ) : (
                 unitIds.map(unitId => {
                   const unitDocs = groupedDocs.get(unitId) || [];
@@ -635,16 +640,16 @@ export default function DocumentsPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <Home className="w-4 h-4 text-ink-muted" />
                               <h3 className="font-semibold text-ink">
-                                {unit ? `Fração ${unit.number}` : `Fração ${unitId.substring(0, 8)}`}
+                                {unit ? t('common.fraction', { number: unit.number }) : t('common.fraction', { number: unitId.substring(0, 8) })}
                               </h3>
                               {unit && (
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-control text-ink-muted">
-                                  Piso {unit.floor}
+                                  {t('documents.floor', { floor: unit.floor })}
                                 </span>
                               )}
                               {unit?.apartmentNumber && (
                                 <span className="text-xs text-ink-subtle">
-                                  • Apt {unit.apartmentNumber}
+                                  • {t('documents.apartment', { number: unit.apartmentNumber })}
                                 </span>
                               )}
                             </div>
@@ -690,7 +695,7 @@ export default function DocumentsPage() {
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
-                                    Descarregar
+                                    {t('documents.download')}
                                   </button>
                                   {isAdmin && (
                                     <button
@@ -698,7 +703,7 @@ export default function DocumentsPage() {
                                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                                     >
                                       <Trash2 className="w-3 h-3" />
-                                      Eliminar
+                                      {t('common.delete')}
                                     </button>
                                   )}
                                 </div>
@@ -718,7 +723,7 @@ export default function DocumentsPage() {
               const maintenanceIds = Array.from(groupedDocs.keys());
               
               return maintenanceIds.length === 0 ? (
-                <EmptyState icon={FileText} title="Sem documentos de manutenções" />
+                <EmptyState icon={FileText} title={t('documents.empty.maintenance')} />
               ) : (
                 maintenanceIds.map(maintenanceId => {
                   const maintenanceDocs = groupedDocs.get(maintenanceId) || [];
@@ -744,7 +749,7 @@ export default function DocumentsPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <Wrench className="w-4 h-4 text-ink-muted" />
                               <h3 className="font-semibold text-ink">
-                                {maintenance?.title || `Manutenção ${maintenanceId.substring(0, 8)}`}
+                                {maintenance?.title || t('documents.maintenanceFallback', { id: maintenanceId.substring(0, 8) })}
                               </h3>
                               {maintenance && (
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${getMaintenanceStatusColor(maintenance.status)}`}>
@@ -799,7 +804,7 @@ export default function DocumentsPage() {
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
-                                    Descarregar
+                                    {t('documents.download')}
                                   </button>
                                   {isAdmin && (
                                     <button
@@ -807,7 +812,7 @@ export default function DocumentsPage() {
                                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                                     >
                                       <Trash2 className="w-3 h-3" />
-                                      Eliminar
+                                      {t('common.delete')}
                                     </button>
                                   )}
                                 </div>
@@ -827,7 +832,7 @@ export default function DocumentsPage() {
               const years = Array.from(groupedDocs.keys()).sort((a, b) => b - a);
               
               return years.length === 0 ? (
-                <EmptyState icon={FileText} title="Sem documentos financeiros" />
+                <EmptyState icon={FileText} title={t('documents.empty.financial')} />
               ) : (
                 years.map(year => {
                   const yearDocs = groupedDocs.get(year) || [];
@@ -852,7 +857,7 @@ export default function DocumentsPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <Calendar className="w-4 h-4 text-emerald-600" />
                               <h3 className="font-semibold text-ink">
-                                Ano {year}
+                                {t('documents.year', { year })}
                               </h3>
                             </div>
                           </div>
@@ -897,7 +902,7 @@ export default function DocumentsPage() {
                                     className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                                   >
                                     <Download className="w-3 h-3" />
-                                    Descarregar
+                                    {t('documents.download')}
                                   </button>
                                   {isAdmin && (
                                     <button
@@ -905,7 +910,7 @@ export default function DocumentsPage() {
                                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                                     >
                                       <Trash2 className="w-3 h-3" />
-                                      Eliminar
+                                      {t('common.delete')}
                                     </button>
                                   )}
                                 </div>
@@ -924,13 +929,13 @@ export default function DocumentsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          <div className="col-span-full text-center py-12 text-ink-subtle">A carregar...</div>
+          <div className="col-span-full text-center py-12 text-ink-subtle">{t('documents.loading')}</div>
         ) : loadError ? (
           <div className="col-span-full">
             <ErrorState message={loadError} onRetry={() => load(currentPage)} />
           </div>
         ) : documents.length === 0 ? (
-          <EmptyState icon={FileText} title={searchQuery ? 'Nenhum documento encontrado' : 'Sem documentos nesta categoria'} className="col-span-full" />
+          <EmptyState icon={FileText} title={searchQuery ? t('documents.empty.noResults') : t('documents.empty.category')} className="col-span-full" />
         ) : (
           documents.map((d) => (
             <Card key={d.id} className="p-4">
@@ -961,7 +966,7 @@ export default function DocumentsPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
                 >
                   <Download className="w-3 h-3" />
-                  Descarregar
+                  {t('documents.download')}
                 </button>
                 {isAdmin && (
                   <button
@@ -969,7 +974,7 @@ export default function DocumentsPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
-                    Eliminar
+                    {t('common.delete')}
                   </button>
                 )}
               </div>
@@ -991,13 +996,13 @@ export default function DocumentsPage() {
       <ModalPopup
         open={showUploadModal}
         onClose={() => setShowUploadModal(false)}
-        title="Carregar Documento"
+        title={t('documents.uploadModal.title')}
         maxWidthClass="max-w-2xl"
       >
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-2">
-                  Arquivo
+                  {t('documents.form.file')}
                 </label>
                 <FileUpload
                   onFileSelect={setUploadFile}
@@ -1009,14 +1014,14 @@ export default function DocumentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Nome do Documento *
+                  {t('documents.form.name')} *
                 </label>
                 <input
                   type="text"
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ex: Seguro Multi-risco 2024"
+                  placeholder={t('documents.form.namePlaceholder')}
                   required
                   disabled={uploading}
                 />
@@ -1024,7 +1029,7 @@ export default function DocumentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Tipo *
+                  {t('documents.form.type')} *
                 </label>
                 <select
                   value={uploadForm.type}
@@ -1043,14 +1048,14 @@ export default function DocumentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Descrição (opcional)
+                  {t('documents.form.description')}
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                   className="w-full px-3 py-2 border border-line rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows={3}
-                  placeholder="Adicione notas ou detalhes sobre o documento..."
+                  placeholder={t('documents.form.descriptionPlaceholder')}
                   disabled={uploading}
                 />
               </div>
@@ -1059,7 +1064,7 @@ export default function DocumentsPage() {
               {activeTab === 'Unit' && (
                 <div>
                   <label className="block text-sm font-medium text-ink-muted mb-1">
-                    Fração *
+                    {t('documents.form.unit')} *
                   </label>
                   <select
                     value={uploadForm.unitId}
@@ -1068,10 +1073,10 @@ export default function DocumentsPage() {
                     required
                     disabled={uploading}
                   >
-                    <option value="">Selecione uma fração</option>
+                    <option value="">{t('documents.form.selectUnit')}</option>
                     {units.map(unit => (
                       <option key={unit.id} value={unit.id}>
-                        Fração {unit.number} - Piso {unit.floor}{unit.apartmentNumber ? ` - Apt ${unit.apartmentNumber}` : ''}
+                        {t('documents.form.unitOption', { number: unit.number, floor: unit.floor })}{unit.apartmentNumber ? t('documents.form.aptSuffix', { number: unit.apartmentNumber }) : ''}
                       </option>
                     ))}
                   </select>
@@ -1081,7 +1086,7 @@ export default function DocumentsPage() {
               {activeTab === 'Assembly' && (
                 <div>
                   <label className="block text-sm font-medium text-ink-muted mb-1">
-                    Assembleia *
+                    {t('documents.form.assembly')} *
                   </label>
                   <select
                     value={uploadForm.assemblyId}
@@ -1090,7 +1095,7 @@ export default function DocumentsPage() {
                     required
                     disabled={uploading}
                   >
-                    <option value="">Selecione uma assembleia</option>
+                    <option value="">{t('documents.form.selectAssembly')}</option>
                     {assemblies.map(assembly => (
                       <option key={assembly.id} value={assembly.id}>
                         {assembly.title} - {new Date(assembly.scheduledAt).toLocaleDateString('pt-PT')}
@@ -1103,7 +1108,7 @@ export default function DocumentsPage() {
               {activeTab === 'Maintenance' && (
                 <div>
                   <label className="block text-sm font-medium text-ink-muted mb-1">
-                    Pedido de Manutenção *
+                    {t('documents.form.maintenance')} *
                   </label>
                   <select
                     value={uploadForm.maintenanceRequestId}
@@ -1112,7 +1117,7 @@ export default function DocumentsPage() {
                     required
                     disabled={uploading}
                   >
-                    <option value="">Selecione um pedido de manutenção</option>
+                    <option value="">{t('documents.form.selectMaintenance')}</option>
                     {maintenanceRequests.map(maintenance => (
                       <option key={maintenance.id} value={maintenance.id}>
                         {maintenance.title} - {maintenance.status}
@@ -1125,7 +1130,7 @@ export default function DocumentsPage() {
               {activeTab === 'Financial' && (
                 <div>
                   <label className="block text-sm font-medium text-ink-muted mb-1">
-                    Ano *
+                    {t('documents.form.year')} *
                   </label>
                   <select
                     value={uploadForm.year}
@@ -1147,7 +1152,7 @@ export default function DocumentsPage() {
                   onClick={() => setShowUploadModal(false)}
                   disabled={uploading}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -1155,7 +1160,7 @@ export default function DocumentsPage() {
                   loading={uploading}
                   disabled={!uploadFile}
                 >
-                  Carregar
+                  {t('documents.form.submit')}
                 </Button>
               </div>
             </form>

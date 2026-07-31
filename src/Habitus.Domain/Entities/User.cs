@@ -29,6 +29,9 @@ public class User
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+
+    // Preferred UI language ("pt" or "en"); null means "use the condominium default language".
+    public string? PreferredLanguage { get; set; }
     
     // For Admins - single condominium they manage
     // For Residents - the primary condominium they belong to
@@ -43,7 +46,13 @@ public class User
     
     // Many-to-many: Managers can have access to multiple condominiums
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+
+    // Multi-fraction membership: a user may belong to several units across condominiums
+    public ICollection<UnitMembership> UnitMemberships { get; set; } = new List<UnitMembership>();
     public ICollection<UserAuthProvider> AuthProviders { get; set; } = new List<UserAuthProvider>();
     public ICollection<UserRecoveryCode> RecoveryCodes { get; set; } = new List<UserRecoveryCode>();
     public ICollection<AuthChallenge> AuthChallenges { get; set; } = new List<AuthChallenge>();
+
+    // Append-only GDPR/RGPD consent history for this user.
+    public ICollection<UserConsent> UserConsents { get; set; } = new List<UserConsent>();
 }

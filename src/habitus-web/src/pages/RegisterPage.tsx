@@ -5,8 +5,10 @@ import { authApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { UnitDto, RegisterRequest } from '../types';
 import { Button } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const { condominiumId: routeCondominiumId } = useParams<{ condominiumId?: string }>();
   const isAdminRegistration = Boolean(routeCondominiumId);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', unitId: '' });
@@ -68,7 +70,7 @@ export default function RegisterPage() {
       } else {
         const selectedUnit = units.find((u) => u.id === form.unitId);
         if (!selectedUnit) {
-          setError('Selecione uma fração válida para concluir o registo.');
+          setError(t('register.error.invalidUnit'));
           setLoading(false);
           return;
         }
@@ -88,7 +90,7 @@ export default function RegisterPage() {
       login(data);
       navigate('/dashboard');
     } catch {
-      setError('Não foi possível criar a conta. Verifique os dados e tente novamente.');
+      setError(t('register.error.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -102,17 +104,17 @@ export default function RegisterPage() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-ink">Habitus</h1>
-          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
+          <p className="text-ink-subtle mt-1">{t('common.appTagline')}</p>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-xl p-8">
           <h2 className="text-xl font-semibold text-ink mb-6">
-            {isAdminRegistration ? 'Registo de Administrador' : 'Criar Conta'}
+            {isAdminRegistration ? t('register.adminTitle') : t('register.title')}
           </h2>
 
           {isAdminRegistration && (
             <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 text-amber-800 text-sm">
-              Está a efetuar o registo de um utilizador com perfil Administrador para o condomínio indicado pelo gestor.
+              {t('register.adminNotice')}
             </div>
           )}
 
@@ -122,10 +124,10 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
-              { name: 'name', label: 'Nome completo', type: 'text', icon: User, placeholder: 'João Silva' },
-              { name: 'email', label: 'Email', type: 'email', icon: Mail, placeholder: 'joao@email.com' },
-              { name: 'password', label: 'Password', type: 'password', icon: Lock, placeholder: '••••••••' },
-              { name: 'phone', label: 'Telefone', type: 'tel', icon: Phone, placeholder: '+351 912 345 678' },
+              { name: 'name', label: t('register.nameLabel'), type: 'text', icon: User, placeholder: t('register.namePlaceholder') },
+              { name: 'email', label: t('common.email'), type: 'email', icon: Mail, placeholder: 'joao@email.com' },
+              { name: 'password', label: t('login.password'), type: 'password', icon: Lock, placeholder: '••••••••' },
+              { name: 'phone', label: t('common.phone'), type: 'tel', icon: Phone, placeholder: '+351 912 345 678' },
             ].map(({ name, label, type, icon: Icon, placeholder }) => (
               <div key={name}>
                 <label className="block text-sm font-medium text-ink-muted mb-1.5">{label}</label>
@@ -146,7 +148,7 @@ export default function RegisterPage() {
 
             {!isAdminRegistration && (
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1.5">Fração</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('register.unitLabel')}</label>
                 <div className="relative">
                   <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                   <select
@@ -156,10 +158,10 @@ export default function RegisterPage() {
                     required
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-surface"
                   >
-                    <option value="">Selecionar fração</option>
+                    <option value="">{t('register.unitPlaceholder')}</option>
                     {units.map((u) => (
                       <option key={u.id} value={u.id}>
-                        {u.number} – Piso {u.floor}
+                        {t('register.unitOption', { number: u.number, floor: u.floor ?? '' })}
                       </option>
                     ))}
                   </select>
@@ -168,14 +170,14 @@ export default function RegisterPage() {
             )}
 
             <Button type="submit" loading={loading} fullWidth className="mt-2">
-              {loading ? 'A criar conta...' : 'Criar Conta'}
+              {loading ? t('register.creating') : t('register.title')}
             </Button>
           </form>
 
           <p className="text-center text-sm text-ink-subtle mt-6">
-            Já tem conta?{' '}
+            {t('register.haveAccount')}{' '}
             <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
-              Iniciar sessão
+              {t('register.signIn')}
             </Link>
           </p>
         </div>

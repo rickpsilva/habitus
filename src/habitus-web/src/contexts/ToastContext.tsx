@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info, X } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -49,6 +50,7 @@ const typeConfig: Record<
 };
 
 function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) => void }) {
+  const { t } = useTranslation();
   const { icon: Icon, border, iconColor } = typeConfig[item.type];
   return (
     <div
@@ -60,7 +62,7 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) =
       <button
         type="button"
         onClick={() => onDismiss(item.id)}
-        aria-label="Fechar"
+        aria-label={t('common.close')}
         className="text-ink-subtle hover:text-ink-muted transition-colors shrink-0"
       >
         <X className="w-4 h-4" />
@@ -70,6 +72,7 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) =
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const counterRef = useRef(0);
 
@@ -96,7 +99,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        aria-label="Notificações"
+        aria-label={t('toast.notifications')}
         className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2"
       >
         {toasts.map((t) => (

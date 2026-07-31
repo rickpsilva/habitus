@@ -15,25 +15,15 @@ public sealed class RequireFeatureAttribute : TypeFilterAttribute
 
 public sealed class RequireFeatureFilter : IAsyncActionFilter
 {
-    private static readonly HashSet<string> FreeFallbackFeatures =
-    [
-        "maintenance",
-        "announcements",
-        "documents",
-    ];
-
     private readonly string _featureKey;
-    private readonly IRepository<CondominiumSubscription> _subscriptionsRepo;
-    private readonly IRepository<SubscriptionPlan> _plansRepo;
+    private readonly IFeatureEntitlementService _entitlementService;
 
     public RequireFeatureFilter(
         string featureKey,
-        IRepository<CondominiumSubscription> subscriptionsRepo,
-        IRepository<SubscriptionPlan> plansRepo)
+        IFeatureEntitlementService entitlementService)
     {
         _featureKey = featureKey;
-        _subscriptionsRepo = subscriptionsRepo;
-        _plansRepo = plansRepo;
+        _entitlementService = entitlementService;
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -53,33 +43,7 @@ public sealed class RequireFeatureFilter : IAsyncActionFilter
             return;
         }
 
-        var activeSub = (await _subscriptionsRepo.FindWithIncludesAsync(
-                s => s.CondominiumId == condominiumId && s.Status == SubscriptionStatus.Active,
-                nameof(CondominiumSubscription.Plan),
-                $"{nameof(CondominiumSubscription.Plan)}.{nameof(SubscriptionPlan.Features)}"))
-            .OrderByDescending(s => s.StartDate)
-            .FirstOrDefault();
-
-        IEnumerable<PlanFeature> features;
-        if (activeSub?.Plan?.Features?.Any() == true)
-        {
-            features = activeSub.Plan.Features;
-        }
-        else
-        {
-            var fallbackPlan = (await _plansRepo.FindWithIncludesAsync(
-                    p => p.IsActive && p.Tier == PlanTier.Free,
-                    nameof(SubscriptionPlan.Features)))
-                .FirstOrDefault();
-
-            features = fallbackPlan?.Features?.Any() == true
-                ? fallbackPlan.Features
-                : FreeFallbackFeatures.Select(k => new PlanFeature { FeatureKey = k, IsEnabled = true });
-        }
-
-        var enabled = features.Any(f =>
-            f.IsEnabled &&
-            string.Equals(f.FeatureKey, _featureKey, StringComparison.OrdinalIgnoreCase));
+        var enabled = await _entitlementService.IsFeatureEnabledForCondominiumAsync(condominiumId, _featureKey);
 
         if (!enabled)
         {

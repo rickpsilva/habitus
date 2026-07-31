@@ -7,8 +7,95 @@ export interface AuthResponse {
   unitId?: string;
   accessibleCondominiums?: string[];
   requiresTwoFactor?: boolean;
+  requiresContextSelection?: boolean;
   challengeId?: string;
   availableTwoFactorMethods?: string[];
+  preferredLanguage?: string | null;
+}
+
+// Localization / i18n (REQ-I18N-001 / REQ-I18N-002)
+export interface MeLocalizationDto {
+  multilanguageEnabled: boolean;
+  preferredLanguage: string | null;
+  defaultLanguage: string;
+  supportedLanguages: string[];
+}
+
+export interface SetLanguageRequest {
+  language: string;
+}
+
+export interface PlatformLocalizationSettingsDto {
+  id: string;
+  defaultLanguage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePlatformLocalizationSettingsRequest {
+  defaultLanguage: string;
+}
+
+export interface PublicLocalizationDefaultDto {
+  defaultLanguage: string;
+}
+
+export interface MembershipUnitDto {
+  unitId: string;
+  unitNumber: string;
+  isPrimary: boolean;
+}
+
+export interface MembershipCondominiumDto {
+  condominiumId: string;
+  condominiumName: string;
+  units: MembershipUnitDto[];
+}
+
+export interface ActiveContextDto {
+  condominiumId: string | null;
+  unitId: string | null;
+}
+
+export interface MembershipsResponse {
+  condominiums: MembershipCondominiumDto[];
+  activeContext: ActiveContextDto;
+}
+
+export interface SetActiveContextRequest {
+  condominiumId: string;
+  unitId: string | null;
+}
+
+// RGPD/GDPR consent (F4/F5). `decision` is a numeric enum from the backend:
+// 0 = None (pending), 1 = Accepted, 2 = Withdrawn.
+export const ConsentDecision = {
+  None: 0,
+  Accepted: 1,
+  Withdrawn: 2,
+} as const;
+
+export type ConsentDecisionValue = 0 | 1 | 2;
+
+export interface ConsentItem {
+  key: string;
+  version: string;
+  title: string;
+  url?: string | null;
+  isMandatory: boolean;
+  decision: ConsentDecisionValue;
+  decidedAt?: string | null;
+}
+
+export interface ConsentStatusResponse {
+  consents: ConsentItem[];
+  allMandatoryAccepted: boolean;
+}
+
+export interface RecordConsentRequest {
+  key: string;
+  version: string;
+  accepted: boolean;
 }
 
 export interface LoginRequest {

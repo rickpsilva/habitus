@@ -10,6 +10,7 @@ public class AuthResponse
     public Guid? UnitId { get; set; }
     public List<Guid> AccessibleCondominiums { get; set; } = new();  // For Managers
     public bool RequiresTwoFactor { get; set; }
+    public bool RequiresContextSelection { get; set; }  // True when the user must pick an active context (>1 unit membership)
     public string? ChallengeId { get; set; }
     public List<string> AvailableTwoFactorMethods { get; set; } = new();
 }

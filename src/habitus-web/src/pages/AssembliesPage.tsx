@@ -13,13 +13,15 @@ import MultipleFileUpload from '../components/MultipleFileUpload';
 import { PageHeader, Button, FilterBar, FilterChip, AsyncState, EmptyState, Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import type { AssemblyDto, CreateAssemblyRequest, UpdateAssemblyRequest, PaginatedResponse, DocumentDto } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 
-const statusLabels: Record<string, string> = {
-  Scheduled: 'Agendada',
-  InProgress: 'Em Curso',
-  Completed: 'Concluída',
-  Cancelled: 'Cancelada',
-};
+const getStatusLabels = (t: TranslateFn): Record<string, string> => ({
+  Scheduled: t('assemblies.status.scheduled'),
+  InProgress: t('assemblies.status.inProgress'),
+  Completed: t('assemblies.status.completed'),
+  Cancelled: t('assemblies.status.cancelled'),
+});
 
 const statusVariants: Record<string, BadgeVariant> = {
   Scheduled: 'info',
@@ -31,6 +33,8 @@ const statusVariants: Record<string, BadgeVariant> = {
 export default function AssembliesPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
+  const { t } = useTranslation();
+  const statusLabels = getStatusLabels(t);
   const [assemblies, setAssemblies] = useState<AssemblyDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -108,7 +112,7 @@ export default function AssembliesPage() {
     if (!condominiumId) {
       setAssemblies([]);
       setPagination(null);
-      setLoadError('Condomínio não identificado.');
+      setLoadError(t('assemblies.error.condominiumNotIdentified'));
       setLoading(false);
       return;
     }
@@ -127,10 +131,10 @@ export default function AssembliesPage() {
         setCurrentPage(page);
       })
       .catch(() => {
-        setLoadError('Não foi possível carregar as assembleias.');
+        setLoadError(t('assemblies.error.load'));
       })
       .finally(() => setLoading(false));
-  }, [condominiumId, debouncedSearch]);
+  }, [condominiumId, debouncedSearch, t]);
 
   useEffect(() => { load(1); }, [load]);
   
@@ -172,7 +176,7 @@ export default function AssembliesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('assemblies.error.condominiumNotSelected'));
       return;
     }
 
@@ -197,7 +201,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar assembleia:', error);
-      toastError('Erro ao guardar assembleia.');
+      toastError(t('assemblies.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -214,7 +218,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao eliminar assembleia:', error);
-      toastError('Erro ao eliminar assembleia.');
+      toastError(t('assemblies.error.delete'));
     } finally {
       setDeleteAssemblyId(null);
     }
@@ -268,7 +272,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar notas:', error);
-      toastError('Erro ao guardar notas.');
+      toastError(t('assemblies.error.saveNotes'));
     } finally {
       setSubmitting(false);
     }
@@ -276,7 +280,7 @@ export default function AssembliesPage() {
 
   const openMinutes = async (assembly: AssemblyDto) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('assemblies.error.condominiumNotSelected'));
       return;
     }
 
@@ -289,7 +293,7 @@ export default function AssembliesPage() {
       setShowMinutesModal(true);
     } catch (error) {
       console.error('Erro ao carregar atas da assembleia:', error);
-      toastError('Erro ao carregar o conteúdo das atas.');
+      toastError(t('assemblies.error.loadMinutes'));
     }
   };
 
@@ -326,10 +330,10 @@ export default function AssembliesPage() {
     try {
       await assembliesApi.updateMinutesDraft(condominiumId, selectedAssembly.id, minutes);
       setMinutesLastSaved(new Date());
-      toastSuccess('Draft das atas guardado com sucesso!');
+      toastSuccess(t('assemblies.success.draftSaved'));
     } catch (error) {
       console.error('Erro ao guardar draft das atas:', error);
-      toastError('Erro ao guardar draft das atas.');
+      toastError(t('assemblies.error.saveDraft'));
     } finally {
       setSubmitting(false);
     }
@@ -338,7 +342,7 @@ export default function AssembliesPage() {
   const handleCompleteAssembly = async () => {
     if (!selectedAssembly) return;
     if (!minutes.trim()) {
-      toastError('Por favor insira as atas da assembleia antes de concluir.');
+      toastError(t('assemblies.error.minutesRequired'));
       return;
     }
     setConfirmCompleteOpen(true);
@@ -352,10 +356,10 @@ export default function AssembliesPage() {
       await assembliesApi.updateMinutes(condominiumId, selectedAssembly.id, minutes);
       setShowMinutesModal(false);
       load();
-      toastSuccess('Assembleia concluída! As atas foram publicadas e notificações enviadas.');
+      toastSuccess(t('assemblies.success.completed'));
     } catch (error) {
       console.error('Erro ao concluir assembleia:', error);
-      toastError('Erro ao concluir assembleia.');
+      toastError(t('assemblies.error.complete'));
     } finally {
       setSubmitting(false);
     }
@@ -370,7 +374,7 @@ export default function AssembliesPage() {
   const handleCancel = async () => {
     if (!selectedAssembly || !condominiumId) return;
     if (!cancellationReason.trim()) {
-      toastError('Por favor insira o motivo do cancelamento.');
+      toastError(t('assemblies.error.cancellationReasonRequired'));
       return;
     }
     setSubmitting(true);
@@ -380,7 +384,7 @@ export default function AssembliesPage() {
       load();
     } catch (error) {
       console.error('Erro ao cancelar assembleia:', error);
-      toastError('Erro ao cancelar assembleia.');
+      toastError(t('assemblies.error.cancel'));
     } finally {
       setSubmitting(false);
     }
@@ -436,7 +440,7 @@ export default function AssembliesPage() {
       await loadAssemblyDocuments(selectedAssembly.id);
     } catch (error) {
       console.error('Erro ao fazer upload do documento:', error);
-      toastError('Erro ao fazer upload do documento.');
+      toastError(t('assemblies.error.uploadDocument'));
     } finally {
       setUploadingDocument(false);
     }
@@ -455,7 +459,7 @@ export default function AssembliesPage() {
       }
     } catch (error) {
       console.error('Erro ao eliminar documento:', error);
-      toastError('Erro ao eliminar documento.');
+      toastError(t('assemblies.error.deleteDocument'));
     } finally {
       setDeleteDocumentId(null);
     }
@@ -463,7 +467,7 @@ export default function AssembliesPage() {
 
   const handleDocumentDownload = async (id: string, fileName: string) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('assemblies.error.condominiumNotSelected'));
       return;
     }
 
@@ -471,7 +475,7 @@ export default function AssembliesPage() {
       await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      toastError('Erro ao fazer download do documento.');
+      toastError(t('assemblies.error.downloadDocument'));
     }
   };
 
@@ -484,9 +488,9 @@ export default function AssembliesPage() {
   };
 
   const documentTypeLabels: Record<string, string> = {
-    AssemblyMinutes: 'Ata',
-    AssemblyConvocation: 'Convocatória',
-    AssemblyAttachment: 'Anexo',
+    AssemblyMinutes: t('assemblies.docType.minutes'),
+    AssemblyConvocation: t('assemblies.docType.convocation'),
+    AssemblyAttachment: t('assemblies.docType.attachment'),
   };
 
   // Quick upload from card
@@ -529,9 +533,9 @@ export default function AssembliesPage() {
       });
 
       if (response.data.failed > 0) {
-        toastWarning(`${response.data.success} ficheiro(s) carregado(s) com sucesso! ${response.data.failed} falhou(aram).`);
+        toastWarning(t('assemblies.success.uploadPartial', { success: response.data.success, failed: response.data.failed }));
       } else {
-        toastSuccess(`${response.data.success} ficheiro(s) adicionado(s) com sucesso!`);
+        toastSuccess(t('assemblies.success.uploadAll', { count: response.data.success }));
       }
 
       // Reload documents if in detail modal
@@ -540,7 +544,7 @@ export default function AssembliesPage() {
       }
     } catch (error) {
       console.error('Erro ao fazer upload dos documentos:', error);
-      toastError('Erro ao fazer upload dos documentos.');
+      toastError(t('assemblies.error.uploadDocuments'));
     } finally {
       setUploadingDocument(false);
     }
@@ -573,7 +577,7 @@ export default function AssembliesPage() {
     // Validate each file size (100MB max)
     const validFiles = files.filter(file => {
       if (file.size > 100 * 1024 * 1024) {
-        toastError(`Ficheiro "${file.name}" demasiado grande. Máximo: 100MB`);
+        toastError(t('assemblies.error.fileTooLarge', { name: file.name }));
         return false;
       }
       return true;
@@ -583,7 +587,7 @@ export default function AssembliesPage() {
 
     // Limit to 10 files
     if (validFiles.length > 10) {
-      toastError('Máximo de 10 ficheiros por vez.');
+      toastError(t('assemblies.error.maxFiles', { max: 10 }));
       return;
     }
 
@@ -601,45 +605,45 @@ export default function AssembliesPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteAssemblyId !== null}
-        title="Eliminar assembleia"
-        message="Tem a certeza que deseja eliminar esta assembleia? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('assemblies.deleteModal.title')}
+        message={t('assemblies.deleteModal.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDeleteAssembly}
         onCancel={() => setDeleteAssemblyId(null)}
       />
       <ConfirmModal
         open={confirmCompleteOpen}
-        title="Concluir assembleia"
-        message={"Tem a certeza que deseja concluir esta assembleia?\n\nIsso irá:\n• Marcar a assembleia como Concluída\n• Enviar notificações a todos os utilizadores\n• As atas ficarão disponíveis publicamente"}
-        confirmLabel="Concluir"
+        title={t('assemblies.completeModal.title')}
+        message={t('assemblies.completeModal.message')}
+        confirmLabel={t('assemblies.completeModal.confirm')}
         variant="warning"
         onConfirm={doCompleteAssembly}
         onCancel={() => setConfirmCompleteOpen(false)}
       />
       <ConfirmModal
         open={deleteDocumentId !== null}
-        title="Eliminar documento"
-        message="Tem a certeza que deseja eliminar este documento?"
-        confirmLabel="Eliminar"
+        title={t('assemblies.deleteDocModal.title')}
+        message={t('assemblies.deleteDocModal.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDeleteDocument}
         onCancel={() => setDeleteDocumentId(null)}
       />
       <PageHeader
-        title="Assembleias"
-        subtitle="Reuniões e assembleias de condóminos"
+        title={t('assemblies.title')}
+        subtitle={t('assemblies.subtitle')}
         search={
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Pesquisar assembleias..."
+            placeholder={t('assemblies.searchPlaceholder')}
           />
         }
         actions={
           isAdmin && (
             <Button icon={Plus} onClick={openNew} fullWidth className="sm:w-auto">
-              Nova Assembleia
+              {t('assemblies.new')}
             </Button>
           )
         }
@@ -649,33 +653,33 @@ export default function AssembliesPage() {
       <ModalPopup
         open={showForm && isAdmin}
         onClose={() => setShowForm(false)}
-        title={editId ? 'Editar Assembleia' : 'Nova Assembleia'}
+        title={editId ? t('assemblies.form.editTitle') : t('assemblies.new')}
         maxWidthClass="max-w-2xl"
       >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-ink-muted mb-1">Título</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('assemblies.form.title')}</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Assembleia Geral Ordinária 2026"
+                placeholder={t('assemblies.form.titlePlaceholder')}
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.description')}</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 required
                 rows={3}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                placeholder="Ordem de trabalhos e outras informações relevantes..."
+                placeholder={t('assemblies.form.descriptionPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Data e Hora</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('assemblies.form.dateTime')}</label>
               <input
                 type="datetime-local"
                 value={form.scheduledAt}
@@ -685,21 +689,21 @@ export default function AssembliesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Local</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('assemblies.form.location')}</label>
               <input
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Salão comum do condomínio"
+                placeholder={t('assemblies.form.locationPlaceholder')}
               />
             </div>
             <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowForm(false)} className="border border-line">
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button type="submit" loading={submitting}>
-                Guardar
+                {t('assemblies.form.save')}
               </Button>
             </div>
           </form>
@@ -710,7 +714,7 @@ export default function AssembliesPage() {
         {['All', 'Scheduled', 'InProgress', 'Completed', 'Cancelled'].map((status) => (
           <FilterChip
             key={status}
-            label={status === 'All' ? 'Todas' : statusLabels[status] ?? status}
+            label={status === 'All' ? t('assemblies.filter.all') : statusLabels[status] ?? status}
             active={statusFilter === status}
             count={status === 'All' ? undefined : assemblies.filter((a) => a.status === status).length}
             onClick={() => setStatusFilter(status)}
@@ -728,7 +732,7 @@ export default function AssembliesPage() {
         empty={
           <EmptyState
             icon={ClipboardList}
-            title={statusFilter === 'All' ? 'Sem assembleias agendadas' : `Sem assembleias com estado "${statusLabels[statusFilter] ?? statusFilter}"`}
+            title={statusFilter === 'All' ? t('assemblies.empty') : t('assemblies.emptyFiltered', { status: statusLabels[statusFilter] ?? statusFilter })}
           />
         }
       >
@@ -752,7 +756,7 @@ export default function AssembliesPage() {
                   {isDragOver && !isDisabled && isAdmin && (
                     <div className="flex items-center justify-center gap-2 mb-3 p-3 bg-indigo-100 border-2 border-dashed border-indigo-400 rounded-lg">
                       <Upload className="w-5 h-5 text-indigo-600" />
-                      <span className="text-sm font-medium text-indigo-700">Soltar ficheiro para adicionar à assembleia</span>
+                      <span className="text-sm font-medium text-indigo-700">{t('assemblies.dropToAdd')}</span>
                     </div>
                   )}
                   
@@ -790,37 +794,37 @@ export default function AssembliesPage() {
                         <button 
                           onClick={() => openQuickUpload(a)}
                           className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors flex items-center gap-1.5"
-                          title="Adicionar Documentos"
+                          title={t('assemblies.card.addDocuments')}
                         >
                           <FileText className="w-3.5 h-3.5" />
-                          Documentos
+                          {t('assemblies.card.documents')}
                         </button>
                       )}
                       {isAdmin && a.status === 'InProgress' && (
                         <button 
                           onClick={() => openNotes(a)}
                           className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
-                          title="Editar Notas"
+                          title={t('assemblies.card.editNotes')}
                         >
-                          Notas
+                          {t('assemblies.card.notes')}
                         </button>
                       )}
                       {isAdmin && (a.status === 'InProgress' || a.status === 'Scheduled') && (
                         <button 
                           onClick={() => openMinutes(a)}
                           className="px-3 py-1.5 text-xs font-medium text-green-600 hover:bg-green-50 border border-green-200 rounded-lg transition-colors"
-                          title="Inserir Atas (marca como concluída)"
+                          title={t('assemblies.card.insertMinutes')}
                         >
-                          Atas
+                          {t('assemblies.card.minutes')}
                         </button>
                       )}
                       {isAdmin && a.status !== 'Cancelled' && a.status !== 'Completed' && (
                         <button 
                           onClick={() => openCancel(a)}
                           className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
-                          title="Cancelar Assembleia"
+                          title={t('assemblies.card.cancelAssembly')}
                         >
-                          Cancelar
+                          {t('common.cancel')}
                         </button>
                       )}
                       {isAdmin && a.status === 'Scheduled' && (
@@ -853,32 +857,32 @@ export default function AssembliesPage() {
       <ModalPopup
         open={showDetailModal && selectedAssembly !== null}
         onClose={() => setShowDetailModal(false)}
-        title="Detalhes da Assembleia"
+        title={t('assemblies.detail.title')}
         maxWidthClass="max-w-2xl"
         bodyClassName="space-y-4 p-6"
       >
             {selectedAssembly && (
               <>
               <div>
-                <label className="text-xs font-medium text-ink-subtle uppercase">Título</label>
+                <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.form.title')}</label>
                 <p className="text-ink mt-1">{selectedAssembly.title}</p>
               </div>
               <div>
-                <label className="text-xs font-medium text-ink-subtle uppercase">Descrição</label>
+                <label className="text-xs font-medium text-ink-subtle uppercase">{t('common.description')}</label>
                 <p className="text-ink-muted mt-1 whitespace-pre-wrap">{selectedAssembly.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-ink-subtle uppercase">Data e Hora</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.form.dateTime')}</label>
                   <p className="text-ink mt-1">{new Date(selectedAssembly.scheduledAt).toLocaleString('pt-PT')}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-ink-subtle uppercase">Local</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.form.location')}</label>
                   <p className="text-ink mt-1">{selectedAssembly.location}</p>
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-ink-subtle uppercase">Estado</label>
+                <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.detail.status')}</label>
                 <p className="mt-1">
                   <Badge variant={statusVariants[selectedAssembly.status] ?? 'neutral'}>
                     {statusLabels[selectedAssembly.status]}
@@ -887,7 +891,7 @@ export default function AssembliesPage() {
               </div>
               {selectedAssembly.notes && (
                 <div>
-                  <label className="text-xs font-medium text-ink-subtle uppercase">Notas</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.card.notes')}</label>
                   <div className="mt-1 p-3 bg-surface-muted rounded-lg">
                     <RichTextDisplay content={selectedAssembly.notes} className="text-sm" />
                   </div>
@@ -896,7 +900,7 @@ export default function AssembliesPage() {
               {selectedAssembly.minutes && (selectedAssembly.status === 'Completed' || (selectedAssembly.status === 'InProgress' && isAdmin)) && (
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">
-                    Atas {selectedAssembly.status === 'InProgress' && '(Draft em edição)'}
+                    {t('assemblies.card.minutes')} {selectedAssembly.status === 'InProgress' && t('assemblies.detail.draftEditing')}
                   </label>
                   <div className={`mt-1 p-3 rounded-lg border ${
                     selectedAssembly.status === 'Completed' 
@@ -909,7 +913,7 @@ export default function AssembliesPage() {
               )}
               {selectedAssembly.cancellationReason && (
                 <div>
-                  <label className="text-xs font-medium text-ink-subtle uppercase">Motivo do Cancelamento</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.detail.cancellationReason')}</label>
                   <div className="mt-1 p-3 bg-red-50 rounded-lg border border-red-200">
                     <p className="text-sm text-ink-muted">{selectedAssembly.cancellationReason}</p>
                   </div>
@@ -919,14 +923,14 @@ export default function AssembliesPage() {
               {/* Documents Section */}
               <div className="border-t border-line pt-4">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-xs font-medium text-ink-subtle uppercase">Documentos Anexados</label>
+                  <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.detail.attachedDocuments')}</label>
                   {isAdmin && selectedAssembly.status !== 'Cancelled' && (
                     <button
                       onClick={() => setShowUploadDocument(!showUploadDocument)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
                     >
                       <Upload className="w-3 h-3" />
-                      {showUploadDocument ? 'Cancelar' : 'Adicionar Documento'}
+                      {showUploadDocument ? t('common.cancel') : t('assemblies.detail.addDocument')}
                     </button>
                   )}
                 </div>
@@ -942,19 +946,19 @@ export default function AssembliesPage() {
                       maxFiles={1}
                     />
                     <div>
-                      <label className="block text-xs font-medium text-ink-muted mb-1">Nome do Documento *</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">{t('assemblies.upload.docNameLabel')}</label>
                       <input
                         type="text"
                         value={uploadForm.name}
                         onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
                         className="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="Ex: Ata da Assembleia"
+                        placeholder={t('assemblies.upload.docNamePlaceholder')}
                         required
                         disabled={uploadingDocument}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-ink-muted mb-1">Tipo *</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">{t('assemblies.upload.typeLabel')}</label>
                       <select
                         value={uploadForm.type}
                         onChange={(e) =>
@@ -967,19 +971,19 @@ export default function AssembliesPage() {
                         required
                         disabled={uploadingDocument}
                       >
-                        <option value="AssemblyMinutes">Ata</option>
-                        <option value="AssemblyConvocation">Convocatória</option>
-                        <option value="AssemblyAttachment">Anexo</option>
+                        <option value="AssemblyMinutes">{t('assemblies.docType.minutes')}</option>
+                        <option value="AssemblyConvocation">{t('assemblies.docType.convocation')}</option>
+                        <option value="AssemblyAttachment">{t('assemblies.docType.attachment')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-ink-muted mb-1">Descrição (opcional)</label>
+                      <label className="block text-xs font-medium text-ink-muted mb-1">{t('assemblies.upload.descriptionLabel')}</label>
                       <textarea
                         value={uploadForm.description}
                         onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                         className="w-full px-3 py-2 text-sm border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                         rows={2}
-                        placeholder="Adicione notas sobre o documento..."
+                        placeholder={t('assemblies.upload.descriptionPlaceholder')}
                         disabled={uploadingDocument}
                       />
                     </div>
@@ -993,7 +997,7 @@ export default function AssembliesPage() {
                         }}
                         disabled={uploadingDocument}
                       >
-                        Cancelar
+                        {t('common.cancel')}
                       </Button>
                       <Button
                         type="submit"
@@ -1001,7 +1005,7 @@ export default function AssembliesPage() {
                         loading={uploadingDocument}
                         disabled={uploadFiles.length === 0}
                       >
-                        Carregar
+                        {t('assemblies.upload.submit')}
                       </Button>
                     </div>
                   </form>
@@ -1010,10 +1014,10 @@ export default function AssembliesPage() {
                 {/* Documents List */}
                 <div className="space-y-2">
                   {loadingDocuments ? (
-                    <div className="text-center py-4 text-sm text-ink-subtle">A carregar documentos...</div>
+                    <div className="text-center py-4 text-sm text-ink-subtle">{t('assemblies.loadingDocuments')}</div>
                   ) : assemblyDocuments.length === 0 ? (
                     <div className="text-center py-4 text-sm text-ink-subtle">
-                      Nenhum documento anexado
+                      {t('assemblies.noDocuments')}
                     </div>
                   ) : (
                     assemblyDocuments.map((doc) => (
@@ -1042,7 +1046,7 @@ export default function AssembliesPage() {
                           <button
                             onClick={() => handleDocumentDownload(doc.id, doc.name)}
                             className="p-1.5 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors"
-                            title="Descarregar"
+                            title={t('assemblies.download')}
                           >
                             <Download className="w-4 h-4" />
                           </button>
@@ -1050,7 +1054,7 @@ export default function AssembliesPage() {
                             <button
                               onClick={() => handleDeleteDocument(doc.id)}
                               className="p-1.5 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                              title="Eliminar"
+                              title={t('common.delete')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1066,7 +1070,7 @@ export default function AssembliesPage() {
                 onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 bg-control hover:bg-control-hover text-ink rounded-lg text-sm font-medium transition-colors"
               >
-                Fechar
+                {t('assemblies.detail.close')}
               </button>
             </div>
               </>
@@ -1084,13 +1088,13 @@ export default function AssembliesPage() {
             <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
-                  Notas da Assembleia
+                  {t('assemblies.notes.title')}
                 </h2>
                 {notesAutoSaving && (
-                  <span className="text-xs text-ink-subtle animate-pulse">A guardar...</span>
+                  <span className="text-xs text-ink-subtle animate-pulse">{t('assemblies.autoSaving')}</span>
                 )}
                 {!notesAutoSaving && notesLastSaved && (
-                  <span className="text-xs text-green-600">✓ Guardado</span>
+                  <span className="text-xs text-green-600">{t('assemblies.saved')}</span>
                 )}
               </div>
               <button onClick={() => setShowNotesModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
@@ -1102,20 +1106,20 @@ export default function AssembliesPage() {
             {selectedAssembly && isAdmin && (
               <>
             <div className="px-6 py-4">
-              <p className="text-sm text-ink-subtle mb-3">Utilize este espaço para tirar notas durante a assembleia em curso.</p>
+              <p className="text-sm text-ink-subtle mb-3">{t('assemblies.notes.hint')}</p>
               <RichTextEditor
                 value={notes}
                 onChange={setNotes}
-                placeholder="Adicione notas sobre a assembleia..."
+                placeholder={t('assemblies.notes.placeholder')}
                 height="350px"
               />
             </div>
             <div className="px-6 py-4 border-t border-line flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowNotesModal(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSaveNotes} loading={submitting}>
-                Guardar Notas
+                {t('assemblies.notes.save')}
               </Button>
             </div>
               </>
@@ -1133,13 +1137,13 @@ export default function AssembliesPage() {
             <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  Atas da Assembleia
+                  {t('assemblies.minutes.title')}
                 </h2>
                 {minutesAutoSaving && (
-                  <span className="text-xs text-ink-subtle animate-pulse">A guardar...</span>
+                  <span className="text-xs text-ink-subtle animate-pulse">{t('assemblies.autoSaving')}</span>
                 )}
                 {!minutesAutoSaving && minutesLastSaved && (
-                  <span className="text-xs text-green-600">✓ Guardado</span>
+                  <span className="text-xs text-green-600">{t('assemblies.saved')}</span>
                 )}
               </div>
               <button onClick={() => setShowMinutesModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
@@ -1153,27 +1157,27 @@ export default function AssembliesPage() {
             <div className="px-6 py-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
                 <p className="text-sm text-blue-800">
-                  💾 <strong>Auto-save ativo:</strong> As suas alterações são guardadas automaticamente.<br />
-                  Clique em <strong>"Guardar Draft"</strong> para guardar manualmente ou <strong>"Concluir Assembleia"</strong> quando terminar.
+                  💾 <strong>{t('assemblies.minutes.autoSaveLabel')}</strong> {t('assemblies.minutes.autoSaveInfo')}<br />
+                  {t('assemblies.minutes.instructionPrefix')}<strong>"{t('assemblies.minutes.saveDraft')}"</strong>{t('assemblies.minutes.instructionMiddle')}<strong>"{t('assemblies.minutes.completeAssembly')}"</strong>{t('assemblies.minutes.instructionSuffix')}
                 </p>
               </div>
               <RichTextEditor
                 value={minutes}
                 onChange={setMinutes}
-                placeholder="Insira as atas da assembleia..."
+                placeholder={t('assemblies.minutes.placeholder')}
                 height="350px"
               />
             </div>
             <div className="px-6 py-4 border-t border-line flex flex-wrap justify-between gap-3">
               <Button variant="ghost" onClick={() => setShowMinutesModal(false)}>
-                Fechar
+                {t('assemblies.detail.close')}
               </Button>
               <div className="flex flex-wrap gap-3">
                 <Button onClick={handleSaveDraftMinutes} loading={submitting}>
-                  Guardar Draft
+                  {t('assemblies.minutes.saveDraft')}
                 </Button>
                 <Button variant="success" onClick={handleCompleteAssembly} loading={submitting}>
-                  Concluir Assembleia
+                  {t('assemblies.minutes.completeAssembly')}
                 </Button>
               </div>
             </div>
@@ -1191,7 +1195,7 @@ export default function AssembliesPage() {
           <div className="sticky top-0 bg-surface border-b border-line px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                 <Ban className="w-5 h-5 text-red-600" />
-                Cancelar Assembleia
+                {t('assemblies.card.cancelAssembly')}
               </h2>
               <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-surface-hover rounded-lg transition-colors" type="button">
                 <X className="w-5 h-5 text-ink-subtle" />
@@ -1203,22 +1207,22 @@ export default function AssembliesPage() {
               <>
             <div className="px-6 py-4">
               <p className="text-sm text-ink-muted mb-3">
-                Por favor indique o motivo do cancelamento desta assembleia.
+                {t('assemblies.cancelModal.hint')}
               </p>
               <textarea
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                placeholder="Motivo do cancelamento..."
+                placeholder={t('assemblies.cancelModal.placeholder')}
               />
             </div>
             <div className="px-6 py-4 border-t border-line flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowCancelModal(false)}>
-                Voltar
+                {t('assemblies.cancelModal.back')}
               </Button>
               <Button variant="danger" onClick={handleCancel} loading={submitting}>
-                Cancelar Assembleia
+                {t('assemblies.card.cancelAssembly')}
               </Button>
             </div>
               </>
@@ -1236,7 +1240,7 @@ export default function AssembliesPage() {
               <div>
                 <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                   <Upload className="w-5 h-5 text-indigo-600" />
-                  Adicionar Documento
+                  {t('assemblies.detail.addDocument')}
                 </h2>
                 <p className="text-sm text-ink-subtle mt-0.5">
                   {quickUploadAssembly?.title ?? ''}
@@ -1258,7 +1262,7 @@ export default function AssembliesPage() {
             <form onSubmit={handleQuickUpload} className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-2">
-                  Arquivos (máx. 10 ficheiros)
+                  {t('assemblies.quickUpload.filesLabel')}
                 </label>
                 <MultipleFileUpload
                   onFilesSelect={setUploadFiles}
@@ -1268,8 +1272,7 @@ export default function AssembliesPage() {
                   maxFiles={10}
                 />
                 <p className="mt-2 text-xs text-ink-subtle">
-                  Os tipos de documento serão detetados automaticamente com base nos nomes dos ficheiros.
-                  Use palavras-chave como "ata", "convocatoria" ou "anexo" nos nomes.
+                  {t('assemblies.quickUpload.hint')}
                 </p>
               </div>
 
@@ -1279,7 +1282,7 @@ export default function AssembliesPage() {
                   onClick={() => setShowQuickUploadModal(false)}
                   disabled={uploadingDocument}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -1287,7 +1290,11 @@ export default function AssembliesPage() {
                   loading={uploadingDocument}
                   disabled={uploadFiles.length === 0}
                 >
-                  Carregar {uploadFiles.length > 0 ? `${uploadFiles.length} Documento${uploadFiles.length > 1 ? 's' : ''}` : 'Documentos'}
+                  {uploadFiles.length === 0
+                    ? t('assemblies.quickUpload.submitEmpty')
+                    : uploadFiles.length === 1
+                      ? t('assemblies.quickUpload.submitOne', { count: uploadFiles.length })
+                      : t('assemblies.quickUpload.submitMany', { count: uploadFiles.length })}
                 </Button>
               </div>
             </form>
