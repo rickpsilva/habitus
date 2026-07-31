@@ -111,6 +111,84 @@ public class ConsentService : IConsentService
         return true;
     }
 
+    /// <inheritdoc />
+    public async Task<List<ConsentDefinitionDto>> ListDefinitionsAsync()
+    {
+        var all = await _definitions.GetAllAsync();
+        return all
+            .OrderBy(d => d.Key, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(d => d.CreatedAt)
+            .Select(ToDto)
+            .ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<ConsentDefinitionDto> UpdateDefinitionInPlaceAsync(Guid id, UpdateConsentDefinitionRequest req, Guid actingUserId)
+    {
+        var definition = await _definitions.GetByIdAsync(id)
+            ?? throw new ConsentAuthoringException("not_found", $"No consent definition exists with id '{id}'.");
+
+        // In-place correction: only mutate the text; Key/Version/CreatedAt stay constant so the
+        // "latest version per key" selection and existing acceptances are unaffected.
+        definition.Title = req.Title;
+        definition.Url = req.Url;
+        definition.Body = req.Body;
+        definition.UpdatedAt = DateTime.UtcNow;
+        definition.UpdatedByUserId = actingUserId;
+
+        _definitions.Update(definition);
+        await _definitions.SaveChangesAsync();
+
+        return ToDto(definition);
+    }
+
+    /// <inheritdoc />
+    public async Task<ConsentDefinitionDto> PublishNewVersionAsync(PublishConsentVersionRequest req, Guid actingUserId)
+    {
+        var duplicate = await _definitions.FirstOrDefaultAsync(d => d.Key == req.Key && d.Version == req.Version);
+        if (duplicate is not null)
+        {
+            throw new ConsentAuthoringException("duplicate_version",
+                $"A consent definition already exists for key '{req.Key}' version '{req.Version}'.");
+        }
+
+        var definition = new ConsentDefinition
+        {
+            Id = Guid.NewGuid(),
+            Key = req.Key,
+            Version = req.Version,
+            Title = req.Title,
+            Url = req.Url,
+            Body = req.Body,
+            IsMandatory = req.IsMandatory,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = actingUserId
+        };
+
+        await _definitions.AddAsync(definition);
+        await _definitions.SaveChangesAsync();
+
+        return ToDto(definition);
+    }
+
+    /// <summary>Maps a <see cref="ConsentDefinition"/> to its authoring DTO.</summary>
+    private static ConsentDefinitionDto ToDto(ConsentDefinition d) => new()
+    {
+        Id = d.Id,
+        Key = d.Key,
+        Version = d.Version,
+        Title = d.Title,
+        Url = d.Url,
+        Body = d.Body,
+        IsMandatory = d.IsMandatory,
+        IsActive = d.IsActive,
+        CreatedAt = d.CreatedAt,
+        CreatedByUserId = d.CreatedByUserId,
+        UpdatedAt = d.UpdatedAt,
+        UpdatedByUserId = d.UpdatedByUserId
+    };
+
     /// <summary>Reduces a set of definitions to the latest version per key (by CreatedAt).</summary>
     private static List<ConsentDefinition> LatestVersionPerKey(IEnumerable<ConsentDefinition> definitions) =>
         definitions

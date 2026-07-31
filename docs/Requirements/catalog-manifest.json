@@ -97,6 +97,14 @@
       "diagrams": []
     },
     {
+      "id": "REQ-SEC-008",
+      "file": "requirements/security/REQ-SEC-008.md",
+      "diagrams": [
+        "diagrams/sequences/consent-authoring-and-versioning.mmd",
+        "diagrams/sequences/cookie-and-rgpd-consent.mmd"
+      ]
+    },
+    {
       "id": "REQ-CONDO-001",
       "file": "requirements/condominium/REQ-CONDO-001.md",
       "diagrams": []

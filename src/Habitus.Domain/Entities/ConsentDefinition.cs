@@ -34,5 +34,14 @@ public class ConsentDefinition
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Manager who created this definition (null for legacy/seeded rows).</summary>
+    public Guid? CreatedByUserId { get; set; }
+
+    /// <summary>When the definition was last corrected in place (null if never edited).</summary>
+    public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>Manager who last corrected this definition in place (null if never edited).</summary>
+    public Guid? UpdatedByUserId { get; set; }
+
     public ICollection<UserConsent> UserConsents { get; set; } = new List<UserConsent>();
 }

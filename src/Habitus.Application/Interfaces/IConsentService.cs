@@ -28,4 +28,24 @@ public interface IConsentService
     /// most recent decision is an acceptance. Returns true when there are no mandatory definitions.
     /// </summary>
     Task<bool> HasAllMandatoryConsentsAsync(Guid userId);
+
+    /// <summary>
+    /// Lists every consent definition (all versions, active and retired) with full bodies and audit
+    /// fields, for the Manager authoring area (REQ-SEC-008).
+    /// </summary>
+    Task<List<ConsentDefinitionDto>> ListDefinitionsAsync();
+
+    /// <summary>
+    /// Corrects a definition in place: changes only Title/Url/Body and stamps UpdatedAt/UpdatedByUserId.
+    /// Never mutates Key/Version/CreatedAt, so it does not re-trigger the mandatory-consent gate.
+    /// </summary>
+    /// <exception cref="ConsentAuthoringException">Thrown (code <c>not_found</c>) when no definition has the given id.</exception>
+    Task<ConsentDefinitionDto> UpdateDefinitionInPlaceAsync(Guid id, UpdateConsentDefinitionRequest req, Guid actingUserId);
+
+    /// <summary>
+    /// Publishes a new active definition for a key/version. Because the latest active version per key
+    /// wins, this transparently forces re-consent; prior definitions and history are left intact.
+    /// </summary>
+    /// <exception cref="ConsentAuthoringException">Thrown (code <c>duplicate_version</c>) when the {Key, Version} already exists.</exception>
+    Task<ConsentDefinitionDto> PublishNewVersionAsync(PublishConsentVersionRequest req, Guid actingUserId);
 }

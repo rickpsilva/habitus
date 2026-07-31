@@ -1,0 +1,36 @@
+sequenceDiagram
+  actor Manager as Manager
+  actor Other as Non-Manager user
+  participant Portal as Web portal
+  participant Authz as Authorization
+  participant Consent as Consent authoring service
+  participant Store as ConsentDefinition store
+  participant Gate as Mandatory-consent gate
+
+  Manager->>Portal: Open consent authoring
+  Portal->>Authz: Check role is Manager
+  Authz-->>Portal: Authorized
+  Portal->>Consent: List consent definitions
+  Consent->>Store: Read definitions (Key, Version, Body)
+  Store-->>Consent: Definitions and bodies
+  Consent-->>Portal: Show current consent texts
+
+  alt In-place correction (same Version)
+    Manager->>Portal: Edit Title/Url/Body
+    Portal->>Consent: Save in-place correction
+    Consent->>Store: Update Body, keep {Key, Version}
+    Store-->>Consent: Saved (audit who/when)
+    Consent-->>Portal: No re-consent triggered
+  else Publish new version
+    Manager->>Portal: Provide new Version and Body
+    Portal->>Consent: Publish new version
+    Consent->>Store: Insert new active definition (new Version)
+    Store-->>Consent: Saved, history intact (audit who/when)
+    Consent-->>Gate: Latest version per Key changed
+    Gate-->>Portal: Users re-prompted (HTTP 451 consent_required)
+  end
+
+  Other->>Portal: Attempt consent authoring
+  Portal->>Authz: Check role is Manager
+  Authz-->>Portal: Not authorized
+  Portal-->>Other: HTTP 403 Forbidden (no change persisted)

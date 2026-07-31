@@ -33,6 +33,7 @@ public sealed class RequireMandatoryConsentFilter : IAsyncActionFilter
         "/api/platform/me/active-context", // context selection: switch active context
         "/api/platform/me/export",       // GDPR Art. 20 export (data-subject right, must not be gated)
         "/api/platform/me/personal-data", // GDPR Art. 17 erasure (data-subject right, must not be gated)
+        "/api/platform/consents",        // Manager consent authoring (Manager-only; lets a behind Manager fix the text)
         "/swagger",                      // API docs (not an MVC action, listed defensively)
         "/health",                       // health checks (not an MVC action, listed defensively)
         "/uploads",                      // static uploads (not an MVC action, listed defensively)

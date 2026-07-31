@@ -25,6 +25,7 @@ public class ConsentServiceTests
     public ConsentServiceTests()
     {
         _consentsMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _definitionsMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
         _service = new ConsentService(_definitionsMock.Object, _consentsMock.Object);
     }
 
@@ -254,5 +255,151 @@ public class ConsentServiceTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         _consentsMock.Verify(r => r.AddAsync(It.IsAny<UserConsent>()), Times.Never);
+    }
+
+    // ── Manager authoring: ListDefinitionsAsync (REQ-SEC-008) ──────────────────
+
+    /// <summary>Configures the definition repository's GetAllAsync to return <paramref name="all"/>.</summary>
+    private void SetupAllDefinitions(params ConsentDefinition[] all) =>
+        _definitionsMock.Setup(r => r.GetAllAsync()).ReturnsAsync(all);
+
+    [Fact]
+    public async Task ListDefinitions_ReturnsAllVersionsIncludingBodies()
+    {
+        var v1 = Def("terms", "1.0", mandatory: true, createdAt: DateTime.UtcNow.AddDays(-10));
+        v1.Body = "Old body";
+        var v2 = Def("terms", "2.0", mandatory: true, createdAt: DateTime.UtcNow.AddDays(-1));
+        v2.Body = "New body";
+        var retired = Def("privacy", "0.9", mandatory: true, active: false);
+        SetupAllDefinitions(v1, v2, retired);
+
+        var result = await _service.ListDefinitionsAsync();
+
+        result.Should().HaveCount(3);
+        result.Should().Contain(d => d.Version == "1.0" && d.Body == "Old body");
+        result.Should().Contain(d => d.Version == "2.0" && d.Body == "New body");
+        result.Should().Contain(d => d.Key == "privacy" && !d.IsActive);
+    }
+
+    // ── Manager authoring: UpdateDefinitionInPlaceAsync ────────────────────────
+
+    [Fact]
+    public async Task UpdateInPlace_ChangesTextAndStampsAudit_LeavesKeyVersionCreatedAtUnchanged()
+    {
+        var createdAt = DateTime.UtcNow.AddDays(-5);
+        var def = Def("terms", "1.0", mandatory: true, createdAt: createdAt);
+        def.Title = "Old Title";
+        def.Url = "https://old.test";
+        def.Body = "Old body";
+        _definitionsMock.Setup(r => r.GetByIdAsync(def.Id)).ReturnsAsync(def);
+
+        var actingUser = Guid.NewGuid();
+        var result = await _service.UpdateDefinitionInPlaceAsync(
+            def.Id,
+            new UpdateConsentDefinitionRequest { Title = "New Title", Url = "https://new.test", Body = "New body" },
+            actingUser);
+
+        // Text changed.
+        def.Title.Should().Be("New Title");
+        def.Url.Should().Be("https://new.test");
+        def.Body.Should().Be("New body");
+        // Identity/version/creation preserved.
+        def.Key.Should().Be("terms");
+        def.Version.Should().Be("1.0");
+        def.CreatedAt.Should().Be(createdAt);
+        // Audit stamped.
+        def.UpdatedByUserId.Should().Be(actingUser);
+        def.UpdatedAt.Should().NotBeNull();
+        result.Title.Should().Be("New Title");
+        _definitionsMock.Verify(r => r.Update(def), Times.Once);
+        _definitionsMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateInPlace_DoesNotChangeWhichVersionIsLatest()
+    {
+        var v1 = Def("terms", "1.0", mandatory: true, createdAt: DateTime.UtcNow.AddDays(-10));
+        var v2 = Def("terms", "2.0", mandatory: true, createdAt: DateTime.UtcNow.AddDays(-1));
+        _definitionsMock.Setup(r => r.GetByIdAsync(v1.Id)).ReturnsAsync(v1);
+
+        await _service.UpdateDefinitionInPlaceAsync(
+            v1.Id, new UpdateConsentDefinitionRequest { Title = "Fixed typo", Body = "Corrected" }, Guid.NewGuid());
+
+        // The status view still surfaces v2 as latest (edit to v1 did not touch CreatedAt/Version).
+        SetupDefinitions(v1, v2);
+        SetupConsents();
+        var status = await _service.GetConsentStatusAsync(_userId);
+        status.Consents.Single(c => c.Key == "terms").Version.Should().Be("2.0");
+    }
+
+    [Fact]
+    public async Task UpdateInPlace_WhenIdUnknown_ThrowsNotFound()
+    {
+        _definitionsMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ConsentDefinition?)null);
+
+        var act = () => _service.UpdateDefinitionInPlaceAsync(
+            Guid.NewGuid(), new UpdateConsentDefinitionRequest { Title = "x" }, Guid.NewGuid());
+
+        (await act.Should().ThrowAsync<ConsentAuthoringException>()).Which.Code.Should().Be("not_found");
+        _definitionsMock.Verify(r => r.Update(It.IsAny<ConsentDefinition>()), Times.Never);
+    }
+
+    // ── Manager authoring: PublishNewVersionAsync ──────────────────────────────
+
+    [Fact]
+    public async Task PublishNewVersion_AddsActiveRowWithAudit_DoesNotMutatePriorRowsOrHistory()
+    {
+        _definitionsMock
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<ConsentDefinition, bool>>>()))
+            .ReturnsAsync((ConsentDefinition?)null); // no duplicate
+
+        ConsentDefinition? added = null;
+        _definitionsMock.Setup(r => r.AddAsync(It.IsAny<ConsentDefinition>()))
+            .Callback<ConsentDefinition>(d => added = d)
+            .Returns(Task.CompletedTask);
+
+        var actingUser = Guid.NewGuid();
+        var result = await _service.PublishNewVersionAsync(
+            new PublishConsentVersionRequest
+            {
+                Key = "terms",
+                Version = "3.0",
+                Title = "Terms v3",
+                Body = "Body v3",
+                IsMandatory = true
+            },
+            actingUser);
+
+        added.Should().NotBeNull();
+        added!.Id.Should().NotBe(Guid.Empty);
+        added.Key.Should().Be("terms");
+        added.Version.Should().Be("3.0");
+        added.IsActive.Should().BeTrue();
+        added.CreatedByUserId.Should().Be(actingUser);
+        added.UpdatedAt.Should().BeNull();
+        result.Version.Should().Be("3.0");
+        _definitionsMock.Verify(r => r.AddAsync(It.IsAny<ConsentDefinition>()), Times.Once);
+        _definitionsMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+        // Publication never touches the append-only UserConsent history.
+        _consentsMock.Verify(r => r.AddAsync(It.IsAny<UserConsent>()), Times.Never);
+        _consentsMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task PublishNewVersion_WhenKeyVersionAlreadyExists_ThrowsDuplicate()
+    {
+        var existing = Def("terms", "1.0", mandatory: true);
+        _definitionsMock
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<ConsentDefinition, bool>>>()))
+            .ReturnsAsync((Expression<Func<ConsentDefinition, bool>> predicate) =>
+                new[] { existing }.FirstOrDefault(predicate.Compile()));
+
+        var act = () => _service.PublishNewVersionAsync(
+            new PublishConsentVersionRequest { Key = "terms", Version = "1.0", Title = "dup", IsMandatory = true },
+            Guid.NewGuid());
+
+        (await act.Should().ThrowAsync<ConsentAuthoringException>()).Which.Code.Should().Be("duplicate_version");
+        _definitionsMock.Verify(r => r.AddAsync(It.IsAny<ConsentDefinition>()), Times.Never);
+        _definitionsMock.Verify(r => r.SaveChangesAsync(), Times.Never);
     }
 }
