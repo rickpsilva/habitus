@@ -365,6 +365,7 @@ export const en: Record<TranslationKey, string> = {
   'profile.preferences.subtitle': 'Personalize your app experience.',
   'profile.preferences.language': 'Language',
   'profile.preferences.languageScope': 'Applies to your account only.',
+  'profile.preferences.languageUnavailable': 'Language selection is not available for your account. It depends on your condominium\'s subscription plan (Manager accounts have no condominium, so it never applies to them). The platform default language is used.',
 
   // Profile — page header + tabs
   'profile.title': 'My Profile',
@@ -1786,10 +1787,11 @@ export const en: Record<TranslationKey, string> = {
   'condominiums.delete.confirm': 'Remove',
 
   // Condominiums — card
-  'condominiums.card.generateAdminLink': 'Generate admin registration link',
+  'condominiums.card.generateAdminLink': 'Associate admin',
   'condominiums.card.noEmail': 'No email configured',
   'condominiums.card.phone': 'Phone: {phone}',
   'condominiums.card.adminLinkTitle': 'Admin registration link',
+  'condominiums.card.adminLinkDescription': "If the person doesn't have an account yet, share this link so they can self-register as admin.",
   'condominiums.card.copied': 'Copied',
   'condominiums.card.copyLink': 'Copy link',
 
@@ -2005,7 +2007,7 @@ export const en: Record<TranslationKey, string> = {
 
   // Membership association — associate existing admin (FLOW D)
   'associateAdmin.heading': 'Associate existing admin',
-  'associateAdmin.description': 'Associate an already-registered user as admin of a condominium.',
+  'associateAdmin.description': 'Associate admin to: {condominiumName}',
   'associateAdmin.emailLabel': 'User email',
   'associateAdmin.emailPlaceholder': 'user@email.com',
   'associateAdmin.condominiumLabel': 'Condominium',
@@ -2015,4 +2017,8 @@ export const en: Record<TranslationKey, string> = {
   'associateAdmin.selectCondominium': 'Select a condominium.',
   'associateAdmin.error.userNotFound': 'User not found.',
   'associateAdmin.error.failed': 'Could not associate the user.',
+  'associateAdmin.modalTitle': 'Associate admin — {condominiumName}',
+  'associateAdmin.existingUserHeading': 'Existing user',
+  'associateAdmin.newUserHeading': 'New user',
+  'associateAdmin.divider': 'or',
 };

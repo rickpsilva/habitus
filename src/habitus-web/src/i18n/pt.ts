@@ -364,6 +364,7 @@ export const pt = {
   'profile.preferences.subtitle': 'Personalize a sua experiência na aplicação.',
   'profile.preferences.language': 'Idioma',
   'profile.preferences.languageScope': 'Aplica-se apenas à sua conta.',
+  'profile.preferences.languageUnavailable': 'A seleção de idioma não está disponível para a sua conta. Depende do plano de subscrição do condomínio (contas de Gestor não têm condomínio, pelo que nunca se aplica). É utilizado o idioma predefinido da plataforma.',
 
   // Profile — page header + tabs
   'profile.title': 'Meu Perfil',
@@ -1785,10 +1786,11 @@ export const pt = {
   'condominiums.delete.confirm': 'Remover',
 
   // Condominiums — card
-  'condominiums.card.generateAdminLink': 'Gerar link de registo de administrador',
+  'condominiums.card.generateAdminLink': 'Associar administrador',
   'condominiums.card.noEmail': 'Sem email configurado',
   'condominiums.card.phone': 'Telefone: {phone}',
   'condominiums.card.adminLinkTitle': 'Link de registo para Admin',
+  'condominiums.card.adminLinkDescription': 'Se a pessoa ainda não tem conta, partilhe este link para que se possa registar como administrador.',
   'condominiums.card.copied': 'Copiado',
   'condominiums.card.copyLink': 'Copiar link',
 
@@ -2004,7 +2006,7 @@ export const pt = {
 
   // Membership association — associate existing admin (FLOW D)
   'associateAdmin.heading': 'Associar administrador existente',
-  'associateAdmin.description': 'Associe um utilizador já registado como administrador de um condomínio.',
+  'associateAdmin.description': 'Associar administrador a: {condominiumName}',
   'associateAdmin.emailLabel': 'Email do utilizador',
   'associateAdmin.emailPlaceholder': 'utilizador@email.com',
   'associateAdmin.condominiumLabel': 'Condomínio',
@@ -2014,6 +2016,10 @@ export const pt = {
   'associateAdmin.selectCondominium': 'Selecione um condomínio.',
   'associateAdmin.error.userNotFound': 'Utilizador não encontrado.',
   'associateAdmin.error.failed': 'Não foi possível associar o utilizador.',
+  'associateAdmin.modalTitle': 'Associar administrador — {condominiumName}',
+  'associateAdmin.existingUserHeading': 'Utilizador existente',
+  'associateAdmin.newUserHeading': 'Novo utilizador',
+  'associateAdmin.divider': 'ou',
 } as const;
 
 export type TranslationKey = keyof typeof pt;

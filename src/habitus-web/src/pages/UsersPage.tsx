@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
-import AssociateExistingAdminCard from '../components/AssociateExistingAdminCard';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
@@ -338,8 +337,6 @@ export default function UsersPage() {
           </Button>
         </div>
       </div>
-
-      {isManager && <AssociateExistingAdminCard />}
 
       {isAdmin && (
         <div className="bg-surface rounded-xl border border-amber-200 shadow-sm overflow-hidden">
