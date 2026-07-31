@@ -92,14 +92,6 @@ public class Invoice
     public string CustomerName { get; set; } = string.Empty;
     
     /// <summary>
-    /// Customer Tax ID (NIF - Número de Identificação Fiscal).
-    /// SAF-T: CustomerInfo.CompanyID
-    /// ⚠️ DEPRECATED: Use CustomerTaxIdEncrypted instead. This field is kept for reference only.
-    /// </summary>
-    [Obsolete("Use GetCustomerTaxId() method instead")]
-    public string? CustomerTaxId { get; set; }
-    
-    /// <summary>
     /// Customer Tax ID encrypted with AES-256-GCM (RGPD compliant).
     /// Stores NIF securely in database.
     /// </summary>
@@ -221,8 +213,6 @@ public class Invoice
     public void SetCustomerTaxIdEncrypted(string? encryptedValue)
     {
         CustomerTaxIdEncrypted = encryptedValue;
-        // Keep old field null for new records (backward compat, but field is obsolete)
-        CustomerTaxId = null;
     }
     
     /// <summary>

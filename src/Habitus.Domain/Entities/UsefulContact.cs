@@ -6,7 +6,6 @@ public class UsefulContact
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? Phone { get; set; } = string.Empty;  // Legacy plaintext column (kept for fallback)
     public string? PhoneEncrypted { get; set; }
     public string? EmailEncrypted { get; set; }
     public string? AddressEncrypted { get; set; }

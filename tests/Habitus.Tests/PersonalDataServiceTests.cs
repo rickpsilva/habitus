@@ -69,10 +69,8 @@ public class PersonalDataServiceTests
     {
         Id = Guid.NewGuid(),
         Name = "Alice Resident",
-        Email = string.Empty,
         EmailEncrypted = "enc:alice@test.local",
         EmailHash = "hash",
-        Phone = string.Empty,
         PhoneEncrypted = "enc:+351911111111",
         PasswordHash = social ? string.Empty : BCrypt.Net.BCrypt.HashPassword(password),
         PreferredLanguage = "pt",
@@ -143,10 +141,8 @@ public class PersonalDataServiceTests
         result.LoginDisabled.Should().BeTrue();
 
         user.Name.Should().Be("Unknown User");
-        user.Email.Should().BeEmpty();
         user.EmailEncrypted.Should().BeNull();
         user.EmailHash.Should().BeNull();
-        user.Phone.Should().BeEmpty();
         user.PhoneEncrypted.Should().BeNull();
         user.PasswordHash.Should().BeEmpty();
         user.TwoFactorEnabled.Should().BeFalse();
@@ -191,7 +187,6 @@ public class PersonalDataServiceTests
         result.Type.Should().Be(ErasureType.Partial);
         result.LoginDisabled.Should().BeFalse();
 
-        user.Phone.Should().BeEmpty();
         user.PhoneEncrypted.Should().BeNull();
         // Identity-critical fields are retained; account stays active.
         user.EmailEncrypted.Should().NotBeNull();

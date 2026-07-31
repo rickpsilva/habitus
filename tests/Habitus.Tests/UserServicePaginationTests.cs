@@ -33,7 +33,6 @@ public class UserServicePaginationTests
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Email = $"{name}@example.com",
             Role = role,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -96,10 +95,10 @@ public class UserServicePaginationTests
         var otherCondominiumId = Guid.NewGuid();
         var users = new List<User>
         {
-            new() { Id = Guid.NewGuid(), Name = "Admin A", Email = "admin-a@example.com", Role = UserRole.Admin, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Name = "Resident A", Email = "resident-a@example.com", Role = UserRole.Resident, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Name = "Manager A", Email = "manager-a@example.com", Role = UserRole.Manager, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
-            new() { Id = Guid.NewGuid(), Name = "Resident B", Email = "resident-b@example.com", Role = UserRole.Resident, CondominiumId = otherCondominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Name = "Admin A", Role = UserRole.Admin, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Name = "Resident A", Role = UserRole.Resident, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Name = "Manager A", Role = UserRole.Manager, CondominiumId = condominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { Id = Guid.NewGuid(), Name = "Resident B", Role = UserRole.Resident, CondominiumId = otherCondominiumId, IsActive = true, CreatedAt = DateTime.UtcNow },
         };
         SetupRepositoryWithPredicate(users);
 

@@ -73,10 +73,8 @@ public class PersonalDataExportIntegrationTests : IClassFixture<CustomWebApplica
         {
             Id = Guid.NewGuid(),
             Name = "Export Subject",
-            Email = string.Empty,
             EmailEncrypted = encryption.Encrypt(EmailHashHelper.Normalize(email)),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             PhoneEncrypted = encryption.Encrypt("+351911222333"),
             Role = UserRole.Resident,
             IsActive = true,

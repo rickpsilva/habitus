@@ -92,6 +92,11 @@
       ]
     },
     {
+      "id": "REQ-SEC-007",
+      "file": "requirements/security/REQ-SEC-007.md",
+      "diagrams": []
+    },
+    {
       "id": "REQ-CONDO-001",
       "file": "requirements/condominium/REQ-CONDO-001.md",
       "diagrams": []

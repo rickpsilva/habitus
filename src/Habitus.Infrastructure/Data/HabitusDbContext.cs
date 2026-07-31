@@ -68,7 +68,6 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(u => u.Id);
             entity.HasIndex(u => u.EmailHash).IsUnique();
-            entity.Property(u => u.Email).IsRequired();
             entity.Property(u => u.EmailEncrypted).HasMaxLength(2048);
             entity.Property(u => u.EmailHash).HasMaxLength(64);
             entity.Property(u => u.Name).IsRequired();
@@ -133,7 +132,6 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).IsRequired();
-            entity.Property(c => c.Address).IsRequired();
             entity.Property(c => c.AddressEncrypted).HasMaxLength(1024);
             entity.Property(c => c.EmailEncrypted).HasMaxLength(2048);
             entity.Property(c => c.PostalCodeEncrypted).HasMaxLength(255);

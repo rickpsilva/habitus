@@ -99,9 +99,7 @@ public class CondominiumServiceAddressEncryptionTests
 
         savedCondominium.Should().NotBeNull();
         savedCondominium!.AddressEncrypted.Should().Be("enc-address");
-        savedCondominium.Address.Should().BeEmpty();
         savedCondominium.EmailEncrypted.Should().Be("enc-email");
-        savedCondominium.Email.Should().BeEmpty();
         savedCondominium.PostalCodeEncrypted.Should().Be("enc-postal");
         savedCondominium.LocalityEncrypted.Should().Be("enc-locality");
         savedCondominium.ContactPhoneEncrypted.Should().Be("enc-phone");
@@ -121,12 +119,10 @@ public class CondominiumServiceAddressEncryptionTests
         {
             Id = Guid.NewGuid(),
             Name = "Condominio Norte",
-            Address = "legacy-address",
             AddressEncrypted = "enc-address",
             PostalCodeEncrypted = "enc-postal",
             LocalityEncrypted = "enc-locality",
             ContactPhoneEncrypted = "enc-phone",
-            Email = "legacy@email.pt",
             EmailEncrypted = "enc-email",
             CreatedAt = DateTime.UtcNow,
             IsActive = true
@@ -177,9 +173,7 @@ public class CondominiumServiceAddressEncryptionTests
         {
             Id = Guid.NewGuid(),
             Name = "Condominio Sul",
-            Address = string.Empty,
             AddressEncrypted = "enc-address",
-            Email = "legacy@email.pt",
             EmailEncrypted = null,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -214,7 +208,6 @@ public class CondominiumServiceAddressEncryptionTests
         var response = await _service.UpdateCondominiumEmailAsync(condominium.Id, "  admin@condominio.pt  ");
 
         condominium.EmailEncrypted.Should().Be("enc-email");
-        condominium.Email.Should().BeEmpty();
         response.Email.Should().Be("admin@condominio.pt");
     }
 }

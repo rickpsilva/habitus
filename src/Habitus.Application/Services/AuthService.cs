@@ -450,10 +450,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(request.Email),
             EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
@@ -509,10 +507,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(email),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(phone),
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -547,10 +543,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(request.Email),
             EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = UserRole.Resident,
             CondominiumId = condominiumId,
@@ -1006,36 +1000,20 @@ Habitus Team
 
     private string GetUserEmail(User user)
     {
-        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
-        {
-            return _encryptionService.Decrypt(user.EmailEncrypted);
-        }
-
-        return user.Email;
+        return string.IsNullOrWhiteSpace(user.EmailEncrypted)
+            ? string.Empty
+            : _encryptionService.Decrypt(user.EmailEncrypted);
     }
 
     private async Task<User?> FindUserByEmailAsync(string email)
     {
         var emailHash = EmailHashHelper.GenerateEmailHash(email);
-        var user = await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
-        if (user != null)
-        {
-            return user;
-        }
-
-        var normalizedEmail = EmailHashHelper.Normalize(email);
-        return await _userRepository.FirstOrDefaultAsync(u => u.Email == normalizedEmail || u.Email == email);
+        return await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
     }
 
     private async Task<bool> EmailExistsAsync(string email)
     {
         var emailHash = EmailHashHelper.GenerateEmailHash(email);
-        if (await _userRepository.ExistsAsync(u => u.EmailHash == emailHash))
-        {
-            return true;
-        }
-
-        var normalizedEmail = EmailHashHelper.Normalize(email);
-        return await _userRepository.ExistsAsync(u => u.Email == normalizedEmail || u.Email == email);
+        return await _userRepository.ExistsAsync(u => u.EmailHash == emailHash);
     }
 }

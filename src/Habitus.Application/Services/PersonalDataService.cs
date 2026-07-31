@@ -260,10 +260,8 @@ public class PersonalDataService : IPersonalDataService
     private static void AnonymizeFull(User user, DateTime processedAt)
     {
         user.Name = AnonymizedName;
-        user.Email = string.Empty;
         user.EmailEncrypted = null;
         user.EmailHash = null;
-        user.Phone = string.Empty;
         user.PhoneEncrypted = null;
         user.PasswordHash = string.Empty;
         user.PasswordResetToken = null;
@@ -287,7 +285,6 @@ public class PersonalDataService : IPersonalDataService
         {
             if (string.Equals(field, "phone", StringComparison.OrdinalIgnoreCase))
             {
-                user.Phone = string.Empty;
                 user.PhoneEncrypted = null;
             }
         }
@@ -304,12 +301,12 @@ public class PersonalDataService : IPersonalDataService
     }
 
     private string DecryptEmail(User user)
-        => !string.IsNullOrWhiteSpace(user.EmailEncrypted)
-            ? _encryption.Decrypt(user.EmailEncrypted)
-            : user.Email;
+        => string.IsNullOrWhiteSpace(user.EmailEncrypted)
+            ? string.Empty
+            : _encryption.Decrypt(user.EmailEncrypted);
 
     private string DecryptPhone(User user)
-        => !string.IsNullOrWhiteSpace(user.PhoneEncrypted)
-            ? _encryption.Decrypt(user.PhoneEncrypted)
-            : user.Phone;
+        => string.IsNullOrWhiteSpace(user.PhoneEncrypted)
+            ? string.Empty
+            : _encryption.Decrypt(user.PhoneEncrypted);
 }

@@ -80,7 +80,7 @@ public class AuthServiceTests
 
         var result = await _service.LoginAsync(new LoginRequest
         {
-            Email = user.Email,
+            Email = TestUserEmail,
             Password = "wrong-password"
         });
 
@@ -129,7 +129,7 @@ public class AuthServiceTests
             .Returns(Task.CompletedTask);
 
         var result = await _service.LoginAsync(
-            new LoginRequest { Email = user.Email, Password = "right-password" },
+            new LoginRequest { Email = TestUserEmail, Password = "right-password" },
             "127.0.0.1",
             "unit-test");
 
@@ -326,10 +326,8 @@ public class AuthServiceTests
         result.Should().Be(InitialManagerBootstrapStatus.Created);
         createdUser.Should().NotBeNull();
         createdUser!.Role.Should().Be(UserRole.Manager);
-        createdUser.Email.Should().BeEmpty();
         createdUser.EmailEncrypted.Should().Be("enc:ricardopsilva@hotmail.com");
         createdUser.EmailHash.Should().NotBeNullOrWhiteSpace();
-        createdUser.Phone.Should().BeEmpty();
         createdUser.PhoneEncrypted.Should().Be("enc:+351910000000");
         BCrypt.Net.BCrypt.Verify("StrongPassword!123", createdUser.PasswordHash).Should().BeTrue();
 
@@ -475,7 +473,7 @@ public class AuthServiceTests
             .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitMembership, bool>>>()))
             .ReturnsAsync(new List<UnitMembership> { new() { Id = Guid.NewGuid(), UserId = user.Id, CondominiumId = condominiumId, UnitId = Guid.NewGuid(), IsPrimary = true } });
 
-        var single = await _service.LoginAsync(new LoginRequest { Email = user.Email, Password = "right-password" });
+        var single = await _service.LoginAsync(new LoginRequest { Email = TestUserEmail, Password = "right-password" });
         single.Should().NotBeNull();
         single!.RequiresContextSelection.Should().BeFalse();
 
@@ -488,10 +486,12 @@ public class AuthServiceTests
                 new() { Id = Guid.NewGuid(), UserId = user.Id, CondominiumId = Guid.NewGuid(), UnitId = Guid.NewGuid(), IsPrimary = true },
             });
 
-        var multi = await _service.LoginAsync(new LoginRequest { Email = user.Email, Password = "right-password" });
+        var multi = await _service.LoginAsync(new LoginRequest { Email = TestUserEmail, Password = "right-password" });
         multi.Should().NotBeNull();
         multi!.RequiresContextSelection.Should().BeTrue();
     }
+
+    private const string TestUserEmail = "test@example.com";
 
     private static User BuildUser()
     {
@@ -499,8 +499,9 @@ public class AuthServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Test User",
-            Email = "test@example.com",
-            Phone = "910000000",
+            EmailEncrypted = "enc:test@example.com",
+            EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(TestUserEmail),
+            PhoneEncrypted = "enc:910000000",
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("right-password"),
             IsActive = true,

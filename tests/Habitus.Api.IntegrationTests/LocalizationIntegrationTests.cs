@@ -101,10 +101,8 @@ public class LocalizationIntegrationTests : IClassFixture<CustomWebApplicationFa
         {
             Id = Guid.NewGuid(),
             Name = "I18n Test User",
-            Email = string.Empty,
             EmailEncrypted = encryption.Encrypt(EmailHashHelper.Normalize(email)),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             Role = role,
             IsActive = true,
             CondominiumId = condominiumId,

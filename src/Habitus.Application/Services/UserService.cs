@@ -100,11 +100,6 @@ public class UserService
         // Check if email already exists
         var requestEmailHash = EmailHashHelper.GenerateEmailHash(request.Email);
         var existing = await _userRepository.FindAsync(u => u.EmailHash == requestEmailHash);
-        if (!existing.Any())
-        {
-            var normalizedEmail = EmailHashHelper.Normalize(request.Email);
-            existing = await _userRepository.FindAsync(u => u.Email == normalizedEmail || u.Email == request.Email);
-        }
         if (existing.Any())
         {
             throw new InvalidOperationException($"User with email {request.Email} already exists.");
@@ -138,10 +133,8 @@ public class UserService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(request.Email),
             EmailHash = requestEmailHash,
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
@@ -197,22 +190,14 @@ public class UserService
         if (!string.Equals(user.EmailHash, requestEmailHash, StringComparison.Ordinal))
         {
             var existing = await _userRepository.FindAsync(u => u.Id != user.Id && u.EmailHash == requestEmailHash);
-            if (!existing.Any())
-            {
-                var normalizedEmail = EmailHashHelper.Normalize(request.Email);
-                existing = await _userRepository.FindAsync(u => u.Id != user.Id && (u.Email == normalizedEmail || u.Email == request.Email));
-            }
-
             if (existing.Any())
             {
                 throw new InvalidOperationException($"User with email {request.Email} already exists.");
             }
         }
 
-        user.Email = string.Empty;
         user.EmailEncrypted = EncryptEmail(request.Email);
         user.EmailHash = requestEmailHash;
-        user.Phone = string.Empty;
         user.PhoneEncrypted = EncryptPhone(request.Phone);
         user.Role = userRole;
         user.CondominiumId = request.CondominiumId;
@@ -452,21 +437,15 @@ public class UserService
 
     private string DecryptEmail(User user)
     {
-        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
-        {
-            return _encryptionService.Decrypt(user.EmailEncrypted);
-        }
-
-        return user.Email;
+        return string.IsNullOrWhiteSpace(user.EmailEncrypted)
+            ? string.Empty
+            : _encryptionService.Decrypt(user.EmailEncrypted);
     }
 
     private string DecryptPhone(User user)
     {
-        if (!string.IsNullOrWhiteSpace(user.PhoneEncrypted))
-        {
-            return _encryptionService.Decrypt(user.PhoneEncrypted);
-        }
-
-        return user.Phone;
+        return string.IsNullOrWhiteSpace(user.PhoneEncrypted)
+            ? string.Empty
+            : _encryptionService.Decrypt(user.PhoneEncrypted);
     }
 }

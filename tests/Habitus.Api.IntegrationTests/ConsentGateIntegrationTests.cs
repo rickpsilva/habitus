@@ -97,10 +97,8 @@ public class ConsentGateIntegrationTests : IClassFixture<CustomWebApplicationFac
         {
             Id = Guid.NewGuid(),
             Name = "Consent Test User",
-            Email = string.Empty,
             EmailEncrypted = encryption.Encrypt(EmailHashHelper.Normalize(email)),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             Role = UserRole.Resident,
             IsActive = true,
             CondominiumId = condominiumId,

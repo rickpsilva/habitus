@@ -120,10 +120,8 @@ public class MeContextIntegrationTests : IClassFixture<CustomWebApplicationFacto
         {
             Id = Guid.NewGuid(),
             Name = "Test User",
-            Email = string.Empty,
             EmailEncrypted = encryption.Encrypt(EmailHashHelper.Normalize(email)),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             Role = role,
             IsActive = true,
             CondominiumId = condominiumId,

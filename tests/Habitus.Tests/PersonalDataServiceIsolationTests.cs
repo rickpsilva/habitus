@@ -63,8 +63,6 @@ public class PersonalDataServiceIsolationTests
     {
         Id = _subjectId,
         Name = "Subject",
-        Email = string.Empty,
-        Phone = string.Empty,
         PasswordHash = BCrypt.Net.BCrypt.HashPassword("pw"),
         Role = UserRole.Resident,
         IsActive = true,
