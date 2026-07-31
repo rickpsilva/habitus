@@ -52,6 +52,17 @@ public class Repository<T> : IRepository<T> where T : class
     public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
         => predicate == null ? await _dbSet.CountAsync() : await _dbSet.CountAsync(predicate);
 
+    public async Task<Dictionary<Guid, int>> CountGroupedAsync(
+        Expression<Func<T, Guid>> keySelector,
+        Expression<Func<T, bool>>? predicate = null)
+    {
+        var query = predicate == null ? _dbSet : _dbSet.Where(predicate);
+        return await query
+            .GroupBy(keySelector)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count);
+    }
+
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
 

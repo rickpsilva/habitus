@@ -133,12 +133,16 @@ public class CondominiumServiceAddressEncryptionTests
             .ReturnsAsync(new[] { condominium });
 
         _userRepository
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
-            .ReturnsAsync(Array.Empty<User>());
+            .Setup(r => r.CountGroupedAsync(
+                It.IsAny<Expression<Func<User, Guid>>>(),
+                It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(new Dictionary<Guid, int>());
 
         _unitRepository
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Unit, bool>>>() ))
-            .ReturnsAsync(Array.Empty<Unit>());
+            .Setup(r => r.CountGroupedAsync(
+                It.IsAny<Expression<Func<Unit, Guid>>>(),
+                It.IsAny<Expression<Func<Unit, bool>>>()))
+            .ReturnsAsync(new Dictionary<Guid, int>());
 
         _encryptionService
             .Setup(e => e.Decrypt("enc-address"))
