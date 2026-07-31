@@ -58,6 +58,7 @@ export default function ProfilePage() {
   const [condominium, setCondominium] = useState<CondominiumDto | null>(null);
   const [unit, setUnit] = useState<UnitDto | null>(null);
   const [memberships, setMemberships] = useState<MembershipCondominiumDto[]>([]);
+  const [multilanguageEnabled, setMultilanguageEnabled] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -129,6 +130,18 @@ export default function ProfilePage() {
         // Silent: falls back to the single active-unit display below.
       });
   }, [user]);
+
+  // Whether the language selector should be shown, gated by the active
+  // condominium's multilanguage flag (REQ-I18N-001). Mirrors Layout.tsx.
+  useEffect(() => {
+    meApi.getLocalization()
+      .then((r) => {
+        setMultilanguageEnabled(r.data.multilanguageEnabled);
+      })
+      .catch(() => {
+        // Keep the selector hidden if localization settings cannot be loaded.
+      });
+  }, [user?.condominiumId]);
 
   // RGPD/GDPR consents load in their own effect so the privacy panel is
   // independent of the profile/security/documents data (F4).
@@ -1213,8 +1226,14 @@ export default function ProfilePage() {
           </div>
           <div className="max-w-md border border-line rounded-lg p-4 bg-surface">
             <label className="block text-sm font-medium text-ink-muted mb-1">{t('profile.preferences.language')}</label>
-            <LanguageSwitcher variant="full" />
-            <p className="mt-2 text-xs text-ink-subtle">{t('profile.preferences.languageScope')}</p>
+            {multilanguageEnabled ? (
+              <>
+                <LanguageSwitcher variant="full" />
+                <p className="mt-2 text-xs text-ink-subtle">{t('profile.preferences.languageScope')}</p>
+              </>
+            ) : (
+              <p className="text-sm text-ink-subtle">{t('profile.preferences.languageUnavailable')}</p>
+            )}
           </div>
         </Card>
       )}
