@@ -29,7 +29,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+    public async Task<IActionResult> GetPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null, [FromQuery] string? status = null)
     {
         if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
         {
@@ -38,7 +38,18 @@ public class MaintenanceController : ControllerBase
 
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
-        return Ok(await _service.GetPagedAsync(page, pageSize, condominiumId, userRole, userId, unitId, search));
+        return Ok(await _service.GetPagedAsync(page, pageSize, condominiumId, userRole, userId, unitId, search, status));
+    }
+
+    [HttpGet("status-counts")]
+    public async Task<IActionResult> GetStatusCounts([FromRoute] Guid condominiumId)
+    {
+        if (!TryGetScope(condominiumId, out var userRole, out var userId, out var unitId))
+        {
+            return Forbid();
+        }
+
+        return Ok(await _service.GetStatusCountsAsync(condominiumId, userRole, userId, unitId));
     }
 
     [HttpGet("{id}")]

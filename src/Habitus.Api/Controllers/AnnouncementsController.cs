@@ -1,4 +1,5 @@
 using Habitus.Application.DTOs.Announcements;
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.Interfaces;
 using Habitus.Api.Middleware;
 using Habitus.Domain.Entities;
@@ -82,6 +83,85 @@ public class AnnouncementsController : ControllerBase
 
         var dtos = announcements.Select(a => MapToDto(a, userId)).ToList();
         return Ok(dtos);
+    }
+
+    // GET: api/condominiums/{condominiumId:guid}/announcements/paged
+    [HttpGet("paged")]
+    public async Task<ActionResult<PaginatedResponse<AnnouncementDto>>> GetPaged(
+        [FromRoute] Guid condominiumId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? status = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? search = null)
+    {
+        var userId = GetUserId();
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return Unauthorized();
+
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var isAdmin = user.Role == UserRole.Admin;
+
+        var query = _context.Announcements
+            .Include(a => a.Author)
+            .Include(a => a.Unit)
+            .Include(a => a.ApprovedByUser)
+            .Include(a => a.Attachments)
+            .Include(a => a.Comments)
+            .Include(a => a.ReadStatuses)
+            .Where(a => a.CondominiumId == condominiumId);
+
+        // Visibility rules must match GetAll exactly (never widen visibility).
+        if (isAdmin)
+        {
+            query = query.Where(a => a.Status != AnnouncementStatus.Draft || a.AuthorId == userId);
+        }
+        else
+        {
+            query = query.Where(a => a.Status == AnnouncementStatus.Published || a.AuthorId == userId);
+        }
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<AnnouncementStatus>(status, out var statusEnum))
+        {
+            query = query.Where(a => a.Status == statusEnum);
+        }
+
+        // Category is an AnnouncementCategory enum on the entity, so the string filter is parsed.
+        if (!string.IsNullOrEmpty(category) && category != "All"
+            && Enum.TryParse<AnnouncementCategory>(category, out var categoryEnum))
+        {
+            query = query.Where(a => a.Category == categoryEnum);
+        }
+
+        // Server-side search over raw Title/Content only (translated to SQL via ToLower/Contains).
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(a => a.Title.ToLower().Contains(term) || a.Content.ToLower().Contains(term));
+        }
+
+        query = query
+            .OrderByDescending(a => a.IsPinned)
+            .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt);
+
+        var totalItems = await query.CountAsync();
+        var announcements = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var dtos = announcements.Select(a => MapToDto(a, userId)).ToList();
+
+        return Ok(new PaginatedResponse<AnnouncementDto>
+        {
+            Items = dtos,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        });
     }
 
     // GET: api/condominiums/{condominiumId:guid}/announcements/{id}

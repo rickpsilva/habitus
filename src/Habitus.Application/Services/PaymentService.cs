@@ -144,6 +144,90 @@ public class PaymentService
         };
     }
 
+    /// <summary>
+    /// Returns a single page of the given resident's payments within one condominium. Filtering,
+    /// ordering and paging run server-side (only the requested page is materialised and mapped).
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="status"/> is matched server-side via <see cref="Enum.TryParse{PaymentStatus}"/>
+    /// (no JsonStringEnumConverter). <paramref name="search"/> matches the plain <c>Description</c>
+    /// column case-insensitively.
+    /// </remarks>
+    public async Task<PaginatedResponse<PaymentDto>> GetPagedByResidentAsync(
+        Guid residentId,
+        Guid condominiumId,
+        int page,
+        int pageSize,
+        string? status,
+        string? search)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var hasStatus = !string.IsNullOrWhiteSpace(status)
+            && !string.Equals(status, "All", StringComparison.OrdinalIgnoreCase)
+            && Enum.TryParse<PaymentStatus>(status, ignoreCase: true, out _);
+        PaymentStatus statusValue = PaymentStatus.Pending;
+        if (hasStatus)
+        {
+            Enum.TryParse(status, ignoreCase: true, out statusValue);
+        }
+
+        var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
+
+        var paged = await _paymentRepository.GetPagedAsync(
+            page,
+            pageSize,
+            p => p.ResidentId == residentId &&
+                 p.CondominiumId == condominiumId &&
+                 (!hasStatus || p.Status == statusValue) &&
+                 (searchLower == null || p.Description.ToLower().Contains(searchLower)),
+            p => p.CreatedDate,
+            descending: true);
+
+        var items = new List<PaymentDto>();
+        foreach (var payment in paged.Items)
+        {
+            items.Add(await MapToDtoAsync(payment));
+        }
+
+        return new PaginatedResponse<PaymentDto>
+        {
+            Items = items,
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
+        };
+    }
+
+    /// <summary>
+    /// Returns per-status tallies for the given resident's payments within one condominium, computed
+    /// with DB-level COUNTs (no DTO materialisation). <c>All</c> is the total across every status.
+    /// </summary>
+    public async Task<PaymentStatusCountsDto> GetResidentStatusCountsAsync(Guid residentId, Guid condominiumId)
+    {
+        var all = await _paymentRepository.CountAsync(
+            p => p.ResidentId == residentId && p.CondominiumId == condominiumId);
+        var pending = await _paymentRepository.CountAsync(
+            p => p.ResidentId == residentId && p.CondominiumId == condominiumId && p.Status == PaymentStatus.Pending);
+        var approved = await _paymentRepository.CountAsync(
+            p => p.ResidentId == residentId && p.CondominiumId == condominiumId && p.Status == PaymentStatus.Approved);
+        var rejected = await _paymentRepository.CountAsync(
+            p => p.ResidentId == residentId && p.CondominiumId == condominiumId && p.Status == PaymentStatus.Rejected);
+        var cancelled = await _paymentRepository.CountAsync(
+            p => p.ResidentId == residentId && p.CondominiumId == condominiumId && p.Status == PaymentStatus.Cancelled);
+
+        return new PaymentStatusCountsDto
+        {
+            All = all,
+            Pending = pending,
+            Approved = approved,
+            Rejected = rejected,
+            Cancelled = cancelled
+        };
+    }
+
     public async Task<PaymentDto> ApproveAsync(Guid paymentId, Guid adminUserId, ApprovePaymentRequest? request = null)
     {
         var payment = await _paymentRepository.GetByIdAsync(paymentId);

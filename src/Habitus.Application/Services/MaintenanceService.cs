@@ -49,7 +49,8 @@ public class MaintenanceService
         string userRole,
         Guid userId,
         Guid? unitId,
-        string? search = null)
+        string? search = null,
+        string? status = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
@@ -74,6 +75,10 @@ public class MaintenanceService
 
         var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
 
+        // The UI only knows Open/InProgress/Completed; "Completed" (also Resolved/Closed)
+        // collapses the domain Completed + Closed statuses, matching ToDtoStatus.
+        var (hasSingleStatus, singleStatus, completedFilter) = ResolveStatusFilter(status);
+
         var paged = await _repository.GetPagedAsync(
             page,
             pageSize,
@@ -81,7 +86,9 @@ public class MaintenanceService
                  (searchLower == null ||
                   r.Title.ToLower().Contains(searchLower) ||
                   (r.Description ?? "").ToLower().Contains(searchLower) ||
-                  (r.Location ?? "").ToLower().Contains(searchLower)),
+                  (r.Location ?? "").ToLower().Contains(searchLower)) &&
+                 (!hasSingleStatus || r.Status == singleStatus) &&
+                 (!completedFilter || r.Status == MaintenanceStatus.Completed || r.Status == MaintenanceStatus.Closed),
             r => r.CreatedAt,
             descending: true);
 
@@ -93,6 +100,74 @@ public class MaintenanceService
             TotalItems = paged.TotalItems,
             TotalPages = paged.TotalPages
         };
+    }
+
+    /// <summary>
+    /// Returns per-status tallies over the same role/unit-visible set the list endpoints expose,
+    /// computed with DB-level COUNTs (no DTO materialisation). <c>completed</c> collapses the
+    /// domain Completed + Closed statuses, matching <c>ToDtoStatus</c> and the paged status filter.
+    /// </summary>
+    public async Task<MaintenanceStatusCountsDto> GetStatusCountsAsync(
+        Guid condominiumId,
+        string userRole,
+        Guid userId,
+        Guid? unitId)
+    {
+        var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isResident = string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdmin && !isResident)
+        {
+            return new MaintenanceStatusCountsDto();
+        }
+
+        var open = await _repository.CountAsync(
+            r => r.CondominiumId == condominiumId && r.Status == MaintenanceStatus.Open);
+        var inProgress = await _repository.CountAsync(
+            r => r.CondominiumId == condominiumId && r.Status == MaintenanceStatus.InProgress);
+        var completed = await _repository.CountAsync(
+            r => r.CondominiumId == condominiumId &&
+                 (r.Status == MaintenanceStatus.Completed || r.Status == MaintenanceStatus.Closed));
+
+        return new MaintenanceStatusCountsDto
+        {
+            Open = open,
+            InProgress = inProgress,
+            Completed = completed
+        };
+    }
+
+    /// <summary>
+    /// Maps the UI status string (Open/InProgress/Completed, plus Resolved/Closed aliases) to an EF
+    /// filter. Returns whether a single exact status applies, that status, and whether the collapsed
+    /// Completed-or-Closed filter applies. null/empty/"All" yields no filter.
+    /// </summary>
+    private static (bool hasSingleStatus, MaintenanceStatus singleStatus, bool completedFilter) ResolveStatusFilter(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status) || string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, MaintenanceStatus.Open, false);
+        }
+
+        if (string.Equals(status, "Open", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, MaintenanceStatus.Open, false);
+        }
+
+        if (string.Equals(status, "InProgress", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, MaintenanceStatus.InProgress, false);
+        }
+
+        if (string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Resolved", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Closed", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, MaintenanceStatus.Open, true);
+        }
+
+        // Unknown token: no status filter (behaves like "All").
+        return (false, MaintenanceStatus.Open, false);
     }
 
     public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id, Guid condominiumId, string userRole, Guid userId, Guid? unitId)

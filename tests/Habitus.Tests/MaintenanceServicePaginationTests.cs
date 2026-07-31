@@ -114,4 +114,108 @@ public class MaintenanceServicePaginationTests
         capturedPageSize.Should().Be(10);
         result.Items.Should().ContainSingle(dto => dto.Title == "Broken lift");
     }
+
+    private static MaintenanceRequest Request(Guid condominiumId, MaintenanceStatus status)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            Title = "Broken lift",
+            CondominiumId = condominiumId,
+            CreatedBy = Guid.NewGuid(),
+            UnitId = Guid.NewGuid(),
+            Status = status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+    [Theory]
+    [InlineData("Open", MaintenanceStatus.Open, true)]
+    [InlineData("Open", MaintenanceStatus.InProgress, false)]
+    [InlineData("InProgress", MaintenanceStatus.InProgress, true)]
+    [InlineData("InProgress", MaintenanceStatus.Completed, false)]
+    public async Task GetPagedAsync_StatusFilter_AppliesExactStatus(string status, MaintenanceStatus rowStatus, bool expected)
+    {
+        var condo = Guid.NewGuid();
+        Expression<Func<MaintenanceRequest, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedAsync(1, 10, condo, "Admin", Guid.NewGuid(), null, status: status);
+
+        var predicate = captured!.Compile();
+        predicate(Request(condo, rowStatus)).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("Completed")]
+    [InlineData("Resolved")]
+    [InlineData("Closed")]
+    public async Task GetPagedAsync_CompletedStatusFilter_MatchesCompletedAndClosed(string status)
+    {
+        var condo = Guid.NewGuid();
+        Expression<Func<MaintenanceRequest, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedAsync(1, 10, condo, "Admin", Guid.NewGuid(), null, status: status);
+
+        var predicate = captured!.Compile();
+        predicate(Request(condo, MaintenanceStatus.Completed)).Should().BeTrue();
+        predicate(Request(condo, MaintenanceStatus.Closed)).Should().BeTrue();
+        predicate(Request(condo, MaintenanceStatus.Open)).Should().BeFalse();
+        predicate(Request(condo, MaintenanceStatus.InProgress)).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("All")]
+    public async Task GetPagedAsync_NoStatusFilter_MatchesEveryStatus(string? status)
+    {
+        var condo = Guid.NewGuid();
+        Expression<Func<MaintenanceRequest, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedAsync(1, 10, condo, "Admin", Guid.NewGuid(), null, status: status);
+
+        var predicate = captured!.Compile();
+        predicate(Request(condo, MaintenanceStatus.Open)).Should().BeTrue();
+        predicate(Request(condo, MaintenanceStatus.InProgress)).Should().BeTrue();
+        predicate(Request(condo, MaintenanceStatus.Completed)).Should().BeTrue();
+        predicate(Request(condo, MaintenanceStatus.Closed)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetStatusCountsAsync_Admin_CountsScopedByCondominiumWithClosedCollapsed()
+    {
+        var condo = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var rows = new List<MaintenanceRequest>
+        {
+            Request(condo, MaintenanceStatus.Open),
+            Request(condo, MaintenanceStatus.Open),
+            Request(condo, MaintenanceStatus.InProgress),
+            Request(condo, MaintenanceStatus.Completed),
+            Request(condo, MaintenanceStatus.Closed),
+            Request(other, MaintenanceStatus.Open),        // different condominium — excluded
+            Request(other, MaintenanceStatus.Completed),   // different condominium — excluded
+        };
+        _repositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()))
+            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate) => rows.Count(predicate.Compile()));
+
+        var counts = await _service.GetStatusCountsAsync(condo, "Admin", Guid.NewGuid(), null);
+
+        counts.Open.Should().Be(2);
+        counts.InProgress.Should().Be(1);
+        counts.Completed.Should().Be(2); // Completed + Closed collapsed
+    }
+
+    [Fact]
+    public async Task GetStatusCountsAsync_NonAdminNonResident_ReturnsZerosWithoutQuerying()
+    {
+        var counts = await _service.GetStatusCountsAsync(Guid.NewGuid(), "Manager", Guid.NewGuid(), null);
+
+        counts.Open.Should().Be(0);
+        counts.InProgress.Should().Be(0);
+        counts.Completed.Should().Be(0);
+        _repositoryMock.Verify(r => r.CountAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()), Times.Never);
+    }
 }
