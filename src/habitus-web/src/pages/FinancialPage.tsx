@@ -61,7 +61,7 @@ const financialDocTypeLabels = (t: TranslateFn): Record<string, string> => ({
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDate } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [dashboardLoadError, setDashboardLoadError] = useState('');
   const [recordsLoadError, setRecordsLoadError] = useState('');
@@ -799,7 +799,7 @@ export default function FinancialPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-ink truncate">{r.description}</p>
                         <p className="text-xs text-ink-subtle">
-                          {allCategoryLabels[r.category] || r.category} · {new Date(r.date).toLocaleDateString('pt-PT')}
+                          {allCategoryLabels[r.category] || r.category} · {formatDate(r.date)}
                         </p>
                       </div>
                       <p className={`font-semibold text-sm shrink-0 ${
@@ -1181,7 +1181,7 @@ export default function FinancialPage() {
                         <p className="text-sm text-ink-muted mt-1">{payment.description}</p>
                         <div className="flex items-center gap-3 mt-2">
                           <p className="text-xs text-ink-subtle">
-                            {t('financial.payment.created', { date: new Date(payment.createdDate).toLocaleDateString('pt-PT') })}
+                            {t('financial.payment.created', { date: formatDate(payment.createdDate) })}
                           </p>
                           <p className="text-xs text-blue-600">
                             {payment.method === 'BankTransfer' ? t('financial.method.bankTransfer') : 
@@ -1198,7 +1198,7 @@ export default function FinancialPage() {
                             </span>
                             {payment.receiptIssuedDate && (
                               <span className="text-xs text-ink-subtle">
-                                {t('financial.payment.issued', { date: new Date(payment.receiptIssuedDate).toLocaleDateString('pt-PT') })}
+                                {t('financial.payment.issued', { date: formatDate(payment.receiptIssuedDate) })}
                               </span>
                             )}
                           </div>
@@ -1219,7 +1219,7 @@ export default function FinancialPage() {
                         {/* Processed Info */}
                         {payment.processedDate && (
                           <p className="text-xs text-ink-subtle mt-1">
-                            {t('financial.payment.processed', { date: new Date(payment.processedDate).toLocaleDateString('pt-PT') })}
+                            {t('financial.payment.processed', { date: formatDate(payment.processedDate) })}
                             {payment.processedByUserName && t('financial.payment.processedBy', { name: payment.processedByUserName })}
                           </p>
                         )}

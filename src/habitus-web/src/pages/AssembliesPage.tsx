@@ -33,7 +33,7 @@ const statusVariants: Record<string, BadgeVariant> = {
 export default function AssembliesPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDate, formatDateTime } = useTranslation();
   const statusLabels = getStatusLabels(t);
   const [assemblies, setAssemblies] = useState<AssemblyDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -779,7 +779,7 @@ export default function AssembliesPage() {
                           </Badge>
                           <span className="text-xs text-ink-subtle flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {new Date(a.scheduledAt).toLocaleString('pt-PT')}
+                            {formatDateTime(a.scheduledAt)}
                           </span>
                           {a.location && (
                             <span className="text-xs text-ink-subtle">{a.location}</span>
@@ -874,7 +874,7 @@ export default function AssembliesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.form.dateTime')}</label>
-                  <p className="text-ink mt-1">{new Date(selectedAssembly.scheduledAt).toLocaleString('pt-PT')}</p>
+                  <p className="text-ink mt-1">{formatDateTime(selectedAssembly.scheduledAt)}</p>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.form.location')}</label>
@@ -1034,7 +1034,7 @@ export default function AssembliesPage() {
                               <span className="text-xs text-ink-subtle">{formatFileSize(doc.fileSize)}</span>
                               <span className="text-ink-subtle">•</span>
                               <span className="text-xs text-ink-subtle">
-                                {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                {formatDate(doc.uploadedAt)}
                               </span>
                             </div>
                             {doc.description && (

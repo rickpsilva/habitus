@@ -1,12 +1,14 @@
 using Habitus.Application.DTOs.Consents;
 using Habitus.Application.DTOs.Localization;
 using Habitus.Application.DTOs.Memberships;
+using Habitus.Application.DTOs.PersonalData;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Habitus.Api.Controllers;
 
@@ -20,19 +22,22 @@ public class MeController : ControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<LocalizationSettings> _localizationRepository;
     private readonly IFeatureEntitlementService _featureEntitlementService;
+    private readonly IPersonalDataService _personalDataService;
 
     public MeController(
         AuthService authService,
         IConsentService consentService,
         IRepository<User> userRepository,
         IRepository<LocalizationSettings> localizationRepository,
-        IFeatureEntitlementService featureEntitlementService)
+        IFeatureEntitlementService featureEntitlementService,
+        IPersonalDataService personalDataService)
     {
         _authService = authService;
         _consentService = consentService;
         _userRepository = userRepository;
         _localizationRepository = localizationRepository;
         _featureEntitlementService = featureEntitlementService;
+        _personalDataService = personalDataService;
     }
 
     [HttpGet("memberships")]
@@ -186,6 +191,67 @@ public class MeController : ControllerBase
             SupportedLanguages = LocalizationLanguages.Supported
         });
     }
+
+    /// <summary>
+    /// GDPR/RGPD Article 20 data-portability export (REQ-SEC-003). Returns the caller's own
+    /// personal data as a downloadable JSON attachment (email/phone decrypted, no secrets) and
+    /// records an append-only audit row. Reachable even while a mandatory consent is pending.
+    /// </summary>
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportPersonalData()
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var export = await _personalDataService.ExportAsync(userId);
+        await _personalDataService.RecordRequestAsync(
+            userId, userId, PersonalDataRequestType.Export, GetClientIp(), GetUserAgent());
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(export, ExportJsonOptions);
+        var fileName = $"habitus-export-{DateTime.UtcNow:yyyyMMdd}.json";
+        Response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}\"";
+        return File(json, "application/json; charset=utf-8");
+    }
+
+    /// <summary>
+    /// GDPR/RGPD Article 17 erasure (REQ-SEC-004). Full erasure anonymizes the account in place and
+    /// disables login; partial erasure removes only the requested non-retained fields. Requires the
+    /// confirmation phrase and (for password accounts) the current password. Reachable even while a
+    /// mandatory consent is pending.
+    /// </summary>
+    [HttpPost("personal-data/erasure")]
+    public async Task<IActionResult> ErasePersonalData([FromBody] ErasureRequestDto request)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var result = await _personalDataService.EraseAsync(
+                userId, userId, request.Type, request.Fields,
+                request.ConfirmationPhrase, request.CurrentPassword,
+                GetClientIp(), GetUserAgent());
+            return Ok(result);
+        }
+        catch (ErasureValidationException ex)
+        {
+            return BadRequest(new { code = ex.Code, message = ex.Message });
+        }
+    }
+
+    private string? GetClientIp() => HttpContext.Connection.RemoteIpAddress?.ToString();
+
+    private string? GetUserAgent()
+    {
+        var userAgent = Request.Headers.UserAgent.ToString();
+        return string.IsNullOrWhiteSpace(userAgent) ? null : userAgent;
+    }
+
+    private static readonly JsonSerializerOptions ExportJsonOptions = new(JsonSerializerDefaults.Web);
 
     private bool TryGetCurrentUserId(out Guid userId)
     {

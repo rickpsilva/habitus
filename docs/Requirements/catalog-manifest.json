@@ -48,21 +48,27 @@
       "id": "REQ-USERS-003",
       "file": "requirements/users/REQ-USERS-003.md",
       "diagrams": [
-        "diagrams/use-cases/gdpr-self-service.mmd"
+        "diagrams/use-cases/gdpr-self-service.mmd",
+        "diagrams/sequences/first-login-rgpd-acceptance.mmd",
+        "diagrams/sequences/gdpr-export-erasure.mmd"
       ]
     },
     {
       "id": "REQ-SEC-003",
       "file": "requirements/security/REQ-SEC-003.md",
       "diagrams": [
-        "diagrams/classes/privacy-services.mmd"
+        "diagrams/use-cases/gdpr-self-service.mmd",
+        "diagrams/classes/privacy-services.mmd",
+        "diagrams/sequences/gdpr-export-erasure.mmd"
       ]
     },
     {
       "id": "REQ-SEC-004",
       "file": "requirements/security/REQ-SEC-004.md",
       "diagrams": [
-        "diagrams/classes/privacy-services.mmd"
+        "diagrams/use-cases/gdpr-self-service.mmd",
+        "diagrams/classes/privacy-services.mmd",
+        "diagrams/sequences/gdpr-export-erasure.mmd"
       ]
     },
     {
@@ -147,11 +153,6 @@
     {
       "id": "REQ-SPACES-001",
       "file": "requirements/shared-spaces/REQ-SPACES-001.md",
-      "diagrams": []
-    },
-    {
-      "id": "REQ-ANN-001",
-      "file": "requirements/announcements/REQ-ANN-001.md",
       "diagrams": []
     },
     {

@@ -51,10 +51,6 @@ const cycleLabels = (t: TranslateFn): Record<string, string> => ({
   Quinquennial: t('billing.cycle.quinquennial'),
 });
 
-function fmt(value: number) {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
-}
-
 function formatDiscount(value: number) {
   if (value <= 0) return null;
   return `-${value.toFixed(0)}%`;
@@ -126,7 +122,7 @@ function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
 // ============= Invoices Dashboard Sub-component =============
 
 function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] }) {
-  const { t } = useTranslation();
+  const { t, formatDate, formatCurrency } = useTranslation();
   const { success: toastSuccess, error: toastError } = useToast();
   const [confirmGenerateDue, setConfirmGenerateDue] = useState(false);
   const [cancelInvoiceId, setCancelInvoiceId] = useState<string | null>(null);
@@ -265,7 +261,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       key: 'issuedDate',
       header: t('common.date'),
       mobileLabel: t('common.date'),
-      render: (inv) => <span className="text-ink-muted">{new Date(inv.issuedDate).toLocaleDateString('pt-PT')}</span>,
+      render: (inv) => <span className="text-ink-muted">{formatDate(inv.issuedDate)}</span>,
     },
     {
       key: 'dueDate',
@@ -273,7 +269,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       mobileLabel: t('billing.table.dueDate'),
       render: (inv) => (
         <span className={inv.isOverdue ? 'text-red-600 font-medium' : 'text-ink-muted'}>
-          {new Date(inv.dueDate).toLocaleDateString('pt-PT')}
+          {formatDate(inv.dueDate)}
         </span>
       ),
     },
@@ -288,7 +284,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       header: t('billing.table.total'),
       align: 'right',
       mobileLabel: t('billing.table.total'),
-      render: (inv) => <span className="font-semibold text-ink">{fmt(inv.totalAmount)}</span>,
+      render: (inv) => <span className="font-semibold text-ink">{formatCurrency(inv.totalAmount)}</span>,
     },
     {
       key: 'status',
@@ -456,9 +452,9 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       {!loading && invoices.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: t('billing.stats.emitted'), value: fmt(totalEmitted), color: 'text-blue-700 bg-blue-50 border-blue-200' },
-            { label: t('billing.stats.collected'), value: fmt(totalPaid), color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-            { label: t('billing.stats.overdue'), value: fmt(totalOverdue), color: 'text-red-700 bg-red-50 border-red-200' },
+            { label: t('billing.stats.emitted'), value: formatCurrency(totalEmitted), color: 'text-blue-700 bg-blue-50 border-blue-200' },
+            { label: t('billing.stats.collected'), value: formatCurrency(totalPaid), color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+            { label: t('billing.stats.overdue'), value: formatCurrency(totalOverdue), color: 'text-red-700 bg-red-50 border-red-200' },
             { label: t('billing.filter.overdue'), value: String(overdueCount), color: overdueCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-ink-muted bg-surface-muted border-line' },
           ].map((s) => (
             <div key={s.label} className={`rounded-lg border px-3 py-2 text-sm ${s.color}`}>
@@ -522,25 +518,25 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
               </div>
               <div>
                 <p className="text-xs text-ink-subtle uppercase">{t('billing.invoiceStatus.emitted')}</p>
-                <p className="text-ink-muted">{new Date(selectedInvoice.issuedDate).toLocaleDateString('pt-PT')}</p>
+                <p className="text-ink-muted">{formatDate(selectedInvoice.issuedDate)}</p>
               </div>
               <div>
                 <p className="text-xs text-ink-subtle uppercase">{t('billing.table.dueDate')}</p>
                 <p className={selectedInvoice.isOverdue ? 'text-red-600 font-semibold' : 'text-ink-muted'}>
-                  {new Date(selectedInvoice.dueDate).toLocaleDateString('pt-PT')}
+                  {formatDate(selectedInvoice.dueDate)}
                 </p>
               </div>
               {selectedInvoice.paidDate && (
                 <div>
                   <p className="text-xs text-ink-subtle uppercase">{t('billing.detail.paidDate')}</p>
-                  <p className="text-emerald-700">{new Date(selectedInvoice.paidDate).toLocaleDateString('pt-PT')}</p>
+                  <p className="text-emerald-700">{formatDate(selectedInvoice.paidDate)}</p>
                 </div>
               )}
               <div>
                 <p className="text-xs text-ink-subtle uppercase">{t('billing.detail.period')}</p>
                 <p className="text-ink-muted">
-                  {new Date(selectedInvoice.periodStartDate).toLocaleDateString('pt-PT')} –{' '}
-                  {new Date(selectedInvoice.periodEndDate).toLocaleDateString('pt-PT')}
+                  {formatDate(selectedInvoice.periodStartDate)} –{' '}
+                  {formatDate(selectedInvoice.periodEndDate)}
                 </p>
               </div>
             </div>
@@ -548,15 +544,15 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
             <div className="border-t border-line pt-3 space-y-1 text-sm">
               <div className="flex justify-between text-ink-muted">
                 <span>{t('billing.detail.subtotal')}</span>
-                <span>{fmt(selectedInvoice.subtotalAmount)}</span>
+                <span>{formatCurrency(selectedInvoice.subtotalAmount)}</span>
               </div>
               <div className="flex justify-between text-ink-muted">
                 <span>{t('billing.detail.vat', { rate: (selectedInvoice.vatRate * 100).toFixed(0) })}</span>
-                <span>{fmt(selectedInvoice.vatAmount)}</span>
+                <span>{formatCurrency(selectedInvoice.vatAmount)}</span>
               </div>
               <div className="flex justify-between font-bold text-ink text-base border-t border-line pt-1 mt-1">
                 <span>{t('billing.table.total')}</span>
-                <span>{fmt(selectedInvoice.totalAmount)}</span>
+                <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
               </div>
             </div>
 
@@ -627,7 +623,7 @@ function PlanCard({
   onAssign: (plan: SubscriptionPlanDto) => void;
   onEdit: (plan: SubscriptionPlanDto) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, formatCurrency } = useTranslation();
   const meta = tierMeta[plan.tier] ?? tierMeta.Free;
   const Icon = meta.icon;
 
@@ -647,12 +643,12 @@ function PlanCard({
 
       <div className="space-y-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-ink">{fmt(plan.priceMonthly)}</span>
+          <span className="text-2xl font-bold text-ink">{formatCurrency(plan.priceMonthly)}</span>
           <span className="text-xs text-ink-subtle">{t('billing.plan.perMonth')}</span>
         </div>
         {plan.priceAnnual > 0 && (
           <div className="text-xs text-ink-subtle">
-            {fmt(plan.priceAnnual)}{t('billing.plan.perYear')}{' '}
+            {formatCurrency(plan.priceAnnual)}{t('billing.plan.perYear')}{' '}
             {formatDiscount(plan.annualDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.annualDiscountPercent)}</span>
             )}
@@ -660,7 +656,7 @@ function PlanCard({
         )}
         {plan.priceQuinquennial > 0 && (
           <div className="text-xs text-ink-subtle">
-            {fmt(plan.priceQuinquennial)}{t('billing.plan.perFiveYears')}{' '}
+            {formatCurrency(plan.priceQuinquennial)}{t('billing.plan.perFiveYears')}{' '}
             {formatDiscount(plan.quinquennialDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.quinquennialDiscountPercent)}</span>
             )}
@@ -690,7 +686,7 @@ function PlanCard({
 }
 
 export default function BillingPage() {
-  const { t } = useTranslation();
+  const { t, formatDate, formatCurrency } = useTranslation();
   const { isManager } = useAuth();
   const navigate = useNavigate();
   const { error: toastError } = useToast();
@@ -960,7 +956,7 @@ export default function BillingPage() {
         />
         <StatCard
           title={t('billing.stat.monthlyVolume')}
-          value={monthlyVolume !== null ? fmt(monthlyVolume) : '—'}
+          value={monthlyVolume !== null ? formatCurrency(monthlyVolume) : '—'}
           icon={CreditCard}
           color="bg-amber-100 text-amber-700"
         />
@@ -1046,11 +1042,11 @@ export default function BillingPage() {
                       {sub ? cycleLabel[sub.billingCycle] ?? sub.billingCycle : '—'}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
-                      {sub ? fmt(sub.priceAtPurchase) : '—'}
+                      {sub ? formatCurrency(sub.priceAtPurchase) : '—'}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
                       {sub
-                        ? new Date(sub.nextBillingDate).toLocaleDateString('pt-PT')
+                        ? formatDate(sub.nextBillingDate)
                         : '—'}
                     </td>
                     <td className="px-4 py-3 flex items-center gap-2 justify-end">
@@ -1174,7 +1170,7 @@ export default function BillingPage() {
                         }`}
                       >
                         <div className="font-medium">{cycleLabel[cycle]}</div>
-                        <div className="mt-0.5">{fmt(price)}</div>
+                        <div className="mt-0.5">{formatCurrency(price)}</div>
                         {cycle === 'Annual' && assignModal.plan.annualDiscountPercent > 0 && (
                           <div className="text-emerald-600 font-medium">-{assignModal.plan.annualDiscountPercent.toFixed(0)}%</div>
                         )}
@@ -1297,9 +1293,9 @@ export default function BillingPage() {
             <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
               <p className="text-sm font-medium text-indigo-900 mb-1">{t('billing.form.pricePreview')}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-indigo-800">
-                <div>{t('billing.cycle.monthly')}: <span className="font-semibold">{fmt(roundMoney(planForm.priceMonthly || 0))}</span></div>
-                <div>{t('billing.cycle.annual')}: <span className="font-semibold">{fmt(previewAnnual)}</span></div>
-                <div>{t('billing.cycle.quinquennial')}: <span className="font-semibold">{fmt(previewQuinquennial)}</span></div>
+                <div>{t('billing.cycle.monthly')}: <span className="font-semibold">{formatCurrency(roundMoney(planForm.priceMonthly || 0))}</span></div>
+                <div>{t('billing.cycle.annual')}: <span className="font-semibold">{formatCurrency(previewAnnual)}</span></div>
+                <div>{t('billing.cycle.quinquennial')}: <span className="font-semibold">{formatCurrency(previewQuinquennial)}</span></div>
               </div>
             </div>
 

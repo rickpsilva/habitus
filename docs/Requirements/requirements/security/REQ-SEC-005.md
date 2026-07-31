@@ -4,7 +4,7 @@ title: Users can view and manage RGPD consent from their personal area
 type: Functional
 module: Security
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -16,18 +16,20 @@ relatedRequirements:
   - REQ-SEC-004
   - REQ-SEC-006
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/cookie-and-rgpd-consent.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd
+  - docs/Requirements/diagrams/sequences/cookie-and-rgpd-consent.mmd
+  - docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Domain/Entities/ConsentDefinition.cs
-  - /home/rick/workspace/habitus/src/Habitus.Domain/Entities/UserConsent.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/ConsentService.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Interfaces/IConsentService.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/MeController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs
+  - src/Habitus.Domain/Entities/ConsentDefinition.cs
+  - src/Habitus.Domain/Entities/UserConsent.cs
+  - src/Habitus.Application/Services/ConsentService.cs
+  - src/Habitus.Application/Interfaces/IConsentService.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs
+  - src/habitus-web/src/pages/ProfilePage.tsx
+  - src/habitus-web/src/pages/ConsentRequiredPage.tsx
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/ConsentServiceTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Api.IntegrationTests/ConsentGateIntegrationTests.cs
+  - tests/Habitus.Tests/ConsentServiceTests.cs
+  - tests/Habitus.Api.IntegrationTests/ConsentGateIntegrationTests.cs
 ---
 
 # REQ-SEC-005

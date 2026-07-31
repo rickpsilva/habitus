@@ -36,7 +36,7 @@ type SortField = 'spaceName' | 'startTime' | 'endTime' | 'status' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 export default function ReservationsPage() {
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const { isAdmin } = useAuth();
   const { error: toastError } = useToast();
   const statusLabels = getStatusLabels(t);
@@ -630,7 +630,7 @@ export default function ReservationsPage() {
       sortable: true,
       mobileLabel: t('reservations.column.start'),
       render: (r) =>
-        new Date(r.startTime).toLocaleString('pt-PT', {
+        formatDateTime(r.startTime, {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -644,7 +644,7 @@ export default function ReservationsPage() {
       sortable: true,
       mobileLabel: t('reservations.column.end'),
       render: (r) =>
-        new Date(r.endTime).toLocaleString('pt-PT', {
+        formatDateTime(r.endTime, {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -669,7 +669,7 @@ export default function ReservationsPage() {
       sortable: true,
       mobileLabel: t('reservations.column.createdAt'),
       render: (r) =>
-        new Date(r.createdAt).toLocaleString('pt-PT', {
+        formatDateTime(r.createdAt, {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
@@ -932,12 +932,12 @@ export default function ReservationsPage() {
                     <ul className="text-xs text-red-700 space-y-1">
                       {overlappingReservations.map(r => (
                         <li key={r.id}>
-                          • {new Date(r.startTime).toLocaleString('pt-PT', { 
+                          • {formatDateTime(r.startTime, { 
                             day: '2-digit', 
                             month: '2-digit', 
                             hour: '2-digit', 
                             minute: '2-digit' 
-                          })} - {new Date(r.endTime).toLocaleString('pt-PT', { 
+                          })} - {formatDateTime(r.endTime, { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
@@ -998,7 +998,7 @@ export default function ReservationsPage() {
                 <div>
                   <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.startDateTime')}</label>
                   <p className="text-base text-ink">
-                    {new Date(selectedReservation.startTime).toLocaleString('pt-PT', { 
+                    {formatDateTime(selectedReservation.startTime, { 
                       day: '2-digit', 
                       month: '2-digit', 
                       year: 'numeric', 
@@ -1011,7 +1011,7 @@ export default function ReservationsPage() {
                 <div>
                   <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.endDateTime')}</label>
                   <p className="text-base text-ink">
-                    {new Date(selectedReservation.endTime).toLocaleString('pt-PT', { 
+                    {formatDateTime(selectedReservation.endTime, { 
                       day: '2-digit', 
                       month: '2-digit', 
                       year: 'numeric', 
@@ -1035,7 +1035,7 @@ export default function ReservationsPage() {
                 <div>
                   <label className="text-sm font-medium text-ink-subtle">{t('reservations.details.createdAt')}</label>
                   <p className="text-base text-ink">
-                    {new Date(selectedReservation.createdAt).toLocaleString('pt-PT', { 
+                    {formatDateTime(selectedReservation.createdAt, { 
                       day: '2-digit', 
                       month: '2-digit', 
                       year: 'numeric', 

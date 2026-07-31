@@ -12,9 +12,9 @@ relatedRequirements:
   - REQ-RES-001
   - REQ-AUTH-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/reservations-conflict-and-approval-flow.mmd
+  - docs/Requirements/diagrams/sequences/reservations-conflict-and-approval-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/SharedSpacesController.cs
+  - src/Habitus.Api/Controllers/SharedSpacesController.cs
 testRefs: []
 ---
 

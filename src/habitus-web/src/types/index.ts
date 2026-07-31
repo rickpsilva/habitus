@@ -98,6 +98,28 @@ export interface RecordConsentRequest {
   accepted: boolean;
 }
 
+// RGPD/GDPR self-service erasure (REQ-SEC-006). `type` is an INTEGER enum on the
+// wire — the API has no JsonStringEnumConverter, so the numeric value is sent.
+export const ErasureType = {
+  Full: 0,
+  Partial: 1,
+} as const;
+
+export type ErasureType = (typeof ErasureType)[keyof typeof ErasureType];
+
+export interface ErasureRequest {
+  type: ErasureType;
+  confirmationPhrase: string;
+  currentPassword?: string;
+  fields?: string[];
+}
+
+export interface ErasureResult {
+  type: ErasureType;
+  loginDisabled: boolean;
+  processedAt: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

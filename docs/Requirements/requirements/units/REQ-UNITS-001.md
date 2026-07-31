@@ -14,8 +14,8 @@ relatedRequirements:
   - REQ-USERS-001
   - REQ-CONDO-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/units-management-scope-flow.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/units-management-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
 ---
 
 # REQ-UNITS-001

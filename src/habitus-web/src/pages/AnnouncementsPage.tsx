@@ -102,7 +102,7 @@ function highlightText(text: string, query: string) {
 export default function AnnouncementsPage() {
   const { condominiumId, isAdmin } = useAuth();
   const { error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDate, formatDateTime } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const categoryLabels = useMemo(() => getCategoryLabels(t), [t]);
@@ -670,7 +670,7 @@ export default function AnnouncementsPage() {
                     {a.isPinned && <Pin className="w-4 h-4 text-amber-500" />}
                   </div>
                   <p className="text-sm text-ink-subtle mt-1">
-                    {highlightText(a.isAnonymous ? t('announcements.anonymous') : a.authorName, debouncedSearchText)} • {new Date(a.createdAt).toLocaleString('pt-PT')}
+                    {highlightText(a.isAnonymous ? t('announcements.anonymous') : a.authorName, debouncedSearchText)} • {formatDateTime(a.createdAt)}
                   </p>
                   <p className="text-sm text-ink-muted mt-1 line-clamp-2">
                     {highlightText(
@@ -684,7 +684,7 @@ export default function AnnouncementsPage() {
                     <span className="inline-flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {a.totalComments}</span>
                     <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {a.totalAttachments}</span>
                     {a.validUntil && (
-                      <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="w-3 h-3" /> {t('announcements.card.validUntil', { date: new Date(a.validUntil).toLocaleDateString('pt-PT') })}</span>
+                      <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="w-3 h-3" /> {t('announcements.card.validUntil', { date: formatDate(a.validUntil) })}</span>
                     )}
                   </div>
                 </div>
@@ -837,7 +837,7 @@ export default function AnnouncementsPage() {
               <div>
                 <h2 className="text-xl font-semibold text-ink">{selected.title}</h2>
                 <p className="text-sm text-ink-subtle mt-1">
-                  {selected.isAnonymous ? t('announcements.anonymous') : selected.authorName} • {new Date(selected.createdAt).toLocaleString('pt-PT')}
+                  {selected.isAnonymous ? t('announcements.anonymous') : selected.authorName} • {formatDateTime(selected.createdAt)}
                 </p>
               </div>
               <Button variant="secondary" size="sm" onClick={closeDetails}>{t('announcements.details.close')}</Button>
@@ -906,7 +906,7 @@ export default function AnnouncementsPage() {
                           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                           .map((c) => (
                             <div key={c.id} className="border-b border-line pb-2 last:border-b-0">
-                              <p className="text-xs text-ink-subtle">{c.authorName} • {new Date(c.createdAt).toLocaleString('pt-PT')}</p>
+                              <p className="text-xs text-ink-subtle">{c.authorName} • {formatDateTime(c.createdAt)}</p>
                               <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{c.content}</p>
                             </div>
                           ))

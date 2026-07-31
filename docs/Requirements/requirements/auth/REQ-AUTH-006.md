@@ -4,7 +4,7 @@ title: Users with multiple memberships can select their active fraction and cond
 type: Functional
 module: Auth
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Admin
   - Resident
@@ -15,11 +15,19 @@ relatedRequirements:
   - REQ-UNITS-003
   - REQ-USERS-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/active-context-selection.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/data/user-unit-membership.mmd
+  - docs/Requirements/diagrams/sequences/active-context-selection.mmd
+  - docs/Requirements/diagrams/data/user-unit-membership.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/habitus-web/src/pages/SelectCondominiumPage.tsx
-testRefs: []
+  - src/Habitus.Domain/Entities/UnitMembership.cs
+  - src/Habitus.Application/Services/UnitMembershipService.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/habitus-web/src/pages/SelectContextPage.tsx
+  - src/habitus-web/src/contexts/AuthContext.tsx
+  - src/habitus-web/src/components/Layout.tsx
+testRefs:
+  - tests/Habitus.Api.IntegrationTests/MeContextIntegrationTests.cs
+  - tests/Habitus.Tests/UnitMembershipServiceIsolationTests.cs
+  - tests/Habitus.Tests/AuthServiceTests.cs
 ---
 
 # REQ-AUTH-006

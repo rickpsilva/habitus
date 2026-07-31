@@ -4,7 +4,7 @@ title: The login page requires cookie consent before non-essential cookies are s
 type: Functional
 module: Security
 priority: Medium
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -13,8 +13,9 @@ relatedRequirements:
   - REQ-AUTH-005
   - REQ-SEC-005
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/cookie-and-rgpd-consent.mmd
-implementationRefs: []
+  - docs/Requirements/diagrams/sequences/cookie-and-rgpd-consent.mmd
+implementationRefs:
+  - src/habitus-web/src/pages/LoginPage.tsx
 testRefs: []
 ---
 

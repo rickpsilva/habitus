@@ -12,12 +12,12 @@ roles:
 relatedRequirements:
   - REQ-AUTH-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/notifications-dispatch-flow.mmd
+  - docs/Requirements/diagrams/sequences/notifications-dispatch-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/NotificationsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/NotificationDispatchService.cs
+  - src/Habitus.Api/Controllers/NotificationsController.cs
+  - src/Habitus.Application/Services/NotificationDispatchService.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/NotificationDispatchServiceTests.cs
+  - tests/Habitus.Tests/NotificationDispatchServiceTests.cs
 ---
 
 # REQ-NOTIF-001

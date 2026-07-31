@@ -14,20 +14,20 @@ relatedRequirements:
   - REQ-USERS-001
   - REQ-SEC-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Middleware/CondominiumAccessGuardMiddleware.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Program.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/UsersController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/UnitsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/ReservationsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/MaintenanceController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/FinancialController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/NotificationsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/PaymentsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/InvoicesController.cs
+  - src/Habitus.Api/Middleware/CondominiumAccessGuardMiddleware.cs
+  - src/Habitus.Api/Program.cs
+  - src/Habitus.Api/Controllers/UsersController.cs
+  - src/Habitus.Api/Controllers/UnitsController.cs
+  - src/Habitus.Api/Controllers/ReservationsController.cs
+  - src/Habitus.Api/Controllers/MaintenanceController.cs
+  - src/Habitus.Api/Controllers/FinancialController.cs
+  - src/Habitus.Api/Controllers/NotificationsController.cs
+  - src/Habitus.Api/Controllers/PaymentsController.cs
+  - src/Habitus.Api/Controllers/InvoicesController.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Api.IntegrationTests/CondominiumScopeEnforcementTests.cs
+  - tests/Habitus.Api.IntegrationTests/CondominiumScopeEnforcementTests.cs
 ---
 
 # REQ-AUTH-001

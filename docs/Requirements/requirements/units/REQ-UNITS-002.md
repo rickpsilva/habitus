@@ -14,9 +14,17 @@ relatedRequirements:
   - REQ-AUTH-006
   - REQ-USERS-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/data/user-unit-membership.mmd
-implementationRefs: []
-testRefs: []
+  - docs/Requirements/diagrams/data/user-unit-membership.mmd
+implementationRefs:
+  - src/Habitus.Domain/Entities/UnitMembership.cs
+  - src/Habitus.Application/Services/UnitMembershipService.cs
+  - src/Habitus.Application/DTOs/Memberships/UnitMembershipDto.cs
+  - src/Habitus.Infrastructure/Data/HabitusDbContext.cs
+  - src/Habitus.Infrastructure/Migrations/20260730010225_AddUnitMembership.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/habitus-web/src/pages/ProfilePage.tsx
+testRefs:
+  - tests/Habitus.Tests/UnitMembershipServiceIsolationTests.cs
 ---
 
 # REQ-UNITS-002

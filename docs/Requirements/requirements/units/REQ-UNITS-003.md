@@ -4,7 +4,7 @@ title: A resident or internal admin can hold fractions across multiple condomini
 type: Functional
 module: Units
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Admin
   - Resident
@@ -14,9 +14,17 @@ relatedRequirements:
   - REQ-AUTH-006
   - REQ-CONDO-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/data/user-unit-membership.mmd
-implementationRefs: []
-testRefs: []
+  - docs/Requirements/diagrams/data/user-unit-membership.mmd
+implementationRefs:
+  - src/Habitus.Domain/Entities/UnitMembership.cs
+  - src/Habitus.Application/Services/UnitMembershipService.cs
+  - src/Habitus.Application/DTOs/Memberships/UnitMembershipDto.cs
+  - src/Habitus.Infrastructure/Data/HabitusDbContext.cs
+  - src/Habitus.Infrastructure/Migrations/20260730010225_AddUnitMembership.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+testRefs:
+  - tests/Habitus.Tests/UnitMembershipServiceIsolationTests.cs
+  - tests/Habitus.Api.IntegrationTests/MeContextIntegrationTests.cs
 ---
 
 # REQ-UNITS-003

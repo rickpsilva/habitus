@@ -27,6 +27,12 @@ public class User
     public DateTime? LastPasswordChangedAt { get; set; }
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // GDPR/RGPD Art. 17 erasure: anonymize-in-place marker. When true the row's PII has been
+    // scrubbed and the account is retired (login is also blocked via IsActive=false).
+    public bool IsAnonymized { get; set; }
+    public DateTime? AnonymizedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
 

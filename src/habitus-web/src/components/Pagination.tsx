@@ -18,7 +18,10 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
     }
   };
 
-  const itemsLabel = pagination.totalItems === 1 ? '1 resultado' : `${pagination.totalItems} resultados`;
+  const itemsLabel =
+    pagination.totalItems === 1
+      ? t('pagination.resultOne')
+      : t('pagination.resultMany', { count: pagination.totalItems });
 
   if (pagination.totalPages <= 1) {
     return (

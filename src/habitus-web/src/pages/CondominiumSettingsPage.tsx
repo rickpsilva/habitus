@@ -496,7 +496,7 @@ function PlatformBillingContent() {
 
 function PlatformUploadContent() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const minSizeKb = 50;
   const maxSizeKb = 512000;
   const [settings, setSettings] = useState<PlatformUploadSettingsDto | null>(null);
@@ -605,7 +605,7 @@ function PlatformUploadContent() {
 
           {settings && (
             <div className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink-muted">
-              {t('condoSettings.upload.lastUpdate', { date: new Date(settings.updatedAt).toLocaleString('pt-PT') })}
+              {t('condoSettings.upload.lastUpdate', { date: formatDateTime(settings.updatedAt) })}
             </div>
           )}
         </div>
@@ -626,7 +626,7 @@ function PlatformUploadContent() {
 // UI is guarded to match.
 function LocalizationContent() {
   const { isManager } = useAuth();
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const { success: toastSuccess, error: toastError } = useToast();
   const languageOptions: ('pt' | 'en')[] = ['pt', 'en'];
   const [settings, setSettings] = useState<PlatformLocalizationSettingsDto | null>(null);
@@ -705,7 +705,7 @@ function LocalizationContent() {
 
           {settings && settings.id && (
             <div className="rounded-lg border border-line bg-surface-muted px-3 py-2 text-xs text-ink-muted">
-              {new Date(settings.updatedAt).toLocaleString('pt-PT')}
+              {formatDateTime(settings.updatedAt)}
             </div>
           )}
         </div>

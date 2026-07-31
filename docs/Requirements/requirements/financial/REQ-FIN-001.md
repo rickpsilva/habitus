@@ -14,14 +14,14 @@ relatedRequirements:
   - REQ-PAY-001
   - REQ-FIN-002
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
+  - docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/FinancialController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/FinancialService.cs
+  - src/Habitus.Api/Controllers/FinancialController.cs
+  - src/Habitus.Application/Services/FinancialService.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/FinancialServiceTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/FinancialServiceIsolationTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/SaftXmlServiceTests.cs
+  - tests/Habitus.Tests/FinancialServiceTests.cs
+  - tests/Habitus.Tests/FinancialServiceIsolationTests.cs
+  - tests/Habitus.Tests/SaftXmlServiceTests.cs
 ---
 
 # REQ-FIN-001

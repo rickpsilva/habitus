@@ -77,7 +77,7 @@ const documentTypesByContext: Record<string, string[]> = {
 export default function DocumentsPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDate } = useTranslation();
   const contextLabels = getContextLabels(t);
   const typeLabels = getTypeLabels(t);
   const [searchParams] = useSearchParams();
@@ -535,7 +535,7 @@ export default function DocumentsPage() {
                             {assembly && (
                               <div className="flex items-center gap-2 mt-1 text-xs text-ink-subtle">
                                 <Calendar className="w-3.5 h-3.5" />
-                                <span>{new Date(assembly.scheduledAt).toLocaleDateString('pt-PT', { 
+                                <span>{formatDate(assembly.scheduledAt, { 
                                   day: 'numeric', 
                                   month: 'long', 
                                   year: 'numeric',
@@ -573,7 +573,7 @@ export default function DocumentsPage() {
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
                                       <p className="text-xs text-ink-subtle">
-                                        {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
+                                        {formatDate(d.uploadedAt)}
                                       </p>
                                       <span className="text-ink-subtle">•</span>
                                       <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
@@ -682,7 +682,7 @@ export default function DocumentsPage() {
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
                                       <p className="text-xs text-ink-subtle">
-                                        {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
+                                        {formatDate(d.uploadedAt)}
                                       </p>
                                       <span className="text-ink-subtle">•</span>
                                       <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
@@ -791,7 +791,7 @@ export default function DocumentsPage() {
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
                                       <p className="text-xs text-ink-subtle">
-                                        {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
+                                        {formatDate(d.uploadedAt)}
                                       </p>
                                       <span className="text-ink-subtle">•</span>
                                       <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
@@ -889,7 +889,7 @@ export default function DocumentsPage() {
                                     )}
                                     <div className="flex items-center gap-2 mt-1">
                                       <p className="text-xs text-ink-subtle">
-                                        {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
+                                        {formatDate(d.uploadedAt)}
                                       </p>
                                       <span className="text-ink-subtle">•</span>
                                       <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
@@ -953,7 +953,7 @@ export default function DocumentsPage() {
                   )}
                   <div className="flex items-center gap-2 mt-1">
                     <p className="text-xs text-ink-subtle">
-                      {new Date(d.uploadedAt).toLocaleDateString('pt-PT')}
+                      {formatDate(d.uploadedAt)}
                     </p>
                     <span className="text-ink-subtle">•</span>
                     <p className="text-xs text-ink-subtle">{formatFileSize(d.fileSize)}</p>
@@ -1098,7 +1098,7 @@ export default function DocumentsPage() {
                     <option value="">{t('documents.form.selectAssembly')}</option>
                     {assemblies.map(assembly => (
                       <option key={assembly.id} value={assembly.id}>
-                        {assembly.title} - {new Date(assembly.scheduledAt).toLocaleDateString('pt-PT')}
+                        {assembly.title} - {formatDate(assembly.scheduledAt)}
                       </option>
                     ))}
                   </select>

@@ -91,6 +91,8 @@ import type {
   CsvImportResult,
   ConsentStatusResponse,
   RecordConsentRequest,
+  ErasureRequest,
+  ErasureResult,
   MeLocalizationDto,
   SetLanguageRequest,
   PlatformLocalizationSettingsDto,
@@ -123,6 +125,11 @@ export const meApi = {
   getConsents: () => api.get<ConsentStatusResponse>('/platform/me/consents'),
   recordConsent: (data: RecordConsentRequest) =>
     api.post<ConsentStatusResponse>('/platform/me/consents', data),
+  // RGPD/GDPR self-service (REQ-SEC-006). Export returns a JSON file download;
+  // the blob is handled by the caller (object URL + temporary anchor).
+  exportData: () => api.get('/platform/me/export', { responseType: 'blob' }),
+  eraseData: (data: ErasureRequest) =>
+    api.post<ErasureResult>('/platform/me/personal-data/erasure', data),
   getLocalization: () => api.get<MeLocalizationDto>('/platform/me/localization'),
   setLanguage: (data: SetLanguageRequest) =>
     api.put<MeLocalizationDto>('/platform/me/language', data),

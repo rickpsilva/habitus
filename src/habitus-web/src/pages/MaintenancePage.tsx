@@ -59,7 +59,7 @@ const getAvailableStatusOptions = (currentStatus: string) => {
 };
 
 export default function MaintenancePage() {
-  const { t } = useTranslation();
+  const { t, formatDate } = useTranslation();
   const { isAdmin, condominiumId, unitId } = useAuth();
   const { success, error: toastError, warning } = useToast();
   const statusMap = getStatusMap(t);
@@ -564,7 +564,7 @@ export default function MaintenancePage() {
                     )}
                   </div>
                   <p className="text-xs text-ink-subtle mt-2">
-                    {t('maintenance.createdAt', { date: new Date(m.createdAt).toLocaleDateString('pt-PT') })}
+                    {t('maintenance.createdAt', { date: formatDate(m.createdAt) })}
                   </p>
                 </Card>
               );
@@ -727,7 +727,7 @@ export default function MaintenancePage() {
                               .filter(doc => doc.type === 'MaintenanceInvoice')
                               .map((doc) => (
                                 <option key={doc.id} value={doc.id}>
-                                  {t('maintenance.invoiceOption', { name: doc.name, date: new Date(doc.uploadedAt).toLocaleDateString('pt-PT') })}
+                                  {t('maintenance.invoiceOption', { name: doc.name, date: formatDate(doc.uploadedAt) })}
                                 </option>
                               ))}
                           </select>
@@ -783,7 +783,7 @@ export default function MaintenancePage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                                   <p className="text-xs text-ink-subtle">
-                                    {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                    {formatDate(doc.uploadedAt)}
                                   </p>
                                 </div>
                               </div>
@@ -904,7 +904,7 @@ export default function MaintenancePage() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                                 <p className="text-xs text-ink-subtle">
-                                  {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                  {formatDate(doc.uploadedAt)}
                                 </p>
                               </div>
                             </div>

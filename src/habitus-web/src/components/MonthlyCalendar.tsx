@@ -45,7 +45,7 @@ export default function MonthlyCalendar({
   onSelectDay,
   onSelectReservation,
 }: MonthlyCalendarProps) {
-  const { t } = useTranslation();
+  const { t, formatTime } = useTranslation();
   const DAYS = useMemo(() => buildDays(t), [t]);
   const MONTHS = useMemo(() => buildMonths(t), [t]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -234,7 +234,7 @@ export default function MonthlyCalendar({
                               onSelectReservation(reservation);
                             }}
                           >
-                            {new Date(reservation.startTime).toLocaleTimeString('pt-PT', {
+                            {formatTime(reservation.startTime, {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}

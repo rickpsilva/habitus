@@ -12,9 +12,9 @@ relatedRequirements:
   - REQ-SEC-001
   - REQ-PAY-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
+  - docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/PaymentSettingsController.cs
+  - src/Habitus.Api/Controllers/PaymentSettingsController.cs
 testRefs: []
 ---
 

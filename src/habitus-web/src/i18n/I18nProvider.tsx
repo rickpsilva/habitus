@@ -1,12 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { pt } from './pt';
 import { en } from './en';
+import { formatCurrency, formatDate, formatDateTime, formatTime } from './format';
 import { meApi, platformLocalizationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import {
   DEFAULT_LANGUAGE,
   isLanguage,
+  type DateInput,
   type I18nContextValue,
   type Language,
   type TranslateFn,
@@ -89,8 +91,23 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = language;
   }, [language]);
 
+  // Locale-aware formatters bound to the active language (currency/date/time).
+  const formatters = useMemo(
+    () => ({
+      formatDate: (value: DateInput, options?: Intl.DateTimeFormatOptions) =>
+        formatDate(value, language, options),
+      formatDateTime: (value: DateInput, options?: Intl.DateTimeFormatOptions) =>
+        formatDateTime(value, language, options),
+      formatTime: (value: DateInput, options?: Intl.DateTimeFormatOptions) =>
+        formatTime(value, language, options),
+      formatCurrency: (value: number, options?: Intl.NumberFormatOptions) =>
+        formatCurrency(value, language, options),
+    }),
+    [language],
+  );
+
   return (
-    <I18nContext.Provider value={{ language, setLanguage, t }}>
+    <I18nContext.Provider value={{ language, setLanguage, t, ...formatters }}>
       {children}
     </I18nContext.Provider>
   );

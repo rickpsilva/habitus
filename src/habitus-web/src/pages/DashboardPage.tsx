@@ -55,7 +55,7 @@ function statusBadge(status: string, t: TranslateFn) {
 
 export default function DashboardPage() {
   const { user, condominiumId, isManager } = useAuth();
-  const { t } = useTranslation();
+  const { t, formatDate, formatDateTime, formatCurrency } = useTranslation();
   const [maintenance, setMaintenance] = useState<MaintenanceRequestDto[]>([]);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
@@ -162,7 +162,7 @@ export default function DashboardPage() {
           />
           <StatCard
             title={t('dashboard.manager.billingVolume')}
-            value={managerMrr !== null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(managerMrr) : t('status.inProgress')}
+            value={managerMrr !== null ? formatCurrency(managerMrr) : t('status.inProgress')}
             icon={CreditCard}
             color="bg-emerald-100 text-emerald-700"
             to="/billing"
@@ -271,7 +271,7 @@ export default function DashboardPage() {
             <div className="rounded-lg border border-line p-4">
               <p className="text-xs text-ink-subtle">{t('dashboard.manager.currentMrr')}</p>
               <p className="text-xl font-bold text-ink mt-1">
-                {managerMrr !== null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(managerMrr) : '—'}
+                {managerMrr !== null ? formatCurrency(managerMrr) : '—'}
               </p>
             </div>
             <div className="rounded-lg border border-line p-4">
@@ -439,7 +439,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-ink truncate">{m.title}</p>
-                <p className="text-xs text-ink-subtle">{m.location || new Date(m.createdAt).toLocaleDateString('pt-PT')}</p>
+                <p className="text-xs text-ink-subtle">{m.location || formatDate(m.createdAt)}</p>
               </div>
               {statusBadge(m.status, t)}
             </div>
@@ -476,7 +476,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-ink-subtle truncate">{n.message}</p>
               </div>
               <time className="text-xs text-ink-subtle shrink-0 whitespace-nowrap">
-                {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                {formatDateTime(n.sentAt, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </time>
             </div>
           ))}

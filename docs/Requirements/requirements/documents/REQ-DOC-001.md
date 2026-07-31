@@ -14,9 +14,9 @@ relatedRequirements:
   - REQ-SET-001
   - REQ-SEC-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/documents-scope-and-access-flow.mmd
+  - docs/Requirements/diagrams/sequences/documents-scope-and-access-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/DocumentsController.cs
+  - src/Habitus.Api/Controllers/DocumentsController.cs
 testRefs: []
 ---
 

@@ -46,7 +46,7 @@ export default function WeeklyCalendar({
   onSelectSlot,
   onSelectReservation,
 }: WeeklyCalendarProps) {
-  const { t } = useTranslation();
+  const { t, formatDateTime, formatTime } = useTranslation();
   const DAYS = useMemo(() => buildDays(t), [t]);
   const [hourZoom, setHourZoom] = useState<HourZoom>('full');
 
@@ -215,7 +215,7 @@ export default function WeeklyCalendar({
             {formatDateHeader(weekDays[0])} - {formatDateHeader(weekDays[6])}
           </h3>
           <p className="text-sm text-ink-subtle">
-            {weekDays[0].toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}
+            {formatDateTime(weekDays[0], { month: 'long', year: 'numeric' })}
           </p>
         </div>
 
@@ -323,12 +323,12 @@ export default function WeeklyCalendar({
                           {blockStyle.spaceName}
                         </div>
                         <div className="text-xs text-ink-muted truncate">
-                          {new Date(reservation.startTime).toLocaleTimeString('pt-PT', {
+                          {formatTime(reservation.startTime, {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                           {' - '}
-                          {new Date(reservation.endTime).toLocaleTimeString('pt-PT', {
+                          {formatTime(reservation.endTime, {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}

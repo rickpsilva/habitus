@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, Star, ExternalLink, Settings } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, ShieldAlert, Star, ExternalLink, Settings } from 'lucide-react';
 import QRCode from 'qrcode';
 import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi, meApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,8 +15,8 @@ import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
 import type { CookieConsent } from '../utils/cookieConsent';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslationKey, TranslateFn } from '../i18n/types';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest, MembershipCondominiumDto, ConsentItem } from '../types';
-import { ConsentDecision } from '../types';
+import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest, MembershipCondominiumDto, ConsentItem, ErasureRequest } from '../types';
+import { ConsentDecision, ErasureType } from '../types';
 
 // i18n overrides for well-known consent keys; unknown keys keep the DB title.
 const consentTitleKeys: Record<string, TranslationKey> = {
@@ -43,10 +43,11 @@ const unitDocumentColors: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, isManager } = useAuth();
-  const { error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { user, isManager, logout } = useAuth();
+  const { error: toastError, success: toastSuccess } = useToast();
+  const { t, formatDate, formatDateTime } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences' | 'documents' | 'privacy'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,6 +83,15 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode());
   const [cookieConsent, setCookieConsentState] = useState<CookieConsent | null>(() => getCookieConsent());
+  // GDPR self-service (REQ-SEC-006): export + erasure modal state.
+  const [exporting, setExporting] = useState(false);
+  const [showEraseModal, setShowEraseModal] = useState(false);
+  const [eraseType, setEraseType] = useState<ErasureType>(ErasureType.Full);
+  const [erasePhone, setErasePhone] = useState(true);
+  const [erasePhrase, setErasePhrase] = useState('');
+  const [erasePassword, setErasePassword] = useState('');
+  const [erasing, setErasing] = useState(false);
+  const [eraseError, setEraseError] = useState<string | null>(null);
   const [securityData, setSecurityData] = useState<TwoFactorSecurityResponse | null>(null);
   const [loadingSecurity, setLoadingSecurity] = useState(false);
   const [processingSecurity, setProcessingSecurity] = useState(false);
@@ -174,6 +184,88 @@ export default function ProfilePage() {
       toastError(t('profile.privacy.errorUpdate'));
     } finally {
       setConsentActionKey(null);
+    }
+  };
+
+  // GDPR export: fetch the JSON blob and trigger a browser download via a
+  // temporary object-URL anchor (no new dependency).
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const res = await meApi.exportData();
+      const blob = res.data instanceof Blob ? res.data : new Blob([JSON.stringify(res.data)], { type: 'application/json' });
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `habitus-export-${stamp}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toastSuccess(t('gdpr.export.success'));
+    } catch {
+      toastError(t('gdpr.export.error'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const closeEraseModal = () => {
+    setShowEraseModal(false);
+    setEraseType(ErasureType.Full);
+    setErasePhone(true);
+    setErasePhrase('');
+    setErasePassword('');
+    setEraseError(null);
+  };
+
+  // GDPR erasure. The confirmation phrase gate is enforced both by the disabled
+  // button and here; backend validation codes are surfaced inline in the modal.
+  const handleEraseData = async () => {
+    setEraseError(null);
+    setErasing(true);
+    const payload: ErasureRequest = {
+      type: eraseType,
+      confirmationPhrase: erasePhrase,
+    };
+    if (erasePassword.trim().length > 0) {
+      payload.currentPassword = erasePassword;
+    }
+    if (eraseType === ErasureType.Partial) {
+      payload.fields = erasePhone ? ['phone'] : [];
+    }
+    try {
+      const res = await meApi.eraseData(payload);
+      if (res.data.loginDisabled) {
+        toastSuccess(t('gdpr.erase.successFull'));
+        logout();
+        navigate('/login');
+        return;
+      }
+      // Partial success: re-fetch the profile so the removed field disappears.
+      toastSuccess(t('gdpr.erase.successPartial'));
+      try {
+        const me = await usersApi.getMe();
+        setUserData(me.data);
+        setProfileData({ name: me.data.name, email: me.data.email, phone: me.data.phone });
+      } catch {
+        // Non-fatal: the erasure succeeded even if the refresh fails.
+      }
+      closeEraseModal();
+    } catch (err) {
+      const code = (err as { response?: { data?: { code?: string } } }).response?.data?.code;
+      if (code === 'invalid_confirmation_phrase') {
+        setEraseError(t('gdpr.erase.errorPhrase'));
+      } else if (code === 'password_required') {
+        setEraseError(t('gdpr.erase.errorPasswordRequired'));
+      } else if (code === 'invalid_password') {
+        setEraseError(t('gdpr.erase.errorPassword'));
+      } else {
+        setEraseError(t('gdpr.erase.errorGeneric'));
+      }
+    } finally {
+      setErasing(false);
     }
   };
 
@@ -1126,50 +1218,6 @@ export default function ProfilePage() {
             <LanguageSwitcher variant="full" />
             <p className="mt-2 text-xs text-ink-subtle">{t('profile.preferences.languageScope')}</p>
           </div>
-          <div className="max-w-md border border-line rounded-lg p-4 bg-surface mt-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-4 h-4 text-ink-muted" />
-              <label className="block text-sm font-medium text-ink-muted">{t('cookie.settingsTitle')}</label>
-            </div>
-            <p className="text-xs text-ink-subtle">{t('cookie.settingsSubtitle')}</p>
-            <p className="mt-3 text-sm text-ink">
-              {cookieConsent === 'accepted'
-                ? t('cookie.statusAccepted')
-                : cookieConsent === 'rejected'
-                  ? t('cookie.statusRejected')
-                  : t('cookie.statusUnset')}
-            </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setCookieConsent('accepted');
-                  setCookieConsentState('accepted');
-                }}
-                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  cookieConsent === 'accepted'
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    : 'border-line text-ink-muted hover:bg-surface-hover'
-                }`}
-              >
-                {t('cookie.accept')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCookieConsent('rejected');
-                  setCookieConsentState('rejected');
-                }}
-                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                  cookieConsent === 'rejected'
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    : 'border-line text-ink-muted hover:bg-surface-hover'
-                }`}
-              >
-                {t('cookie.reject')}
-              </button>
-            </div>
-          </div>
         </Card>
       )}
 
@@ -1237,7 +1285,7 @@ export default function ProfilePage() {
                       </div>
                       {consent.decidedAt && (
                         <p className="text-xs text-ink-subtle">
-                          {t('consent.lastDecision', { date: new Date(consent.decidedAt).toLocaleString('pt-PT') })}
+                          {t('consent.lastDecision', { date: formatDateTime(consent.decidedAt) })}
                         </p>
                       )}
                       {consent.url && (
@@ -1277,6 +1325,80 @@ export default function ProfilePage() {
               })}
             </div>
           </AsyncState>
+
+          {/* GDPR self-service: export + erasure of personal data (REQ-SEC-006) */}
+          <div className="mt-8 pt-6 border-t border-line">
+            <div className="flex items-start gap-2 mb-4">
+              <ShieldAlert className="w-5 h-5 text-ink-muted shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <h3 className="text-base font-semibold text-ink">{t('gdpr.sectionTitle')}</h3>
+                <p className="text-sm text-ink-subtle">{t('gdpr.sectionSubtitle')}</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                variant="secondary"
+                icon={Download}
+                loading={exporting}
+                onClick={handleExportData}
+              >
+                {exporting ? t('gdpr.export.downloading') : t('gdpr.export.button')}
+              </Button>
+              <Button
+                variant="danger"
+                icon={Trash2}
+                onClick={() => setShowEraseModal(true)}
+              >
+                {t('gdpr.erase.button')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Cookie consent — a privacy/consent matter (REQ-SEC-006) */}
+          <div className="mt-6 max-w-md border border-line rounded-lg p-4 bg-surface">
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-4 h-4 text-ink-muted" />
+              <label className="block text-sm font-medium text-ink-muted">{t('cookie.settingsTitle')}</label>
+            </div>
+            <p className="text-xs text-ink-subtle">{t('cookie.settingsSubtitle')}</p>
+            <p className="mt-3 text-sm text-ink">
+              {cookieConsent === 'accepted'
+                ? t('cookie.statusAccepted')
+                : cookieConsent === 'rejected'
+                  ? t('cookie.statusRejected')
+                  : t('cookie.statusUnset')}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCookieConsent('accepted');
+                  setCookieConsentState('accepted');
+                }}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  cookieConsent === 'accepted'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'border-line text-ink-muted hover:bg-surface-hover'
+                }`}
+              >
+                {t('cookie.accept')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCookieConsent('rejected');
+                  setCookieConsentState('rejected');
+                }}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  cookieConsent === 'rejected'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'border-line text-ink-muted hover:bg-surface-hover'
+                }`}
+              >
+                {t('cookie.reject')}
+              </button>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -1327,7 +1449,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-ink-subtle truncate">{doc.description}</p>
                       )}
                       <p className="text-xs text-ink-subtle mt-1">
-                        {t('profile.documents.updatedAt', { date: new Date(doc.uploadedAt).toLocaleDateString('pt-PT') })}
+                        {t('profile.documents.updatedAt', { date: formatDate(doc.uploadedAt) })}
                       </p>
                     </div>
                   </div>
@@ -1442,6 +1564,120 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
+      </ModalPopup>
+
+      {/* GDPR erasure confirmation modal (REQ-SEC-006) */}
+      <ModalPopup
+        open={showEraseModal}
+        onClose={closeEraseModal}
+        title={t('gdpr.erase.modalTitle')}
+        maxWidthClass="max-w-lg"
+      >
+        <div className="space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600 shrink-0">
+              <ShieldAlert className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <p className="text-sm text-ink-subtle">{t('gdpr.sectionSubtitle')}</p>
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-ink-muted mb-1">{t('gdpr.erase.modalTitle')}</legend>
+            <label className="flex items-start gap-3 p-3 border border-line rounded-lg cursor-pointer hover:bg-surface-hover">
+              <input
+                type="radio"
+                name="erase-type"
+                className="mt-1"
+                checked={eraseType === ErasureType.Full}
+                onChange={() => setEraseType(ErasureType.Full)}
+              />
+              <span>
+                <span className="block text-sm font-medium text-ink">{t('gdpr.erase.full')}</span>
+                <span className="block text-xs text-ink-subtle mt-0.5">{t('gdpr.erase.fullWarning')}</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 p-3 border border-line rounded-lg cursor-pointer hover:bg-surface-hover">
+              <input
+                type="radio"
+                name="erase-type"
+                className="mt-1"
+                checked={eraseType === ErasureType.Partial}
+                onChange={() => setEraseType(ErasureType.Partial)}
+              />
+              <span>
+                <span className="block text-sm font-medium text-ink">{t('gdpr.erase.partial')}</span>
+              </span>
+            </label>
+          </fieldset>
+
+          {eraseType === ErasureType.Partial && (
+            <div className="pl-1">
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={erasePhone}
+                  onChange={(e) => setErasePhone(e.target.checked)}
+                />
+                {t('gdpr.erase.fieldPhone')}
+              </label>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="erase-phrase" className="block text-sm font-medium text-ink-muted mb-1">
+              {t('gdpr.erase.confirmPhraseLabel')}
+            </label>
+            <input
+              id="erase-phrase"
+              type="text"
+              autoComplete="off"
+              value={erasePhrase}
+              onChange={(e) => setErasePhrase(e.target.value)}
+              placeholder="ELIMINAR"
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="erase-password" className="block text-sm font-medium text-ink-muted mb-1">
+              {t('gdpr.erase.passwordLabel')}
+            </label>
+            <input
+              id="erase-password"
+              type="password"
+              autoComplete="current-password"
+              value={erasePassword}
+              onChange={(e) => setErasePassword(e.target.value)}
+              className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          {eraseError && (
+            <p className="text-sm text-red-600" role="alert">{eraseError}</p>
+          )}
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={closeEraseModal}
+              fullWidth
+              className="flex-1 border border-line"
+            >
+              {t('gdpr.erase.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              icon={Trash2}
+              loading={erasing}
+              disabled={erasePhrase !== 'ELIMINAR'}
+              onClick={handleEraseData}
+              fullWidth
+              className="flex-1"
+            >
+              {t('gdpr.erase.confirm')}
+            </Button>
+          </div>
+        </div>
       </ModalPopup>
     </div>
   );

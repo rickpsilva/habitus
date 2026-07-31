@@ -115,6 +115,7 @@ public static class DependencyInjection
         services.AddScoped<UnitMembershipService>();
         services.AddScoped<IConsentService, ConsentService>();
         services.AddScoped<IFeatureEntitlementService, FeatureEntitlementService>();
+        services.AddScoped<IPersonalDataService, PersonalDataService>();
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();

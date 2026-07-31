@@ -17,7 +17,7 @@ public class HabitusDbContext : DbContext
     public DbSet<UserAuthProvider> UserAuthProviders => Set<UserAuthProvider>();
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<AuthChallenge> AuthChallenges => Set<AuthChallenge>();
-    
+    public DbSet<PersonalDataRequest> PersonalDataRequests => Set<PersonalDataRequest>();
     // Existing entities (updated to use Condominium)
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<Document> Documents => Set<Document>();
@@ -229,6 +229,18 @@ public class HabitusDbContext : DbContext
                 .WithMany(d => d.UserConsents)
                 .HasForeignKey(c => c.ConsentDefinitionId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure PersonalDataRequest (append-only GDPR/RGPD data-subject request audit)
+        modelBuilder.Entity<PersonalDataRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.IpAddress).HasMaxLength(64);
+            entity.Property(r => r.UserAgent).HasMaxLength(1024);
+
+            // Fetch a subject's request history ordered by time. No FK to Users so audit rows
+            // survive the anonymized (kept) user row without cascade concerns.
+            entity.HasIndex(r => new { r.UserId, r.RequestedAt }, "IX_PersonalDataRequests_UserId_RequestedAt");
         });
 
         // Configure Unit relationships

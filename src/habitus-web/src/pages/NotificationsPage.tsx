@@ -27,7 +27,7 @@ export default function NotificationsPage() {
   const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
   const { success, error } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDateTime } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -181,7 +181,7 @@ export default function NotificationsPage() {
                           {n.title}
                         </p>
                         <time className="text-xs text-ink-subtle shrink-0 whitespace-nowrap">
-                          {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {formatDateTime(n.sentAt, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </time>
                       </div>
                       <p className="text-sm text-ink-subtle mt-0.5">{parsed.plain}</p>

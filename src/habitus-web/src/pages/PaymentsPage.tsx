@@ -43,7 +43,7 @@ function getApiErrorMessage(error: unknown, fallback: string, t: TranslateFn): s
 export default function PaymentsPage() {
   const { condominiumId, unitId } = useAuth();
   const { success, error: toastError } = useToast();
-  const { t } = useTranslation();
+  const { t, formatDate, formatDateTime } = useTranslation();
   const [payments, setPayments] = useState<PaymentDto[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -461,7 +461,7 @@ export default function PaymentsPage() {
                     <p className="text-sm text-ink-muted">{payment.description}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <p className="text-xs text-ink-subtle">
-                        {t('payments.card.created', { date: new Date(payment.createdDate).toLocaleDateString('pt-PT') })}
+                        {t('payments.card.created', { date: formatDate(payment.createdDate) })}
                       </p>
                       {payment.proofOfPaymentUrl && (
                         <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded" title={t('payments.proofAvailable')}>
@@ -780,12 +780,12 @@ export default function PaymentsPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-ink-muted">{t('payments.details.createdAt')}</span>
-              <span>{new Date(selectedPayment.createdDate).toLocaleString('pt-PT')}</span>
+              <span>{formatDateTime(selectedPayment.createdDate)}</span>
             </div>
             {selectedPayment.processedDate && (
               <div className="flex justify-between">
                 <span className="text-ink-muted">{t('payments.details.processedAt')}</span>
-                <span>{new Date(selectedPayment.processedDate).toLocaleString('pt-PT')}</span>
+                <span>{formatDateTime(selectedPayment.processedDate)}</span>
               </div>
             )}
             {selectedPayment.processedByUserName && (
@@ -813,7 +813,7 @@ export default function PaymentsPage() {
                 </p>
                 {selectedPayment.receiptIssuedDate && (
                   <p className="text-xs text-green-700 mt-1">
-                    {t('payments.details.issuedOn', { date: new Date(selectedPayment.receiptIssuedDate).toLocaleDateString('pt-PT') })}
+                    {t('payments.details.issuedOn', { date: formatDate(selectedPayment.receiptIssuedDate) })}
                   </p>
                 )}
                 {selectedPayment.receiptIssuedByUserName && (
