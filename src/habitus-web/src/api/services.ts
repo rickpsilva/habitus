@@ -26,6 +26,8 @@ import type {
   ReserveFundDto,
   NotificationDto,
   PaginatedResponse,
+  MaintenanceStatusCountsDto,
+  PaymentStatusCountsDto,
   ReservationDto,
   SharedSpaceDto,
   DocumentDto,
@@ -225,8 +227,10 @@ export const unitsApi = {
 
 export const maintenanceApi = {
   getAll: (condominiumId: string) => api.get<MaintenanceRequestDto[]>(`/condominiums/${condominiumId}/maintenance`),
-  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string, status?: string) =>
+    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
+  getStatusCounts: (condominiumId: string) =>
+    api.get<MaintenanceStatusCountsDto>(`/condominiums/${condominiumId}/maintenance/status-counts`),
   getById: (condominiumId: string, id: string) => api.get<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`),
   create: (condominiumId: string, data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance`, data),
   update: (condominiumId: string, id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
@@ -397,6 +401,14 @@ export const paymentsApi = {
   // Resident endpoints
   create: (condominiumId: string, data: CreatePaymentRequest) => api.post<PaymentDto>(`/condominiums/${condominiumId}/payments`, data),
   getMyPayments: (condominiumId: string) => api.get<PaymentDto[]>(`/condominiums/${condominiumId}/payments`),
+  getMyPaymentsPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, opts?: { status?: string; search?: string }) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts?.status && opts.status !== 'All') params.set('status', opts.status);
+    if (opts?.search) params.set('search', opts.search);
+    return api.get<PaginatedResponse<PaymentDto>>(`/condominiums/${condominiumId}/payments/my/paged?${params.toString()}`);
+  },
+  getMyStatusCounts: (condominiumId: string) =>
+    api.get<PaymentStatusCountsDto>(`/condominiums/${condominiumId}/payments/my/status-counts`),
   getById: (condominiumId: string, id: string) => api.get<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}`),
   uploadProof: (condominiumId: string, id: string, proofUrl: string) => api.post(`/condominiums/${condominiumId}/payments/${id}/proof`, { proofUrl }),
   downloadProof: async (condominiumId: string, id: string, description: string) => {
@@ -486,6 +498,13 @@ export const quotaPlansApi = {
 export const announcementsApi = {
   getAll: (condominiumId: string, status?: string) =>
     api.get<AnnouncementDto[]>(`/condominiums/${condominiumId}/announcements${status ? `?status=${status}` : ''}`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, opts?: { status?: string; category?: string; search?: string }) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts?.status && opts.status !== 'All') params.set('status', opts.status);
+    if (opts?.category && opts.category !== 'All') params.set('category', opts.category);
+    if (opts?.search) params.set('search', opts.search);
+    return api.get<PaginatedResponse<AnnouncementDto>>(`/condominiums/${condominiumId}/announcements/paged?${params.toString()}`);
+  },
   getById: (condominiumId: string, id: string) =>
     api.get<AnnouncementDto>(`/condominiums/${condominiumId}/announcements/${id}`),
   getStats: (condominiumId: string) =>

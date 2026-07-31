@@ -70,6 +70,8 @@ export default function MaintenancePage() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('Open');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ Open: 0, InProgress: 0, Completed: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -146,6 +148,7 @@ export default function MaintenancePage() {
   const load = useCallback(() => {
     if (!condominiumId) {
       setRequests([]);
+      setTotalItems(0);
       setLoadError(t('maintenance.error.condominiumNotIdentified'));
       setLoading(false);
       return;
@@ -153,20 +156,40 @@ export default function MaintenancePage() {
 
     setLoading(true);
     setLoadError('');
-    maintenanceApi.getAll(condominiumId)
+    maintenanceApi.getPaged(condominiumId, currentPage, pageSize, debouncedSearch, filter === 'All' ? undefined : filter)
       .then((r) => {
-        const scopedItems = r.data
+        const scopedItems = r.data.items
           .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }));
         setRequests(scopedItems);
+        setTotalItems(r.data.totalItems);
       })
       .catch(() => {
         setLoadError(t('maintenance.error.load'));
       })
       .finally(() => setLoading(false));
-  }, [condominiumId, t]);
+  }, [condominiumId, currentPage, debouncedSearch, filter, t]);
+
+  const loadStatusCounts = useCallback(() => {
+    if (!condominiumId) return;
+    maintenanceApi.getStatusCounts(condominiumId)
+      .then((r) => {
+        setStatusCounts({ Open: r.data.open, InProgress: r.data.inProgress, Completed: r.data.completed });
+      })
+      .catch(console.error);
+  }, [condominiumId]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setCurrentPage(1); }, [filter, debouncedSearch]);
+  useEffect(() => { loadStatusCounts(); }, [loadStatusCounts]);
+
+  const handleFilterChange = (value: string) => {
+    setFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +220,7 @@ export default function MaintenancePage() {
         photos: [],
       });
       load();
+      loadStatusCounts();
       success(t('maintenance.success.created'));
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
@@ -275,6 +299,7 @@ export default function MaintenancePage() {
       });
       handleCloseStatusPanel();
       load();
+      loadStatusCounts();
       success(t('maintenance.success.statusUpdated'));
     } catch (error) {
       console.error('Erro ao atualizar estado:', error);
@@ -357,41 +382,17 @@ export default function MaintenancePage() {
     }
   };
 
-  const searchTerm = debouncedSearch.trim().toLowerCase();
-  const statusCounts = requests.reduce<Record<'Open' | 'InProgress' | 'Completed', number>>((acc, request) => {
-    const normalizedStatus = normalizeMaintenanceStatus(request.status) as 'Open' | 'InProgress' | 'Completed';
-    acc[normalizedStatus] += 1;
-    return acc;
-  }, { Open: 0, InProgress: 0, Completed: 0 });
-
-  const filtered = requests.filter((request) => {
-    const matchesFilter = filter === 'All' || normalizeMaintenanceStatus(request.status) === filter;
-    if (!matchesFilter) {
-      return false;
-    }
-
-    if (!searchTerm) {
-      return true;
-    }
-
-    return [request.title, request.description, request.location]
-      .filter(Boolean)
-      .some((value) => value.toLowerCase().includes(searchTerm));
-  });
-
-  const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedRequests = filtered.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
   const pagination: PaginatedResponse<MaintenanceRequestDto> = {
-    items: paginatedRequests,
-    page: safeCurrentPage,
+    items: requests,
+    page: currentPage,
     pageSize,
     totalItems,
     totalPages,
-    hasPreviousPage: safeCurrentPage > 1,
-    hasNextPage: safeCurrentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage * pageSize < totalItems,
   };
+  const allCount = statusCounts.Open + statusCounts.InProgress + statusCounts.Completed;
 
   return (
     <div className="space-y-5">
@@ -410,7 +411,7 @@ export default function MaintenancePage() {
         search={
           <SearchBar
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={handleSearchChange}
             placeholder={t('maintenance.searchPlaceholder')}
           />
         }
@@ -430,7 +431,7 @@ export default function MaintenancePage() {
           <button
             key={item.key}
             type="button"
-            onClick={() => setFilter(item.key)}
+            onClick={() => handleFilterChange(item.key)}
             className={`rounded-xl border p-4 text-left transition-colors ${item.className} ${filter === item.key ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
           >
             <p className="text-sm font-medium">{item.label}</p>
@@ -505,12 +506,12 @@ export default function MaintenancePage() {
         {['All', 'Open', 'InProgress', 'Completed'].map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => handleFilterChange(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               filter === s ? 'bg-indigo-600 text-white' : 'bg-surface text-ink-muted border border-line hover:bg-surface-hover'
             }`}
           >
-            {s === 'All' ? t('maintenance.filter.all', { count: requests.length }) : t('maintenance.filter.count', { label: statusMap[s]?.label ?? s, count: statusCounts[s as 'Open' | 'InProgress' | 'Completed'] })}
+            {s === 'All' ? t('maintenance.filter.all', { count: allCount }) : t('maintenance.filter.count', { label: statusMap[s]?.label ?? s, count: statusCounts[s as 'Open' | 'InProgress' | 'Completed'] })}
           </button>
         ))}
       </div>
@@ -521,11 +522,11 @@ export default function MaintenancePage() {
           loading={loading}
           error={loadError || null}
           onRetry={load}
-          isEmpty={paginatedRequests.length === 0}
+          isEmpty={requests.length === 0}
           empty={<EmptyState icon={Wrench} title={t('maintenance.empty')} />}
         >
           <>
-            {paginatedRequests.map((m) => {
+            {requests.map((m) => {
               const { label, variant, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
               return (
                 <Card key={m.id} className="p-4">
@@ -573,7 +574,7 @@ export default function MaintenancePage() {
             {pagination && (
               <Pagination
                 pagination={pagination}
-                currentPage={safeCurrentPage}
+                currentPage={currentPage}
                 onPageChange={setCurrentPage}
               />
             )}

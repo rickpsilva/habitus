@@ -130,9 +130,15 @@ export default function AnnouncementsPage() {
   const [rejecting, setRejecting] = useState(false);
   const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 10;
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(searchText);
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchText]);
@@ -167,57 +173,22 @@ export default function AnnouncementsPage() {
     };
   }, []);
 
-  const filteredAnnouncements = useMemo(() => {
-    const query = debouncedSearchText.trim().toLowerCase();
-
-    return announcements.filter((a) => {
-      const statusMatch = statusFilter === 'All' || a.status === statusFilter;
-      const categoryMatch = categoryFilter === 'All' || a.category === categoryFilter;
-
-      if (!statusMatch || !categoryMatch) return false;
-      if (!query) return true;
-
-      const plainContent = a.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-      const title = a.title.toLowerCase();
-      const author = a.authorName.toLowerCase();
-      const unit = (a.unitNumber || '').toLowerCase();
-      const category = (categoryLabels[a.category] || a.category).toLowerCase();
-
-      return (
-        title.includes(query) ||
-        plainContent.includes(query) ||
-        author.includes(query) ||
-        unit.includes(query) ||
-        category.includes(query)
-      );
-    });
-  }, [announcements, statusFilter, categoryFilter, debouncedSearchText, categoryLabels]);
-
-  const sortedAnnouncements = useMemo(
-    () => [...filteredAnnouncements].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [filteredAnnouncements]
-  );
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalItems = sortedAnnouncements.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedAnnouncements = sortedAnnouncements.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
   const pagination: PaginatedResponse<AnnouncementDto> = {
-    items: paginatedAnnouncements,
-    page: safeCurrentPage,
+    items: announcements,
+    page: currentPage,
     pageSize,
     totalItems,
     totalPages,
-    hasPreviousPage: safeCurrentPage > 1,
-    hasNextPage: safeCurrentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages,
   };
 
   const loadData = useCallback(async () => {
     if (!condominiumId) {
       setAnnouncements([]);
       setStats(null);
+      setTotalItems(0);
+      setTotalPages(1);
       setLoadError(t('announcements.error.condoNotIdentified'));
       setLoading(false);
       return;
@@ -227,10 +198,16 @@ export default function AnnouncementsPage() {
     setLoadError('');
     try {
       const [aRes, sRes] = await Promise.all([
-        announcementsApi.getAll(condominiumId),
+        announcementsApi.getPaged(condominiumId, currentPage, pageSize, {
+          status: statusFilter,
+          category: categoryFilter,
+          search: debouncedSearchText.trim() || undefined,
+        }),
         announcementsApi.getStats(condominiumId),
       ]);
-      setAnnouncements(aRes.data);
+      setAnnouncements(aRes.data.items);
+      setTotalItems(aRes.data.totalItems);
+      setTotalPages(aRes.data.totalPages);
       setStats(sRes.data);
 
       const cRes = await announcementsApi.getSettings(condominiumId);
@@ -241,22 +218,19 @@ export default function AnnouncementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, t]);
+  }, [condominiumId, currentPage, pageSize, statusFilter, categoryFilter, debouncedSearchText, t]);
 
   useEffect(() => {
     loadData();
   }, [condominiumId, loadData]);
 
   useEffect(() => {
-    if (!condominiumId || announcements.length === 0) return;
+    if (!condominiumId) return;
 
     const openId = searchParams.get('open');
     if (!openId) return;
 
     if (selected?.id === openId) return;
-
-    const found = announcements.find((a) => a.id === openId);
-    if (!found) return;
 
     let cancelled = false;
 
@@ -265,16 +239,19 @@ export default function AnnouncementsPage() {
       .then((res) => {
         if (!cancelled) setSelected(res.data);
       })
-      .finally(async () => {
+      .catch(() => {
+        // Announcement not found or no access; ignore deep-link.
+      })
+      .finally(() => {
         if (!cancelled) {
-          await loadData();
+          loadData();
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [searchParams, announcements, condominiumId, selected?.id, loadData]);
+  }, [searchParams, condominiumId, selected?.id, loadData]);
 
   useEffect(() => {
     let active = true;
@@ -609,7 +586,7 @@ export default function AnnouncementsPage() {
             <label className="block text-xs text-ink-subtle mb-1">{t('announcements.filter.status')}</label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
               <option value="All">{t('announcements.filter.allStatuses')}</option>
@@ -622,7 +599,7 @@ export default function AnnouncementsPage() {
             <label className="block text-xs text-ink-subtle mb-1">{t('announcements.filter.category')}</label>
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
               <option value="All">{t('announcements.filter.allCategories')}</option>
@@ -637,6 +614,7 @@ export default function AnnouncementsPage() {
                 setSearchText('');
                 setStatusFilter('All');
                 setCategoryFilter('All');
+                setCurrentPage(1);
               }}
               className="px-3 py-2 rounded-lg bg-control hover:bg-control-hover text-sm text-ink"
             >
@@ -650,12 +628,12 @@ export default function AnnouncementsPage() {
         loading={loading}
         error={loadError || null}
         onRetry={loadData}
-        isEmpty={sortedAnnouncements.length === 0}
+        isEmpty={announcements.length === 0}
         skeleton="list"
         empty={<EmptyState icon={Megaphone} title={t('announcements.empty')} />}
       >
         <div className="space-y-3">
-          {paginatedAnnouncements.map((a) => (
+          {announcements.map((a) => (
             <div key={a.id} className="bg-surface border border-line rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -723,9 +701,9 @@ export default function AnnouncementsPage() {
             </div>
           ))}
         </div>
-        {sortedAnnouncements.length > 0 && (
+        {totalItems > 0 && (
           <div className="mt-4">
-            <Pagination pagination={pagination} currentPage={safeCurrentPage} onPageChange={setCurrentPage} />
+            <Pagination pagination={pagination} currentPage={currentPage} onPageChange={setCurrentPage} />
           </div>
         )}
       </AsyncState>

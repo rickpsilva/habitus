@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, CheckCircle, XCircle, Clock, AlertCircle, Upload, FileText, Download, RefreshCw, CreditCard } from 'lucide-react';
 import { paymentsApi, paymentMethodsApi, documentsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,8 +49,11 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected' | 'Cancelled'>('All');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ All: 0, Pending: 0, Approved: 0, Rejected: 0, Cancelled: 0 });
   const pageSize = 10;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentDto | null>(null);
@@ -76,47 +79,70 @@ export default function PaymentsPage() {
     setLoadError('');
     if (!condominiumId) {
       setPayments([]);
+      setTotalItems(0);
       setLoadError(t('payments.error.noCondominium'));
       setLoading(false);
       return;
     }
 
     try {
-      const response = await paymentsApi.getMyPayments(condominiumId);
-      setPayments(response.data);
+      const response = await paymentsApi.getMyPaymentsPaged(condominiumId, currentPage, pageSize, {
+        status: statusFilter === 'All' ? undefined : statusFilter,
+        search: debouncedSearch,
+      });
+      setPayments(response.data.items);
+      setTotalItems(response.data.totalItems);
     } catch (error) {
       console.error('Error loading payments:', error);
       setLoadError(t('payments.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, t]);
+  }, [condominiumId, currentPage, statusFilter, debouncedSearch, t]);
 
-  const loadPaymentMethods = useCallback(async () => {
+  const loadStatusCounts = useCallback(() => {
     if (!condominiumId) return;
-    try {
-      const response = await paymentMethodsApi.get(condominiumId);
-      setPaymentMethods(response.data);
-      
-      // Set default payment method to the first available one
-      if (response.data.bankTransferEnabled) {
-        setForm(prev => ({ ...prev, method: 'BankTransfer' }));
-      } else if (response.data.mbWayEnabled) {
-        setForm(prev => ({ ...prev, method: 'MBWay' }));
-      } else if (response.data.cardEnabled) {
-        setForm(prev => ({ ...prev, method: 'Card' }));
-      }
-    } catch (error) {
-      console.error('Error loading payment methods:', error);
-    }
+    paymentsApi.getMyStatusCounts(condominiumId)
+      .then((response) => {
+        const c = response.data;
+        setStatusCounts({ All: c.all, Pending: c.pending, Approved: c.approved, Rejected: c.rejected, Cancelled: c.cancelled });
+      })
+      .catch((error) => console.error('Error loading payment status counts:', error));
+  }, [condominiumId]);
+
+  const loadPaymentMethods = useCallback(() => {
+    if (!condominiumId) return;
+    paymentMethodsApi.get(condominiumId)
+      .then((response) => {
+        setPaymentMethods(response.data);
+
+        // Set default payment method to the first available one
+        if (response.data.bankTransferEnabled) {
+          setForm(prev => ({ ...prev, method: 'BankTransfer' }));
+        } else if (response.data.mbWayEnabled) {
+          setForm(prev => ({ ...prev, method: 'MBWay' }));
+        } else if (response.data.cardEnabled) {
+          setForm(prev => ({ ...prev, method: 'Card' }));
+        }
+      })
+      .catch((error) => console.error('Error loading payment methods:', error));
   }, [condominiumId]);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadPayments();
+  }, [loadPayments]);
+
+  useEffect(() => {
+    loadStatusCounts();
     if (condominiumId) {
       loadPaymentMethods();
     }
-  }, [condominiumId, loadPaymentMethods, loadPayments]);
+  }, [condominiumId, loadPaymentMethods, loadStatusCounts]);
 
   useEffect(() => {
     let mounted = true;
@@ -131,33 +157,6 @@ export default function PaymentsPage() {
     };
   }, []);
 
-  const typeNames: Record<string, string> = {
-    MonthlyFee: t('payments.type.monthlyFee'),
-    ExtraordinaryFee: t('payments.type.extraordinaryFee'),
-    Reservation: t('payments.type.reservation'),
-    Other: t('payments.type.other'),
-  };
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: payments.length, Pending: 0, Approved: 0, Rejected: 0, Cancelled: 0 };
-    for (const p of payments) {
-      if (counts[p.status] !== undefined) counts[p.status] += 1;
-    }
-    return counts;
-  }, [payments]);
-
-  const filteredPayments = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return payments.filter((p) => {
-      const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
-      if (!matchesStatus) return false;
-      if (!query) return true;
-      const typeLabel = (typeNames[p.type] || p.type).toLowerCase();
-      return typeLabel.includes(query) || (p.description ?? '').toLowerCase().includes(query);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payments, searchQuery, statusFilter]);
-
   const handleStatusFilter = (status: typeof statusFilter) => {
     setStatusFilter(status);
     setCurrentPage(1);
@@ -168,18 +167,16 @@ export default function PaymentsPage() {
     setCurrentPage(1);
   };
 
-  const totalItems = filteredPayments.length;
+  const hasActiveFilters = statusFilter !== 'All' || debouncedSearch.trim() !== '';
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedPayments = filteredPayments.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
   const pagination = {
-    items: paginatedPayments,
-    page: safeCurrentPage,
+    items: payments,
+    page: currentPage,
     pageSize,
     totalItems,
     totalPages,
-    hasPreviousPage: safeCurrentPage > 1,
-    hasNextPage: safeCurrentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage * pageSize < totalItems,
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -272,6 +269,7 @@ export default function PaymentsPage() {
       // Reload payments after a short delay to ensure backend has processed
       setTimeout(() => {
         loadPayments();
+        loadStatusCounts();
       }, 500);
       
       success(t('payments.success.created'));
@@ -292,6 +290,7 @@ export default function PaymentsPage() {
     try {
       await paymentsApi.cancel(condominiumId, paymentId);
       loadPayments();
+      loadStatusCounts();
       setSelectedPayment(null);
       setCancelPaymentId(null);
       success(t('payments.success.cancelled'));
@@ -434,19 +433,21 @@ export default function PaymentsPage() {
         )}
         <div className="divide-y divide-line">
           {!loadError && payments.length === 0 ? (
-            <EmptyState
-              icon={CreditCard}
-              title={t('payments.empty.title')}
-              description={t('payments.empty.description')}
-            />
-          ) : !loadError && filteredPayments.length === 0 ? (
-            <EmptyState
-              icon={CreditCard}
-              title={t('payments.noResults.title')}
-              description={t('payments.noResults.description')}
-            />
+            hasActiveFilters ? (
+              <EmptyState
+                icon={CreditCard}
+                title={t('payments.noResults.title')}
+                description={t('payments.noResults.description')}
+              />
+            ) : (
+              <EmptyState
+                icon={CreditCard}
+                title={t('payments.empty.title')}
+                description={t('payments.empty.description')}
+              />
+            )
           ) : !loadError ? (
-            paginatedPayments.map((payment) => (
+            payments.map((payment) => (
               <div
                 key={payment.id}
                 className="p-4 hover:bg-surface-hover cursor-pointer"
@@ -485,11 +486,11 @@ export default function PaymentsPage() {
             ))
           ) : null}
         </div>
-        {!loadError && !loading && filteredPayments.length > 0 && (
+        {!loadError && !loading && payments.length > 0 && (
           <div className="p-4 border-t border-line">
             <Pagination
               pagination={pagination}
-              currentPage={safeCurrentPage}
+              currentPage={currentPage}
               onPageChange={setCurrentPage}
             />
           </div>

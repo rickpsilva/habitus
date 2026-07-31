@@ -436,6 +436,20 @@ export interface PaginatedResponse<T> {
   hasNextPage: boolean;
 }
 
+export interface MaintenanceStatusCountsDto {
+  open: number;
+  inProgress: number;
+  completed: number;
+}
+
+export interface PaymentStatusCountsDto {
+  all: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  cancelled: number;
+}
+
 export interface NotificationDto {
   id: string;
   title: string;
