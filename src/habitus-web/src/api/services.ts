@@ -199,7 +199,7 @@ export const usersApi = {
   // Manager-only: promote/associate an already-registered user as Admin of a
   // condominium. Returns whether the user was already an admin there.
   associateExistingAdmin: (data: AssociateExistingAdminRequest) =>
-    api.post<AssociateExistingAdminResponse>('/users/associate-existing-admin', data),
+    api.post<AssociateExistingAdminResponse>('/platform/users/associate-existing-admin', data),
 };
 
 // Membership association requests (self-service association + admin review).
