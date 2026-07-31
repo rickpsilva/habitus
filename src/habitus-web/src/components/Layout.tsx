@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { MembershipCondominiumDto } from '../types';
+import { UserRole } from '../types';
 
 interface NavItem {
   to: string;
@@ -438,7 +439,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className={`flex-1 min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
                 <p className="text-sm font-medium text-ink truncate">{user?.name}</p>
                 <p className="text-xs text-ink-subtle truncate capitalize">
-                  {user?.role === 0 ? t('role.manager') : user?.role === 1 ? t('role.admin') : t('role.resident')}
+                  {user?.role === UserRole.Manager ? t('role.manager') : user?.role === UserRole.Admin ? t('role.admin') : t('role.resident')}
                 </p>
                 {activeFractionNumber && (
                   <span className="mt-1 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700">

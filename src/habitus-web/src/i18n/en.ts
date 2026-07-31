@@ -805,6 +805,7 @@ export const en: Record<TranslationKey, string> = {
   'payments.error.validation': 'Validation error:\n{errors}',
   'payments.error.noCondominium': 'No condominium selected.',
   'payments.error.load': 'Unable to load payments.',
+  'payments.error.loadMethods': 'Unable to load payment methods.',
   'payments.error.invalidAmount': 'Please enter a valid amount greater than zero.',
   'payments.error.descriptionRequired': 'Please enter a description.',
   'payments.error.proofRequired': 'Please attach the proof of payment for bank transfers.',

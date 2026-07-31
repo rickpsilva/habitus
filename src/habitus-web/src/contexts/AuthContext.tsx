@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState } from 'react';
 import type { AuthResponse } from '../types';
+import { UserRole } from '../types';
 import { meApi } from '../api/services';
 import { pt } from '../i18n/pt';
 import { en } from '../i18n/en';
@@ -40,7 +41,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthResponse | null>(() => {
     const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    try {
+      return JSON.parse(stored) as AuthResponse;
+    } catch {
+      // Corrupted persisted session: treat as logged-out and clear bad keys.
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      return null;
+    }
   });
 
   const login = (userData: AuthResponse) => {
@@ -76,9 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isManager = user?.role === 0;
-  const isAdmin = user?.role === 1;
-  const isResident = user?.role === 2;
+  const isManager = user?.role === UserRole.Manager;
+  const isAdmin = user?.role === UserRole.Admin;
+  const isResident = user?.role === UserRole.Resident;
   const condominiumId = user?.condominiumId || null;
   const unitId = user?.unitId || null;
 

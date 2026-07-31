@@ -29,6 +29,7 @@ import type { TranslateFn } from '../i18n/types';
 import { PageHeader, ErrorState, StatCard, Badge, Card } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import type { MaintenanceRequestDto, NotificationDto, ReservationDto, CondominiumActiveUsersDto, PlatformBillingSettingsDto } from '../types';
+import { UserRole } from '../types';
 
 function statusBadge(status: string, t: TranslateFn) {
   const normalizedStatus = status === 'Resolved' || status === 'Closed' ? 'Completed' : status;
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const { user, condominiumId, isManager } = useAuth();
   const { t, formatDate, formatDateTime, formatCurrency } = useTranslation();
   const [maintenance, setMaintenance] = useState<MaintenanceRequestDto[]>([]);
+  const [maintenanceActiveCount, setMaintenanceActiveCount] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
   const [reserveFundBalance, setReserveFundBalance] = useState<number | null>(null);
@@ -96,15 +98,18 @@ export default function DashboardPage() {
     usersApi.getMe().then((r) => setUserId(r.data.id)).catch(setLoadWarning);
     
     if (condominiumId) {
-      maintenanceApi.getAll(condominiumId).then((r) => {
-        setMaintenance(r.data);
+      maintenanceApi.getPaged(condominiumId, 1, 5).then((r) => {
+        setMaintenance(r.data.items);
+      }).catch(setLoadWarning);
+      maintenanceApi.getStatusCounts(condominiumId).then((r) => {
+        setMaintenanceActiveCount(r.data.open + r.data.inProgress);
       }).catch(setLoadWarning);
     }
     if (condominiumId) {
       notificationsApi.getAll(condominiumId, 1, 100).then((r) => setNotifications(r.data.items)).catch(setLoadWarning);
     }
     if (condominiumId) {
-      reservationsApi.getAll(condominiumId).then((r) => setReservations(r.data)).catch(setLoadWarning);
+      reservationsApi.getPaged(condominiumId, 1, 50).then((r) => setReservations(r.data.items)).catch(setLoadWarning);
     }
     // Load financial dashboard for current year
     if (condominiumId) {
@@ -296,9 +301,6 @@ export default function DashboardPage() {
 
   const now = new Date();
   
-  const pendingMaintenance = maintenance.filter((m) => m.status === 'Open');
-  const inProgressMaintenance = maintenance.filter((m) => m.status === 'InProgress');
-  
   // Filter reservations based on user role and end date
   const activeReservations = reservations.filter((r) => {
     // Filter by status (Pending or Approved)
@@ -311,10 +313,10 @@ export default function DashboardPage() {
     if (!isNotPast) return false;
     
     // Filter by user role
-    if (user?.role === 2) {
+    if (user?.role === UserRole.Resident) {
       // Morador: only their own reservations
       return r.userId === userId;
-    } else if (user?.role === 1) {
+    } else if (user?.role === UserRole.Admin) {
       // Admin: all reservations in their condominium
       return r.condominiumId === condominiumId;
     }
@@ -352,7 +354,7 @@ export default function DashboardPage() {
         <StatCard
           loading={dashboardLoading}
           title={t('dashboard.stats.activeMaintenance')}
-          value={dashboardLoading ? '—' : pendingMaintenance.length + inProgressMaintenance.length}
+          value={dashboardLoading ? '—' : maintenanceActiveCount}
           icon={Wrench}
           color="bg-orange-100 text-orange-600"
           to="/maintenance"

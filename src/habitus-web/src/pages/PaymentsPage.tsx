@@ -125,8 +125,8 @@ export default function PaymentsPage() {
           setForm(prev => ({ ...prev, method: 'Card' }));
         }
       })
-      .catch((error) => console.error('Error loading payment methods:', error));
-  }, [condominiumId]);
+      .catch(() => toastError(t('payments.error.loadMethods')));
+  }, [condominiumId, t, toastError]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);

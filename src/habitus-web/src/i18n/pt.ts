@@ -804,6 +804,7 @@ export const pt = {
   'payments.error.validation': 'Erro de validação:\n{errors}',
   'payments.error.noCondominium': 'Condomínio não selecionado.',
   'payments.error.load': 'Não foi possível carregar os pagamentos.',
+  'payments.error.loadMethods': 'Não foi possível carregar os métodos de pagamento.',
   'payments.error.invalidAmount': 'Por favor, insira um valor válido maior que zero.',
   'payments.error.descriptionRequired': 'Por favor, insira uma descrição.',
   'payments.error.proofRequired': 'Por favor, anexe o comprovativo de pagamento para transferências bancárias.',
