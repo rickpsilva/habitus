@@ -286,6 +286,8 @@ export const en: Record<TranslationKey, string> = {
   'consent.descPrivacy': 'By accepting, you authorize the processing of your personal data in accordance with the Privacy Policy and GDPR.',
   'consent.descDefault': 'By accepting, you agree to the indicated terms in order to continue using Habitus.',
   'consent.viewDocument': 'View document',
+  'consent.readDetails': 'Read details',
+  'consent.detailsTitle': 'Consent details',
   'consent.errorLoad': 'We were unable to load the consents. Please try again.',
   'consent.errorStillPending': 'There are still mandatory consents to accept.',
   'consent.errorRecord': 'We were unable to record the consent. Please try again.',

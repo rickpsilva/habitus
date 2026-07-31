@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, ShieldAlert, Star, ExternalLink, Settings } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, ShieldAlert, Star, ExternalLink, Settings, BookOpen } from 'lucide-react';
 import QRCode from 'qrcode';
 import { authApi, usersApi, condominiumsApi, unitsApi, documentsApi, meApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,6 +73,7 @@ export default function ProfilePage() {
   const [loadingConsents, setLoadingConsents] = useState(true);
   const [consentsError, setConsentsError] = useState<string | null>(null);
   const [consentActionKey, setConsentActionKey] = useState<string | null>(null);
+  const [detailConsent, setDetailConsent] = useState<ConsentItem | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({
@@ -1288,17 +1289,26 @@ export default function ProfilePage() {
                           {t('consent.lastDecision', { date: formatDateTime(consent.decidedAt) })}
                         </p>
                       )}
-                      {consent.url && (
+                      {consent.body ? (
+                        <button
+                          type="button"
+                          onClick={() => setDetailConsent(consent)}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-1"
+                        >
+                          {t('consent.readDetails')}
+                          <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                      ) : consent.url ? (
                         <a
                           href={consent.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-1"
                         >
-                          {t('consent.viewDocument')}
+                          {t('consent.readDetails')}
                           <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                         </a>
-                      )}
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {accepted ? (
@@ -1677,6 +1687,21 @@ export default function ProfilePage() {
               {t('gdpr.erase.confirm')}
             </Button>
           </div>
+        </div>
+      </ModalPopup>
+
+      <ModalPopup
+        open={detailConsent !== null}
+        onClose={() => setDetailConsent(null)}
+        title={
+          detailConsent
+            ? (consentTitleKeys[detailConsent.key] ? t(consentTitleKeys[detailConsent.key]) : detailConsent.title)
+            : t('consent.detailsTitle')
+        }
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-muted">
+          {detailConsent?.body}
         </div>
       </ModalPopup>
     </div>

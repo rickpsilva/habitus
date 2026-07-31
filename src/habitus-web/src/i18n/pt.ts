@@ -285,6 +285,8 @@ export const pt = {
   'consent.descPrivacy': 'Ao aceitar, autoriza o tratamento dos seus dados pessoais de acordo com a Política de Privacidade e o RGPD.',
   'consent.descDefault': 'Ao aceitar, concorda com os termos indicados para poder continuar a utilizar o Habitus.',
   'consent.viewDocument': 'Consultar documento',
+  'consent.readDetails': 'Ler detalhes',
+  'consent.detailsTitle': 'Detalhes do consentimento',
   'consent.errorLoad': 'Não foi possível carregar os consentimentos. Tente novamente.',
   'consent.errorStillPending': 'Ainda existem consentimentos obrigatórios por aceitar.',
   'consent.errorRecord': 'Não foi possível registar o consentimento. Tente novamente.',

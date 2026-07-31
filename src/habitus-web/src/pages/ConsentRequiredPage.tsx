@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ExternalLink } from 'lucide-react';
+import { ShieldCheck, ExternalLink, BookOpen } from 'lucide-react';
 import { meApi } from '../api/services';
 import { AsyncState, Button } from '../components/ui';
+import ModalPopup from '../components/ModalPopup';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslationKey } from '../i18n/types';
 import { ConsentDecision } from '../types';
@@ -41,6 +42,7 @@ export default function ConsentRequiredPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [detailConsent, setDetailConsent] = useState<ConsentItem | null>(null);
 
   useEffect(() => {
     meApi
@@ -133,17 +135,29 @@ export default function ConsentRequiredPage() {
                   <div className="min-w-0">
                     <p className="font-semibold text-ink">{titleFor(consent)}</p>
                     <p className="text-sm text-ink-muted mt-1">{describe(consent)}</p>
-                    {consent.url && (
+                    {consent.body ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setDetailConsent(consent);
+                        }}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-2"
+                      >
+                        {t('consent.readDetails')}
+                        <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    ) : consent.url ? (
                       <a
                         href={consent.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 mt-2"
                       >
-                        {t('consent.viewDocument')}
+                        {t('consent.readDetails')}
                         <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                       </a>
-                    )}
+                    ) : null}
                   </div>
                 </label>
               ))}
@@ -168,6 +182,17 @@ export default function ConsentRequiredPage() {
           </AsyncState>
         </div>
       </div>
+
+      <ModalPopup
+        open={detailConsent !== null}
+        onClose={() => setDetailConsent(null)}
+        title={detailConsent ? titleFor(detailConsent) : t('consent.detailsTitle')}
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-muted">
+          {detailConsent?.body}
+        </div>
+      </ModalPopup>
     </div>
   );
 }

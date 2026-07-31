@@ -82,6 +82,7 @@ export interface ConsentItem {
   version: string;
   title: string;
   url?: string | null;
+  body?: string | null;
   isMandatory: boolean;
   decision: ConsentDecisionValue;
   decidedAt?: string | null;

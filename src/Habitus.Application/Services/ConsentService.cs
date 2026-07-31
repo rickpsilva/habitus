@@ -51,6 +51,7 @@ public class ConsentService : IConsentService
                 Version = def.Version,
                 Title = def.Title,
                 Url = def.Url,
+                Body = def.Body,
                 IsMandatory = def.IsMandatory,
                 Decision = decision,
                 DecidedAt = decidedAt

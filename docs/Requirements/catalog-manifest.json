@@ -141,6 +141,11 @@
       "diagrams": []
     },
     {
+      "id": "REQ-ANN-001",
+      "file": "requirements/announcements/REQ-ANN-001.md",
+      "diagrams": []
+    },
+    {
       "id": "REQ-SUPP-001",
       "file": "requirements/suppliers/REQ-SUPP-001.md",
       "diagrams": []

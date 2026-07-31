@@ -694,6 +694,37 @@ const REQUIREMENTS = [
     "diagram": ""
   },
   {
+    "id": "REQ-ANN-001",
+    "title": "Announcements support an approval workflow and condominium-scoped visibility",
+    "type": "Functional",
+    "module": "Announcements",
+    "priority": "Medium",
+    "status": "Implemented",
+    "description": "Announcements (\"Comunicados\") let Admins and Residents publish condominium-scoped notices with a category, rich-text content, optional attachments, and comments. A resident-authored announcement follows an approval workflow (Draft, PendingApproval, Published, Rejected, Archived), read status is tracked per user, and the whole module is gated by the `announcements` subscription-plan feature.",
+    "acceptanceCriteria": [
+      "Given an authorized user in a condominium, when an announcement is created, then it is persisted under that condominium with its category, content, and author.",
+      "Given a Resident who submits an announcement, when it awaits approval, then it stays in PendingApproval until an Admin approves or rejects it, and Admins are notified.",
+      "Given an Admin, when a pending announcement is approved, then it becomes Published and is visible to residents of the condominium; when it is rejected, then the rejection reason is preserved.",
+      "Given a published announcement, when a user opens it, then their read status is recorded for that announcement.",
+      "Given a user outside the condominium scope, when they request an announcement, then the system denies access or hides the record.",
+      "Given a condominium whose active plan does not include the `announcements` feature, when the module endpoints are called, then the system rejects the request."
+    ],
+    "roles": [
+      "Admin",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-AUTH-001",
+      "REQ-CONDO-001",
+      "REQ-NOTIF-001"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
     "id": "REQ-SUPP-001",
     "title": "Suppliers and interventions are linked to condominiums",
     "type": "Functional",

@@ -29,6 +29,7 @@ public class ConsentItemDto
     public string Version { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string? Url { get; set; }
+    public string? Body { get; set; }
     public bool IsMandatory { get; set; }
     public ConsentDecision Decision { get; set; }
     public DateTime? DecidedAt { get; set; }

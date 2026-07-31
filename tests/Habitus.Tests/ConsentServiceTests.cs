@@ -200,6 +200,22 @@ public class ConsentServiceTests
         status.AllMandatoryAccepted.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task GetConsentStatus_MapsUrlAndBodyFromDefinition()
+    {
+        var terms = Def("terms", "1.0", mandatory: true);
+        terms.Url = "https://example.test/terms";
+        terms.Body = "# Termos\n\nCorpo do documento.";
+        SetupDefinitions(terms);
+        SetupConsents();
+
+        var status = await _service.GetConsentStatusAsync(_userId);
+
+        var item = status.Consents.Single(c => c.Key == "terms");
+        item.Url.Should().Be("https://example.test/terms");
+        item.Body.Should().Be("# Termos\n\nCorpo do documento.");
+    }
+
     // ── RecordConsentAsync ─────────────────────────────────────────────────────
 
     [Fact]
