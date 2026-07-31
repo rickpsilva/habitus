@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using FluentAssertions;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
@@ -22,6 +23,11 @@ public class AssemblyServiceIsolationTests
         _service = new AssemblyService(_repositoryMock.Object, notificationRepoMock.Object, dispatchMock.Object);
     }
 
+    private void SetupFind(List<Assembly> source) =>
+        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<Assembly, bool>>>()))
+            .ReturnsAsync((Expression<Func<Assembly, bool>> predicate) =>
+                source.Where(predicate.Compile()).ToList());
+
     [Fact]
     public async Task GetAllAsync_Admin_OnlyReturnsOwnCondominiumAssemblies()
     {
@@ -30,7 +36,7 @@ public class AssemblyServiceIsolationTests
             new() { Id = Guid.NewGuid(), Title = "A Assembly", CondominiumId = _condominiumA, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
             new() { Id = Guid.NewGuid(), Title = "B Assembly", CondominiumId = _condominiumB, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
         };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(assemblies);
+        SetupFind(assemblies);
 
         var result = (await _service.GetAllAsync(_condominiumA, "Admin")).ToList();
 
@@ -46,7 +52,7 @@ public class AssemblyServiceIsolationTests
             new() { Id = Guid.NewGuid(), Title = "A Assembly", CondominiumId = _condominiumA, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
             new() { Id = Guid.NewGuid(), Title = "B Assembly", CondominiumId = _condominiumB, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
         };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(assemblies);
+        SetupFind(assemblies);
 
         var result = (await _service.GetAllAsync(_condominiumA, "Resident")).ToList();
 
@@ -100,11 +106,42 @@ public class AssemblyServiceIsolationTests
             new() { Id = Guid.NewGuid(), Title = "A Assembly", CondominiumId = _condominiumA, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
             new() { Id = Guid.NewGuid(), Title = "B Assembly", CondominiumId = _condominiumB, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
         };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(assemblies);
+        SetupFind(assemblies);
 
         var result = await _service.GetPagedAsync(1, 10, _condominiumA, "Admin");
 
         result.Items.Should().HaveCount(1);
         result.Items.First().Title.Should().Be("A Assembly");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_PastDueScheduledAssembly_AutoUpdatesToInProgress()
+    {
+        var pastDueA = new Assembly { Id = Guid.NewGuid(), Title = "Past-due A", CondominiumId = _condominiumA, ScheduledAt = DateTime.UtcNow.AddHours(-1), Status = AssemblyStatus.Scheduled };
+        var futureB = new Assembly { Id = Guid.NewGuid(), Title = "Future B", CondominiumId = _condominiumB, ScheduledAt = DateTime.UtcNow.AddHours(-1), Status = AssemblyStatus.Scheduled };
+        SetupFind(new List<Assembly> { pastDueA, futureB });
+
+        var result = (await _service.GetAllAsync(_condominiumA, "Admin")).ToList();
+
+        result.Should().ContainSingle();
+        pastDueA.Status.Should().Be(AssemblyStatus.InProgress);
+        futureB.Status.Should().Be(AssemblyStatus.Scheduled);
+        _repositoryMock.Verify(r => r.Update(pastDueA), Times.Once);
+        _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_NonAdminNonResidentRole_ReturnsEmptyAndSkipsDatabase()
+    {
+        var assemblies = new List<Assembly>
+        {
+            new() { Id = Guid.NewGuid(), Title = "A Assembly", CondominiumId = _condominiumA, ScheduledAt = DateTime.UtcNow.AddDays(1), Status = AssemblyStatus.Scheduled },
+        };
+        SetupFind(assemblies);
+
+        var result = (await _service.GetAllAsync(_condominiumA, "Manager")).ToList();
+
+        result.Should().BeEmpty();
+        _repositoryMock.Verify(r => r.FindAsync(It.IsAny<Expression<Func<Assembly, bool>>>()), Times.Never);
     }
 }

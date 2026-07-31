@@ -18,7 +18,9 @@ WORKDIR "/src/Habitus.Api"
 RUN dotnet build "Habitus.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "Habitus.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Framework-dependent, RID-specific publish so PublishReadyToRun (set in the .csproj)
+# actually emits R2R (crossgen) native images and improves cold-start on the box.
+RUN dotnet publish "Habitus.Api.csproj" -c Release -o /app/publish -r linux-x64 --self-contained false /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app

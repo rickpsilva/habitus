@@ -24,9 +24,7 @@ public class AssemblyService
 
     public async Task<IEnumerable<AssemblyDto>> GetAllAsync(Guid condominiumId, string userRole)
     {
-        var assemblies = (await _repository.GetAllAsync())
-            .Where(a => CanUserAccessAssembly(a, condominiumId, userRole))
-            .ToList();
+        var assemblies = await LoadCondominiumAssembliesAsync(condominiumId, userRole);
         
         // Auto-update status for scheduled assemblies that should be in progress
         await UpdateScheduledAssembliesStatusAsync(assemblies);
@@ -36,9 +34,7 @@ public class AssemblyService
 
     public async Task<PaginatedResponse<AssemblyDto>> GetPagedAsync(int page, int pageSize, Guid condominiumId, string userRole, string? search = null)
     {
-        var assemblies = (await _repository.GetAllAsync())
-            .Where(a => CanUserAccessAssembly(a, condominiumId, userRole))
-            .ToList();
+        var assemblies = await LoadCondominiumAssembliesAsync(condominiumId, userRole);
         
         // Auto-update status for scheduled assemblies that should be in progress
         await UpdateScheduledAssembliesStatusAsync(assemblies);
@@ -229,6 +225,25 @@ public class AssemblyService
         // Both Admin and Resident can see all assemblies within their condominium
         return string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase)
             || string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Loads the full set of assemblies for a condominium as tracked entities, applying the
+    /// condominium filter in SQL. The role gate mirrors <see cref="CanUserAccessAssembly"/> but
+    /// is constant per request, so it is hoisted out of the query; unauthorised roles skip the
+    /// database entirely. Tracked entities let the caller run the status auto-update in place.
+    /// </summary>
+    private async Task<List<Assembly>> LoadCondominiumAssembliesAsync(Guid condominiumId, string userRole)
+    {
+        var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isResident = string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdmin && !isResident)
+        {
+            return new List<Assembly>();
+        }
+
+        return (await _repository.FindAsync(a => a.CondominiumId == condominiumId)).ToList();
     }
 
     private async Task CreateNotificationForCondominiumUsersAsync(Guid condominiumId, string title, string message, bool sendExternalChannels)

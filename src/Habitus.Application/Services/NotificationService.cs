@@ -54,18 +54,27 @@ public class NotificationService : INotificationService
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        // Access mirrors CanUserAccessNotification, expressed as a SQL-translatable predicate.
-        // User-targeted notifications are private; role-targeted notifications are shared by role.
+        var filter = BuildAccessFilter(condominiumId, userRole, userId);
+
+        return await _repository.GetPagedAsync(page, pageSize, filter, n => n.SentAt, descending: true);
+    }
+
+    /// <summary>
+    /// Builds the SQL-translatable equivalent of <see cref="CanUserAccessNotification"/>: managers
+    /// only see manager-targeted or direct notifications, everyone else sees condominium-scoped
+    /// notifications targeted at their role (or untargeted) plus their own direct notifications.
+    /// Shared by <see cref="GetPagedAsync"/> and <see cref="MarkAllAsReadAsync"/>.
+    /// </summary>
+    private static Expression<Func<Notification, bool>> BuildAccessFilter(Guid condominiumId, string userRole, Guid userId)
+    {
         var isManager = IsManagerRole(userRole);
 
-        Expression<Func<Notification, bool>> filter = isManager
+        return isManager
             ? n => (n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
                    (!n.TargetUserId.HasValue && n.TargetRole != null && n.TargetRole.ToLower() == "manager")
             : n => n.CondominiumId == condominiumId &&
                    ((n.TargetUserId.HasValue && n.TargetUserId.Value == userId) ||
                     (!n.TargetUserId.HasValue && (n.TargetRole == userRole || n.TargetRole == null || n.TargetRole == "")));
-
-        return await _repository.GetPagedAsync(page, pageSize, filter, n => n.SentAt, descending: true);
     }
 
     public async Task<Notification?> GetByIdAsync(Guid id)
@@ -88,11 +97,10 @@ public class NotificationService : INotificationService
 
     public async Task MarkAllAsReadAsync(Guid condominiumId, string userRole, Guid userId)
     {
-        var notifications = await _repository.GetAllAsync();
+        var accessFilter = BuildAccessFilter(condominiumId, userRole, userId);
 
-        var unreadAccessibleNotifications = notifications
+        var unreadAccessibleNotifications = (await _repository.FindAsync(accessFilter))
             .Where(n => !n.IsRead)
-            .Where(n => CanUserAccessNotification(n, condominiumId, userRole, userId))
             .ToList();
         
         foreach (var notification in unreadAccessibleNotifications)

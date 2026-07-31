@@ -26,9 +26,18 @@ public class MaintenanceService
 
     public async Task<IEnumerable<MaintenanceRequestDto>> GetAllAsync(Guid condominiumId, string userRole, Guid userId, Guid? unitId)
     {
-        var requests = await _repository.GetAllAsync();
+        // Role gate mirrors CanUserViewMaintenance but is constant per request, so it is
+        // hoisted out of the query; the condominium filter runs in SQL instead of memory.
+        var isAdmin = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isResident = string.Equals(userRole, "Resident", StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdmin && !isResident)
+        {
+            return Enumerable.Empty<MaintenanceRequestDto>();
+        }
+
+        var requests = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         return requests
-            .Where(r => CanUserViewMaintenance(r, condominiumId, userRole))
             .Select(MapToDto)
             .OrderByDescending(r => r.CreatedAt);
     }
