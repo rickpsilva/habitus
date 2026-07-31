@@ -4,7 +4,7 @@ title: Personal area hosts RGPD information and self-service export/erasure acti
 type: Functional
 module: Users
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -19,8 +19,17 @@ designRefs:
   - docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd
   - docs/Requirements/diagrams/sequences/first-login-rgpd-acceptance.mmd
   - docs/Requirements/diagrams/sequences/gdpr-export-erasure.mmd
-implementationRefs: []  # pending Stage 4 frontend (ProfilePage Privacy tab today only manages consents; no export/erasure UI exists)
-testRefs: []  # pending Stage 5 tests
+implementationRefs:
+  - src/habitus-web/src/pages/ProfilePage.tsx
+  - src/habitus-web/src/pages/ConsentRequiredPage.tsx
+  - src/habitus-web/src/api/services.ts
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/Habitus.Application/Services/PersonalDataService.cs
+  - src/Habitus.Application/Services/ConsentService.cs
+testRefs:
+  - tests/Habitus.Api.IntegrationTests/PersonalDataExportIntegrationTests.cs
+  - tests/Habitus.Api.IntegrationTests/PersonalDataErasureIntegrationTests.cs
+  - tests/Habitus.Tests/PersonalDataServiceTests.cs
 ---
 
 # REQ-USERS-003

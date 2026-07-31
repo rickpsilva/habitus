@@ -220,7 +220,7 @@ const REQUIREMENTS = [
     "type": "Functional",
     "module": "Users",
     "priority": "High",
-    "status": "Draft",
+    "status": "Implemented",
     "description": "The authenticated user's personal area exposes a GDPR / RGPD section where the user can read the site's RGPD information and start self-service export (REQ-SEC-003) and erasure/anonymization (REQ-SEC-004) actions for their own data, scoped to the condominiums where they hold membership.",
     "acceptanceCriteria": [
       "Given an authenticated user, when they open the personal area, then a GDPR section is visible showing the site's RGPD information and the export and erasure actions.",
@@ -257,7 +257,7 @@ const REQUIREMENTS = [
     "type": "Functional",
     "module": "Security",
     "priority": "High",
-    "status": "Draft",
+    "status": "Implemented",
     "description": "Authenticated users can request an export (portability) of their own personal data in a portable, structured, machine-readable format, limited to the condominiums where they hold membership and excluding any other user's or tenant's personal data. This realizes the GDPR / RGPD right to data portability (Art. 20).",
     "acceptanceCriteria": [
       "Given an authenticated user, when they request a data export, then the system returns a UTF-8 JSON document containing their profile, unit memberships, consent history, and their in-scope condominium records, with encrypted PII fields decrypted to plaintext.",
@@ -298,7 +298,7 @@ const REQUIREMENTS = [
     "type": "Functional",
     "module": "Security",
     "priority": "High",
-    "status": "Draft",
+    "status": "Implemented",
     "description": "Authenticated users can request erasure of their personal data (GDPR / RGPD right to be forgotten, Art. 17), in either a full or a partial form. The system honours the Art. 17(3)(b) legal-retention exception by anonymizing/pseudonymizing direct identifiers on records that must be kept by law (financial, accounting/SAF-T, audit) instead of hard-deleting them, while preserving multi-condominium isolation and role rules.",
     "acceptanceCriteria": [
       "Given an authenticated user, when they confirm a full erasure request (with confirmation/re-authentication), then the account is marked for deletion, all direct identifiers (name, email, phone, address, external login links) are removed or replaced with anonymized values, and the account can no longer authenticate.",

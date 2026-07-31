@@ -4,7 +4,7 @@ title: Users can request full or partial erasure/anonymization of personal data 
 type: Functional
 module: Security
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -22,8 +22,22 @@ designRefs:
   - docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd
   - docs/Requirements/diagrams/classes/privacy-services.mmd
   - docs/Requirements/diagrams/sequences/gdpr-export-erasure.mmd
-implementationRefs: []  # pending Stage 3 backend (no erasure/anonymize endpoint exists on MeController today)
-testRefs: []  # pending Stage 5 tests
+implementationRefs:
+  - src/Habitus.Application/Interfaces/IPersonalDataService.cs
+  - src/Habitus.Application/Interfaces/ErasureValidationException.cs
+  - src/Habitus.Application/Services/PersonalDataService.cs
+  - src/Habitus.Application/DTOs/PersonalData/ErasureDtos.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/Habitus.Domain/Entities/User.cs
+  - src/Habitus.Domain/Entities/PersonalDataRequest.cs
+  - src/Habitus.Infrastructure/Migrations/20260731102744_AddPersonalDataErasure.cs
+  - src/habitus-web/src/api/services.ts
+  - src/habitus-web/src/types/index.ts
+  - src/habitus-web/src/pages/ProfilePage.tsx
+testRefs:
+  - tests/Habitus.Api.IntegrationTests/PersonalDataErasureIntegrationTests.cs
+  - tests/Habitus.Tests/PersonalDataServiceTests.cs
+  - tests/Habitus.Tests/PersonalDataServiceIsolationTests.cs
 ---
 
 # REQ-SEC-004

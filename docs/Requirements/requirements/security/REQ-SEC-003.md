@@ -4,7 +4,7 @@ title: Users can export their personal data in a portable, machine-readable form
 type: Functional
 module: Security
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -21,8 +21,19 @@ designRefs:
   - docs/Requirements/diagrams/use-cases/gdpr-self-service.mmd
   - docs/Requirements/diagrams/classes/privacy-services.mmd
   - docs/Requirements/diagrams/sequences/gdpr-export-erasure.mmd
-implementationRefs: []  # pending Stage 3 backend (no export endpoint exists on MeController today)
-testRefs: []  # pending Stage 5 tests
+implementationRefs:
+  - src/Habitus.Application/Interfaces/IPersonalDataService.cs
+  - src/Habitus.Application/Services/PersonalDataService.cs
+  - src/Habitus.Application/DTOs/PersonalData/PersonalDataExportDto.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/Habitus.Domain/Entities/PersonalDataRequest.cs
+  - src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs
+  - src/habitus-web/src/api/services.ts
+  - src/habitus-web/src/pages/ProfilePage.tsx
+testRefs:
+  - tests/Habitus.Api.IntegrationTests/PersonalDataExportIntegrationTests.cs
+  - tests/Habitus.Tests/PersonalDataServiceTests.cs
+  - tests/Habitus.Tests/PersonalDataServiceIsolationTests.cs
 ---
 
 # REQ-SEC-003
