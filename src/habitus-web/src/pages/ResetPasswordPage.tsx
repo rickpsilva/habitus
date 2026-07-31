@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Building2, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/services';
@@ -12,19 +12,12 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const email = searchParams.get('email');
+  const token = searchParams.get('token');
+  const [error, setError] = useState(() => (!email || !token) ? t('resetPassword.error.invalidLink') : '');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const email = searchParams.get('email');
-  const token = searchParams.get('token');
-
-  useEffect(() => {
-    if (!email || !token) {
-      setError(t('resetPassword.error.invalidLink'));
-    }
-  }, [email, token, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

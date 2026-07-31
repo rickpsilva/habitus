@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { authApi } from '../api/services';
@@ -10,14 +10,25 @@ import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
-  const [challengeId, setChallengeId] = useState('');
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(
+    () => searchParams.get('requiresTwoFactor') === 'true' && !!searchParams.get('challengeId'),
+  );
+  const [challengeId, setChallengeId] = useState(() => searchParams.get('challengeId') ?? '');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const socialError = searchParams.get('error');
+    if (!socialError) return '';
+    return ({
+      external_auth_failed: t('login.errorExternalAuthFailed'),
+      external_login_denied: t('login.errorExternalLoginDenied'),
+      external_identity_incomplete: t('login.errorExternalIdentityIncomplete'),
+      unsupported_provider: t('login.errorUnsupportedProvider'),
+    } as Record<string, string>)[socialError] ?? t('login.errorSignInFailed');
+  });
   const [loading, setLoading] = useState(false);
   // Lazy initializer reads localStorage once so the banner visibility does not
   // rely on a setState-in-effect (F5).
@@ -26,34 +37,6 @@ export default function LoginPage() {
   );
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const socialError = searchParams.get('error');
-    const needsTwoFactor = searchParams.get('requiresTwoFactor') === 'true';
-    const challenge = searchParams.get('challengeId');
-    const callbackEmail = searchParams.get('email');
-
-    if (callbackEmail) {
-      setEmail(callbackEmail);
-    }
-
-    if (needsTwoFactor && challenge) {
-      setRequiresTwoFactor(true);
-      setChallengeId(challenge);
-      setPassword('');
-    }
-
-    if (socialError) {
-      const mappedError = {
-        external_auth_failed: t('login.errorExternalAuthFailed'),
-        external_login_denied: t('login.errorExternalLoginDenied'),
-        external_identity_incomplete: t('login.errorExternalIdentityIncomplete'),
-        unsupported_provider: t('login.errorUnsupportedProvider'),
-      }[socialError] ?? t('login.errorSignInFailed');
-
-      setError(mappedError);
-    }
-  }, [searchParams, t]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

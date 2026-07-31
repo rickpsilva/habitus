@@ -332,17 +332,14 @@ export default function ProfilePage() {
   }, [user]);
 
   useEffect(() => {
-    if (!twoFactorSetup?.otpauthUri) {
-      setTwoFactorQrCode('');
-      return;
-    }
+    if (!twoFactorSetup?.otpauthUri) return;
 
     QRCode.toDataURL(twoFactorSetup.otpauthUri)
       .then(setTwoFactorQrCode)
       .catch(() => setTwoFactorQrCode(''));
   }, [twoFactorSetup]);
 
-  const loadSecurityOverview = async () => {
+  async function loadSecurityOverview() {
     setLoadingSecurity(true);
     try {
       const response = await authApi.getSecurityOverview();
@@ -352,7 +349,7 @@ export default function ProfilePage() {
     } finally {
       setLoadingSecurity(false);
     }
-  };
+  }
 
   const handleStartTwoFactorSetup = async () => {
     setProcessingSecurity(true);
@@ -422,7 +419,7 @@ export default function ProfilePage() {
   };
 
   const handleStartProviderLink = (provider: 'google' | 'microsoft') => {
-    window.location.href = `/api/platform/auth/external/${provider}/link`;
+    window.location.assign(`/api/platform/auth/external/${provider}/link`);
   };
 
   const handleUnlinkProvider = async (provider: 'google' | 'microsoft') => {
@@ -435,7 +432,7 @@ export default function ProfilePage() {
     }
   };
 
-  const loadUnitDocuments = async (condominiumId: string, unitId: string) => {
+  async function loadUnitDocuments(condominiumId: string, unitId: string) {
     try {
       const response = await documentsApi.getPaged(condominiumId, 1, 100, '', 'Unit');
       // Filter documents by unitId
@@ -444,7 +441,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error('Failed to load unit documents:', err);
     }
-  };
+  }
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -957,7 +954,7 @@ export default function ProfilePage() {
                       <p className="text-sm text-indigo-700 mt-1">{t('profile.security.setupInstructions')}</p>
                     </div>
 
-                    {twoFactorQrCode && (
+                    {twoFactorSetup?.otpauthUri && twoFactorQrCode && (
                       <div className="flex justify-center">
                         <img src={twoFactorQrCode} alt={t('profile.security.qrAlt')} className="w-44 h-44 rounded-lg border border-[#ffffff] shadow-sm bg-[#ffffff] p-3" />
                       </div>

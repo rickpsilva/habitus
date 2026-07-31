@@ -120,7 +120,7 @@ export default function UsersPage() {
     setPendingLoading(true);
     try {
       const r = await userRegistrationApi.getPendingUsers();
-      setPendingUsers(r.data);
+      setPendingUsers(r.data); if (r.data.length > 0) setShowPendingApprovals(true);
     } catch { /* silent */ } finally {
       setPendingLoading(false);
     }
@@ -130,12 +130,6 @@ export default function UsersPage() {
     load(1);
     if (isAdmin) loadPending();
   }, [load, loadPending, isAdmin]);
-
-  useEffect(() => {
-    if (pendingUsers.length > 0) {
-      setShowPendingApprovals(true);
-    }
-  }, [pendingUsers.length]);
 
   const handleApprove = async (userId: string) => {
     await userRegistrationApi.approveUser(userId);
