@@ -36,10 +36,17 @@ public class AnnouncementsController : ControllerBase
 
     private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    private bool CanAccessCondominium(Guid condominiumId)
+    {
+        var userCondominiumClaim = User.FindFirstValue("CondominiumId");
+        return Guid.TryParse(userCondominiumClaim, out var userCondominiumId) && userCondominiumId == condominiumId;
+    }
+
     // GET: api/condominiums/{condominiumId:guid}/announcements
     [HttpGet]
     public async Task<ActionResult<List<AnnouncementDto>>> GetAll([FromRoute] Guid condominiumId, [FromQuery] string? status = null)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return Unauthorized();
@@ -95,6 +102,7 @@ public class AnnouncementsController : ControllerBase
         [FromQuery] string? category = null,
         [FromQuery] string? search = null)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return Unauthorized();
@@ -168,6 +176,7 @@ public class AnnouncementsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<AnnouncementDto>> GetById([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return Unauthorized();
@@ -219,6 +228,7 @@ public class AnnouncementsController : ControllerBase
     [HttpGet("stats")]
     public async Task<ActionResult<AnnouncementStatsDto>> GetStats([FromRoute] Guid condominiumId)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return Unauthorized();
@@ -250,6 +260,7 @@ public class AnnouncementsController : ControllerBase
     [HttpGet("settings")]
     public async Task<IActionResult> GetSettings([FromRoute] Guid condominiumId)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         if (user == null || user.CondominiumId != condominiumId)
@@ -268,6 +279,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<AnnouncementDto>> Create([FromRoute] Guid condominiumId, [FromBody] CreateAnnouncementRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) return Unauthorized();
@@ -309,6 +321,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult<AnnouncementDto>> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdateAnnouncementRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(id);
 
@@ -340,6 +353,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPost("{id}/publish")]
     public async Task<IActionResult> Publish([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(id);
 
@@ -364,6 +378,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPost("{id}/approve")]
     public async Task<IActionResult> Approve([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] ApproveAnnouncementRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         
@@ -432,6 +447,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPost("{id}/pin")]
     public async Task<IActionResult> TogglePin([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         
@@ -453,6 +469,7 @@ public class AnnouncementsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         var announcement = await _context.Announcements.FindAsync(id);
@@ -488,6 +505,7 @@ public class AnnouncementsController : ControllerBase
     [HttpPost("{id}/comments")]
     public async Task<ActionResult<AnnouncementCommentDto>> AddComment([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] CreateAnnouncementCommentRequest request)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) return Unauthorized();
@@ -547,6 +565,7 @@ public class AnnouncementsController : ControllerBase
     [HttpDelete("{announcementId}/comments/{commentId}")]
     public async Task<IActionResult> DeleteComment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid commentId)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var user = await _context.Users.FindAsync(userId);
         var comment = await _context.AnnouncementComments.FindAsync(commentId);
@@ -570,6 +589,7 @@ public class AnnouncementsController : ControllerBase
     [RequestSizeLimit(524288000)] // 500 MB
     public async Task<ActionResult<AnnouncementAttachmentDto>> UploadAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid id, IFormFile file)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var announcement = await _context.Announcements
             .Include(a => a.Attachments)
@@ -641,6 +661,7 @@ public class AnnouncementsController : ControllerBase
     [HttpDelete("{announcementId}/attachments/{attachmentId}")]
     public async Task<IActionResult> DeleteAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid attachmentId)
     {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
         var announcement = await _context.Announcements.FindAsync(announcementId);
         if (announcement == null || announcement.CondominiumId != condominiumId) return NotFound();

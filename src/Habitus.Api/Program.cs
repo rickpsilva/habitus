@@ -137,6 +137,17 @@ var hasSpaEntryPoint = hasWebRoot && File.Exists(Path.Combine(app.Environment.We
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Standard security response headers. CSP is intentionally omitted to avoid breaking the SPA and
+// Swagger UI (which rely on inline scripts/styles); the headers below are safe for both.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -150,6 +161,10 @@ if (hasWebRoot)
 }
 
 app.UseCors();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 app.UseHttpsRedirection();
 app.UseIpRateLimiting();  // ⬅️ Rate limiting middleware (antes de auth)
 app.UseAuthentication();

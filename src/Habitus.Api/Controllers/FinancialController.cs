@@ -22,7 +22,9 @@ public class FinancialController : ControllerBase
         _reserveFundService = reserveFundService;
     }
 
+    // Unbounded full listing is Admin-only; Residents use the paged endpoints (paged / by-year).
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAll([FromRoute] Guid condominiumId)
     {
         if (!HasCondominiumAccess(condominiumId))

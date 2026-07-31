@@ -238,26 +238,6 @@ public class MaintenanceService
         return MapToDto(entity);
     }
 
-    public Task<MaintenanceRequestDto?> UpdateAsync(Guid id, UpdateMaintenanceRequest request)
-    {
-        return UpdateWithoutScopeAsync(id, request);
-    }
-
-    private async Task<MaintenanceRequestDto?> UpdateWithoutScopeAsync(Guid id, UpdateMaintenanceRequest request)
-    {
-        var entity = await _repository.GetByIdAsync(id);
-        if (entity == null) return null;
-
-        if (request.Status != null) entity.Status = ParseStatus(request.Status);
-        if (request.Priority != null) entity.Priority = Enum.Parse<MaintenancePriority>(request.Priority);
-        if (request.Description != null) entity.Description = request.Description;
-        if (IsCompletedStatus(entity.Status)) entity.ResolvedAt = DateTime.UtcNow;
-
-        _repository.Update(entity);
-        await _repository.SaveChangesAsync();
-        return MapToDto(entity);
-    }
-
     public async Task<MaintenanceRequestDto?> UpdateStatusAsync(
         Guid id,
         UpdateMaintenanceStatusRequest request,

@@ -255,6 +255,8 @@ public class HabitusDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(m => m.CondominiumId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(m => new { m.CondominiumId, m.CreatedAt });
             
             // Note: Unit relationship is configured by convention (UnitId + Unit navigation property)
             
@@ -357,6 +359,15 @@ public class HabitusDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(p => p.ReservationId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(p => new { p.CondominiumId, p.ResidentId, p.CreatedDate });
+            entity.HasIndex(p => new { p.CondominiumId, p.Status });
+        });
+
+        // Configure Announcement indexes for the pinned/published listing query
+        modelBuilder.Entity<Announcement>(entity =>
+        {
+            entity.HasIndex(a => new { a.CondominiumId, a.Status, a.IsPinned, a.PublishedAt });
         });
 
         // Configure Notification relationships

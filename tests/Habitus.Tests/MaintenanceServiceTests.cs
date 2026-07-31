@@ -50,11 +50,12 @@ public class MaintenanceServiceTests
     public async Task UpdateAsync_WhenCompleted_SetsResolvedAt()
     {
         var id = Guid.NewGuid();
-        var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open };
+        var condominiumId = Guid.NewGuid();
+        var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open, CondominiumId = condominiumId };
         _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
         _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
 
-        var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Completed" });
+        var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Completed" }, condominiumId, "Admin", Guid.NewGuid(), null);
 
         result.Should().NotBeNull();
         result!.Status.Should().Be("Completed");
@@ -65,11 +66,12 @@ public class MaintenanceServiceTests
     public async Task UpdateAsync_WhenUsingLegacyResolvedStatus_NormalizesToCompleted()
     {
         var id = Guid.NewGuid();
-        var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open };
+        var condominiumId = Guid.NewGuid();
+        var entity = new MaintenanceRequest { Id = id, Status = MaintenanceStatus.Open, CondominiumId = condominiumId };
         _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(entity);
         _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
 
-        var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Resolved" });
+        var result = await _service.UpdateAsync(id, new UpdateMaintenanceRequest { Status = "Resolved" }, condominiumId, "Admin", Guid.NewGuid(), null);
 
         result.Should().NotBeNull();
         result!.Status.Should().Be("Completed");
@@ -183,7 +185,7 @@ public class MaintenanceServiceTests
     {
         _repositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((MaintenanceRequest?)null);
 
-        var result = await _service.UpdateAsync(Guid.NewGuid(), new UpdateMaintenanceRequest());
+        var result = await _service.UpdateAsync(Guid.NewGuid(), new UpdateMaintenanceRequest(), Guid.NewGuid(), "Admin", Guid.NewGuid(), null);
 
         result.Should().BeNull();
     }

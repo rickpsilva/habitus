@@ -485,9 +485,6 @@ public class PaymentsController : ControllerBase
             if (!isAdmin && payment.ResidentId != userId)
                 return Forbid();
 
-            if (isAdmin && !HasCondominiumAccess(condominiumId))
-                return Forbid();
-
             if (string.IsNullOrEmpty(payment.ReceiptPdfPath) || !payment.ReceiptNumber.HasValue)
                 return NotFound(new { message = "Recibo ainda não emitido para este pagamento." });
 
