@@ -36,6 +36,8 @@ const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
 const BillingPage = lazy(() => import('./pages/BillingPage'));
 const ConsentAdminPage = lazy(() => import('./pages/ConsentAdminPage'));
 const ConsentRequiredPage = lazy(() => import('./pages/ConsentRequiredPage'));
+const MyAssociationsPage = lazy(() => import('./pages/MyAssociationsPage'));
+const AssociationRequestsAdminPage = lazy(() => import('./pages/AssociationRequestsAdminPage'));
 
 // Centered, text-less fallback shown while a lazy route chunk downloads.
 function RouteFallback() {
@@ -95,6 +97,8 @@ export default function App() {
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/settings" element={<CondominiumSettingsPage />} />
             <Route path="/settings/consents" element={<ConsentAdminPage />} />
+            <Route path="/my-associations" element={<MyAssociationsPage />} />
+            <Route path="/association-requests" element={<AssociationRequestsAdminPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             {/* Legacy route - redirect to users */}
             <Route path="/residents" element={<Navigate to="/users" replace />} />

@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
-import { authApi } from '../api/services';
+import { authApi, associationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../i18n/I18nProvider';
 import { Button } from '../components/ui';
 import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
+import {
+  clearPendingAssociationIntent,
+  getPendingAssociationIntent,
+} from '../utils/associationIntent';
+import type { AuthResponse } from '../types';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const { t } = useTranslation();
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -38,6 +45,41 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // After a successful login, resolve any pending register-fallback association
+  // intent (FLOW A): auto-create the membership request, inform the user, and
+  // route to "my associations". A corrupted/absent intent must not block login.
+  const handlePostLogin = (data: AuthResponse) => {
+    const fallbackRoute = data.requiresContextSelection ? '/select-context' : '/dashboard';
+    const intent = getPendingAssociationIntent();
+    if (!intent) {
+      navigate(fallbackRoute);
+      return;
+    }
+    associationApi
+      .create({
+        targetCondominiumId: intent.targetCondominiumId,
+        requestedRole: intent.requestedRole,
+        source: intent.source,
+      })
+      .then(() => {
+        toastSuccess(t('association.intent.submitted'));
+      })
+      .catch((err) => {
+        const code = (err as { response?: { data?: { code?: string } } }).response?.data?.code;
+        if (code === 'already_associated') {
+          toastInfo(t('association.error.alreadyAssociated'));
+        } else if (code === 'already_pending') {
+          toastInfo(t('association.error.alreadyPending'));
+        } else {
+          toastError(t('association.intent.failed'));
+        }
+      })
+      .finally(() => {
+        clearPendingAssociationIntent();
+        navigate(data.requiresContextSelection ? '/select-context' : '/my-associations');
+      });
+  };
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -53,7 +95,7 @@ export default function LoginPage() {
       }
 
       login(data);
-      navigate(data.requiresContextSelection ? '/select-context' : '/dashboard');
+      handlePostLogin(data);
     } catch (err) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 429) {
@@ -79,7 +121,7 @@ export default function LoginPage() {
       });
 
       login(data);
-      navigate(data.requiresContextSelection ? '/select-context' : '/dashboard');
+      handlePostLogin(data);
     } catch {
       setError(useRecoveryCode ? t('login.2faInvalidRecovery') : t('login.2faInvalidCode'));
     } finally {

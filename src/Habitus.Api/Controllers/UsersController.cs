@@ -293,6 +293,28 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Associate an existing user to a condominium as Admin by email (Manager only).
+    /// </summary>
+    [HttpPost("associate-existing-admin")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> AssociateExistingAdmin([FromBody] AssociateExistingAdminRequest request)
+    {
+        try
+        {
+            var response = await _userService.AssociateExistingAdminAsync(request);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get active users count grouped by condominium for the last month (Manager only)
     /// </summary>
     [HttpGet("active-last-month-by-condominium")]

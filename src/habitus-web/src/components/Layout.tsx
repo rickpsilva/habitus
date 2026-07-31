@@ -32,6 +32,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   ArrowLeftRight,
+  Link2,
+  UserCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { MembershipCondominiumDto } from '../types';
@@ -43,6 +45,7 @@ interface NavItem {
   icon: LucideIcon;
   managerOnly?: boolean;
   managerOrAdminOnly?: boolean;
+  adminOnly?: boolean;
   residentOnly?: boolean;
   featureKey?: string;
 }
@@ -60,6 +63,8 @@ const navItems: NavItem[] = [
   { to: '/assemblies', labelKey: 'nav.assemblies', icon: ClipboardList, featureKey: 'assemblies' },
   { to: '/settings', labelKey: 'nav.settings', icon: Settings, managerOrAdminOnly: true },
   { to: '/settings/consents', labelKey: 'nav.consentAdmin', icon: ShieldCheck, managerOnly: true },
+  { to: '/association-requests', labelKey: 'nav.associationRequests', icon: UserCheck, adminOnly: true },
+  { to: '/my-associations', labelKey: 'nav.myAssociations', icon: Link2 },
   { to: '/condominiums', labelKey: 'nav.condominiums', icon: Building2, managerOnly: true },
   { to: '/billing', labelKey: 'nav.billing', icon: CreditCard, managerOnly: true },
   { to: '/users', labelKey: 'nav.users', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
@@ -79,6 +84,8 @@ const adminMenuOrder = [
   '/useful-contacts',
   '/assemblies',
   '/users',
+  '/association-requests',
+  '/my-associations',
   '/settings',
 ];
 
@@ -93,6 +100,7 @@ const residentMenuOrder = [
   '/useful-contacts',
   '/assemblies',
   '/financial',
+  '/my-associations',
 ];
 
 const managerMenuOrder = [
@@ -111,9 +119,9 @@ const navSections: { id: string; labelKey: TranslationKey; routes: string[] }[] 
   {
     id: 'operations',
     labelKey: 'section.operations',
-    routes: ['/maintenance', '/financial', '/reservations', '/payments', '/documents', '/useful-contacts', '/assemblies'],
+    routes: ['/maintenance', '/financial', '/reservations', '/payments', '/documents', '/useful-contacts', '/assemblies', '/my-associations'],
   },
-  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/settings', '/settings/consents', '/condominiums', '/billing'] },
+  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/association-requests', '/settings', '/settings/consents', '/condominiums', '/billing'] },
 ];
 
 const sectionIdForRoute = (to: string): string =>
@@ -272,6 +280,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const visibleNavItems = navItems.filter((item) => {
     if (item.managerOnly && !isManager) return false;
     if (item.managerOrAdminOnly && !isManager && !isAdmin) return false;
+    if (item.adminOnly && !isAdmin) return false;
       // Allow residents OR admins with a unit assigned (internal admins)
       if (item.residentOnly && !isResident && !(isAdmin && user?.unitId)) return false;
     if (!isManager && item.featureKey && featureAccessLoaded && !enabledFeatures.has(item.featureKey)) return false;

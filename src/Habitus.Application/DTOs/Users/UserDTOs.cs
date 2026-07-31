@@ -59,6 +59,18 @@ public class AssignUserToCondominiumRequest
     public bool CanManage { get; set; } = true;
 }
 
+public class AssociateExistingAdminRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public Guid CondominiumId { get; set; }
+}
+
+public class AssociateExistingAdminResponse
+{
+    public string Message { get; set; } = string.Empty;
+    public bool WasAlreadyAdmin { get; set; }
+}
+
 public class PendingUserDto
 {
     public Guid Id { get; set; }

@@ -1949,6 +1949,71 @@ export const pt = {
   'auth.error.noAccess': 'Não tem acesso a este condomínio ou fração.',
   'auth.error.inactiveCondominium': 'Este condomínio está inativo. Contacte o gestor do condomínio.',
   'auth.error.switchFailed': 'Não foi possível mudar de contexto. Tente novamente.',
+
+  // Membership association — navigation
+  'nav.myAssociations': 'As Minhas Associações',
+  'nav.associationRequests': 'Pedidos de Associação',
+
+  // Membership association — shared
+  'association.emailExists.title': 'Este email já tem conta',
+  'association.emailExists.message': 'Este email já tem uma conta. Inicie sessão e vamos solicitar a sua associação a este condomínio para aprovação do administrador.',
+  'association.emailExists.signIn': 'Iniciar sessão',
+  'association.intent.submitted': 'Pedido de associação enviado. Aguarda aprovação do administrador.',
+  'association.intent.failed': 'Não foi possível enviar o pedido de associação.',
+  'association.error.alreadyAssociated': 'Já está associado a este condomínio.',
+  'association.error.alreadyPending': 'Já existe um pedido pendente para este condomínio.',
+  'association.status.pending': 'Pendente',
+  'association.status.approved': 'Aprovado',
+  'association.status.rejected': 'Rejeitado',
+  'association.status.cancelled': 'Cancelado',
+
+  // Membership association — my requests (FLOW B)
+  'myAssociations.title': 'As Minhas Associações',
+  'myAssociations.subtitle': 'Peça associação a outro condomínio e acompanhe o estado dos seus pedidos.',
+  'myAssociations.newRequestHeading': 'Novo pedido de associação',
+  'myAssociations.condominiumLabel': 'Condomínio',
+  'myAssociations.condominiumPlaceholder': 'Selecione um condomínio',
+  'myAssociations.roleLabel': 'Função',
+  'myAssociations.submit': 'Enviar pedido',
+  'myAssociations.submitting': 'A enviar...',
+  'myAssociations.submitted': 'Pedido enviado com sucesso.',
+  'myAssociations.selectCondominium': 'Selecione um condomínio.',
+  'myAssociations.listHeading': 'Os meus pedidos',
+  'myAssociations.empty': 'Ainda não tem pedidos de associação.',
+  'myAssociations.requestedAt': 'Pedido em',
+  'myAssociations.error.load': 'Não foi possível carregar os pedidos.',
+  'myAssociations.error.submit': 'Não foi possível enviar o pedido.',
+
+  // Membership association — admin review (FLOW C)
+  'associationRequests.title': 'Pedidos de Associação',
+  'associationRequests.subtitle': 'Reveja os pedidos pendentes de associação ao seu condomínio.',
+  'associationRequests.empty': 'Não há pedidos pendentes.',
+  'associationRequests.requestedAt': 'Pedido em',
+  'associationRequests.approve': 'Aprovar',
+  'associationRequests.reject': 'Rejeitar',
+  'associationRequests.approved': 'Pedido aprovado.',
+  'associationRequests.rejected': 'Pedido rejeitado.',
+  'associationRequests.reasonLabel': 'Motivo (opcional)',
+  'associationRequests.reasonPlaceholder': 'Motivo da decisão...',
+  'associationRequests.rejectTitle': 'Rejeitar pedido',
+  'associationRequests.confirmReject': 'Rejeitar',
+  'associationRequests.error.load': 'Não foi possível carregar os pedidos.',
+  'associationRequests.error.forbidden': 'Não tem permissão para rever pedidos.',
+  'associationRequests.error.notPending': 'Este pedido já não está pendente.',
+  'associationRequests.error.actionFailed': 'Não foi possível concluir a ação.',
+
+  // Membership association — associate existing admin (FLOW D)
+  'associateAdmin.heading': 'Associar administrador existente',
+  'associateAdmin.description': 'Associe um utilizador já registado como administrador de um condomínio.',
+  'associateAdmin.emailLabel': 'Email do utilizador',
+  'associateAdmin.emailPlaceholder': 'utilizador@email.com',
+  'associateAdmin.condominiumLabel': 'Condomínio',
+  'associateAdmin.condominiumPlaceholder': 'Selecione um condomínio',
+  'associateAdmin.submit': 'Associar',
+  'associateAdmin.submitting': 'A associar...',
+  'associateAdmin.selectCondominium': 'Selecione um condomínio.',
+  'associateAdmin.error.userNotFound': 'Utilizador não encontrado.',
+  'associateAdmin.error.failed': 'Não foi possível associar o utilizador.',
 } as const;
 
 export type TranslationKey = keyof typeof pt;

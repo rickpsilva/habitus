@@ -1145,3 +1145,70 @@ export interface CsvImportResult {
   updated: number;
   errors: string[];
 }
+
+// ============= Membership association requests =============
+// Enums are serialized as INTEGERS on the wire (no JsonStringEnumConverter).
+
+export const AssociationRequestStatus = {
+  Pending: 0,
+  Approved: 1,
+  Rejected: 2,
+  Cancelled: 3,
+} as const;
+
+export type AssociationRequestStatus =
+  (typeof AssociationRequestStatus)[keyof typeof AssociationRequestStatus];
+
+export const AssociationRequestedRole = {
+  Admin: 1,
+  Resident: 2,
+} as const;
+
+export type AssociationRequestedRole =
+  (typeof AssociationRequestedRole)[keyof typeof AssociationRequestedRole];
+
+export const AssociationRequestSource = {
+  ManagerInviteLink: 0,
+  RegisterFallback: 1,
+  Manual: 2,
+} as const;
+
+export type AssociationRequestSource =
+  (typeof AssociationRequestSource)[keyof typeof AssociationRequestSource];
+
+export interface AssociationRequestResponseDto {
+  id: string;
+  requesterUserId: string;
+  targetCondominiumId: string;
+  requestedRole: number;
+  status: number;
+  source: number;
+  requestedAt: string;
+  reviewedAt?: string | null;
+  reviewedByUserId?: string | null;
+  reviewReason?: string | null;
+  correlationId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssociationRequestRequest {
+  targetCondominiumId: string;
+  requestedRole: number;
+  source: number;
+  correlationId?: string;
+}
+
+export interface ReviewAssociationRequestRequest {
+  reason?: string;
+}
+
+export interface AssociateExistingAdminRequest {
+  email: string;
+  condominiumId: string;
+}
+
+export interface AssociateExistingAdminResponse {
+  message: string;
+  wasAlreadyAdmin: boolean;
+}

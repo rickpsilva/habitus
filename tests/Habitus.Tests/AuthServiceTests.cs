@@ -376,6 +376,29 @@ public class AuthServiceTests
             .WithMessage("*Manager accounts is not allowed*");
     }
 
+    [Fact]
+    public async Task RegisterAsync_WhenEmailAlreadyExists_ShouldThrowRegistrationConflictException()
+    {
+        _userRepositoryMock
+            .Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<User, bool>>>() ))
+            .ReturnsAsync(true);
+
+        var action = () => _service.RegisterAsync(new RegisterRequest
+        {
+            Name = "Existing",
+            Email = "existing@example.com",
+            Password = "StrongPassword!123",
+            Phone = "910000000",
+            Role = "Resident",
+            CondominiumId = Guid.NewGuid(),
+            UnitId = Guid.NewGuid(),
+        });
+
+        var ex = await action.Should().ThrowAsync<RegistrationConflictException>();
+        ex.Which.Code.Should().Be("email_already_exists");
+        ex.Which.NextAction.Should().Be("sign_in_and_request_association");
+    }
+
     private static IConfiguration BuildConfiguration()
     {
         return new ConfigurationBuilder()

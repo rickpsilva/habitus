@@ -14,19 +14,25 @@ public class UserService
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<Unit> _unitRepository;
     private readonly IEncryptionService _encryptionService;
+    private readonly IRepository<Notification>? _notificationRepository;
+    private readonly INotificationDispatchService? _notificationDispatchService;
 
     public UserService(
         IRepository<User> userRepository,
         IRepository<UserCondominium> userCondominiumRepository,
         IRepository<Condominium> condominiumRepository,
         IRepository<Unit> unitRepository,
-        IEncryptionService encryptionService)
+        IEncryptionService encryptionService,
+        IRepository<Notification>? notificationRepository = null,
+        INotificationDispatchService? notificationDispatchService = null)
     {
         _userRepository = userRepository;
         _userCondominiumRepository = userCondominiumRepository;
         _condominiumRepository = condominiumRepository;
         _unitRepository = unitRepository;
         _encryptionService = encryptionService;
+        _notificationRepository = notificationRepository;
+        _notificationDispatchService = notificationDispatchService;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
@@ -278,6 +284,86 @@ public class UserService
 
         await _userCondominiumRepository.AddAsync(userCondominium);
         await _userCondominiumRepository.SaveChangesAsync();
+    }
+
+    public async Task<AssociateExistingAdminResponse> AssociateExistingAdminAsync(AssociateExistingAdminRequest request)
+    {
+        var emailHash = EmailHashHelper.GenerateEmailHash(request.Email);
+        var existingUser = await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
+        if (existingUser == null)
+        {
+            throw new KeyNotFoundException($"User with email {request.Email} was not found.");
+        }
+
+        var condominium = await _condominiumRepository.GetByIdAsync(request.CondominiumId);
+        if (condominium == null)
+        {
+            throw new InvalidOperationException($"Condominium with ID {request.CondominiumId} not found.");
+        }
+
+        var association = await _userCondominiumRepository.FirstOrDefaultAsync(uc =>
+            uc.UserId == existingUser.Id && uc.CondominiumId == request.CondominiumId);
+
+        var wasAlreadyAdmin = association?.CanManage == true;
+
+        if (association == null)
+        {
+            association = new UserCondominium
+            {
+                UserId = existingUser.Id,
+                CondominiumId = request.CondominiumId,
+                GrantedAt = DateTime.UtcNow,
+                CanManage = true,
+            };
+            await _userCondominiumRepository.AddAsync(association);
+        }
+        else if (!association.CanManage)
+        {
+            association.CanManage = true;
+            _userCondominiumRepository.Update(association);
+        }
+
+        if (existingUser.Role != UserRole.Manager)
+        {
+            existingUser.Role = UserRole.Admin;
+            if (!existingUser.CondominiumId.HasValue)
+            {
+                existingUser.CondominiumId = request.CondominiumId;
+            }
+
+            _userRepository.Update(existingUser);
+            await _userRepository.SaveChangesAsync();
+        }
+
+        await _userCondominiumRepository.SaveChangesAsync();
+
+        if (!wasAlreadyAdmin && _notificationRepository != null && _notificationDispatchService != null)
+        {
+            var notification = new Notification
+            {
+                Id = Guid.NewGuid(),
+                Title = "Associacao de administrador atribuida",
+                Message = $"Foi associado como administrador ao condominio {condominium.Name}.",
+                Type = NotificationType.Info,
+                TargetRole = string.Empty,
+                TargetUserId = existingUser.Id,
+                CondominiumId = request.CondominiumId,
+                SentAt = DateTime.UtcNow,
+                IsRead = false,
+            };
+
+            await _notificationRepository.AddAsync(notification);
+            await _notificationRepository.SaveChangesAsync();
+            await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
+        }
+
+        return new AssociateExistingAdminResponse
+        {
+            Message = wasAlreadyAdmin
+                ? "Utilizador ja estava associado como administrador deste condominio."
+                : "Utilizador associado como administrador com sucesso.",
+            WasAlreadyAdmin = wasAlreadyAdmin,
+        };
     }
 
     public async Task<List<CondominiumActiveUsersDto>> GetActiveUsersByCondominiumLastMonthAsync()

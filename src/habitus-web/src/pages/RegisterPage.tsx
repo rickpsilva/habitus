@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Building2, Mail, Lock, User, Phone, Home } from 'lucide-react';
+import { Building2, Mail, Lock, User, Phone, Home, MailWarning } from 'lucide-react';
 import { authApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import type { UnitDto, RegisterRequest } from '../types';
+import { AssociationRequestedRole, AssociationRequestSource } from '../types';
+import { setPendingAssociationIntent } from '../utils/associationIntent';
 import { Button } from '../components/ui';
 import { useTranslation } from '../i18n/I18nProvider';
 
@@ -14,6 +16,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', unitId: '' });
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [error, setError] = useState('');
+  const [emailExists, setEmailExists] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -54,7 +57,11 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailExists(false);
     setLoading(true);
+
+    let intentCondominiumId: string | undefined;
+    let intentRole: number = AssociationRequestedRole.Admin;
     try {
       let request: RegisterRequest;
 
@@ -67,6 +74,8 @@ export default function RegisterPage() {
           condominiumId: routeCondominiumId,
           role: 'Admin',
         };
+        intentCondominiumId = routeCondominiumId;
+        intentRole = AssociationRequestedRole.Admin;
       } else {
         const selectedUnit = units.find((u) => u.id === form.unitId);
         if (!selectedUnit) {
@@ -84,13 +93,28 @@ export default function RegisterPage() {
           condominiumId: selectedUnit.condominiumId,
           role: 'Resident',
         };
+        intentCondominiumId = selectedUnit.condominiumId;
+        intentRole = AssociationRequestedRole.Resident;
       }
 
       const { data } = await authApi.register(request);
       login(data);
       navigate('/dashboard');
-    } catch {
-      setError(t('register.error.createFailed'));
+    } catch (err) {
+      const response = (err as { response?: { status?: number; data?: { code?: string } } }).response;
+      // Register fallback: the email already has an account. Persist the intended
+      // association so it is created right after the user signs in, and show a
+      // friendly panel with a "Sign in" CTA instead of the generic error.
+      if (response?.status === 409 && response.data?.code === 'email_already_exists' && intentCondominiumId) {
+        setPendingAssociationIntent({
+          targetCondominiumId: intentCondominiumId,
+          requestedRole: intentRole,
+          source: AssociationRequestSource.RegisterFallback,
+        });
+        setEmailExists(true);
+      } else {
+        setError(t('register.error.createFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -122,6 +146,24 @@ export default function RegisterPage() {
             <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>
           )}
 
+          {emailExists ? (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center text-center gap-3 py-2">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-100">
+                  <MailWarning className="w-7 h-7 text-amber-600" />
+                </div>
+                <h3 className="text-base font-semibold text-ink">{t('association.emailExists.title')}</h3>
+                <p className="text-sm text-ink-muted">{t('association.emailExists.message')}</p>
+              </div>
+              <Button
+                type="button"
+                fullWidth
+                onClick={() => navigate(`/login?email=${encodeURIComponent(form.email)}`)}
+              >
+                {t('association.emailExists.signIn')}
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
               { name: 'name', label: t('register.nameLabel'), type: 'text', icon: User, placeholder: t('register.namePlaceholder') },
@@ -173,6 +215,7 @@ export default function RegisterPage() {
               {loading ? t('register.creating') : t('register.title')}
             </Button>
           </form>
+          )}
 
           <p className="text-center text-sm text-ink-subtle mt-6">
             {t('register.haveAccount')}{' '}

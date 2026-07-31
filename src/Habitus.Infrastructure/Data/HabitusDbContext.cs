@@ -11,6 +11,7 @@ public class HabitusDbContext : DbContext
     public DbSet<Condominium> Condominiums => Set<Condominium>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserCondominium> UserCondominiums => Set<UserCondominium>();
+    public DbSet<UserCondominiumAssociationRequest> UserCondominiumAssociationRequests => Set<UserCondominiumAssociationRequest>();
     public DbSet<UnitMembership> UnitMemberships => Set<UnitMembership>();
     public DbSet<ConsentDefinition> ConsentDefinitions => Set<ConsentDefinition>();
     public DbSet<UserConsent> UserConsents => Set<UserConsent>();
@@ -151,6 +152,43 @@ public class HabitusDbContext : DbContext
                 .WithMany(c => c.UserCondominiums)
                 .HasForeignKey(uc => uc.CondominiumId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserCondominiumAssociationRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.ReviewReason).HasMaxLength(1000);
+            entity.Property(r => r.CorrelationId).HasMaxLength(128);
+
+            entity.HasOne(r => r.RequesterUser)
+                .WithMany()
+                .HasForeignKey(r => r.RequesterUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.TargetCondominium)
+                .WithMany()
+                .HasForeignKey(r => r.TargetCondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(r => r.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(
+                    r => new { r.RequesterUserId, r.TargetCondominiumId, r.RequestedRole },
+                    "IX_UCAR_UniquePendingRequesterTargetRole")
+                .IsUnique()
+                .HasFilter($"\"Status\" = {(int)AssociationRequestStatus.Pending}");
+
+            entity.HasIndex(
+                    r => new { r.TargetCondominiumId, r.Status, r.RequestedAt },
+                    "IX_UCAR_TargetCondominium_Status_RequestedAt");
+
+            entity.HasIndex(
+                    r => new { r.RequesterUserId, r.Status, r.RequestedAt },
+                    "IX_UCAR_Requester_Status_RequestedAt");
         });
 
         // Configure UnitMembership (multi-fraction membership)
