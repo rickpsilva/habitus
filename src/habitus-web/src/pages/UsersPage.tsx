@@ -158,7 +158,7 @@ export default function UsersPage() {
     e.preventDefault();
     try {
       // Validate based on role
-      if (formData.role === 1 || formData.role === 2) {
+      if (formData.role === UserRole.Admin || formData.role === UserRole.Resident) {
         if (!formData.condominiumId) {
           toastError(t('users.error.condoRequired'));
           return;
@@ -622,7 +622,7 @@ export default function UsersPage() {
                         </div>
                       ) : (
                         <select
-                          required={formData.role === 2}
+                          required={formData.role === UserRole.Resident}
                           value={formData.unitId || ''}
                           onChange={(e) => setFormData({ ...formData, unitId: e.target.value || undefined })}
                           disabled={!formData.condominiumId}

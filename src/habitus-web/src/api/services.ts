@@ -102,6 +102,11 @@ import type {
   PlatformLocalizationSettingsDto,
   UpdatePlatformLocalizationSettingsRequest,
   PublicLocalizationDefaultDto,
+  AssociationRequestResponseDto,
+  CreateAssociationRequestRequest,
+  ReviewAssociationRequestRequest,
+  AssociateExistingAdminRequest,
+  AssociateExistingAdminResponse,
 } from '../types';
 
 export const authApi = {
@@ -191,6 +196,27 @@ export const usersApi = {
   getActiveLastMonthByCondominium: () =>
     api.get<CondominiumActiveUsersDto[]>('/platform/users/active-last-month-by-condominium'),
   delete: (id: string) => api.delete(`/platform/users/${id}`),
+  // Manager-only: promote/associate an already-registered user as Admin of a
+  // condominium. Returns whether the user was already an admin there.
+  associateExistingAdmin: (data: AssociateExistingAdminRequest) =>
+    api.post<AssociateExistingAdminResponse>('/platform/users/associate-existing-admin', data),
+};
+
+// Membership association requests (self-service association + admin review).
+// `status` on getMy is the integer AssociationRequestStatus.
+export const associationApi = {
+  create: (data: CreateAssociationRequestRequest) =>
+    api.post<AssociationRequestResponseDto>('/platform/membership-association-requests', data),
+  getMy: (status?: number) =>
+    api.get<AssociationRequestResponseDto[]>(
+      `/platform/membership-association-requests/my${status !== undefined ? `?status=${status}` : ''}`,
+    ),
+  getPending: () =>
+    api.get<AssociationRequestResponseDto[]>('/platform/membership-association-requests/pending'),
+  approve: (id: string, data: ReviewAssociationRequestRequest) =>
+    api.post<AssociationRequestResponseDto>(`/platform/membership-association-requests/${id}/approve`, data),
+  reject: (id: string, data: ReviewAssociationRequestRequest) =>
+    api.post<AssociationRequestResponseDto>(`/platform/membership-association-requests/${id}/reject`, data),
 };
 
 // New condominiums API

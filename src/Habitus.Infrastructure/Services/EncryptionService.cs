@@ -18,8 +18,10 @@ public class EncryptionService : IEncryptionService
     private const int KeySize = 32; // 256 bits
     private const int NonceSize = 12; // 96 bits for GCM
     private const int TagSize = 16; // 128 bits for GCM
+    private const string DevelopmentKey = "habitus-default-encryption-key-for-development-only";
+    private const string DefaultSalt = "habitus-encryption-salt";
 
-    public EncryptionService(IConfiguration configuration, ILogger<EncryptionService> logger)
+    public EncryptionService(IConfiguration configuration, ILogger<EncryptionService> logger, bool isDevelopment = false)
     {
         _logger = logger;
         
@@ -27,14 +29,28 @@ public class EncryptionService : IEncryptionService
         var keyString = configuration["EncryptionKey"]
             ?? Environment.GetEnvironmentVariable("ENCRYPTION_KEY");
         
-        if (string.IsNullOrEmpty(keyString))
+        if (string.IsNullOrEmpty(keyString) || keyString == DevelopmentKey)
         {
+            // Outside Development, refuse to start rather than silently protecting PII with the
+            // well-known development key.
+            if (!isDevelopment)
+            {
+                throw new InvalidOperationException(
+                    "EncryptionKey is not configured (or is set to the development default) in a non-Development " +
+                    "environment. Configure a strong EncryptionKey (e.g. via Azure Key Vault) before starting.");
+            }
+
             _logger.LogWarning("EncryptionKey not configured. Using development key. DO NOT USE IN PRODUCTION!");
-            keyString = "habitus-default-encryption-key-for-development-only";
+            keyString = DevelopmentKey;
         }
 
+        // Salt is configurable per deployment; overriding EncryptionSalt requires re-encrypting existing data.
+        var salt = configuration["EncryptionSalt"];
+        if (string.IsNullOrEmpty(salt))
+            salt = DefaultSalt;
+
         // Derive a 256-bit key from the provided string using PBKDF2
-        _encryptionKey = DeriveKeyFromString(keyString);
+        _encryptionKey = DeriveKeyFromString(keyString, salt);
     }
 
     public string Encrypt(string plaintext)
@@ -130,11 +146,11 @@ public class EncryptionService : IEncryptionService
         }
     }
 
-    private static byte[] DeriveKeyFromString(string keyString)
+    private static byte[] DeriveKeyFromString(string keyString, string salt)
     {
         // Use PBKDF2 to derive a 256-bit key from the input string
-        var salt = Encoding.UTF8.GetBytes("habitus-encryption-salt"); // Fixed salt for consistency
+        var saltBytes = Encoding.UTF8.GetBytes(salt);
         
-        return Rfc2898DeriveBytes.Pbkdf2(keyString, salt, 100000, HashAlgorithmName.SHA256, KeySize);
+        return Rfc2898DeriveBytes.Pbkdf2(keyString, saltBytes, 100000, HashAlgorithmName.SHA256, KeySize);
     }
 }

@@ -364,6 +364,7 @@ export const pt = {
   'profile.preferences.subtitle': 'Personalize a sua experiência na aplicação.',
   'profile.preferences.language': 'Idioma',
   'profile.preferences.languageScope': 'Aplica-se apenas à sua conta.',
+  'profile.preferences.languageUnavailable': 'A seleção de idioma não está disponível para a sua conta. Depende do plano de subscrição do condomínio (contas de Gestor não têm condomínio, pelo que nunca se aplica). É utilizado o idioma predefinido da plataforma.',
 
   // Profile — page header + tabs
   'profile.title': 'Meu Perfil',
@@ -804,6 +805,7 @@ export const pt = {
   'payments.error.validation': 'Erro de validação:\n{errors}',
   'payments.error.noCondominium': 'Condomínio não selecionado.',
   'payments.error.load': 'Não foi possível carregar os pagamentos.',
+  'payments.error.loadMethods': 'Não foi possível carregar os métodos de pagamento.',
   'payments.error.invalidAmount': 'Por favor, insira um valor válido maior que zero.',
   'payments.error.descriptionRequired': 'Por favor, insira uma descrição.',
   'payments.error.proofRequired': 'Por favor, anexe o comprovativo de pagamento para transferências bancárias.',
@@ -1784,10 +1786,11 @@ export const pt = {
   'condominiums.delete.confirm': 'Remover',
 
   // Condominiums — card
-  'condominiums.card.generateAdminLink': 'Gerar link de registo de administrador',
+  'condominiums.card.generateAdminLink': 'Associar administrador',
   'condominiums.card.noEmail': 'Sem email configurado',
   'condominiums.card.phone': 'Telefone: {phone}',
   'condominiums.card.adminLinkTitle': 'Link de registo para Admin',
+  'condominiums.card.adminLinkDescription': 'Se a pessoa ainda não tem conta, partilhe este link para que se possa registar como administrador.',
   'condominiums.card.copied': 'Copiado',
   'condominiums.card.copyLink': 'Copiar link',
 
@@ -1948,6 +1951,75 @@ export const pt = {
   'auth.error.noAccess': 'Não tem acesso a este condomínio ou fração.',
   'auth.error.inactiveCondominium': 'Este condomínio está inativo. Contacte o gestor do condomínio.',
   'auth.error.switchFailed': 'Não foi possível mudar de contexto. Tente novamente.',
+
+  // Membership association — navigation
+  'nav.myAssociations': 'As Minhas Associações',
+  'nav.associationRequests': 'Pedidos de Associação',
+
+  // Membership association — shared
+  'association.emailExists.title': 'Este email já tem conta',
+  'association.emailExists.message': 'Este email já tem uma conta. Inicie sessão e vamos solicitar a sua associação a este condomínio para aprovação do administrador.',
+  'association.emailExists.signIn': 'Iniciar sessão',
+  'association.intent.submitted': 'Pedido de associação enviado. Aguarda aprovação do administrador.',
+  'association.intent.failed': 'Não foi possível enviar o pedido de associação.',
+  'association.error.alreadyAssociated': 'Já está associado a este condomínio.',
+  'association.error.alreadyPending': 'Já existe um pedido pendente para este condomínio.',
+  'association.status.pending': 'Pendente',
+  'association.status.approved': 'Aprovado',
+  'association.status.rejected': 'Rejeitado',
+  'association.status.cancelled': 'Cancelado',
+
+  // Membership association — my requests (FLOW B)
+  'myAssociations.title': 'As Minhas Associações',
+  'myAssociations.subtitle': 'Peça associação a outro condomínio e acompanhe o estado dos seus pedidos.',
+  'myAssociations.newRequestHeading': 'Novo pedido de associação',
+  'myAssociations.condominiumLabel': 'Condomínio',
+  'myAssociations.condominiumPlaceholder': 'Selecione um condomínio',
+  'myAssociations.roleLabel': 'Função',
+  'myAssociations.submit': 'Enviar pedido',
+  'myAssociations.submitting': 'A enviar...',
+  'myAssociations.submitted': 'Pedido enviado com sucesso.',
+  'myAssociations.selectCondominium': 'Selecione um condomínio.',
+  'myAssociations.listHeading': 'Os meus pedidos',
+  'myAssociations.empty': 'Ainda não tem pedidos de associação.',
+  'myAssociations.requestedAt': 'Pedido em',
+  'myAssociations.error.load': 'Não foi possível carregar os pedidos.',
+  'myAssociations.error.submit': 'Não foi possível enviar o pedido.',
+
+  // Membership association — admin review (FLOW C)
+  'associationRequests.title': 'Pedidos de Associação',
+  'associationRequests.subtitle': 'Reveja os pedidos pendentes de associação ao seu condomínio.',
+  'associationRequests.empty': 'Não há pedidos pendentes.',
+  'associationRequests.requestedAt': 'Pedido em',
+  'associationRequests.approve': 'Aprovar',
+  'associationRequests.reject': 'Rejeitar',
+  'associationRequests.approved': 'Pedido aprovado.',
+  'associationRequests.rejected': 'Pedido rejeitado.',
+  'associationRequests.reasonLabel': 'Motivo (opcional)',
+  'associationRequests.reasonPlaceholder': 'Motivo da decisão...',
+  'associationRequests.rejectTitle': 'Rejeitar pedido',
+  'associationRequests.confirmReject': 'Rejeitar',
+  'associationRequests.error.load': 'Não foi possível carregar os pedidos.',
+  'associationRequests.error.forbidden': 'Não tem permissão para rever pedidos.',
+  'associationRequests.error.notPending': 'Este pedido já não está pendente.',
+  'associationRequests.error.actionFailed': 'Não foi possível concluir a ação.',
+
+  // Membership association — associate existing admin (FLOW D)
+  'associateAdmin.heading': 'Associar administrador existente',
+  'associateAdmin.description': 'Associar administrador a: {condominiumName}',
+  'associateAdmin.emailLabel': 'Email do utilizador',
+  'associateAdmin.emailPlaceholder': 'utilizador@email.com',
+  'associateAdmin.condominiumLabel': 'Condomínio',
+  'associateAdmin.condominiumPlaceholder': 'Selecione um condomínio',
+  'associateAdmin.submit': 'Associar',
+  'associateAdmin.submitting': 'A associar...',
+  'associateAdmin.selectCondominium': 'Selecione um condomínio.',
+  'associateAdmin.error.userNotFound': 'Utilizador não encontrado.',
+  'associateAdmin.error.failed': 'Não foi possível associar o utilizador.',
+  'associateAdmin.modalTitle': 'Associar administrador — {condominiumName}',
+  'associateAdmin.existingUserHeading': 'Utilizador existente',
+  'associateAdmin.newUserHeading': 'Novo utilizador',
+  'associateAdmin.divider': 'ou',
 } as const;
 
 export type TranslationKey = keyof typeof pt;

@@ -365,6 +365,7 @@ export const en: Record<TranslationKey, string> = {
   'profile.preferences.subtitle': 'Personalize your app experience.',
   'profile.preferences.language': 'Language',
   'profile.preferences.languageScope': 'Applies to your account only.',
+  'profile.preferences.languageUnavailable': 'Language selection is not available for your account. It depends on your condominium\'s subscription plan (Manager accounts have no condominium, so it never applies to them). The platform default language is used.',
 
   // Profile — page header + tabs
   'profile.title': 'My Profile',
@@ -805,6 +806,7 @@ export const en: Record<TranslationKey, string> = {
   'payments.error.validation': 'Validation error:\n{errors}',
   'payments.error.noCondominium': 'No condominium selected.',
   'payments.error.load': 'Unable to load payments.',
+  'payments.error.loadMethods': 'Unable to load payment methods.',
   'payments.error.invalidAmount': 'Please enter a valid amount greater than zero.',
   'payments.error.descriptionRequired': 'Please enter a description.',
   'payments.error.proofRequired': 'Please attach the proof of payment for bank transfers.',
@@ -1785,10 +1787,11 @@ export const en: Record<TranslationKey, string> = {
   'condominiums.delete.confirm': 'Remove',
 
   // Condominiums — card
-  'condominiums.card.generateAdminLink': 'Generate admin registration link',
+  'condominiums.card.generateAdminLink': 'Associate admin',
   'condominiums.card.noEmail': 'No email configured',
   'condominiums.card.phone': 'Phone: {phone}',
   'condominiums.card.adminLinkTitle': 'Admin registration link',
+  'condominiums.card.adminLinkDescription': "If the person doesn't have an account yet, share this link so they can self-register as admin.",
   'condominiums.card.copied': 'Copied',
   'condominiums.card.copyLink': 'Copy link',
 
@@ -1949,4 +1952,73 @@ export const en: Record<TranslationKey, string> = {
   'auth.error.noAccess': 'You do not have access to this condominium or unit.',
   'auth.error.inactiveCondominium': 'This condominium is inactive. Contact the condominium manager.',
   'auth.error.switchFailed': 'Could not switch context. Please try again.',
+
+  // Membership association — navigation
+  'nav.myAssociations': 'My Associations',
+  'nav.associationRequests': 'Association Requests',
+
+  // Membership association — shared
+  'association.emailExists.title': 'This email already has an account',
+  'association.emailExists.message': 'This email already has an account. Sign in and we\'ll request your association to this condominium for admin approval.',
+  'association.emailExists.signIn': 'Sign in',
+  'association.intent.submitted': 'Association request sent. Awaiting admin approval.',
+  'association.intent.failed': 'Could not send the association request.',
+  'association.error.alreadyAssociated': 'You are already associated with this condominium.',
+  'association.error.alreadyPending': 'There is already a pending request for this condominium.',
+  'association.status.pending': 'Pending',
+  'association.status.approved': 'Approved',
+  'association.status.rejected': 'Rejected',
+  'association.status.cancelled': 'Cancelled',
+
+  // Membership association — my requests (FLOW B)
+  'myAssociations.title': 'My Associations',
+  'myAssociations.subtitle': 'Request association to another condominium and track your requests.',
+  'myAssociations.newRequestHeading': 'New association request',
+  'myAssociations.condominiumLabel': 'Condominium',
+  'myAssociations.condominiumPlaceholder': 'Select a condominium',
+  'myAssociations.roleLabel': 'Role',
+  'myAssociations.submit': 'Send request',
+  'myAssociations.submitting': 'Sending...',
+  'myAssociations.submitted': 'Request sent successfully.',
+  'myAssociations.selectCondominium': 'Select a condominium.',
+  'myAssociations.listHeading': 'My requests',
+  'myAssociations.empty': 'You have no association requests yet.',
+  'myAssociations.requestedAt': 'Requested at',
+  'myAssociations.error.load': 'Could not load requests.',
+  'myAssociations.error.submit': 'Could not send the request.',
+
+  // Membership association — admin review (FLOW C)
+  'associationRequests.title': 'Association Requests',
+  'associationRequests.subtitle': 'Review pending association requests for your condominium.',
+  'associationRequests.empty': 'There are no pending requests.',
+  'associationRequests.requestedAt': 'Requested at',
+  'associationRequests.approve': 'Approve',
+  'associationRequests.reject': 'Reject',
+  'associationRequests.approved': 'Request approved.',
+  'associationRequests.rejected': 'Request rejected.',
+  'associationRequests.reasonLabel': 'Reason (optional)',
+  'associationRequests.reasonPlaceholder': 'Reason for the decision...',
+  'associationRequests.rejectTitle': 'Reject request',
+  'associationRequests.confirmReject': 'Reject',
+  'associationRequests.error.load': 'Could not load requests.',
+  'associationRequests.error.forbidden': 'You are not allowed to review requests.',
+  'associationRequests.error.notPending': 'This request is no longer pending.',
+  'associationRequests.error.actionFailed': 'Could not complete the action.',
+
+  // Membership association — associate existing admin (FLOW D)
+  'associateAdmin.heading': 'Associate existing admin',
+  'associateAdmin.description': 'Associate admin to: {condominiumName}',
+  'associateAdmin.emailLabel': 'User email',
+  'associateAdmin.emailPlaceholder': 'user@email.com',
+  'associateAdmin.condominiumLabel': 'Condominium',
+  'associateAdmin.condominiumPlaceholder': 'Select a condominium',
+  'associateAdmin.submit': 'Associate',
+  'associateAdmin.submitting': 'Associating...',
+  'associateAdmin.selectCondominium': 'Select a condominium.',
+  'associateAdmin.error.userNotFound': 'User not found.',
+  'associateAdmin.error.failed': 'Could not associate the user.',
+  'associateAdmin.modalTitle': 'Associate admin — {condominiumName}',
+  'associateAdmin.existingUserHeading': 'Existing user',
+  'associateAdmin.newUserHeading': 'New user',
+  'associateAdmin.divider': 'or',
 };

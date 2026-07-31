@@ -3,6 +3,7 @@ using System;
 using Habitus.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Habitus.Infrastructure.Migrations
 {
     [DbContext(typeof(HabitusDbContext))]
-    partial class HabitusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731180641_AddPerformanceIndexes")]
+    partial class AddPerformanceIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2229,65 +2232,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("UserCondominiums");
                 });
 
-            modelBuilder.Entity("Habitus.Domain.Entities.UserCondominiumAssociationRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int>("RequestedRole")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("RequesterUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ReviewReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Source")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TargetCondominiumId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReviewedByUserId");
-
-                    b.HasIndex(new[] { "RequesterUserId", "Status", "RequestedAt" }, "IX_UCAR_Requester_Status_RequestedAt");
-
-                    b.HasIndex(new[] { "TargetCondominiumId", "Status", "RequestedAt" }, "IX_UCAR_TargetCondominium_Status_RequestedAt");
-
-                    b.HasIndex(new[] { "RequesterUserId", "TargetCondominiumId", "RequestedRole" }, "IX_UCAR_UniquePendingRequesterTargetRole")
-                        .IsUnique()
-                        .HasFilter("\"Status\" = 0");
-
-                    b.ToTable("UserCondominiumAssociationRequests");
-                });
-
             modelBuilder.Entity("Habitus.Domain.Entities.UserConsent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2986,32 +2930,6 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Condominium");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Habitus.Domain.Entities.UserCondominiumAssociationRequest", b =>
-                {
-                    b.HasOne("Habitus.Domain.Entities.User", "RequesterUser")
-                        .WithMany()
-                        .HasForeignKey("RequesterUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Habitus.Domain.Entities.User", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Habitus.Domain.Entities.Condominium", "TargetCondominium")
-                        .WithMany()
-                        .HasForeignKey("TargetCondominiumId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("RequesterUser");
-
-                    b.Navigation("ReviewedByUser");
-
-                    b.Navigation("TargetCondominium");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.UserConsent", b =>

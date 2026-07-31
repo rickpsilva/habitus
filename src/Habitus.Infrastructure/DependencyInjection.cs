@@ -109,6 +109,7 @@ public static class DependencyInjection
         
         // New multi-condominium services
         services.AddScoped<UserService>();
+        services.AddScoped<AssociationRequestService>();
         services.AddScoped<CondominiumService>();
         services.AddScoped<SubscriptionService>();
         services.AddScoped<InvoiceService>();
@@ -126,7 +127,10 @@ public static class DependencyInjection
 
         // Encryption service for sensitive data. Singleton: PBKDF2(100k) key derivation
         // runs once at boot instead of per request; the service is stateless afterwards.
-        services.AddSingleton<IEncryptionService, EncryptionService>();
+        services.AddSingleton<IEncryptionService>(sp => new EncryptionService(
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<EncryptionService>>(),
+            isDevelopment));
 
         return services;
     }

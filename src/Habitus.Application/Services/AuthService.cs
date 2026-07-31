@@ -29,6 +29,19 @@ public sealed class InactiveCondominiumAccessException : Exception
     }
 }
 
+public sealed class RegistrationConflictException : Exception
+{
+    public RegistrationConflictException(string code, string message, string? nextAction = null)
+        : base(message)
+    {
+        Code = code;
+        NextAction = nextAction;
+    }
+
+    public string Code { get; }
+    public string? NextAction { get; }
+}
+
 public class AuthService
 {
     private const int MaxFailedLoginAttempts = 5;
@@ -421,7 +434,13 @@ public class AuthService
 
     public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
     {
-        if (await EmailExistsAsync(request.Email)) return null;
+        if (await EmailExistsAsync(request.Email))
+        {
+            throw new RegistrationConflictException(
+                "email_already_exists",
+                "Email already registered.",
+                "sign_in_and_request_association");
+        }
 
         if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
         {

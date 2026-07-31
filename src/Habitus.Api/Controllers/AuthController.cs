@@ -22,8 +22,17 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.RegisterAsync(request);
-            if (result == null) return Conflict("Email already registered.");
+            if (result == null) return BadRequest("Invalid registration payload.");
             return Ok(result);
+        }
+        catch (RegistrationConflictException ex)
+        {
+            return Conflict(new
+            {
+                code = ex.Code,
+                message = ex.Message,
+                nextAction = ex.NextAction
+            });
         }
         catch (InvalidOperationException ex)
         {

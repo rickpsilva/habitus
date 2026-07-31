@@ -175,8 +175,8 @@ export default function MaintenancePage() {
       .then((r) => {
         setStatusCounts({ Open: r.data.open, InProgress: r.data.inProgress, Completed: r.data.completed });
       })
-      .catch(console.error);
-  }, [condominiumId]);
+      .catch(() => toastError(t('maintenance.error.load')));
+  }, [condominiumId, t, toastError]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadStatusCounts(); }, [loadStatusCounts]);

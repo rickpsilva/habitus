@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail } from 'lucide-react';
+import { Building2, Plus, Trash2, Edit2, MapPin, CheckCircle, XCircle, UserPlus, Copy, Mail, X } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
+import AssociateExistingAdminForm from '../components/AssociateExistingAdminForm';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
@@ -34,7 +35,7 @@ export default function CondominiumsPage() {
   const [pagination, setPagination] = useState<PaginatedResponse<CondominiumDto> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [visibleLinkCondoId, setVisibleLinkCondoId] = useState<string | null>(null);
+  const [associateAdminCondo, setAssociateAdminCondo] = useState<CondominiumDto | null>(null);
   const [copiedLinkCondoId, setCopiedLinkCondoId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const pageSize = 10;
@@ -159,6 +160,11 @@ export default function CondominiumsPage() {
     }
   };
 
+  const closeAssociateAdminModal = () => {
+    setAssociateAdminCondo(null);
+    setCopiedLinkCondoId(null);
+  };
+
   if (!isManager) {
     return (
       <div className="text-center py-20 text-ink-subtle">
@@ -179,6 +185,70 @@ export default function CondominiumsPage() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
+
+      {associateAdminCondo && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="associate-admin-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
+          onClick={(e) => { if (e.target === e.currentTarget) closeAssociateAdminModal(); }}
+        >
+          <div className="bg-surface rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h3 id="associate-admin-title" className="font-semibold text-ink text-lg">
+                {t('associateAdmin.modalTitle', { condominiumName: associateAdminCondo.name })}
+              </h3>
+              <button
+                type="button"
+                onClick={closeAssociateAdminModal}
+                aria-label={t('common.close')}
+                className="text-ink-subtle hover:text-ink-muted transition-colors shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <section>
+              <h4 className="text-sm font-semibold text-ink mb-2">{t('associateAdmin.existingUserHeading')}</h4>
+              <AssociateExistingAdminForm
+                condominiumId={associateAdminCondo.id}
+                condominiumName={associateAdminCondo.name}
+              />
+            </section>
+
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-line" />
+              <span className="text-xs font-medium uppercase text-ink-subtle">{t('associateAdmin.divider')}</span>
+              <div className="flex-1 h-px bg-line" />
+            </div>
+
+            <section>
+              <h4 className="text-sm font-semibold text-ink mb-2">{t('associateAdmin.newUserHeading')}</h4>
+              <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
+                <p className="text-xs font-medium text-emerald-800 mb-1">{t('condominiums.card.adminLinkTitle')}</p>
+                <p className="text-xs text-emerald-700 mb-2">{t('condominiums.card.adminLinkDescription')}</p>
+                <a
+                  href={getAdminRegisterPath(associateAdminCondo.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-xs text-emerald-700 underline break-all"
+                >
+                  {getAdminRegisterUrl(associateAdminCondo.id)}
+                </a>
+                <button
+                  onClick={() => handleCopyAdminRegisterUrl(associateAdminCondo.id)}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {copiedLinkCondoId === associateAdminCondo.id ? t('condominiums.card.copied') : t('condominiums.card.copyLink')}
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         title={t('condominiums.title')}
         subtitle={t('condominiums.subtitle', { count: condominiums.length })}
@@ -226,7 +296,7 @@ export default function CondominiumsPage() {
                 </div>
                 <div className="flex gap-1">
                   <button
-                    onClick={() => setVisibleLinkCondoId((current) => (current === condo.id ? null : condo.id))}
+                    onClick={() => setAssociateAdminCondo(condo)}
                     className="p-1.5 text-ink-subtle hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                     title={t('condominiums.card.generateAdminLink')}
                   >
@@ -266,26 +336,6 @@ export default function CondominiumsPage() {
                 {condo.contactPhone && (
                   <div className="flex items-center gap-2 text-ink-muted">
                     <span className="text-sm">{t('condominiums.card.phone', { phone: condo.contactPhone })}</span>
-                  </div>
-                )}
-                {visibleLinkCondoId === condo.id && (
-                  <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5">
-                    <p className="text-xs font-medium text-emerald-800 mb-1">{t('condominiums.card.adminLinkTitle')}</p>
-                    <a
-                      href={getAdminRegisterPath(condo.id)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-xs text-emerald-700 underline break-all"
-                    >
-                      {getAdminRegisterUrl(condo.id)}
-                    </a>
-                    <button
-                      onClick={() => handleCopyAdminRegisterUrl(condo.id)}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      {copiedLinkCondoId === condo.id ? t('condominiums.card.copied') : t('condominiums.card.copyLink')}
-                    </button>
                   </div>
                 )}
               </div>

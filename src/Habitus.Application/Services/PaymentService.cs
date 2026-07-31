@@ -92,28 +92,18 @@ public class PaymentService
     public async Task<IEnumerable<PaymentDto>> GetByResidentAsync(Guid residentId)
     {
         var payments = await _paymentRepository.FindAsync(p => p.ResidentId == residentId);
-        var orderedPayments = payments.OrderByDescending(p => p.CreatedDate);
-        
-        var dtos = new List<PaymentDto>();
-        foreach (var payment in orderedPayments)
-        {
-            dtos.Add(await MapToDtoAsync(payment));
-        }
-        return dtos;
+        var orderedPayments = payments.OrderByDescending(p => p.CreatedDate).ToList();
+
+        return await MapManyToDtosAsync(orderedPayments);
     }
 
     public async Task<IEnumerable<PaymentDto>> GetPendingAsync(Guid condominiumId)
     {
         var payments = await _paymentRepository.FindAsync(
             p => p.CondominiumId == condominiumId && p.Status == PaymentStatus.Pending);
-        var orderedPayments = payments.OrderBy(p => p.CreatedDate);
-        
-        var dtos = new List<PaymentDto>();
-        foreach (var payment in orderedPayments)
-        {
-            dtos.Add(await MapToDtoAsync(payment));
-        }
-        return dtos;
+        var orderedPayments = payments.OrderBy(p => p.CreatedDate).ToList();
+
+        return await MapManyToDtosAsync(orderedPayments);
     }
 
     public async Task<PaginatedResponse<PaymentDto>> GetPagedAsync(Guid condominiumId, int page, int pageSize)
@@ -128,11 +118,7 @@ public class PaymentService
             p => p.CreatedDate,
             descending: true);
 
-        var items = new List<PaymentDto>();
-        foreach (var payment in paged.Items)
-        {
-            items.Add(await MapToDtoAsync(payment));
-        }
+        var items = await MapManyToDtosAsync(paged.Items.ToList());
 
         return new PaginatedResponse<PaymentDto>
         {
@@ -185,11 +171,7 @@ public class PaymentService
             p => p.CreatedDate,
             descending: true);
 
-        var items = new List<PaymentDto>();
-        foreach (var payment in paged.Items)
-        {
-            items.Add(await MapToDtoAsync(payment));
-        }
+        var items = await MapManyToDtosAsync(paged.Items.ToList());
 
         return new PaginatedResponse<PaymentDto>
         {
@@ -384,6 +366,53 @@ public class PaymentService
             ? await _userRepository.GetByIdAsync(payment.ReceiptIssuedByUserId.Value)
             : null;
 
+        return MapToDto(payment, resident, unit, processedBy, receiptIssuedBy);
+    }
+
+    /// <summary>
+    /// Maps a batch of payments loading their related residents, units and processing/receipt users
+    /// in a bounded number of queries (one per related table) instead of up to four lookups per
+    /// payment, avoiding the N+1 pattern when mapping a page/list.
+    /// </summary>
+    private async Task<List<PaymentDto>> MapManyToDtosAsync(IReadOnlyCollection<Payment> payments)
+    {
+        if (payments.Count == 0)
+            return new List<PaymentDto>();
+
+        var userIds = new HashSet<Guid>();
+        var unitIds = new HashSet<Guid>();
+        foreach (var payment in payments)
+        {
+            userIds.Add(payment.ResidentId);
+            unitIds.Add(payment.UnitId);
+            if (payment.ProcessedByUserId.HasValue) userIds.Add(payment.ProcessedByUserId.Value);
+            if (payment.ReceiptIssuedByUserId.HasValue) userIds.Add(payment.ReceiptIssuedByUserId.Value);
+        }
+
+        var users = (await _userRepository.FindAsync(u => userIds.Contains(u.Id)))
+            .ToDictionary(u => u.Id);
+        var units = (await _unitRepository.FindAsync(u => unitIds.Contains(u.Id)))
+            .ToDictionary(u => u.Id);
+
+        var dtos = new List<PaymentDto>(payments.Count);
+        foreach (var payment in payments)
+        {
+            var resident = users.GetValueOrDefault(payment.ResidentId);
+            var unit = units.GetValueOrDefault(payment.UnitId);
+            var processedBy = payment.ProcessedByUserId.HasValue
+                ? users.GetValueOrDefault(payment.ProcessedByUserId.Value)
+                : null;
+            var receiptIssuedBy = payment.ReceiptIssuedByUserId.HasValue
+                ? users.GetValueOrDefault(payment.ReceiptIssuedByUserId.Value)
+                : null;
+            dtos.Add(MapToDto(payment, resident, unit, processedBy, receiptIssuedBy));
+        }
+
+        return dtos;
+    }
+
+    private static PaymentDto MapToDto(Payment payment, User? resident, Unit? unit, User? processedBy, User? receiptIssuedBy)
+    {
         return new PaymentDto
         {
             Id = payment.Id,
