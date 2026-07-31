@@ -37,9 +37,21 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // ConfigureServices, so it wins.
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<HabitusDbContext>));
-            if (descriptor is not null)
+            // The app registers a pooled DbContext (AddDbContextPool). Remove every
+            // DbContext/pool-related descriptor before re-registering a plain (non-pooled)
+            // AddDbContext that targets habitus_test. Removing only DbContextOptions would
+            // leave the singleton IDbContextPool bound to now-scoped options and fail
+            // DI validation.
+            var descriptorsToRemove = services.Where(d =>
+                d.ServiceType == typeof(DbContextOptions<HabitusDbContext>) ||
+                d.ServiceType == typeof(DbContextOptions) ||
+                d.ServiceType == typeof(HabitusDbContext) ||
+                (d.ServiceType.IsGenericType &&
+                 (d.ServiceType.GetGenericTypeDefinition().Name.StartsWith("IDbContextPool") ||
+                  d.ServiceType.GetGenericTypeDefinition().Name.StartsWith("IScopedDbContextLease") ||
+                  d.ServiceType.GetGenericTypeDefinition().Name.StartsWith("IDbContextFactory"))))
+                .ToList();
+            foreach (var descriptor in descriptorsToRemove)
                 services.Remove(descriptor);
 
             services.AddDbContext<HabitusDbContext>(options =>

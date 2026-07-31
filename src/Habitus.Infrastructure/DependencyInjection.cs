@@ -23,9 +23,12 @@ public static class DependencyInjection
             );
         }
 
-        services.AddDbContext<HabitusDbContext>(options =>
+        // Pooled DbContext: reuses context instances across requests to cut per-request
+        // allocation. poolSize bounds concurrent instances for a ~1-vCPU box.
+        services.AddDbContextPool<HabitusDbContext>(options =>
             options.UseNpgsql(connectionString, 
-                b => b.MigrationsAssembly("Habitus.Infrastructure")));
+                b => b.MigrationsAssembly("Habitus.Infrastructure")),
+            poolSize: 32);
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
@@ -120,8 +123,9 @@ public static class DependencyInjection
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
 
-        // Encryption service for sensitive data
-        services.AddScoped<IEncryptionService, EncryptionService>();
+        // Encryption service for sensitive data. Singleton: PBKDF2(100k) key derivation
+        // runs once at boot instead of per request; the service is stateless afterwards.
+        services.AddSingleton<IEncryptionService, EncryptionService>();
 
         return services;
     }

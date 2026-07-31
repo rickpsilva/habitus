@@ -62,7 +62,8 @@ public class Repository<T> : IRepository<T> where T : class
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
 
-        var query = _dbSet.Where(filter);
+        // Display-only projection: no tracking avoids the change-tracker overhead.
+        var query = _dbSet.AsNoTracking().Where(filter);
         query = descending ? query.OrderByDescending(orderBy) : query.OrderBy(orderBy);
 
         var totalItems = await query.CountAsync();

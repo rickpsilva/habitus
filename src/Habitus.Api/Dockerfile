@@ -22,5 +22,8 @@ RUN dotnet publish "Habitus.Api.csproj" -c Release -o /app/publish /p:UseAppHost
 
 FROM base AS final
 WORKDIR /app
+# Workstation GC at runtime (belt-and-suspenders for the .csproj setting) to keep
+# memory low on a ~1-vCPU / 1-2 GB box.
+ENV DOTNET_gcServer=0
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Habitus.Api.dll"]
