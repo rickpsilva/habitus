@@ -49,6 +49,9 @@ public class Repository<T> : IRepository<T> where T : class
     public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.AnyAsync(predicate);
 
+    public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
+        => predicate == null ? await _dbSet.CountAsync() : await _dbSet.CountAsync(predicate);
+
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
 

@@ -75,8 +75,7 @@ public class DocumentsController : ControllerBase
         // Admin sees all documents within their own condominium
         if (user.Role == UserRole.Admin)
         {
-            var allDocuments = (await _repository.GetAllAsync())
-                .Where(d => d.CondominiumId == condominiumId);
+            var allDocuments = await _repository.FindAsync(d => d.CondominiumId == condominiumId);
             var dtos = allDocuments.Select(d => new
             {
                 id = d.Id.ToString(),
@@ -99,18 +98,16 @@ public class DocumentsController : ControllerBase
         }
 
         // Resident sees condominium, assembly, maintenance, financial, and their own unit documents
-        var userMaintenanceIds = (await _maintenanceRepository.GetAllAsync())
-            .Where(m => m.UnitId == user.UnitId)
+        var userMaintenanceIds = (await _maintenanceRepository.FindAsync(m => m.UnitId == user.UnitId))
             .Select(m => m.Id)
             .ToList();
 
-        var documents = (await _repository.GetAllAsync())
-            .Where(d =>
+        var documents = (await _repository.FindAsync(d =>
                 (d.Context == DocumentContext.Condominium && d.CondominiumId == user.CondominiumId) ||
                 (d.Context == DocumentContext.Assembly && d.CondominiumId == user.CondominiumId) ||
                 (d.Context == DocumentContext.Unit && d.UnitId == user.UnitId) ||
                 (d.Context == DocumentContext.Maintenance && d.MaintenanceRequestId.HasValue && userMaintenanceIds.Contains(d.MaintenanceRequestId.Value)) ||
-                (d.Context == DocumentContext.Financial && d.CondominiumId == user.CondominiumId))
+                (d.Context == DocumentContext.Financial && d.CondominiumId == user.CondominiumId)))
             .Select(d => new
             {
                 id = d.Id.ToString(),
@@ -164,8 +161,7 @@ public class DocumentsController : ControllerBase
         if (user.Role != UserRole.Admin)
         {
             // Get maintenance requests from user's unit to check access
-            var userMaintenanceIds = (await _maintenanceRepository.GetAllAsync())
-                .Where(m => m.UnitId == user.UnitId)
+            var userMaintenanceIds = (await _maintenanceRepository.FindAsync(m => m.UnitId == user.UnitId))
                 .Select(m => m.Id)
                 .ToList();
 
@@ -296,8 +292,7 @@ public class DocumentsController : ControllerBase
 
         if (user == null) return Unauthorized();
 
-        var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == context && d.CondominiumId == condominiumId)
+        var documents = (await _repository.FindAsync(d => d.Context == context && d.CondominiumId == condominiumId))
             .OrderByDescending(d => d.UploadedAt)
             .ToList();
 
@@ -305,8 +300,7 @@ public class DocumentsController : ControllerBase
         if (user.Role != UserRole.Admin)
         {
             // Get maintenance requests from user's unit
-            var userMaintenanceIds = (await _maintenanceRepository.GetAllAsync())
-                .Where(m => m.UnitId == user.UnitId)
+            var userMaintenanceIds = (await _maintenanceRepository.FindAsync(m => m.UnitId == user.UnitId))
                 .Select(m => m.Id)
                 .ToList();
 
@@ -359,8 +353,7 @@ public class DocumentsController : ControllerBase
             return Forbid();
         }
 
-        var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Unit && d.UnitId == unitId && d.CondominiumId == condominiumId)
+        var documents = (await _repository.FindAsync(d => d.Context == DocumentContext.Unit && d.UnitId == unitId && d.CondominiumId == condominiumId))
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -394,8 +387,7 @@ public class DocumentsController : ControllerBase
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return Unauthorized();
 
-        var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Assembly && d.AssemblyId == assemblyId && d.CondominiumId == condominiumId)
+        var documents = (await _repository.FindAsync(d => d.Context == DocumentContext.Assembly && d.AssemblyId == assemblyId && d.CondominiumId == condominiumId))
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {
@@ -429,8 +421,7 @@ public class DocumentsController : ControllerBase
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return Unauthorized();
 
-        var documents = (await _repository.GetAllAsync())
-            .Where(d => d.Context == DocumentContext.Maintenance && d.MaintenanceRequestId == maintenanceRequestId && d.CondominiumId == condominiumId)
+        var documents = (await _repository.FindAsync(d => d.Context == DocumentContext.Maintenance && d.MaintenanceRequestId == maintenanceRequestId && d.CondominiumId == condominiumId))
             .OrderByDescending(d => d.UploadedAt)
             .Select(d => new
             {

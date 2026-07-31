@@ -40,9 +40,8 @@ public class UnitsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
 
-        var units = await _repository.GetAllAsync();
+        var units = await _repository.FindAsync(u => u.CondominiumId == condominiumId);
         return Ok(units
-            .Where(u => u.CondominiumId == condominiumId)
             .Select(MapUnit)
             .ToList());
     }
@@ -134,8 +133,7 @@ public class UnitsController : ControllerBase
         if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { message = "Apenas ficheiros CSV são aceites." });
 
-        var existingUnits = await _repository.GetAllAsync();
-        var condominiumUnits = existingUnits.Where(u => u.CondominiumId == condominiumId).ToList();
+        var condominiumUnits = (await _repository.FindAsync(u => u.CondominiumId == condominiumId)).ToList();
 
         var created = 0;
         var updated = 0;

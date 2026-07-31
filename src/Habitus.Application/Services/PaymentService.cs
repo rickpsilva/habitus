@@ -221,8 +221,7 @@ public class PaymentService
         _paymentRepository.Update(payment);
 
         // Send notification to ALL users of the same unit (fraction)
-        var unitUsers = (await _userRepository.GetAllAsync())
-            .Where(u => u.UnitId == payment.UnitId && u.Role == UserRole.Resident)
+        var unitUsers = (await _userRepository.FindAsync(u => u.UnitId == payment.UnitId && u.Role == UserRole.Resident))
             .ToList();
 
         var createdNotifications = new List<Notification>();

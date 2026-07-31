@@ -35,9 +35,7 @@ public class QuotaPlansController : ControllerBase
     {
         try
         {
-            var plans = await _quotaPlanRepository.GetAllAsync();
-            var condoPlans = plans
-                .Where(p => p.CondominiumId == condominiumId)
+            var condoPlans = (await _quotaPlanRepository.FindAsync(p => p.CondominiumId == condominiumId))
                 .OrderByDescending(p => p.Year)
                 .ToList();
 
@@ -76,12 +74,10 @@ public class QuotaPlansController : ControllerBase
             }
 
             // Load calculations with units
-            var calculations = await _calculationRepository.GetAllAsync();
-            var planCalculations = calculations
-                .Where(c => c.QuotaPlanId == id)
+            var planCalculations = (await _calculationRepository.FindAsync(c => c.QuotaPlanId == id))
                 .ToList();
 
-            var units = await _unitRepository.GetAllAsync();
+            var units = await _unitRepository.FindAsync(u => u.CondominiumId == condominiumId);
             var unitDict = units.ToDictionary(u => u.Id, u => u);
 
             var dto = new QuotaPlanDto
@@ -124,9 +120,8 @@ public class QuotaPlansController : ControllerBase
         try
         {
             // Check if plan for this year already exists
-            var existingPlans = await _quotaPlanRepository.GetAllAsync();
-            var existingPlan = existingPlans.FirstOrDefault(p => 
-                p.CondominiumId == condominiumId && p.Year == request.Year);
+            var existingPlan = (await _quotaPlanRepository.FindAsync(p =>
+                p.CondominiumId == condominiumId && p.Year == request.Year)).FirstOrDefault();
 
             if (existingPlan != null)
             {
@@ -186,8 +181,7 @@ public class QuotaPlansController : ControllerBase
             _quotaPlanRepository.Update(plan);
 
             // Regenerate calculations
-            var existingCalculations = await _calculationRepository.GetAllAsync();
-            var toRemove = existingCalculations.Where(c => c.QuotaPlanId == id).ToList();
+            var toRemove = (await _calculationRepository.FindAsync(c => c.QuotaPlanId == id)).ToList();
             foreach (var calc in toRemove)
             {
                 _calculationRepository.Remove(calc);
@@ -223,8 +217,7 @@ public class QuotaPlansController : ControllerBase
             }
 
             // Get calculations
-            var calculations = await _calculationRepository.GetAllAsync();
-            var planCalculations = calculations.Where(c => c.QuotaPlanId == id).ToList();
+            var planCalculations = (await _calculationRepository.FindAsync(c => c.QuotaPlanId == id)).ToList();
 
             // Update monthly quota for each unit
             foreach (var calc in planCalculations)
@@ -244,12 +237,11 @@ public class QuotaPlansController : ControllerBase
             _quotaPlanRepository.Update(plan);
 
             // Archive other plans for the same year
-            var allPlans = await _quotaPlanRepository.GetAllAsync();
-            var otherPlans = allPlans.Where(p => 
-                p.CondominiumId == condominiumId && 
-                p.Year == plan.Year && 
+            var otherPlans = (await _quotaPlanRepository.FindAsync(p =>
+                p.CondominiumId == condominiumId &&
+                p.Year == plan.Year &&
                 p.Id != id &&
-                p.Status != QuotaPlanStatus.Archived).ToList();
+                p.Status != QuotaPlanStatus.Archived)).ToList();
 
             foreach (var other in otherPlans)
             {
@@ -287,8 +279,7 @@ public class QuotaPlansController : ControllerBase
             }
 
             // Remove calculations
-            var calculations = await _calculationRepository.GetAllAsync();
-            var toRemove = calculations.Where(c => c.QuotaPlanId == id).ToList();
+            var toRemove = (await _calculationRepository.FindAsync(c => c.QuotaPlanId == id)).ToList();
             foreach (var calc in toRemove)
             {
                 _calculationRepository.Remove(calc);
@@ -309,8 +300,7 @@ public class QuotaPlansController : ControllerBase
     // Helper methods
     private async Task GenerateCalculations(QuotaPlan plan)
     {
-        var units = await _unitRepository.GetAllAsync();
-        var condoUnits = units.Where(u => u.CondominiumId == plan.CondominiumId).ToList();
+        var condoUnits = (await _unitRepository.FindAsync(u => u.CondominiumId == plan.CondominiumId)).ToList();
 
         foreach (var unit in condoUnits)
         {
@@ -337,10 +327,9 @@ public class QuotaPlansController : ControllerBase
 
     private async Task<QuotaPlanDto> GetPlanDto(QuotaPlan plan)
     {
-        var calculations = await _calculationRepository.GetAllAsync();
-        var planCalculations = calculations.Where(c => c.QuotaPlanId == plan.Id).ToList();
+        var planCalculations = (await _calculationRepository.FindAsync(c => c.QuotaPlanId == plan.Id)).ToList();
 
-        var units = await _unitRepository.GetAllAsync();
+        var units = await _unitRepository.FindAsync(u => u.CondominiumId == plan.CondominiumId);
         var unitDict = units.ToDictionary(u => u.Id, u => u);
 
         return new QuotaPlanDto

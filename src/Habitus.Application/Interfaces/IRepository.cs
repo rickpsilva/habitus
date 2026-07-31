@@ -11,6 +11,7 @@ public interface IRepository<T> where T : class
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
     Task<T?> FirstOrDefaultNoTrackingAsync(Expression<Func<T, bool>> predicate);
     Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
+    Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
     Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
     /// <summary>
