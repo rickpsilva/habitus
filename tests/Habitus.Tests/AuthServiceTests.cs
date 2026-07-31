@@ -15,6 +15,7 @@ public class AuthServiceTests
     private readonly Mock<IRepository<UserCondominium>> _userCondominiumRepositoryMock;
     private readonly Mock<IRepository<Condominium>> _condominiumRepositoryMock;
     private readonly Mock<IRepository<Unit>> _unitRepositoryMock;
+    private readonly Mock<IRepository<UnitMembership>> _unitMembershipRepositoryMock;
     private readonly Mock<IRepository<UserAuthProvider>> _userAuthProviderRepositoryMock;
     private readonly Mock<IRepository<UserRecoveryCode>> _userRecoveryCodeRepositoryMock;
     private readonly Mock<IRepository<AuthChallenge>> _authChallengeRepositoryMock;
@@ -28,6 +29,7 @@ public class AuthServiceTests
         _userCondominiumRepositoryMock = new Mock<IRepository<UserCondominium>>();
         _condominiumRepositoryMock = new Mock<IRepository<Condominium>>();
         _unitRepositoryMock = new Mock<IRepository<Unit>>();
+        _unitMembershipRepositoryMock = new Mock<IRepository<UnitMembership>>();
         _userAuthProviderRepositoryMock = new Mock<IRepository<UserAuthProvider>>();
         _userRecoveryCodeRepositoryMock = new Mock<IRepository<UserRecoveryCode>>();
         _authChallengeRepositoryMock = new Mock<IRepository<AuthChallenge>>();
@@ -47,11 +49,16 @@ public class AuthServiceTests
         _userRecoveryCodeRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
         _authChallengeRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
 
+        _unitMembershipRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitMembership, bool>>>()))
+            .ReturnsAsync(new List<UnitMembership>());
+
         _service = new AuthService(
             _userRepositoryMock.Object,
             _userCondominiumRepositoryMock.Object,
             _condominiumRepositoryMock.Object,
             _unitRepositoryMock.Object,
+            _unitMembershipRepositoryMock.Object,
             _userAuthProviderRepositoryMock.Object,
             _userRecoveryCodeRepositoryMock.Object,
             _authChallengeRepositoryMock.Object,
@@ -73,7 +80,7 @@ public class AuthServiceTests
 
         var result = await _service.LoginAsync(new LoginRequest
         {
-            Email = user.Email,
+            Email = TestUserEmail,
             Password = "wrong-password"
         });
 
@@ -122,7 +129,7 @@ public class AuthServiceTests
             .Returns(Task.CompletedTask);
 
         var result = await _service.LoginAsync(
-            new LoginRequest { Email = user.Email, Password = "right-password" },
+            new LoginRequest { Email = TestUserEmail, Password = "right-password" },
             "127.0.0.1",
             "unit-test");
 
@@ -319,10 +326,8 @@ public class AuthServiceTests
         result.Should().Be(InitialManagerBootstrapStatus.Created);
         createdUser.Should().NotBeNull();
         createdUser!.Role.Should().Be(UserRole.Manager);
-        createdUser.Email.Should().BeEmpty();
         createdUser.EmailEncrypted.Should().Be("enc:ricardopsilva@hotmail.com");
         createdUser.EmailHash.Should().NotBeNullOrWhiteSpace();
-        createdUser.Phone.Should().BeEmpty();
         createdUser.PhoneEncrypted.Should().Be("enc:+351910000000");
         BCrypt.Net.BCrypt.Verify("StrongPassword!123", createdUser.PasswordHash).Should().BeTrue();
 
@@ -392,6 +397,7 @@ public class AuthServiceTests
             _userCondominiumRepositoryMock.Object,
             _condominiumRepositoryMock.Object,
             _unitRepositoryMock.Object,
+            _unitMembershipRepositoryMock.Object,
             _userAuthProviderRepositoryMock.Object,
             _userRecoveryCodeRepositoryMock.Object,
             _authChallengeRepositoryMock.Object,
@@ -400,14 +406,102 @@ public class AuthServiceTests
             _encryptionServiceMock.Object);
     }
 
+    [Fact]
+    public async Task SetActiveContextAsync_ForMembershipNotHeld_Throws()
+    {
+        var user = BuildUser();
+        user.Role = UserRole.Resident;
+        var condominiumId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
+        // No membership exists for this unit/condominium -> ExistsAsync returns false (Moq default).
+
+        var act = () => _service.SetActiveContextAsync(user.Id, condominiumId, unitId);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+    }
+
+    [Fact]
+    public async Task SetActiveContextAsync_ForHeldMembership_ReturnsTokenWithContext()
+    {
+        var user = BuildUser();
+        var condominiumId = Guid.NewGuid();
+        var unitId = Guid.NewGuid();
+        user.UserCondominiums.Add(new UserCondominium
+        {
+            UserId = user.Id,
+            CondominiumId = condominiumId,
+            GrantedAt = DateTime.UtcNow,
+            CanManage = true,
+        });
+
+        _userRepositoryMock.Setup(r => r.GetByIdAsync(user.Id)).ReturnsAsync(user);
+        _unitMembershipRepositoryMock
+            .Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<UnitMembership, bool>>>()))
+            .ReturnsAsync(true);
+
+        var result = await _service.SetActiveContextAsync(user.Id, condominiumId, unitId);
+
+        result.Should().NotBeNull();
+        result!.CondominiumId.Should().Be(condominiumId);
+        result.UnitId.Should().Be(unitId);
+        result.Token.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task LoginAsync_RequiresContextSelection_TrueOnlyWithMoreThanOneMembership()
+    {
+        var condominiumId = Guid.NewGuid();
+
+        var user = BuildUser();
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword("right-password");
+        user.UserCondominiums.Add(new UserCondominium
+        {
+            UserId = user.Id,
+            CondominiumId = condominiumId,
+            GrantedAt = DateTime.UtcNow,
+            CanManage = true,
+        });
+
+        _userRepositoryMock
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { user }.FirstOrDefault(predicate.Compile()));
+
+        // Single membership -> selection not required.
+        _unitMembershipRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitMembership, bool>>>()))
+            .ReturnsAsync(new List<UnitMembership> { new() { Id = Guid.NewGuid(), UserId = user.Id, CondominiumId = condominiumId, UnitId = Guid.NewGuid(), IsPrimary = true } });
+
+        var single = await _service.LoginAsync(new LoginRequest { Email = TestUserEmail, Password = "right-password" });
+        single.Should().NotBeNull();
+        single!.RequiresContextSelection.Should().BeFalse();
+
+        // Two memberships -> selection required.
+        _unitMembershipRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UnitMembership, bool>>>()))
+            .ReturnsAsync(new List<UnitMembership>
+            {
+                new() { Id = Guid.NewGuid(), UserId = user.Id, CondominiumId = condominiumId, UnitId = Guid.NewGuid(), IsPrimary = true },
+                new() { Id = Guid.NewGuid(), UserId = user.Id, CondominiumId = Guid.NewGuid(), UnitId = Guid.NewGuid(), IsPrimary = true },
+            });
+
+        var multi = await _service.LoginAsync(new LoginRequest { Email = TestUserEmail, Password = "right-password" });
+        multi.Should().NotBeNull();
+        multi!.RequiresContextSelection.Should().BeTrue();
+    }
+
+    private const string TestUserEmail = "test@example.com";
+
     private static User BuildUser()
     {
         return new User
         {
             Id = Guid.NewGuid(),
             Name = "Test User",
-            Email = "test@example.com",
-            Phone = "910000000",
+            EmailEncrypted = "enc:test@example.com",
+            EmailHash = Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash(TestUserEmail),
+            PhoneEncrypted = "enc:910000000",
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("right-password"),
             IsActive = true,

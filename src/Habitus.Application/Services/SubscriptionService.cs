@@ -29,6 +29,7 @@ public class SubscriptionService
         ("user_registration", "Registo e Gestão de Utilizadores"),
         ("analytics", "Analytics Avançado"),
         ("api_access", "Acesso à API REST"),
+        ("multilanguage", "Multilíngua (PT/EN)"),
     ];
 
     private readonly IRepository<SubscriptionPlan> _plansRepo;
@@ -302,7 +303,7 @@ public class SubscriptionService
     public async Task<SubscriptionStatsDto> GetStatsAsync()
     {
         var subs = (await _subscriptionsRepo.FindAsync(s => s.Status == SubscriptionStatus.Active)).ToList();
-        var condominiums = await _condominiumsRepo.GetAllAsync();
+        var totalCondominiums = await _condominiumsRepo.CountAsync();
 
         var monthlyVolume = subs.Sum(s => s.BillingCycle switch
         {
@@ -313,7 +314,7 @@ public class SubscriptionService
 
         return new SubscriptionStatsDto
         {
-            TotalCondominiums = condominiums.Count(),
+            TotalCondominiums = totalCondominiums,
             ActiveSubscriptions = subs.Count,
             MonthlyBillingVolume = Math.Round(monthlyVolume, 2),
         };

@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 
 interface ModalPopupProps {
   open: boolean;
@@ -24,6 +25,7 @@ export default function ModalPopup({
   closeOnBackdrop = true,
   closeOnEscape = true,
 }: ModalPopupProps) {
+  const { t } = useTranslation();
   const fallbackTitle = title?.trim() || 'Detalhes';
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function ModalPopup({
               type="button"
               onClick={onClose}
               className="p-2 hover:bg-surface-hover rounded-lg transition-colors"
-              aria-label="Fechar"
+              aria-label={t('common.close')}
             >
               <X className="w-5 h-5 text-ink-subtle" />
             </button>

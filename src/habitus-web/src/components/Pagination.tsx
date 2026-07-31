@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PaginatedResponse } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
 
 interface PaginationProps {
   pagination: PaginatedResponse<unknown>;
@@ -8,6 +9,7 @@ interface PaginationProps {
 }
 
 export default function Pagination({ pagination, currentPage, onPageChange }: PaginationProps) {
+  const { t } = useTranslation();
   if (!pagination) return null;
 
   const goToPage = (page: number) => {
@@ -16,7 +18,10 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
     }
   };
 
-  const itemsLabel = pagination.totalItems === 1 ? '1 resultado' : `${pagination.totalItems} resultados`;
+  const itemsLabel =
+    pagination.totalItems === 1
+      ? t('pagination.resultOne')
+      : t('pagination.resultMany', { count: pagination.totalItems });
 
   if (pagination.totalPages <= 1) {
     return (
@@ -29,17 +34,17 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-surface rounded-xl border border-line px-4 py-3">
       <div className="text-sm text-ink-muted">
-        Página {pagination.page} de {pagination.totalPages} • {itemsLabel}
+        {t('pagination.pageOf', { current: pagination.page, total: pagination.totalPages })} • {itemsLabel}
       </div>
       <div className="flex items-center gap-2 self-end sm:self-auto">
         <button
           onClick={() => goToPage(currentPage - 1)}
           disabled={!pagination.hasPreviousPage}
-          aria-label="Página anterior"
+          aria-label={t('pagination.previousPage')}
           className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-control text-ink hover:bg-control-hover disabled:hover:bg-control"
         >
           <ChevronLeft className="w-4 h-4" />
-          Anterior
+          {t('pagination.previous')}
         </button>
         
         {/* Page numbers */}
@@ -59,7 +64,7 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
                   {showEllipsis && <span className="px-2 text-ink-subtle" aria-hidden="true">...</span>}
                   <button
                     onClick={() => goToPage(page)}
-                    aria-label={`Página ${page}`}
+                    aria-label={t('pagination.pageNumber', { page })}
                     aria-current={page === currentPage ? 'page' : undefined}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       page === currentPage
@@ -77,10 +82,10 @@ export default function Pagination({ pagination, currentPage, onPageChange }: Pa
         <button
           onClick={() => goToPage(currentPage + 1)}
           disabled={!pagination.hasNextPage}
-          aria-label="Próxima página"
+          aria-label={t('pagination.nextPage')}
           className="h-9 inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-control text-ink hover:bg-control-hover disabled:hover:bg-control"
         >
-          Seguinte
+          {t('pagination.next')}
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

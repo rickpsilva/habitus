@@ -4,8 +4,10 @@ import { Building2, ChevronRight, Search } from 'lucide-react';
 import { condominiumsApi } from '../api/services';
 import type { CondominiumPublicDto } from '../types';
 import { AsyncState, EmptyState } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export default function SelectCondominiumPage() {
+  const { t } = useTranslation();
   const [condominiums, setCondominiums] = useState<CondominiumPublicDto[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,9 +19,9 @@ export default function SelectCondominiumPage() {
     setError('');
     condominiumsApi.getPublic()
       .then((r) => setCondominiums(r.data))
-      .catch(() => setError('Não foi possível carregar a lista de condomínios.'))
+      .catch(() => setError(t('selectCondominium.error.load')))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadCondominiums();
@@ -37,21 +39,21 @@ export default function SelectCondominiumPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-ink">Habitus</h1>
-          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
+          <h1 className="text-3xl font-bold text-ink">{t('common.appName')}</h1>
+          <p className="text-ink-subtle mt-1">{t('common.appTagline')}</p>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-ink mb-2">Criar Conta</h2>
+          <h2 className="text-xl font-semibold text-ink mb-2">{t('selectCondominium.title')}</h2>
           <p className="text-sm text-ink-subtle mb-6">
-            Selecione o seu condomínio para continuar o registo.
+            {t('selectCondominium.subtitle')}
           </p>
 
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
             <input
               type="text"
-              placeholder="Pesquisar condomínio..."
+              placeholder={t('selectCondominium.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
@@ -68,8 +70,8 @@ export default function SelectCondominiumPage() {
             empty={
               <EmptyState
                 icon={Building2}
-                title="Nenhum condomínio encontrado"
-                description="Ajuste a pesquisa ou tente novamente."
+                title={t('selectCondominium.empty')}
+                description={t('selectCondominium.emptyHint')}
               />
             }
           >
@@ -92,9 +94,9 @@ export default function SelectCondominiumPage() {
           </AsyncState>
 
           <p className="text-center text-sm text-ink-subtle mt-6">
-            Já tem conta?{' '}
+            {t('selectCondominium.haveAccount')}{' '}
             <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
-              Iniciar sessão
+              {t('selectCondominium.signIn')}
             </Link>
           </p>
         </div>

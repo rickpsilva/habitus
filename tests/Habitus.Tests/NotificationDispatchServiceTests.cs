@@ -31,7 +31,7 @@ public class NotificationDispatchServiceTests
         {
             Id = condominiumId,
             Name = "Condo One",
-            Email = "admin-condo@habitus.test"
+            EmailEncrypted = "enc:admin-condo@habitus.test"
         };
 
         SetupCommonRepositories(condominiumId, condominium, activeUsers: Array.Empty<User>());
@@ -67,7 +67,7 @@ public class NotificationDispatchServiceTests
         {
             Id = condominiumId,
             Name = "Condo Two",
-            Email = "condo@habitus.test"
+            EmailEncrypted = "enc:condo@habitus.test"
         };
 
         var resident = new User
@@ -76,7 +76,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = condominiumId,
             Role = UserRole.Resident,
             IsActive = true,
-            Email = "resident@habitus.test"
+            EmailEncrypted = "enc:resident@habitus.test"
         };
 
         SetupCommonRepositories(condominiumId, condominium, new[] { resident });
@@ -113,7 +113,7 @@ public class NotificationDispatchServiceTests
         {
             Id = condominiumId,
             Name = "Condo Three",
-            Email = "condo@habitus.test"
+            EmailEncrypted = "enc:condo@habitus.test"
         };
 
         var adminUser = new User
@@ -122,7 +122,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = condominiumId,
             Role = UserRole.Admin,
             IsActive = true,
-            Email = "admin@habitus.test"
+            EmailEncrypted = "enc:admin@habitus.test"
         };
 
         SetupCommonRepositories(condominiumId, condominium, new[] { adminUser });
@@ -160,7 +160,7 @@ public class NotificationDispatchServiceTests
         {
             Id = condominiumId,
             Name = "Condo Isolation",
-            Email = "condo@habitus.test"
+            EmailEncrypted = "enc:condo@habitus.test"
         };
 
         var residentFromOtherCondominium = new User
@@ -169,7 +169,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = otherCondominiumId,
             Role = UserRole.Resident,
             IsActive = true,
-            Email = "other-resident@habitus.test"
+            EmailEncrypted = "enc:other-resident@habitus.test"
         };
 
         SetupCommonRepositories(condominiumId, condominium, new[] { residentFromOtherCondominium });
@@ -205,7 +205,7 @@ public class NotificationDispatchServiceTests
         {
             Id = condominiumId,
             Name = "Condo Four",
-            Email = "condo@habitus.test"
+            EmailEncrypted = "enc:condo@habitus.test"
         };
 
         var admin = new User
@@ -214,7 +214,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = condominiumId,
             Role = UserRole.Admin,
             IsActive = true,
-            Email = "admin@habitus.test"
+            EmailEncrypted = "enc:admin@habitus.test"
         };
 
         var resident = new User
@@ -223,7 +223,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = condominiumId,
             Role = UserRole.Resident,
             IsActive = true,
-            Email = "resident@habitus.test"
+            EmailEncrypted = "enc:resident@habitus.test"
         };
 
         var manager = new User
@@ -232,7 +232,7 @@ public class NotificationDispatchServiceTests
             CondominiumId = condominiumId,
             Role = UserRole.Manager,
             IsActive = true,
-            Email = "manager@habitus.test"
+            EmailEncrypted = "enc:manager@habitus.test"
         };
 
         SetupCommonRepositories(condominiumId, condominium, new[] { admin, resident, manager });

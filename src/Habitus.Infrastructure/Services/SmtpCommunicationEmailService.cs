@@ -8,18 +8,18 @@ namespace Habitus.Infrastructure.Services;
 
 public class SmtpCommunicationEmailService : IEmailService
 {
-    private readonly IRepository<SystemEmailSettings> _systemEmailSettingsRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IRepository<CommunicationSettings> _communicationSettingsRepository;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<SmtpCommunicationEmailService> _logger;
 
     public SmtpCommunicationEmailService(
-        IRepository<SystemEmailSettings> systemEmailSettingsRepository,
+        IPlatformSettingsCache settingsCache,
         IRepository<CommunicationSettings> communicationSettingsRepository,
         IEncryptionService encryptionService,
         ILogger<SmtpCommunicationEmailService> logger)
     {
-        _systemEmailSettingsRepository = systemEmailSettingsRepository;
+        _settingsCache = settingsCache;
         _communicationSettingsRepository = communicationSettingsRepository;
         _encryptionService = encryptionService;
         _logger = logger;
@@ -65,7 +65,7 @@ public class SmtpCommunicationEmailService : IEmailService
 
     private async Task<SmtpConfiguration> GetSystemSmtpConfigurationAsync()
     {
-        var settings = (await _systemEmailSettingsRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetSystemEmailAsync();
 
         if (settings == null || !settings.EmailEnabled)
             throw new InvalidOperationException("System SMTP settings are not configured or are disabled.");

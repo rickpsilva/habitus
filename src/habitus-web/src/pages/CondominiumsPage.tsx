@@ -8,12 +8,14 @@ import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 import type { CondominiumDto, CreateCondominiumRequest, UpdateCondominiumRequest, PaginatedResponse } from '../types';
 
 export default function CondominiumsPage() {
   const { isManager } = useAuth();
   const navigate = useNavigate();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
   
   // Guard: Only Manager can access
   useEffect(() => {
@@ -62,11 +64,11 @@ export default function CondominiumsPage() {
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar condomínios:', error);
-      setLoadError('Não foi possível carregar os condomínios.');
+      setLoadError(t('condominiums.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, t]);
 
   useEffect(() => {
     load(1);
@@ -97,7 +99,7 @@ export default function CondominiumsPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar condomínio:', error);
-      toastError('Erro ao guardar condomínio. Tente novamente.');
+      toastError(t('condominiums.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +131,7 @@ export default function CondominiumsPage() {
       load();
     } catch (error) {
       console.error('Erro ao remover condomínio:', error);
-      toastError('Erro ao remover condomínio. Verifique se não há unidades ou utilizadores associados.');
+      toastError(t('condominiums.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -153,7 +155,7 @@ export default function CondominiumsPage() {
       setTimeout(() => setCopiedLinkCondoId((current) => (current === condominiumId ? null : current)), 2000);
     } catch (error) {
       console.error('Erro ao copiar link de registo de administrador:', error);
-      toastError('Não foi possível copiar automaticamente. Copie o link manualmente.');
+      toastError(t('condominiums.error.copyLink'));
     }
   };
 
@@ -161,7 +163,7 @@ export default function CondominiumsPage() {
     return (
       <div className="text-center py-20 text-ink-subtle">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a gestores</p>
+        <p>{t('condominiums.accessRestricted')}</p>
       </div>
     );
   }
@@ -170,26 +172,26 @@ export default function CondominiumsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Remover condomínio"
-        message="Tem a certeza que deseja remover este condomínio? Esta ação não pode ser revertida."
-        confirmLabel="Remover"
+        title={t('condominiums.delete.title')}
+        message={t('condominiums.delete.message')}
+        confirmLabel={t('condominiums.delete.confirm')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
       <PageHeader
-        title="Condomínios"
-        subtitle={`${condominiums.length} condomínios registados`}
+        title={t('condominiums.title')}
+        subtitle={t('condominiums.subtitle', { count: condominiums.length })}
         search={
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Pesquisar condomínios..."
+            placeholder={t('condominiums.searchPlaceholder')}
           />
         }
         actions={
           <Button icon={Plus} onClick={handleNew} fullWidth className="sm:w-auto">
-            Novo Condomínio
+            {t('condominiums.new')}
           </Button>
         }
       />
@@ -200,7 +202,7 @@ export default function CondominiumsPage() {
         onRetry={() => load(currentPage)}
         isEmpty={condominiums.length === 0}
         skeleton="card"
-        empty={<EmptyState icon={Building2} title="Nenhum condomínio registado" />}
+        empty={<EmptyState icon={Building2} title={t('condominiums.empty')} />}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {condominiums.map((condo) => (
@@ -212,12 +214,12 @@ export default function CondominiumsPage() {
                     {condo.isActive ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                         <CheckCircle className="w-3 h-3" />
-                        Ativo
+                        {t('common.active')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-control text-ink-muted">
                         <XCircle className="w-3 h-3" />
-                        Inativo
+                        {t('common.inactive')}
                       </span>
                     )}
                   </div>
@@ -226,7 +228,7 @@ export default function CondominiumsPage() {
                   <button
                     onClick={() => setVisibleLinkCondoId((current) => (current === condo.id ? null : condo.id))}
                     className="p-1.5 text-ink-subtle hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                    title="Gerar link de registo de administrador"
+                    title={t('condominiums.card.generateAdminLink')}
                   >
                     <UserPlus className="w-4 h-4" />
                   </button>
@@ -259,16 +261,16 @@ export default function CondominiumsPage() {
                 </div>
                 <div className="flex items-center gap-2 text-ink-muted">
                   <Mail className="w-4 h-4 shrink-0" />
-                  <span className="text-sm">{condo.email || 'Sem email configurado'}</span>
+                  <span className="text-sm">{condo.email || t('condominiums.card.noEmail')}</span>
                 </div>
                 {condo.contactPhone && (
                   <div className="flex items-center gap-2 text-ink-muted">
-                    <span className="text-sm">Telefone: {condo.contactPhone}</span>
+                    <span className="text-sm">{t('condominiums.card.phone', { phone: condo.contactPhone })}</span>
                   </div>
                 )}
                 {visibleLinkCondoId === condo.id && (
                   <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-2.5">
-                    <p className="text-xs font-medium text-emerald-800 mb-1">Link de registo para Admin</p>
+                    <p className="text-xs font-medium text-emerald-800 mb-1">{t('condominiums.card.adminLinkTitle')}</p>
                     <a
                       href={getAdminRegisterPath(condo.id)}
                       target="_blank"
@@ -282,7 +284,7 @@ export default function CondominiumsPage() {
                       className="mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
                     >
                       <Copy className="w-3.5 h-3.5" />
-                      {copiedLinkCondoId === condo.id ? 'Copiado' : 'Copiar link'}
+                      {copiedLinkCondoId === condo.id ? t('condominiums.card.copied') : t('condominiums.card.copyLink')}
                     </button>
                   </div>
                 )}
@@ -305,11 +307,11 @@ export default function CondominiumsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <div className="bg-surface rounded-xl shadow-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold text-ink mb-4">
-              {editingId ? 'Editar Condomínio' : 'Novo Condomínio'}
+              {editingId ? t('condominiums.form.editTitle') : t('condominiums.form.newTitle')}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Nome *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condominiums.form.name')}</label>
                 <input
                   type="text"
                   required
@@ -319,7 +321,7 @@ export default function CondominiumsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Morada *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condominiums.form.address')}</label>
                 <input
                   type="text"
                   required
@@ -329,7 +331,7 @@ export default function CondominiumsPage() {
                 />
               </div>
                <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condominiums.form.postalCode')}</label>
                 <input
                   type="text"
                   required
@@ -339,7 +341,7 @@ export default function CondominiumsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Localidade *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condominiums.form.locality')}</label>
                 <input
                   type="text"
                   required
@@ -360,7 +362,7 @@ export default function CondominiumsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Email do Condomínio {editingId ? '' : <span className="text-ink-subtle">(opcional)</span>}
+                  {t('condominiums.form.email')} {editingId ? '' : <span className="text-ink-subtle">{t('condominiums.form.optional')}</span>}
                 </label>
                 <input
                   type="email"
@@ -371,12 +373,12 @@ export default function CondominiumsPage() {
                 />
                 <p className="text-xs text-ink-subtle mt-1">
                   {editingId
-                    ? 'Depois de criado, o email é editado apenas pelo admin em Configurações.'
-                    : 'Pode definir já o email de contacto do condomínio no momento da criação.'}
+                    ? t('condominiums.form.emailHelpEdit')
+                    : t('condominiums.form.emailHelpCreate')}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Telefone de Contacto</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('condominiums.form.contactPhone')}</label>
                 <input
                   type="tel"
                   value={formData.contactPhone || ''}
@@ -395,7 +397,7 @@ export default function CondominiumsPage() {
                     className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
-                    Ativo
+                    {t('common.active')}
                   </label>
                 </div>
               )}
@@ -409,10 +411,10 @@ export default function CondominiumsPage() {
                   fullWidth
                   className="flex-1 border border-line"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" loading={submitting} fullWidth className="flex-1">
-                  {editingId ? 'Guardar' : 'Criar'}
+                  {editingId ? t('condominiums.form.save') : t('condominiums.form.create')}
                 </Button>
               </div>
             </form>

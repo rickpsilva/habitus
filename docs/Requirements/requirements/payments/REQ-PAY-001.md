@@ -13,10 +13,10 @@ relatedRequirements:
   - REQ-PAY-002
   - REQ-INV-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
+  - docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/PaymentsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/PaymentService.cs
+  - src/Habitus.Api/Controllers/PaymentsController.cs
+  - src/Habitus.Application/Services/PaymentService.cs
 testRefs: []
 ---
 

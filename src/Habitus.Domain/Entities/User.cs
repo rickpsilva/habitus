@@ -11,10 +11,8 @@ public class User
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
     public string? EmailEncrypted { get; set; }
     public string? EmailHash { get; set; }
-    public string Phone { get; set; } = string.Empty;
     public string? PhoneEncrypted { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
     public string? PasswordResetToken { get; set; }
@@ -27,8 +25,17 @@ public class User
     public DateTime? LastPasswordChangedAt { get; set; }
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // GDPR/RGPD Art. 17 erasure: anonymize-in-place marker. When true the row's PII has been
+    // scrubbed and the account is retired (login is also blocked via IsActive=false).
+    public bool IsAnonymized { get; set; }
+    public DateTime? AnonymizedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+
+    // Preferred UI language ("pt" or "en"); null means "use the condominium default language".
+    public string? PreferredLanguage { get; set; }
     
     // For Admins - single condominium they manage
     // For Residents - the primary condominium they belong to
@@ -43,7 +50,13 @@ public class User
     
     // Many-to-many: Managers can have access to multiple condominiums
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+
+    // Multi-fraction membership: a user may belong to several units across condominiums
+    public ICollection<UnitMembership> UnitMemberships { get; set; } = new List<UnitMembership>();
     public ICollection<UserAuthProvider> AuthProviders { get; set; } = new List<UserAuthProvider>();
     public ICollection<UserRecoveryCode> RecoveryCodes { get; set; } = new List<UserRecoveryCode>();
     public ICollection<AuthChallenge> AuthChallenges { get; set; } = new List<AuthChallenge>();
+
+    // Append-only GDPR/RGPD consent history for this user.
+    public ICollection<UserConsent> UserConsents { get; set; } = new List<UserConsent>();
 }

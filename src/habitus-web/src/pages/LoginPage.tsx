@@ -1,51 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { authApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../i18n/I18nProvider';
 import { Button } from '../components/ui';
+import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState('');
+  const { t } = useTranslation();
+  const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
-  const [challengeId, setChallengeId] = useState('');
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(
+    () => searchParams.get('requiresTwoFactor') === 'true' && !!searchParams.get('challengeId'),
+  );
+  const [challengeId, setChallengeId] = useState(() => searchParams.get('challengeId') ?? '');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const socialError = searchParams.get('error');
+    if (!socialError) return '';
+    return ({
+      external_auth_failed: t('login.errorExternalAuthFailed'),
+      external_login_denied: t('login.errorExternalLoginDenied'),
+      external_identity_incomplete: t('login.errorExternalIdentityIncomplete'),
+      unsupported_provider: t('login.errorUnsupportedProvider'),
+    } as Record<string, string>)[socialError] ?? t('login.errorSignInFailed');
+  });
   const [loading, setLoading] = useState(false);
+  // Lazy initializer reads localStorage once so the banner visibility does not
+  // rely on a setState-in-effect (F5).
+  const [showCookieBanner, setShowCookieBanner] = useState(
+    () => getCookieConsent() === null,
+  );
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const socialError = searchParams.get('error');
-    const needsTwoFactor = searchParams.get('requiresTwoFactor') === 'true';
-    const challenge = searchParams.get('challengeId');
-    const callbackEmail = searchParams.get('email');
-
-    if (callbackEmail) {
-      setEmail(callbackEmail);
-    }
-
-    if (needsTwoFactor && challenge) {
-      setRequiresTwoFactor(true);
-      setChallengeId(challenge);
-      setPassword('');
-    }
-
-    if (socialError) {
-      const mappedError = {
-        external_auth_failed: 'External authentication failed. Please try again.',
-        external_login_denied: 'This account is not allowed to sign in with the selected provider.',
-        external_identity_incomplete: 'The external provider did not return a valid email address.',
-        unsupported_provider: 'The selected provider is not supported.',
-      }[socialError] ?? 'Unable to complete sign-in.';
-
-      setError(mappedError);
-    }
-  }, [searchParams]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,13 +53,13 @@ export default function LoginPage() {
       }
 
       login(data);
-      navigate('/dashboard');
+      navigate(data.requiresContextSelection ? '/select-context' : '/dashboard');
     } catch (err) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 429) {
-        setError('Demasiadas tentativas de início de sessão. Por favor, aguarde alguns minutos e tente novamente.');
+        setError(t('login.errorRateLimit'));
       } else {
-        setError('Email ou password incorretos.');
+        setError(t('login.errorCredentials'));
       }
     } finally {
       setLoading(false);
@@ -88,9 +79,9 @@ export default function LoginPage() {
       });
 
       login(data);
-      navigate('/dashboard');
+      navigate(data.requiresContextSelection ? '/select-context' : '/dashboard');
     } catch {
-      setError(useRecoveryCode ? 'Invalid recovery code.' : 'Invalid authentication code.');
+      setError(useRecoveryCode ? t('login.2faInvalidRecovery') : t('login.2faInvalidCode'));
     } finally {
       setLoading(false);
     }
@@ -109,21 +100,25 @@ export default function LoginPage() {
     navigate('/login', { replace: true });
   };
 
+  const handleCookieDecision = (value: 'accepted' | 'rejected') => {
+    setCookieConsent(value);
+    setShowCookieBanner(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center p-4">      <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-ink">Habitus</h1>
-          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
+          <p className="text-ink-subtle mt-1">{t('common.appTagline')}</p>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-xl p-8">
           <h2 className="text-xl font-semibold text-ink mb-6">
-            {requiresTwoFactor ? 'Two-Factor Authentication' : 'Iniciar Sessão'}
+            {requiresTwoFactor ? t('login.twoFactorTitle') : t('login.title')}
           </h2>
 
           {error && (
@@ -136,7 +131,7 @@ export default function LoginPage() {
             <>
               <form onSubmit={handlePasswordLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1.5">Email</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('login.email')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                     <input
@@ -145,13 +140,13 @@ export default function LoginPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      placeholder="o.seu@email.com"
+                      placeholder={t('login.emailPlaceholder')}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1.5">Password</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('login.password')}</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                     <input
@@ -172,20 +167,20 @@ export default function LoginPage() {
                   </div>
                   <div className="text-right mt-2">
                     <Link to="/forgot-password" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                      Esqueceu a password?
+                      {t('login.forgotPassword')}
                     </Link>
                   </div>
                 </div>
 
                 <Button type="submit" loading={loading} fullWidth>
-                  {loading ? 'A entrar...' : 'Entrar'}
+                  {loading ? t('login.submitting') : t('login.submit')}
                 </Button>
               </form>
 
               <div className="mt-6">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-ink-subtle mb-4">
                   <div className="h-px flex-1 bg-line" />
-                  <span>or continue with</span>
+                  <span>{t('login.orContinue')}</span>
                   <div className="h-px flex-1 bg-line" />
                 </div>
 
@@ -197,7 +192,7 @@ export default function LoginPage() {
                     onClick={() => startSocialLogin('google')}
                     className="border border-line text-ink"
                   >
-                    Continue with Google
+                    {t('login.continueGoogle')}
                   </Button>
                   <Button
                     type="button"
@@ -206,15 +201,15 @@ export default function LoginPage() {
                     onClick={() => startSocialLogin('microsoft')}
                     className="border border-line text-ink"
                   >
-                    Continue with Microsoft
+                    {t('login.continueMicrosoft')}
                   </Button>
                 </div>
               </div>
 
               <p className="text-center text-sm text-ink-subtle mt-6">
-                Não tem conta?{' '}
+                {t('login.noAccount')}{' '}
                 <Link to="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">
-                  Registar
+                  {t('login.register')}
                 </Link>
               </p>
             </>
@@ -223,14 +218,14 @@ export default function LoginPage() {
               <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700 flex gap-3">
                 <Shield className="w-4 h-4 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium">Additional verification required</p>
-                  <p className="text-indigo-600 mt-1">Enter the code from your authenticator app or use a recovery code.</p>
+                  <p className="font-medium">{t('login.2faVerificationTitle')}</p>
+                  <p className="text-indigo-600 mt-1">{t('login.2faVerificationDescription')}</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1.5">
-                  {useRecoveryCode ? 'Recovery Code' : 'Authentication Code'}
+                  {useRecoveryCode ? t('login.2faRecoveryCode') : t('login.2faAuthCode')}
                 </label>
                 <input
                   type="text"
@@ -250,7 +245,7 @@ export default function LoginPage() {
                   onChange={(e) => setUseRecoveryCode(e.target.checked)}
                   className="rounded border-line text-indigo-600 focus:ring-indigo-500"
                 />
-                Use recovery code instead
+                {t('login.2faUseRecovery')}
               </label>
 
               <div className="flex gap-3">
@@ -260,16 +255,39 @@ export default function LoginPage() {
                   onClick={resetTwoFactorState}
                   className="flex-1 border border-line text-ink hover:bg-surface-hover"
                 >
-                  Back
+                  {t('login.2faBack')}
                 </Button>
                 <Button type="submit" loading={loading} className="flex-1">
-                  {loading ? 'A verificar...' : 'Verificar'}
+                  {loading ? t('login.2faVerifying') : t('login.2faVerify')}
                 </Button>
               </div>
             </form>
           )}
         </div>
       </div>
+
+      {showCookieBanner && (
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+          <div className="mx-auto max-w-3xl bg-surface border border-line rounded-xl shadow-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-ink-muted">
+              {t('cookie.message')}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="border border-line text-ink"
+                onClick={() => handleCookieDecision('rejected')}
+              >
+                {t('cookie.reject')}
+              </Button>
+              <Button size="sm" onClick={() => handleCookieDecision('accepted')}>
+                {t('cookie.accept')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

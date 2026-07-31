@@ -15,7 +15,12 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Global GDPR/RGPD gate: authenticated callers must satisfy all mandatory consents.
+        // The filter self-manages an allow-list so auth/consent/context-selection stay reachable.
+        options.Filters.Add<Habitus.Api.Middleware.RequireMandatoryConsentFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;

@@ -34,11 +34,11 @@ public class CondominiumService
         var condominiums = await _condominiumRepository.GetAllAsync();
         var responses = new List<CondominiumResponse>();
 
+        var unitCounts = await _unitRepository.CountGroupedAsync(u => u.CondominiumId);
+        var userCounts = await _userRepository.CountGroupedAsync(u => u.CondominiumId!.Value, u => u.CondominiumId != null);
+
         foreach (var condo in condominiums)
         {
-            var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
-            var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
-
             var decryptedAddress = DecryptAddress(condo.AddressEncrypted);
             var decryptedTaxId = DecryptTaxId(condo.TaxIdEncrypted);
             var decryptedEmail = DecryptEmail(condo.EmailEncrypted);
@@ -58,8 +58,8 @@ public class CondominiumService
                 ContactPhone = decryptedContactPhone,
                 CreatedAt = condo.CreatedAt,
                 IsActive = condo.IsActive,
-                TotalUnits = units.Count(),
-                TotalUsers = users.Count()
+                TotalUnits = unitCounts.GetValueOrDefault(condo.Id),
+                TotalUsers = userCounts.GetValueOrDefault(condo.Id)
             });
         }
 
@@ -71,11 +71,11 @@ public class CondominiumService
         var condominiums = await _condominiumRepository.GetAllAsync();
         var responses = new List<CondominiumResponse>();
 
+        var unitCounts = await _unitRepository.CountGroupedAsync(u => u.CondominiumId);
+        var userCounts = await _userRepository.CountGroupedAsync(u => u.CondominiumId!.Value, u => u.CondominiumId != null);
+
         foreach (var condo in condominiums)
         {
-            var users = await _userRepository.FindAsync(u => u.CondominiumId == condo.Id);
-            var units = await _unitRepository.FindAsync(u => u.CondominiumId == condo.Id);
-
             var decryptedAddress = DecryptAddress(condo.AddressEncrypted);
             var decryptedTaxId = DecryptTaxId(condo.TaxIdEncrypted);
             var decryptedEmail = DecryptEmail(condo.EmailEncrypted);
@@ -95,8 +95,8 @@ public class CondominiumService
                 ContactPhone = decryptedContactPhone,
                 CreatedAt = condo.CreatedAt,
                 IsActive = condo.IsActive,
-                TotalUnits = units.Count(),
-                TotalUsers = users.Count()
+                TotalUnits = unitCounts.GetValueOrDefault(condo.Id),
+                TotalUsers = userCounts.GetValueOrDefault(condo.Id)
             });
         }
 
@@ -134,7 +134,7 @@ public class CondominiumService
         {
             Id = u.Id,
             Name = u.Name,
-            Email = string.IsNullOrEmpty(u.EmailEncrypted) ? u.Email : _encryptionService.Decrypt(u.EmailEncrypted),
+            Email = string.IsNullOrEmpty(u.EmailEncrypted) ? string.Empty : _encryptionService.Decrypt(u.EmailEncrypted),
             Role = u.Role.ToString()
         }).ToList();
 
@@ -178,9 +178,7 @@ public class CondominiumService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Address = string.Empty,
             AddressEncrypted = encryptedAddress,
-            Email = string.Empty,
             EmailEncrypted = encryptedEmail,
             PostalCodeEncrypted = encryptedPostalCode,
             LocalityEncrypted = encryptedLocality,
@@ -228,12 +226,10 @@ public class CondominiumService
         condominium.Name = request.Name;
         condominium.AddressEncrypted = EncryptIfPresent(request.Address)
             ?? throw new InvalidOperationException("Address is required.");
-        condominium.Address = string.Empty;
         condominium.TaxIdEncrypted = string.IsNullOrEmpty(request.TaxId) ? null : _encryptionService.Encrypt(request.TaxId);
         if (request.Email != null)
         {
             condominium.EmailEncrypted = EncryptIfPresent(request.Email);
-            condominium.Email = string.Empty;
         }
         condominium.PostalCodeEncrypted = EncryptIfPresent(request.PostalCode);
         condominium.LocalityEncrypted = EncryptIfPresent(request.Locality);
@@ -279,7 +275,6 @@ public class CondominiumService
         }
 
         condominium.EmailEncrypted = EncryptIfPresent(email);
-        condominium.Email = string.Empty;
 
         _condominiumRepository.Update(condominium);
         await _condominiumRepository.SaveChangesAsync();

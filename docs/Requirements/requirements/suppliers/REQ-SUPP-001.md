@@ -12,10 +12,9 @@ relatedRequirements:
   - REQ-AUTH-001
   - REQ-MAINT-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/maintenance-expense-and-notification-flow.mmd
+  - docs/Requirements/diagrams/sequences/maintenance-expense-and-notification-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/SuppliersController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/InterventionService.cs
+  - src/Habitus.Api/Controllers/SuppliersController.cs
 testRefs: []
 ---
 

@@ -12,12 +12,12 @@ roles:
 relatedRequirements:
   - REQ-AUTH-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/assemblies-lifecycle-flow.mmd
+  - docs/Requirements/diagrams/sequences/assemblies-lifecycle-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/AssembliesController.cs
+  - src/Habitus.Api/Controllers/AssembliesController.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/AssemblyServiceIsolationTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/NotificationDispatchServiceTests.cs
+  - tests/Habitus.Tests/AssemblyServiceIsolationTests.cs
+  - tests/Habitus.Tests/NotificationDispatchServiceTests.cs
 ---
 
 # REQ-ASM-001

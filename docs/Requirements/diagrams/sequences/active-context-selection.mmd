@@ -1,0 +1,18 @@
+sequenceDiagram
+  actor U as Resident/Internal Admin
+  participant W as Web portal
+  participant API as Habitus API
+
+  U->>W: Authenticate (valid credentials)
+  W->>API: GET /me/memberships
+  API-->>W: Condominiums + units the user belongs to
+  alt More than one condominium and/or fraction
+    W-->>U: Show fraction/condominium selector
+    U->>W: Choose active condominium + fraction
+    W->>API: POST /me/active-context {condominiumId, unitId}
+    API-->>W: Token/claims scoped to selected context
+  else Single membership
+    W->>API: Adopt the only membership as active context
+  end
+  W-->>U: Load portal scoped to the active context
+  Note over U,W: User can switch context later without re-login

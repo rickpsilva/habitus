@@ -23,9 +23,12 @@ public static class DependencyInjection
             );
         }
 
-        services.AddDbContext<HabitusDbContext>(options =>
+        // Pooled DbContext: reuses context instances across requests to cut per-request
+        // allocation. poolSize bounds concurrent instances for a ~1-vCPU box.
+        services.AddDbContextPool<HabitusDbContext>(options =>
             options.UseNpgsql(connectionString, 
-                b => b.MigrationsAssembly("Habitus.Infrastructure")));
+                b => b.MigrationsAssembly("Habitus.Infrastructure")),
+            poolSize: 32);
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
@@ -94,7 +97,6 @@ public static class DependencyInjection
         }
 
         services.AddScoped<AuthService>();
-        services.AddScoped<ResidentService>();
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
@@ -112,18 +114,19 @@ public static class DependencyInjection
         services.AddScoped<InvoiceService>();
         services.AddScoped<InvoicePdfService>();
         services.AddScoped<SaftXmlService>();
-
+        services.AddScoped<UnitMembershipService>();
+        services.AddScoped<IConsentService, ConsentService>();
+        services.AddScoped<IFeatureEntitlementService, FeatureEntitlementService>();
+        services.AddScoped<IPersonalDataService, PersonalDataService>();
+        // Caches the four platform-wide single-row settings tables via the singleton IMemoryCache.
+        services.AddScoped<IPlatformSettingsCache, PlatformSettingsCache>();
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
-        // TODO: Remove after migration is complete
-        // services.AddHostedService<UserPhoneEncryptionMigrationHostedService>();
-        // services.AddHostedService<CondominiumAddressEncryptionMigrationHostedService>();
-        // services.AddHostedService<SupplierEncryptionMigrationHostedService>();
-        // services.AddHostedService<UsefulContactEncryptionMigrationHostedService>();
 
-        // Encryption service for sensitive data
-        services.AddScoped<IEncryptionService, EncryptionService>();
+        // Encryption service for sensitive data. Singleton: PBKDF2(100k) key derivation
+        // runs once at boot instead of per request; the service is stateless afterwards.
+        services.AddSingleton<IEncryptionService, EncryptionService>();
 
         return services;
     }

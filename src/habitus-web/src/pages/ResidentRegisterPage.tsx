@@ -4,8 +4,10 @@ import { Building2, Mail, Lock, User, Phone, Home, CheckCircle } from 'lucide-re
 import { condominiumsApi, userRegistrationApi } from '../api/services';
 import type { UnitPublicDto } from '../types';
 import { Button } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export default function ResidentRegisterPage() {
+  const { t } = useTranslation();
   const { condominiumId } = useParams<{ condominiumId: string }>();
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', unitId: '' });
   const [units, setUnits] = useState<UnitPublicDto[]>([]);
@@ -26,8 +28,8 @@ export default function ResidentRegisterPage() {
     // Load units for this condominium
     condominiumsApi.getUnitsPublic(condominiumId)
       .then((r) => setUnits(r.data))
-      .catch(() => setError('Não foi possível carregar as frações deste condomínio.'));
-  }, [condominiumId]);
+      .catch(() => setError(t('residentRegister.error.loadUnits')));
+  }, [condominiumId, t]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -38,7 +40,7 @@ export default function ResidentRegisterPage() {
     setError('');
 
     if (!form.unitId) {
-      setError('Deve selecionar uma fração para continuar o registo.');
+      setError(t('residentRegister.error.selectUnit'));
       return;
     }
 
@@ -54,7 +56,7 @@ export default function ResidentRegisterPage() {
       setSuccess(true);
     } catch (err: unknown) {
       const apiError = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(apiError ?? 'Não foi possível criar a conta. Verifique os dados e tente novamente.');
+      setError(apiError ?? t('register.error.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -68,17 +70,17 @@ export default function ResidentRegisterPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
               <CheckCircle className="w-9 h-9 text-green-600" />
             </div>
-            <h2 className="text-xl font-semibold text-ink mb-2">Registo Submetido!</h2>
+            <h2 className="text-xl font-semibold text-ink mb-2">{t('residentRegister.success.title')}</h2>
             <p className="text-sm text-ink-muted mb-6">
-              O seu pedido de registo foi submetido com sucesso.<br />
-              Aguarda aprovação pelo administrador do condomínio ou por um residente da mesma fração.<br />
-              Receberá uma notificação quando a sua conta for activada.
+              {t('residentRegister.success.line1')}<br />
+              {t('residentRegister.success.line2')}<br />
+              {t('residentRegister.success.line3')}
             </p>
             <Link
               to="/login"
               className="inline-block px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors text-sm"
             >
-              Ir para o Login
+              {t('residentRegister.success.goToLogin')}
             </Link>
           </div>
         </div>
@@ -94,17 +96,19 @@ export default function ResidentRegisterPage() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-ink">Habitus</h1>
-          <p className="text-ink-subtle mt-1">Gestão de Condomínio</p>
+          <p className="text-ink-subtle mt-1">{t('common.appTagline')}</p>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-ink mb-1">Criar Conta</h2>
+          <h2 className="text-xl font-semibold text-ink mb-1">{t('register.title')}</h2>
           {condominiumName && (
             <p className="text-sm text-indigo-600 font-medium mb-4">{condominiumName}</p>
           )}
 
           <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-100 text-amber-800 text-sm">
-            Após o registo, a sua conta ficará <strong>pendente de aprovação</strong> pelo administrador ou por um residente da mesma fração.
+            {t('residentRegister.pendingNoticePrefix')}{' '}
+            <strong>{t('residentRegister.pendingNoticeStrong')}</strong>{' '}
+            {t('residentRegister.pendingNoticeSuffix')}
           </div>
 
           {error && (
@@ -113,10 +117,10 @@ export default function ResidentRegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
-              { name: 'name', label: 'Nome completo', type: 'text', icon: User, placeholder: 'João Silva' },
-              { name: 'email', label: 'Email', type: 'email', icon: Mail, placeholder: 'joao@email.com' },
-              { name: 'password', label: 'Password', type: 'password', icon: Lock, placeholder: '••••••••' },
-              { name: 'phone', label: 'Telefone', type: 'tel', icon: Phone, placeholder: '+351 912 345 678' },
+              { name: 'name', label: t('register.nameLabel'), type: 'text', icon: User, placeholder: t('register.namePlaceholder') },
+              { name: 'email', label: t('common.email'), type: 'email', icon: Mail, placeholder: 'joao@email.com' },
+              { name: 'password', label: t('login.password'), type: 'password', icon: Lock, placeholder: '••••••••' },
+              { name: 'phone', label: t('common.phone'), type: 'tel', icon: Phone, placeholder: '+351 912 345 678' },
             ].map(({ name, label, type, icon: Icon, placeholder }) => (
               <div key={name}>
                 <label className="block text-sm font-medium text-ink-muted mb-1.5">{label}</label>
@@ -137,7 +141,7 @@ export default function ResidentRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1.5">
-                Fração <span className="text-red-500">*</span>
+                {t('register.unitLabel')} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
@@ -148,10 +152,14 @@ export default function ResidentRegisterPage() {
                   required
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-line focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm appearance-none bg-surface"
                 >
-                  <option value="">Selecionar fração</option>
+                  <option value="">{t('register.unitPlaceholder')}</option>
                   {units.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.number}{u.apartmentNumber ? ` (${u.apartmentNumber})` : ''} – Piso {u.floor}
+                      {t('residentRegister.unitOption', {
+                        number: u.number,
+                        apartment: u.apartmentNumber ? ` (${u.apartmentNumber})` : '',
+                        floor: u.floor,
+                      })}
                     </option>
                   ))}
                 </select>
@@ -159,19 +167,19 @@ export default function ResidentRegisterPage() {
             </div>
 
             <Button type="submit" loading={loading} fullWidth className="mt-2">
-              {loading ? 'A submeter…' : 'Submeter Pedido de Registo'}
+              {loading ? t('residentRegister.submitting') : t('residentRegister.submit')}
             </Button>
           </form>
 
           <p className="text-center text-sm text-ink-subtle mt-6">
-            Já tem conta?{' '}
+            {t('register.haveAccount')}{' '}
             <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
-              Iniciar sessão
+              {t('register.signIn')}
             </Link>
           </p>
           <p className="text-center text-sm text-ink-subtle mt-2">
             <Link to="/register" className="text-ink-subtle hover:text-ink-muted text-xs">
-              ← Escolher outro condomínio
+              ← {t('residentRegister.chooseAnother')}
             </Link>
           </p>
         </div>

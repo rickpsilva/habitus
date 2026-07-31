@@ -9,6 +9,8 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import type { UnitDto, CreateUnitRequest, PaginatedResponse } from '../types';
 import { PageHeader, Button, AsyncState, EmptyState, Card } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -16,14 +18,16 @@ import {
   isFileSizeWithinLimit,
 } from '../utils/uploadLimits';
 
-const unitTypeLabels: Record<number, string> = {
-  0: 'Apartamento',
-  1: 'Comercial',
-  2: 'Estacionamento',
-};
+const getUnitTypeLabels = (t: TranslateFn): Record<number, string> => ({
+  0: t('units.type.apartment'),
+  1: t('units.type.commercial'),
+  2: t('units.type.parking'),
+});
 
 export default function UnitsPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin, condominiumId } = useAuth();
+  const { t } = useTranslation();
+  const unitTypeLabels = getUnitTypeLabels(t);
   const navigate = useNavigate();
   const { error: toastError, success: toastSuccess } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -74,7 +78,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
         setPagination(null);
         setUnits([]);
         setCurrentPage(page);
-        setLoadError('Condomínio não identificado.');
+        setLoadError(t('units.error.condoNotIdentified'));
         return;
       }
 
@@ -86,11 +90,11 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar frações:', error);
-      setLoadError('Não foi possível carregar as frações.');
+      setLoadError(t('units.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, debouncedSearch]);
+  }, [condominiumId, debouncedSearch, t]);
 
   useEffect(() => {
     load(1);
@@ -165,7 +169,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
   const handleCsvDownload = async () => {
     if (!condominiumId) {
-      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError(t('units.error.condoReload'));
       return;
     }
 
@@ -204,7 +208,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      toastError('Não foi possível descarregar o CSV. Tente novamente.');
+      toastError(t('units.error.csvDownload'));
     }
   };
 
@@ -212,7 +216,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     e.preventDefault();
     
     if (!form.condominiumId) {
-      setError('Selecione um condomínio');
+      setError(t('units.error.selectCondo'));
       return;
     }
     
@@ -220,7 +224,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     setError('');
     try {
       if (!condominiumId) {
-        setError('Condomínio não identificado');
+        setError(t('units.error.condoRequired'));
         return;
       }
 
@@ -232,7 +236,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       setShowForm(false);
       load();
     } catch {
-      setError('Não foi possível guardar a fração. Verifique os dados e tente novamente.');
+      setError(t('units.error.save'));
     } finally {
       setSaving(false);
     }
@@ -246,7 +250,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     if (!deleteId) return;
     try {
       if (!condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('units.error.condoNotIdentified'));
         return;
       }
 
@@ -254,7 +258,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       load();
     } catch (error) {
       console.error('Erro ao remover fração:', error);
-      toastError('Erro ao remover fração. Pode haver utilizadores associados.');
+      toastError(t('units.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -265,14 +269,14 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     if (!file) return;
 
     if (!isFileSizeWithinLimit(file, maxUploadSizeBytes)) {
-      toastError(`O ficheiro excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+      toastError(t('units.error.fileExceedsLimit', { limit: formatUploadSizeLabel(maxUploadSizeBytes) }));
       if (csvInputRef.current) csvInputRef.current.value = '';
       return;
     }
     
     const activeCondominiumId = condominiumId || '';
     if (!activeCondominiumId) {
-      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError(t('units.error.condoReload'));
       return;
     }
 
@@ -281,7 +285,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       const response = await unitsApi.importCsv(activeCondominiumId, file);
       const result = response.data;
       if (result.errors && result.errors.length > 0) {
-        toastError(`Importação concluída com erros: ${result.message}`);
+        toastError(t('units.error.importWithErrors', { message: result.message ?? '' }));
       } else {
         toastSuccess(result.message);
       }
@@ -290,7 +294,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       const msg = typeof err === 'object' && err !== null && 'response' in err
         ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
         : undefined;
-      toastError(msg ?? 'Erro ao importar CSV. Verifique o formato do ficheiro.');
+      toastError(msg ?? t('units.error.importCsv'));
     } finally {
       setCsvImporting(false);
       if (csvInputRef.current) csvInputRef.current.value = '';
@@ -303,7 +307,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     return (
       <div className="text-center py-20 text-ink-subtle">
         <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a administradores</p>
+        <p>{t('units.accessRestricted')}</p>
       </div>
     );
   }
@@ -312,9 +316,9 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Remover fração"
-        message="Tem a certeza que deseja remover esta fração? Esta ação não pode ser revertida."
-        confirmLabel="Remover"
+        title={t('units.delete.title')}
+        message={t('units.delete.message')}
+        confirmLabel={t('units.delete.confirm')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
@@ -322,8 +326,8 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
       {/* Header — standalone only */}
       {!embedded && (
         <PageHeader
-          title="Frações"
-          subtitle={`${filteredUnits.length} frações registadas`}
+          title={t('units.title')}
+          subtitle={t('units.subtitle', { count: filteredUnits.length })}
         />
       )}
 
@@ -333,7 +337,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Pesquisar frações..."
+            placeholder={t('units.searchPlaceholder')}
           />
         </div>
 
@@ -341,13 +345,13 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           variant="secondary"
           icon={Download}
           onClick={handleCsvDownload}
-          title="Descarregar CSV (template ou exportação)"
+          title={t('units.download.title')}
         >
-          Descarregar CSV
+          {t('units.download.label')}
         </Button>
 
         <Button icon={Plus} onClick={openCreate}>
-          Nova Fração
+          {t('units.new')}
         </Button>
 
         <Button
@@ -355,9 +359,9 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           icon={Upload}
           onClick={() => csvInputRef.current?.click()}
           disabled={csvImporting}
-          title="Importar frações a partir de ficheiro CSV"
+          title={t('units.import.title')}
         >
-          {csvImporting ? 'A importar...' : 'Importar CSV'}
+          {csvImporting ? t('units.import.importing') : t('units.import.label')}
         </Button>
         <input
           ref={csvInputRef}
@@ -366,7 +370,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           className="hidden"
           onChange={handleCsvImport}
         />
-        <span className="text-xs text-ink-subtle">Máx. upload: {formatUploadSizeLabel(maxUploadSizeBytes)}</span>
+        <span className="text-xs text-ink-subtle">{t('units.maxUpload', { size: formatUploadSizeLabel(maxUploadSizeBytes) })}</span>
       </div>
 
       {/* Form modal */}
@@ -375,7 +379,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
           <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-semibold text-ink">
-                {editId ? 'Editar Fração' : 'Nova Fração'}
+                {editId ? t('units.form.editTitle') : t('units.new')}
               </h2>
               <button onClick={() => setShowForm(false)} className="text-ink-subtle hover:text-ink-muted">
                 <X className="w-5 h-5" />
@@ -388,30 +392,30 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Número da Fração *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('units.form.numberLabel')}</label>
                 <input
                   type="text"
                   name="number"
                   value={form.number}
                   onChange={handleChange}
                   required
-                  placeholder="Ex: 101"
+                  placeholder={t('units.form.numberPlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Prédio</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('units.form.buildingLabel')}</label>
                 <input
                   type="text"
                   name="building"
                   value={form.building || ''}
                   onChange={handleChange}
-                  placeholder="Ex: Bloco A"
+                  placeholder={t('units.form.buildingPlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Piso *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('units.form.floorLabel')}</label>
                 <input
                   type="number"
                   name="floor"
@@ -423,33 +427,33 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
               </div>
               {form.type === 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Apartamento</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('units.form.apartmentLabel')}</label>
                   <input
                     type="text"
                     name="apartmentNumber"
                     value={form.apartmentNumber || ''}
                     onChange={handleChange}
-                    placeholder="Ex: A, B, Esq, Dto"
+                    placeholder={t('units.form.apartmentPlaceholder')}
                     className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Tipo *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('units.form.typeLabel')}</label>
                 <select
                   name="type"
                   value={form.type}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface text-ink"
                 >
-                  <option value={0}>Apartamento</option>
-                  <option value={1}>Comercial</option>
-                  <option value={2}>Estacionamento</option>
+                  <option value={0}>{t('units.type.apartment')}</option>
+                  <option value={1}>{t('units.type.commercial')}</option>
+                  <option value={2}>{t('units.type.parking')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Permilagem (‰) *
+                  {t('units.form.permillageLabel')}
                 </label>
                 <input
                   type="number"
@@ -459,13 +463,13 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   required
                   min={0}
                   step={0.01}
-                  placeholder="Ex: 85.50"
+                  placeholder={t('units.form.permillagePlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Quota Mensal Base (€)
+                  {t('units.form.monthlyQuotaLabel')}
                 </label>
                 <input
                   type="number"
@@ -474,10 +478,10 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   onChange={handleChange}
                   min={0}
                   step={0.01}
-                  placeholder="Ex: 45.00"
+                  placeholder={t('units.form.monthlyQuotaPlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <p className="text-xs text-ink-subtle mt-1">Valor mensal da quota desta fração</p>
+                <p className="text-xs text-ink-subtle mt-1">{t('units.form.monthlyQuotaHint')}</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <Button
@@ -486,10 +490,10 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   fullWidth
                   className="border border-line"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" loading={saving} fullWidth>
-                  Guardar
+                  {t('units.form.save')}
                 </Button>
               </div>
             </form>
@@ -503,7 +507,7 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
         onRetry={() => load(currentPage)}
         isEmpty={filteredUnits.length === 0}
         skeleton="card"
-        empty={<EmptyState icon={Building2} title="Sem frações registadas" />}
+        empty={<EmptyState icon={Building2} title={t('units.empty')} />}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredUnits.map((u) => (
@@ -515,9 +519,9 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
                   </div>
                   <div>
                     <p className="font-medium text-ink">
-                      Fração {u.number}{u.apartmentNumber && u.type === 0 ? ` - ${u.apartmentNumber}` : ''}
+                      {t('common.fraction', { number: u.number })}{u.apartmentNumber && u.type === 0 ? ` - ${u.apartmentNumber}` : ''}
                     </p>
-                    <span className="text-xs text-ink-subtle">Piso {u.floor}</span>
+                    <span className="text-xs text-ink-subtle">{t('units.card.floor', { floor: u.floor })}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -531,15 +535,15 @@ export default function UnitsPage({ embedded = false }: { embedded?: boolean }) 
               </div>
               <div className="mt-3 space-y-1.5 text-sm text-ink-subtle">
                 <div className="flex items-center justify-between">
-                  <span>Prédio</span>
+                  <span>{t('units.card.building')}</span>
                   <span className="font-medium text-ink">{u.building || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Tipo</span>
+                  <span>{t('units.card.type')}</span>
                   <span className="font-medium text-ink">{unitTypeLabels[u.type] ?? u.type}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Permilagem</span>
+                  <span>{t('units.card.permillage')}</span>
                   <span className="font-medium text-ink">{u.permillage.toFixed(2)} ‰</span>
                 </div>
               </div>

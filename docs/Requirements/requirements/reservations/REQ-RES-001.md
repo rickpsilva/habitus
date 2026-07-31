@@ -12,13 +12,13 @@ relatedRequirements:
   - REQ-AUTH-001
   - REQ-SPACES-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/reservations-conflict-and-approval-flow.mmd
+  - docs/Requirements/diagrams/sequences/reservations-conflict-and-approval-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/ReservationsController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/ReservationService.cs
+  - src/Habitus.Api/Controllers/ReservationsController.cs
+  - src/Habitus.Application/Services/ReservationService.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/ReservationServiceTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/ReservationServiceIsolationTests.cs
+  - tests/Habitus.Tests/ReservationServiceTests.cs
+  - tests/Habitus.Tests/ReservationServiceIsolationTests.cs
 ---
 
 # REQ-RES-001

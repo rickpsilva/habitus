@@ -49,6 +49,20 @@ public class Repository<T> : IRepository<T> where T : class
     public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.AnyAsync(predicate);
 
+    public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
+        => predicate == null ? await _dbSet.CountAsync() : await _dbSet.CountAsync(predicate);
+
+    public async Task<Dictionary<Guid, int>> CountGroupedAsync(
+        Expression<Func<T, Guid>> keySelector,
+        Expression<Func<T, bool>>? predicate = null)
+    {
+        var query = predicate == null ? _dbSet : _dbSet.Where(predicate);
+        return await query
+            .GroupBy(keySelector)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count);
+    }
+
     public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
 
@@ -62,7 +76,8 @@ public class Repository<T> : IRepository<T> where T : class
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
 
-        var query = _dbSet.Where(filter);
+        // Display-only projection: no tracking avoids the change-tracker overhead.
+        var query = _dbSet.AsNoTracking().Where(filter);
         query = descending ? query.OrderByDescending(orderBy) : query.OrderBy(orderBy);
 
         var totalItems = await query.CountAsync();

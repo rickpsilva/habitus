@@ -38,6 +38,21 @@ public class PaymentServicePaginationTests
             CreatedDate = DateTime.UtcNow
         };
 
+    private static Payment Payment(Guid condominiumId, Guid residentId, PaymentStatus status, string description = "Quota")
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            ResidentId = residentId,
+            UnitId = Guid.NewGuid(),
+            CondominiumId = condominiumId,
+            Type = PaymentType.MonthlyFee,
+            Method = PaymentMethod.BankTransfer,
+            Amount = 50m,
+            Description = description,
+            Status = status,
+            CreatedDate = DateTime.UtcNow
+        };
+
     private void SetupCapture(Action<int, int, Expression<Func<Payment, bool>>> capture,
         PaginatedResponse<Payment>? response = null)
     {
@@ -88,5 +103,107 @@ public class PaymentServicePaginationTests
         capturedPageSize.Should().Be(10);
         result.TotalItems.Should().Be(7);
         result.Items.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task GetPagedByResidentAsync_ScopesToResidentAndCondominium()
+    {
+        var condo = Guid.NewGuid();
+        var otherCondo = Guid.NewGuid();
+        var resident = Guid.NewGuid();
+        var otherResident = Guid.NewGuid();
+        Expression<Func<Payment, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedByResidentAsync(resident, condo, 1, 10, status: null, search: null);
+
+        var predicate = captured!.Compile();
+        predicate(Payment(condo, resident, PaymentStatus.Pending)).Should().BeTrue();
+        predicate(Payment(condo, otherResident, PaymentStatus.Pending)).Should().BeFalse();   // another resident
+        predicate(Payment(otherCondo, resident, PaymentStatus.Pending)).Should().BeFalse();    // another condominium
+    }
+
+    [Theory]
+    [InlineData("Pending", PaymentStatus.Pending, true)]
+    [InlineData("Pending", PaymentStatus.Approved, false)]
+    [InlineData("approved", PaymentStatus.Approved, true)]
+    [InlineData("Rejected", PaymentStatus.Rejected, true)]
+    [InlineData("Cancelled", PaymentStatus.Cancelled, true)]
+    public async Task GetPagedByResidentAsync_StatusFilter_AppliesServerSide(string status, PaymentStatus rowStatus, bool expected)
+    {
+        var condo = Guid.NewGuid();
+        var resident = Guid.NewGuid();
+        Expression<Func<Payment, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedByResidentAsync(resident, condo, 1, 10, status, search: null);
+
+        var predicate = captured!.Compile();
+        predicate(Payment(condo, resident, rowStatus)).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("All")]
+    public async Task GetPagedByResidentAsync_NoStatusFilter_MatchesEveryStatus(string? status)
+    {
+        var condo = Guid.NewGuid();
+        var resident = Guid.NewGuid();
+        Expression<Func<Payment, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedByResidentAsync(resident, condo, 1, 10, status, search: null);
+
+        var predicate = captured!.Compile();
+        predicate(Payment(condo, resident, PaymentStatus.Pending)).Should().BeTrue();
+        predicate(Payment(condo, resident, PaymentStatus.Approved)).Should().BeTrue();
+        predicate(Payment(condo, resident, PaymentStatus.Rejected)).Should().BeTrue();
+        predicate(Payment(condo, resident, PaymentStatus.Cancelled)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetPagedByResidentAsync_Search_MatchesDescriptionCaseInsensitive()
+    {
+        var condo = Guid.NewGuid();
+        var resident = Guid.NewGuid();
+        Expression<Func<Payment, bool>>? captured = null;
+        SetupCapture((_, _, filter) => captured = filter);
+
+        await _service.GetPagedByResidentAsync(resident, condo, 1, 10, status: null, search: "QUOTA");
+
+        var predicate = captured!.Compile();
+        predicate(Payment(condo, resident, PaymentStatus.Pending, "Quota mensal")).Should().BeTrue();
+        predicate(Payment(condo, resident, PaymentStatus.Pending, "Reserva salão")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetResidentStatusCountsAsync_TalliesByStatusScopedToResidentAndCondominium()
+    {
+        var condo = Guid.NewGuid();
+        var otherCondo = Guid.NewGuid();
+        var resident = Guid.NewGuid();
+        var otherResident = Guid.NewGuid();
+        var rows = new List<Payment>
+        {
+            Payment(condo, resident, PaymentStatus.Pending),
+            Payment(condo, resident, PaymentStatus.Pending),
+            Payment(condo, resident, PaymentStatus.Approved),
+            Payment(condo, resident, PaymentStatus.Rejected),
+            Payment(condo, resident, PaymentStatus.Cancelled),
+            Payment(condo, otherResident, PaymentStatus.Pending),  // another resident — excluded
+            Payment(otherCondo, resident, PaymentStatus.Approved),  // another condominium — excluded
+        };
+        _paymentRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Payment, bool>>>()))
+            .ReturnsAsync((Expression<Func<Payment, bool>> predicate) => rows.Count(predicate.Compile()));
+
+        var counts = await _service.GetResidentStatusCountsAsync(resident, condo);
+
+        counts.All.Should().Be(5);
+        counts.Pending.Should().Be(2);
+        counts.Approved.Should().Be(1);
+        counts.Rejected.Should().Be(1);
+        counts.Cancelled.Should().Be(1);
     }
 }

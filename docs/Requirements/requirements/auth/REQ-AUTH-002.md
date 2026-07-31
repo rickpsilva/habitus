@@ -13,8 +13,8 @@ relatedRequirements:
   - REQ-AUTH-001
   - REQ-USERS-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/users-management-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/users-management-scope-flow.mmd
 ---
 
 # REQ-AUTH-002

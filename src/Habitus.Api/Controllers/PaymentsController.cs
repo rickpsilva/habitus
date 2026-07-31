@@ -119,6 +119,59 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
+    /// Get a paginated page of the current resident's payments within this condominium.
+    /// </summary>
+    [HttpGet("my/paged")]
+    [Authorize(Roles = "Resident,Admin")]
+    public async Task<IActionResult> GetMyPaged([FromRoute] Guid condominiumId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? status = null, [FromQuery] string? search = null)
+    {
+        try
+        {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
+            if (IsAdminWithoutAssignedUnit())
+                return Forbid();
+
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _service.GetPagedByResidentAsync(userId, condominiumId, page, pageSize, status, search);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get per-status tallies for the current resident's payments within this condominium.
+    /// </summary>
+    [HttpGet("my/status-counts")]
+    [Authorize(Roles = "Resident,Admin")]
+    public async Task<IActionResult> GetMyStatusCounts([FromRoute] Guid condominiumId)
+    {
+        try
+        {
+            if (!HasCondominiumAccess(condominiumId))
+                return Forbid();
+
+            if (IsAdminWithoutAssignedUnit())
+                return Forbid();
+
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _service.GetResidentStatusCountsAsync(userId, condominiumId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get all pending payments (Admin only)
     /// </summary>
     [HttpGet("pending")]

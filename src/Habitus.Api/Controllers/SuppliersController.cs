@@ -38,15 +38,15 @@ public class SuppliersController : ControllerBase
     private SupplierDto MapToDto(Supplier supplier)
     {
         string? email = string.IsNullOrEmpty(supplier.EmailEncrypted)
-            ? supplier.Email
+            ? null
             : DecryptIfPresent(supplier.EmailEncrypted);
 
         string? phone = string.IsNullOrEmpty(supplier.PhoneEncrypted)
-            ? supplier.Phone
+            ? null
             : DecryptIfPresent(supplier.PhoneEncrypted);
 
         string? address = string.IsNullOrEmpty(supplier.AddressEncrypted)
-            ? supplier.Address
+            ? null
             : DecryptIfPresent(supplier.AddressEncrypted);
 
         return new SupplierDto
@@ -142,11 +142,8 @@ public class SuppliersController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptIfPresent(request.Email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptIfPresent(request.Phone),
-            Address = string.Empty,
             AddressEncrypted = EncryptIfPresent(request.Address),
             Specialty = request.Specialty,
             CondominiumId = condominiumId,
@@ -170,11 +167,8 @@ public class SuppliersController : ControllerBase
         
         existing.Name = request.Name;
         existing.EmailEncrypted = EncryptIfPresent(request.Email);
-        existing.Email = string.Empty;
         existing.PhoneEncrypted = EncryptIfPresent(request.Phone);
-        existing.Phone = string.Empty;
         existing.AddressEncrypted = EncryptIfPresent(request.Address);
-        existing.Address = string.Empty;
         existing.Specialty = request.Specialty;
         existing.IsActive = request.IsActive;
         

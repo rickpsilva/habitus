@@ -14,6 +14,8 @@ import type {
   RecoveryCodesResponse,
   CondominiumPublicDto,
   UnitPublicDto,
+  MembershipsResponse,
+  SetActiveContextRequest,
   PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
@@ -24,13 +26,14 @@ import type {
   ReserveFundDto,
   NotificationDto,
   PaginatedResponse,
+  MaintenanceStatusCountsDto,
+  PaymentStatusCountsDto,
   ReservationDto,
   SharedSpaceDto,
   DocumentDto,
   AssemblyDto,
   CreateAssemblyRequest,
   UpdateAssemblyRequest,
-  ResidentDto,
   UserDto,
   CreateUserRequest,
   UpdateUserRequest,
@@ -87,6 +90,18 @@ import type {
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
   CsvImportResult,
+  ConsentStatusResponse,
+  RecordConsentRequest,
+  ConsentDefinitionDto,
+  UpdateConsentDefinitionRequest,
+  PublishConsentVersionRequest,
+  ErasureRequest,
+  ErasureResult,
+  MeLocalizationDto,
+  SetLanguageRequest,
+  PlatformLocalizationSettingsDto,
+  UpdatePlatformLocalizationSettingsRequest,
+  PublicLocalizationDefaultDto,
 } from '../types';
 
 export const authApi = {
@@ -104,6 +119,45 @@ export const authApi = {
   regenerateRecoveryCodes: (data: RegenerateRecoveryCodesRequest) =>
     api.post<RecoveryCodesResponse>('/platform/auth/2fa/recovery-codes/regenerate', data),
   unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/platform/auth/providers/${provider}`),
+};
+
+// Current user memberships & active-context switching (REQ-AUTH-006)
+export const meApi = {
+  getMemberships: () => api.get<MembershipsResponse>('/platform/me/memberships'),
+  setActiveContext: (data: SetActiveContextRequest) =>
+    api.post<AuthResponse>('/platform/me/active-context', data),
+  getConsents: () => api.get<ConsentStatusResponse>('/platform/me/consents'),
+  recordConsent: (data: RecordConsentRequest) =>
+    api.post<ConsentStatusResponse>('/platform/me/consents', data),
+  // RGPD/GDPR self-service (REQ-SEC-006). Export returns a JSON file download;
+  // the blob is handled by the caller (object URL + temporary anchor).
+  exportData: () => api.get('/platform/me/export', { responseType: 'blob' }),
+  eraseData: (data: ErasureRequest) =>
+    api.post<ErasureResult>('/platform/me/personal-data/erasure', data),
+  getLocalization: () => api.get<MeLocalizationDto>('/platform/me/localization'),
+  setLanguage: (data: SetLanguageRequest) =>
+    api.put<MeLocalizationDto>('/platform/me/language', data),
+};
+
+// Platform-wide localization settings (REQ-I18N-001). Read allowed for any
+// authenticated user; PUT is Manager-only server-side.
+export const platformLocalizationApi = {
+  get: () =>
+    api.get<PlatformLocalizationSettingsDto>('/platform/localization-settings'),
+  update: (data: UpdatePlatformLocalizationSettingsRequest) =>
+    api.put<PlatformLocalizationSettingsDto>('/platform/localization-settings', data),
+  getPublicDefault: () =>
+    api.get<PublicLocalizationDefaultDto>('/platform/localization-settings/public'),
+};
+
+// Manager-only consent authoring & versioning (REQ-SEC-008). All endpoints are
+// Manager-only server-side; a non-Manager receives HTTP 403.
+export const consentAdminApi = {
+  list: () => api.get<ConsentDefinitionDto[]>('/platform/consents'),
+  update: (id: string, data: UpdateConsentDefinitionRequest) =>
+    api.put<ConsentDefinitionDto>(`/platform/consents/${id}`, data),
+  publish: (data: PublishConsentVersionRequest) =>
+    api.post<ConsentDefinitionDto>('/platform/consents', data),
 };
 
 // New users API
@@ -158,14 +212,6 @@ export const condominiumsApi = {
   delete: (id: string) => api.delete(`/platform/condominiums/${id}`),
 };
 
-// Deprecated - use usersApi instead
-export const residentsApi = {
-  getAll: () => api.get<ResidentDto[]>('/residents'),
-  getById: (id: string) => api.get<ResidentDto>(`/residents/${id}`),
-  getByUnit: (unitId: string) => api.get<ResidentDto[]>(`/residents/unit/${unitId}`),
-  delete: (id: string) => api.delete(`/residents/${id}`),
-};
-
 export const unitsApi = {
   getAll: (condominiumId: string) => api.get<UnitDto[]>(`/condominiums/${condominiumId}/units`),
   getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
@@ -185,8 +231,10 @@ export const unitsApi = {
 
 export const maintenanceApi = {
   getAll: (condominiumId: string) => api.get<MaintenanceRequestDto[]>(`/condominiums/${condominiumId}/maintenance`),
-  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string, status?: string) =>
+    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
+  getStatusCounts: (condominiumId: string) =>
+    api.get<MaintenanceStatusCountsDto>(`/condominiums/${condominiumId}/maintenance/status-counts`),
   getById: (condominiumId: string, id: string) => api.get<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`),
   create: (condominiumId: string, data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance`, data),
   update: (condominiumId: string, id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
@@ -357,6 +405,14 @@ export const paymentsApi = {
   // Resident endpoints
   create: (condominiumId: string, data: CreatePaymentRequest) => api.post<PaymentDto>(`/condominiums/${condominiumId}/payments`, data),
   getMyPayments: (condominiumId: string) => api.get<PaymentDto[]>(`/condominiums/${condominiumId}/payments`),
+  getMyPaymentsPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, opts?: { status?: string; search?: string }) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts?.status && opts.status !== 'All') params.set('status', opts.status);
+    if (opts?.search) params.set('search', opts.search);
+    return api.get<PaginatedResponse<PaymentDto>>(`/condominiums/${condominiumId}/payments/my/paged?${params.toString()}`);
+  },
+  getMyStatusCounts: (condominiumId: string) =>
+    api.get<PaymentStatusCountsDto>(`/condominiums/${condominiumId}/payments/my/status-counts`),
   getById: (condominiumId: string, id: string) => api.get<PaymentDto>(`/condominiums/${condominiumId}/payments/${id}`),
   uploadProof: (condominiumId: string, id: string, proofUrl: string) => api.post(`/condominiums/${condominiumId}/payments/${id}/proof`, { proofUrl }),
   downloadProof: async (condominiumId: string, id: string, description: string) => {
@@ -446,6 +502,13 @@ export const quotaPlansApi = {
 export const announcementsApi = {
   getAll: (condominiumId: string, status?: string) =>
     api.get<AnnouncementDto[]>(`/condominiums/${condominiumId}/announcements${status ? `?status=${status}` : ''}`),
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, opts?: { status?: string; category?: string; search?: string }) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (opts?.status && opts.status !== 'All') params.set('status', opts.status);
+    if (opts?.category && opts.category !== 'All') params.set('category', opts.category);
+    if (opts?.search) params.set('search', opts.search);
+    return api.get<PaginatedResponse<AnnouncementDto>>(`/condominiums/${condominiumId}/announcements/paged?${params.toString()}`);
+  },
   getById: (condominiumId: string, id: string) =>
     api.get<AnnouncementDto>(`/condominiums/${condominiumId}/announcements/${id}`),
   getStats: (condominiumId: string) =>

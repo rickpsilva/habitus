@@ -12,15 +12,18 @@ namespace Habitus.Api.Controllers;
 public class PlatformBillingSettingsController : ControllerBase
 {
     private readonly IRepository<PlatformBillingSettings> _repository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<PlatformBillingSettingsController> _logger;
 
     public PlatformBillingSettingsController(
         IRepository<PlatformBillingSettings> repository,
+        IPlatformSettingsCache settingsCache,
         IEncryptionService encryptionService,
         ILogger<PlatformBillingSettingsController> logger)
     {
         _repository = repository;
+        _settingsCache = settingsCache;
         _encryptionService = encryptionService;
         _logger = logger;
     }
@@ -30,7 +33,7 @@ public class PlatformBillingSettingsController : ControllerBase
     {
         try
         {
-            var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+            var settings = await _settingsCache.GetBillingAsync();
             if (settings == null)
             {
                 return Ok(new PlatformBillingSettingsDto
@@ -97,6 +100,7 @@ public class PlatformBillingSettingsController : ControllerBase
             }
 
             await _repository.SaveChangesAsync();
+            _settingsCache.InvalidateBilling();
             return Ok(Map(settings));
         }
         catch (Exception ex)

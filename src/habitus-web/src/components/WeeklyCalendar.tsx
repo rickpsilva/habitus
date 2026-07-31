@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import type { ReservationDto, SharedSpaceDto } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import { Card } from './ui';
 
 interface WeeklyCalendarProps {
@@ -14,13 +16,22 @@ interface WeeklyCalendarProps {
 
 type HourZoom = 'commercial' | 'evening' | 'full';
 
-const HOUR_RANGES: Record<HourZoom, { start: number; end: number; label: string }> = {
-  commercial: { start: 8, end: 18, label: 'Comercial (8h-18h)' },
-  evening: { start: 18, end: 24, label: 'Noturno (18h-24h)' },
-  full: { start: 8, end: 24, label: 'Completo (8h-24h)' },
+const HOUR_RANGES: Record<HourZoom, { start: number; end: number }> = {
+  commercial: { start: 8, end: 18 },
+  evening: { start: 18, end: 24 },
+  full: { start: 8, end: 24 },
 };
 
-const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+// Weekday abbreviations, index 0 = Sunday (matches Date.getDay()).
+const buildDays = (t: TranslateFn): string[] => [
+  t('calendar.day.short.0'),
+  t('calendar.day.short.1'),
+  t('calendar.day.short.2'),
+  t('calendar.day.short.3'),
+  t('calendar.day.short.4'),
+  t('calendar.day.short.5'),
+  t('calendar.day.short.6'),
+];
 
 interface ReservationWithLayout extends ReservationDto {
   column: number;
@@ -35,6 +46,8 @@ export default function WeeklyCalendar({
   onSelectSlot,
   onSelectReservation,
 }: WeeklyCalendarProps) {
+  const { t, formatDateTime, formatTime } = useTranslation();
+  const DAYS = useMemo(() => buildDays(t), [t]);
   const [hourZoom, setHourZoom] = useState<HourZoom>('full');
 
   const hourRange = HOUR_RANGES[hourZoom];
@@ -60,7 +73,7 @@ export default function WeeklyCalendar({
     const space = spaces.find((s) => s.id === spaceId);
     return {
       color: space?.color || '#4F46E5',
-      name: space?.name || 'Desconhecido',
+      name: space?.name || t('calendar.unknownSpace'),
     };
   };
 
@@ -202,7 +215,7 @@ export default function WeeklyCalendar({
             {formatDateHeader(weekDays[0])} - {formatDateHeader(weekDays[6])}
           </h3>
           <p className="text-sm text-ink-subtle">
-            {weekDays[0].toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}
+            {formatDateTime(weekDays[0], { month: 'long', year: 'numeric' })}
           </p>
         </div>
 
@@ -214,9 +227,9 @@ export default function WeeklyCalendar({
             onChange={(e) => setHourZoom(e.target.value as HourZoom)}
             className="px-3 py-1.5 text-sm border border-line bg-surface rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="commercial">{HOUR_RANGES.commercial.label}</option>
-            <option value="evening">{HOUR_RANGES.evening.label}</option>
-            <option value="full">{HOUR_RANGES.full.label}</option>
+            <option value="commercial">{t('calendar.hourRange.commercial')}</option>
+            <option value="evening">{t('calendar.hourRange.evening')}</option>
+            <option value="full">{t('calendar.hourRange.full')}</option>
           </select>
         </div>
         
@@ -234,7 +247,7 @@ export default function WeeklyCalendar({
           {/* Days header */}
           <div className="grid grid-cols-8 border-b border-line">
             <div className="p-2 text-xs font-medium text-ink-subtle text-center border-r border-line">
-              Hora
+              {t('calendar.hourHeader')}
             </div>
             {weekDays.map((date, i) => (
               <div
@@ -310,12 +323,12 @@ export default function WeeklyCalendar({
                           {blockStyle.spaceName}
                         </div>
                         <div className="text-xs text-ink-muted truncate">
-                          {new Date(reservation.startTime).toLocaleTimeString('pt-PT', {
+                          {formatTime(reservation.startTime, {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                           {' - '}
-                          {new Date(reservation.endTime).toLocaleTimeString('pt-PT', {
+                          {formatTime(reservation.endTime, {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
@@ -334,11 +347,11 @@ export default function WeeklyCalendar({
       <div className="p-4 border-t border-line bg-surface-muted flex items-center gap-6 text-xs">
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 border-2 border-ink-subtle border-dashed rounded"></div>
-          <span className="text-ink-muted">Pendente</span>
+          <span className="text-ink-muted">{t('calendar.legend.pending')}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-8 h-4 border-2 border-ink-subtle border-solid rounded"></div>
-          <span className="text-ink-muted">Aprovada</span>
+          <span className="text-ink-muted">{t('calendar.legend.approved')}</span>
         </div>
       </div>
     </Card>

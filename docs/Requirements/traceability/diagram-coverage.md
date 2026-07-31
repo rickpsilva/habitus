@@ -19,6 +19,8 @@ This map links requirement artifacts to code-derived diagram files.
 - REQ-SEC-003 -> ../diagrams/classes/privacy-services.mmd
 - REQ-SEC-004 -> ../diagrams/use-cases/gdpr-self-service.mmd
 - REQ-SEC-004 -> ../diagrams/classes/privacy-services.mmd
+- REQ-SEC-008 -> ../diagrams/sequences/consent-authoring-and-versioning.mmd
+- REQ-SEC-008 -> ../diagrams/sequences/cookie-and-rgpd-consent.mmd
 
 ## Financial and Payments
 

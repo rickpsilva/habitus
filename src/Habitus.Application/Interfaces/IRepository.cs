@@ -11,6 +11,15 @@ public interface IRepository<T> where T : class
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
     Task<T?> FirstOrDefaultNoTrackingAsync(Expression<Func<T, bool>> predicate);
     Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
+    Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
+
+    /// <summary>
+    /// Returns per-key row counts computed by a single server-side SQL <c>GROUP BY</c>, so only
+    /// the <c>(key, count)</c> pairs are transferred and no full entities are materialised.
+    /// </summary>
+    Task<Dictionary<Guid, int>> CountGroupedAsync(
+        Expression<Func<T, Guid>> keySelector,
+        Expression<Func<T, bool>>? predicate = null);
     Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
     /// <summary>

@@ -11,10 +11,13 @@ public class HabitusDbContext : DbContext
     public DbSet<Condominium> Condominiums => Set<Condominium>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserCondominium> UserCondominiums => Set<UserCondominium>();
+    public DbSet<UnitMembership> UnitMemberships => Set<UnitMembership>();
+    public DbSet<ConsentDefinition> ConsentDefinitions => Set<ConsentDefinition>();
+    public DbSet<UserConsent> UserConsents => Set<UserConsent>();
     public DbSet<UserAuthProvider> UserAuthProviders => Set<UserAuthProvider>();
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<AuthChallenge> AuthChallenges => Set<AuthChallenge>();
-    
+    public DbSet<PersonalDataRequest> PersonalDataRequests => Set<PersonalDataRequest>();
     // Existing entities (updated to use Condominium)
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<Document> Documents => Set<Document>();
@@ -35,8 +38,8 @@ public class HabitusDbContext : DbContext
     public DbSet<PaymentSettings> PaymentSettings => Set<PaymentSettings>();
     public DbSet<ReceiptTemplateSettings> ReceiptTemplateSettings => Set<ReceiptTemplateSettings>();
     public DbSet<CommunicationSettings> CommunicationSettings => Set<CommunicationSettings>();
-    public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();
-    public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
+    public DbSet<LocalizationSettings> LocalizationSettings => Set<LocalizationSettings>();
+    public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();    public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
@@ -51,8 +54,6 @@ public class HabitusDbContext : DbContext
     public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
     
     // Deprecated entities (kept for migration compatibility)
-    [Obsolete("Use Users instead")]
-    public DbSet<Resident> Residents => Set<Resident>();
     [Obsolete("Use Condominiums instead")]
     public DbSet<Building> Buildings => Set<Building>();
 
@@ -65,13 +66,13 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(u => u.Id);
             entity.HasIndex(u => u.EmailHash).IsUnique();
-            entity.Property(u => u.Email).IsRequired();
             entity.Property(u => u.EmailEncrypted).HasMaxLength(2048);
             entity.Property(u => u.EmailHash).HasMaxLength(64);
             entity.Property(u => u.Name).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.PhoneEncrypted).HasMaxLength(2048);
             entity.Property(u => u.TwoFactorSecretEncrypted).HasMaxLength(2048);
+            entity.Property(u => u.PreferredLanguage).HasMaxLength(10);
             
             entity.HasOne(u => u.Condominium)
                 .WithMany(c => c.Users)
@@ -129,7 +130,6 @@ public class HabitusDbContext : DbContext
         {
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).IsRequired();
-            entity.Property(c => c.Address).IsRequired();
             entity.Property(c => c.AddressEncrypted).HasMaxLength(1024);
             entity.Property(c => c.EmailEncrypted).HasMaxLength(2048);
             entity.Property(c => c.PostalCodeEncrypted).HasMaxLength(255);
@@ -151,6 +151,92 @@ public class HabitusDbContext : DbContext
                 .WithMany(c => c.UserCondominiums)
                 .HasForeignKey(uc => uc.CondominiumId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure UnitMembership (multi-fraction membership)
+        modelBuilder.Entity<UnitMembership>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+
+            // One membership row per user/unit pair.
+            entity.HasIndex(m => new { m.UserId, m.UnitId }).IsUnique();
+
+            // Scope-filtering support.
+            entity.HasIndex(m => new { m.UserId, m.CondominiumId }, "IX_UnitMemberships_UserId_CondominiumId");
+
+            // At most one primary fraction per user within a condominium (Postgres partial unique index).
+            entity.HasIndex(m => new { m.UserId, m.CondominiumId }, "IX_UnitMemberships_UserId_CondominiumId_Primary")
+                .IsUnique()
+                .HasFilter("\"IsPrimary\" = true");
+
+            entity.HasOne(m => m.User)
+                .WithMany(u => u.UnitMemberships)
+                .HasForeignKey(m => m.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict to avoid multiple cascade paths (Condominium -> Unit -> Membership
+            // and Condominium -> Membership) and to protect memberships from unit deletion.
+            entity.HasOne(m => m.Unit)
+                .WithMany(u => u.UnitMemberships)
+                .HasForeignKey(m => m.UnitId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Condominium)
+                .WithMany(c => c.UnitMemberships)
+                .HasForeignKey(m => m.CondominiumId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure ConsentDefinition (versioned consent catalog)
+        modelBuilder.Entity<ConsentDefinition>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Key).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.Version).IsRequired().HasMaxLength(50);
+            entity.Property(c => c.Title).IsRequired().HasMaxLength(256);
+            entity.Property(c => c.Url).HasMaxLength(2048);
+
+            // A key/version pair identifies exactly one consent document.
+            entity.HasIndex(c => new { c.Key, c.Version }).IsUnique();
+
+            // Supports the "currently required" lookup (active mandatory definitions).
+            entity.HasIndex(c => new { c.IsActive, c.IsMandatory }, "IX_ConsentDefinitions_IsActive_IsMandatory");
+        });
+
+        // Configure UserConsent (append-only consent history)
+        modelBuilder.Entity<UserConsent>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.IpAddress).HasMaxLength(64);
+            entity.Property(c => c.UserAgent).HasMaxLength(1024);
+
+            // Fetch a user's decisions for a given definition.
+            entity.HasIndex(c => new { c.UserId, c.ConsentDefinitionId }, "IX_UserConsents_UserId_ConsentDefinitionId");
+            // Order a user's decision history by decision time.
+            entity.HasIndex(c => new { c.UserId, c.DecidedAt }, "IX_UserConsents_UserId_DecidedAt");
+
+            entity.HasOne(c => c.User)
+                .WithMany(u => u.UserConsents)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict so historical decisions protect their definition from deletion.
+            entity.HasOne(c => c.ConsentDefinition)
+                .WithMany(d => d.UserConsents)
+                .HasForeignKey(c => c.ConsentDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure PersonalDataRequest (append-only GDPR/RGPD data-subject request audit)
+        modelBuilder.Entity<PersonalDataRequest>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.IpAddress).HasMaxLength(64);
+            entity.Property(r => r.UserAgent).HasMaxLength(1024);
+
+            // Fetch a subject's request history ordered by time. No FK to Users so audit rows
+            // survive the anonymized (kept) user row without cascade concerns.
+            entity.HasIndex(r => new { r.UserId, r.RequestedAt }, "IX_PersonalDataRequests_UserId_RequestedAt");
         });
 
         // Configure Unit relationships
@@ -308,7 +394,7 @@ public class HabitusDbContext : DbContext
             // This ensures no duplicate deliveries for the same dispatch to the same recipient
             entity.HasIndex(d => new { d.Channel, d.DispatchKey, d.RecipientUserId, d.RecipientExternalId })
                 .IsUnique()
-                .HasName("IX_NotificationDispatchDelivery_Unique_Delivery");
+                .HasDatabaseName("IX_NotificationDispatchDelivery_Unique_Delivery");
             
             entity.HasIndex(d => d.CondominiumId);
         });
@@ -349,6 +435,14 @@ public class HabitusDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasIndex(c => c.CondominiumId);
+        });
+
+        // Configure LocalizationSettings (platform-wide single row)
+        modelBuilder.Entity<LocalizationSettings>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+
+            entity.Property(l => l.DefaultLanguage).IsRequired().HasMaxLength(10);
         });
 
         // Configure QuotaPlan relationships

@@ -4,9 +4,7 @@ public class Condominium
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? Address { get; set; } = string.Empty;
     public string? AddressEncrypted { get; set; }
-    public string? Email { get; set; } = string.Empty;  // Legacy plaintext column (kept for fallback)
     public string? EmailEncrypted { get; set; }
     public string? PostalCodeEncrypted { get; set; }
     public string? LocalityEncrypted { get; set; }
@@ -27,6 +25,7 @@ public class Condominium
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<UsefulContact> UsefulContacts { get; set; } = new List<UsefulContact>();
     public ICollection<UserCondominium> UserCondominiums { get; set; } = new List<UserCondominium>();
+    public ICollection<UnitMembership> UnitMemberships { get; set; } = new List<UnitMembership>();
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }

@@ -89,9 +89,9 @@ resource apiApp 'Microsoft.Web/sites@2023-12-01' = {
     serverFarmId: appServicePlan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|8.0'
+      linuxFxVersion: 'DOTNETCORE|10.0'
       minTlsVersion: '1.2'
-      alwaysOn: false
+      alwaysOn: true
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'

@@ -1,0 +1,45 @@
+sequenceDiagram
+  actor User as Authenticated user
+  participant Portal as Personal area (GDPR section)
+  participant Me as MeController
+  participant Scope as Condominium scope guard
+  participant Export as ExportService
+  participant Erasure as ErasureService
+  participant Repo as UserRepository
+  participant Retain as Financial/SAF-T retained records
+  participant Audit as Audit / consent history
+
+  rect rgb(235, 245, 255)
+    note over User,Audit: Data export (portability, Art. 20)
+    User->>Portal: Request personal data export
+    Portal->>Me: GET export (authenticated subject)
+    Me->>Scope: Resolve subject membership scope
+    Scope-->>Me: Allowed condominiums
+    Me->>Export: createPortableExport(userId, scope)
+    Export->>Repo: Load profile + memberships + consents + owned records
+    Repo-->>Export: In-scope data (PII decrypted to plaintext)
+    Export->>Audit: Record export request (who, when, scope)
+    Export-->>Portal: JSON export document
+    Portal-->>User: Download portable JSON
+  end
+
+  rect rgb(255, 240, 235)
+    note over User,Audit: Erasure / anonymization (right to be forgotten, Art. 17)
+    User->>Portal: Request erasure (full or partial)
+    Portal-->>User: Require explicit confirmation / re-auth
+    User->>Portal: Confirm erasure
+    Portal->>Me: POST erasure (type = full | partial)
+    Me->>Scope: Validate subject/manager scope
+    Scope-->>Me: Authorized scope
+    Me->>Erasure: anonymizeOrErase(userId, type, scope)
+    alt full erasure
+      Erasure->>Repo: Remove/anonymize identifiers, sever memberships, block login
+    else partial erasure
+      Erasure->>Repo: Remove selected non-retained fields (account stays active)
+    end
+    Erasure->>Retain: Anonymize identifiers on retained records (keep amounts/dates/SAF-T)
+    Retain-->>Erasure: Records preserved, identifiers pseudonymized
+    Erasure->>Audit: Append erasure request (append-only, accountability)
+    Erasure-->>Portal: Erasure outcome
+    Portal-->>User: Confirmation (no plaintext PII remains)
+  end

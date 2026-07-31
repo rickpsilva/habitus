@@ -17,9 +17,9 @@ relatedRequirements:
   - REQ-SEC-003
   - REQ-SEC-004
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/notifications-dispatch-flow.mmd
+  - docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/payments-approval-and-financial-flow.mmd
+  - docs/Requirements/diagrams/sequences/notifications-dispatch-flow.mmd
 ---
 
 # REQ-SEC-001

@@ -345,17 +345,14 @@ public class NotificationDispatchService : INotificationDispatchService
             return _encryptionService.Decrypt(condominium.EmailEncrypted);
         }
 
-        return condominium.Email;
+        return null;
     }
 
     private string GetUserEmail(User user)
     {
-        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
-        {
-            return _encryptionService.Decrypt(user.EmailEncrypted);
-        }
-
-        return user.Email;
+        return string.IsNullOrWhiteSpace(user.EmailEncrypted)
+            ? string.Empty
+            : _encryptionService.Decrypt(user.EmailEncrypted);
     }
 
     private static string BuildDispatchKeyPrefix(Guid condominiumId, List<Notification> notifications)

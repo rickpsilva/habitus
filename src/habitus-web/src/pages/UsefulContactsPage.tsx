@@ -10,19 +10,21 @@ import ModalPopup from '../components/ModalPopup';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { PageHeader, Button, AsyncState, EmptyState, Card, FilterBar, FilterChip } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslationKey } from '../i18n/types';
 import type { PaginatedResponse, UsefulContactCategory, UsefulContactDto } from '../types';
 
 type CategoryOption = {
   value: number;
-  label: string;
+  labelKey: TranslationKey;
   icon: LucideIcon;
   badgeClass: string;
 };
 
 const categoryOptions: CategoryOption[] = [
-  { value: 0, label: 'Emergencia', icon: ShieldAlert, badgeClass: 'bg-red-100 text-red-700' },
-  { value: 1, label: 'Servico', icon: Wrench, badgeClass: 'bg-indigo-100 text-indigo-700' },
-  { value: 2, label: 'Administrativo', icon: Building2, badgeClass: 'bg-control text-ink-muted' },
+  { value: 0, labelKey: 'usefulContacts.category.emergency', icon: ShieldAlert, badgeClass: 'bg-red-100 text-red-700' },
+  { value: 1, labelKey: 'usefulContacts.category.service', icon: Wrench, badgeClass: 'bg-indigo-100 text-indigo-700' },
+  { value: 2, labelKey: 'usefulContacts.category.administrative', icon: Building2, badgeClass: 'bg-control text-ink-muted' },
 ];
 
 const categoryByString: Record<string, number> = {
@@ -56,6 +58,7 @@ function categoryMeta(category: UsefulContactCategory) {
 
 export default function UsefulContactsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { condominiumId, isAdmin, isManager } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -81,7 +84,7 @@ export default function UsefulContactsPage() {
   const loadContacts = useCallback(async () => {
     if (!condominiumId) {
       setContacts([]);
-      setLoadError('Condomínio não identificado.');
+      setLoadError(t('usefulContacts.error.noCondominium'));
       setLoading(false);
       return;
     }
@@ -93,11 +96,11 @@ export default function UsefulContactsPage() {
       const response = await usefulContactsApi.getAll(condominiumId);
       setContacts(response.data);
     } catch {
-      setLoadError('Não foi possível carregar os contactos úteis.');
+      setLoadError(t('usefulContacts.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId]);
+  }, [condominiumId, t]);
 
   useEffect(() => {
     loadContacts();
@@ -116,14 +119,14 @@ export default function UsefulContactsPage() {
         return true;
       }
 
-      const category = categoryMeta(contact.category).label.toLowerCase();
+      const category = t(categoryMeta(contact.category).labelKey).toLowerCase();
       return (
         contact.name.toLowerCase().includes(query) ||
         contact.phone.toLowerCase().includes(query) ||
         category.includes(query)
       );
     });
-  }, [contacts, searchQuery, categoryFilter]);
+  }, [contacts, searchQuery, categoryFilter, t]);
 
   const categoryCounts = useMemo(
     () =>
@@ -189,12 +192,12 @@ export default function UsefulContactsPage() {
     event.preventDefault();
 
     if (!condominiumId) {
-      toastError('Condomínio não identificado.');
+      toastError(t('usefulContacts.error.noCondominium'));
       return;
     }
 
     if (!form.name.trim() || !form.phone.trim()) {
-      toastError('Nome e telefone sao obrigatorios.');
+      toastError(t('usefulContacts.error.required'));
       return;
     }
 
@@ -212,16 +215,16 @@ export default function UsefulContactsPage() {
 
       if (editingContact) {
         await usefulContactsApi.update(condominiumId, editingContact.id, payload);
-        toastSuccess('Contacto util atualizado com sucesso.');
+        toastSuccess(t('usefulContacts.success.updated'));
       } else {
         await usefulContactsApi.create(condominiumId, payload);
-        toastSuccess('Contacto util criado com sucesso.');
+        toastSuccess(t('usefulContacts.success.created'));
       }
 
       closeModal();
       await loadContacts();
     } catch {
-      toastError('Não foi possível guardar o contacto útil.');
+      toastError(t('usefulContacts.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -235,10 +238,10 @@ export default function UsefulContactsPage() {
 
     try {
       await usefulContactsApi.delete(condominiumId, deleteId);
-      toastSuccess('Contacto util eliminado com sucesso.');
+      toastSuccess(t('usefulContacts.success.deleted'));
       await loadContacts();
     } catch {
-      toastError('Não foi possível eliminar o contacto útil.');
+      toastError(t('usefulContacts.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -248,9 +251,9 @@ export default function UsefulContactsPage() {
     <div className="space-y-6">
       <ConfirmModal
         open={deleteId !== null}
-        title="Eliminar contacto util"
-        message="Tem a certeza que deseja eliminar este contacto? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('usefulContacts.delete.title')}
+        message={t('usefulContacts.delete.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
@@ -259,24 +262,24 @@ export default function UsefulContactsPage() {
       <ModalPopup
         open={showForm}
         onClose={closeModal}
-        title={editingContact ? 'Editar Contacto Util' : 'Novo Contacto Util'}
+        title={editingContact ? t('usefulContacts.form.editTitle') : t('usefulContacts.form.createTitle')}
         maxWidthClass="max-w-lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Nome</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.name')}</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Ex: Bombeiros de Lisboa"
+              placeholder={t('usefulContacts.form.namePlaceholder')}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Telefone</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.phone')}</label>
             <input
               type="text"
               value={form.phone}
@@ -288,7 +291,7 @@ export default function UsefulContactsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Email</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.email')}</label>
             <input
               type="email"
               value={form.email}
@@ -299,42 +302,42 @@ export default function UsefulContactsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Morada</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('usefulContacts.form.address')}</label>
             <input
               type="text"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Ex: Rua Principal, 123"
+              placeholder={t('usefulContacts.form.addressPlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Código Postal</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('usefulContacts.form.postalCode')}</label>
               <input
                 type="text"
                 value={form.postalCode}
                 onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ex: 1000-001"
+                placeholder={t('usefulContacts.form.postalCodePlaceholder')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Localidade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('usefulContacts.form.locality')}</label>
               <input
                 type="text"
                 value={form.locality}
                 onChange={(e) => setForm((prev) => ({ ...prev, locality: e.target.value }))}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ex: Lisboa"
+                placeholder={t('usefulContacts.form.localityPlaceholder')}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink-muted mb-1">Categoria</label>
+            <label className="block text-sm font-medium text-ink-muted mb-1">{t('usefulContacts.form.category')}</label>
             <select
               value={form.category}
               onChange={(e) => setForm((prev) => ({ ...prev, category: Number(e.target.value) }))}
@@ -342,7 +345,7 @@ export default function UsefulContactsPage() {
             >
               {categoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </option>
               ))}
             </select>
@@ -350,29 +353,29 @@ export default function UsefulContactsPage() {
 
           <div className="flex flex-wrap justify-end gap-3 pt-2">
             <Button variant="ghost" onClick={closeModal} className="border border-line">
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button type="submit" loading={submitting}>
-              {editingContact ? 'Guardar' : 'Criar'}
+              {editingContact ? t('usefulContacts.form.save') : t('usefulContacts.form.create')}
             </Button>
           </div>
         </form>
       </ModalPopup>
 
       <PageHeader
-        title="Contactos Úteis"
-        subtitle="Lista de contactos importantes do condomínio."
+        title={t('usefulContacts.title')}
+        subtitle={t('usefulContacts.subtitle')}
         search={
           <SearchBar
             value={searchQuery}
             onChange={handleSearch}
-            placeholder="Pesquisar por nome, telefone ou categoria..."
+            placeholder={t('usefulContacts.searchPlaceholder')}
           />
         }
         actions={
           isAdmin && (
             <Button icon={Plus} onClick={openCreateModal} fullWidth className="sm:w-auto">
-              Novo Contacto
+              {t('usefulContacts.newContact')}
             </Button>
           )
         }
@@ -380,7 +383,7 @@ export default function UsefulContactsPage() {
 
       <FilterBar>
         <FilterChip
-          label="Todos"
+          label={t('usefulContacts.filter.all')}
           active={categoryFilter === 'all'}
           count={contacts.length}
           onClick={() => handleCategoryFilter('all')}
@@ -388,7 +391,7 @@ export default function UsefulContactsPage() {
         {categoryOptions.map((option) => (
           <FilterChip
             key={option.value}
-            label={option.label}
+            label={t(option.labelKey)}
             icon={option.icon}
             active={categoryFilter === option.value}
             count={categoryCounts[option.value] ?? 0}
@@ -406,11 +409,11 @@ export default function UsefulContactsPage() {
         empty={
           <EmptyState
             icon={PhoneCall}
-            title="Sem contactos úteis registados"
+            title={t('usefulContacts.empty')}
             description={
               isAdmin
-                ? 'Adicione o primeiro contacto para o condomínio.'
-                : 'Ainda não existem contactos disponíveis.'
+                ? t('usefulContacts.emptyAdmin')
+                : t('usefulContacts.emptyResident')
             }
           />
         }
@@ -435,14 +438,14 @@ export default function UsefulContactsPage() {
                       <button
                         onClick={() => openEditModal(contact)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
+                        title={t('common.edit')}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setDeleteId(contact.id)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -473,7 +476,7 @@ export default function UsefulContactsPage() {
                 <div className="mt-4">
                   <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${meta.badgeClass}`}>
                     <Icon className="w-3.5 h-3.5" />
-                    {meta.label}
+                    {t(meta.labelKey)}
                   </span>
                 </div>
               </Card>

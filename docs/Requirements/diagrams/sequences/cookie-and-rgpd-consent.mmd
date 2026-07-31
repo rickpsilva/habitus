@@ -1,0 +1,25 @@
+sequenceDiagram
+  actor U as Any portal user
+  participant W as Web login page
+  participant API as Habitus API
+  participant C as Consent store
+
+  U->>W: Open login page
+  W-->>U: Show cookie consent banner (essential vs non-essential)
+  U->>W: Accept or reject non-essential cookies
+  W->>W: Persist cookie preference locally
+  U->>W: Submit credentials
+  W->>API: Authenticate
+  API->>C: Read RGPD consent status
+  alt RGPD terms not yet accepted
+    API-->>W: Access blocked, terms required
+    W-->>U: Show RGPD terms (blocking)
+    U->>W: Accept terms
+    W->>API: POST /me/consents {rgpd: accepted}
+    API->>C: Persist acceptance
+    C-->>API: Stored
+    API-->>W: Access granted
+  else Terms already accepted
+    API-->>W: Access granted
+  end
+  W-->>U: Enter portal

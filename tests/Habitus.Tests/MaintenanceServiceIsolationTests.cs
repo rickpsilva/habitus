@@ -32,6 +32,11 @@ public class MaintenanceServiceIsolationTests
             dispatchMock.Object);
     }
 
+    private void SetupFind(List<MaintenanceRequest> source) =>
+        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()))
+            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate) =>
+                source.Where(predicate.Compile()).ToList());
+
     [Fact]
     public async Task GetAllAsync_Admin_OnlyReturnsOwnCondominiumRequests()
     {
@@ -40,7 +45,7 @@ public class MaintenanceServiceIsolationTests
             new() { Id = Guid.NewGuid(), Title = "A Request", CondominiumId = _condominiumA, UnitId = _unitId, CreatedBy = _residentUserId },
             new() { Id = Guid.NewGuid(), Title = "B Request", CondominiumId = _condominiumB, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() },
         };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(requests);
+        SetupFind(requests);
 
         var result = (await _service.GetAllAsync(_condominiumA, "Admin", _adminUserId, null)).ToList();
 
@@ -54,7 +59,7 @@ public class MaintenanceServiceIsolationTests
         var request1 = new MaintenanceRequest { Id = Guid.NewGuid(), Title = "Own Request", CondominiumId = _condominiumA, UnitId = _unitId, CreatedBy = _residentUserId };
         var request2 = new MaintenanceRequest { Id = Guid.NewGuid(), Title = "Other Resident Request", CondominiumId = _condominiumA, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() };
         var request3 = new MaintenanceRequest { Id = Guid.NewGuid(), Title = "Other Condo Request", CondominiumId = _condominiumB, UnitId = _unitId, CreatedBy = _residentUserId };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<MaintenanceRequest> { request1, request2, request3 });
+        SetupFind(new List<MaintenanceRequest> { request1, request2, request3 });
 
         var result = (await _service.GetAllAsync(_condominiumA, "Resident", _residentUserId, _unitId)).ToList();
 
@@ -97,11 +102,26 @@ public class MaintenanceServiceIsolationTests
             new() { Id = Guid.NewGuid(), Title = "Request 1", CondominiumId = _condominiumA, UnitId = _unitId, CreatedBy = _residentUserId },
             new() { Id = Guid.NewGuid(), Title = "Request 2", CondominiumId = _condominiumA, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() },
         };
-        _repositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(requests);
+        SetupFind(requests);
 
         var result = (await _service.GetAllAsync(_condominiumA, "Admin", _adminUserId, null)).ToList();
 
         result.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_NonAdminNonResidentRole_ReturnsEmptyAndSkipsDatabase()
+    {
+        var requests = new List<MaintenanceRequest>
+        {
+            new() { Id = Guid.NewGuid(), Title = "A Request", CondominiumId = _condominiumA, UnitId = _unitId, CreatedBy = _residentUserId },
+        };
+        SetupFind(requests);
+
+        var result = (await _service.GetAllAsync(_condominiumA, "Manager", _adminUserId, null)).ToList();
+
+        result.Should().BeEmpty();
+        _repositoryMock.Verify(r => r.FindAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()), Times.Never);
     }
 
     [Fact]

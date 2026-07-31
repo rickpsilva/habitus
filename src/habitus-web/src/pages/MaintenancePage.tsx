@@ -10,13 +10,15 @@ import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import { PageHeader, Button, AsyncState, EmptyState, Badge, Card } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
 
-const statusMap: Record<string, { label: string; variant: BadgeVariant; icon: React.ElementType }> = {
-  Open: { label: 'Aberto', variant: 'warning', icon: AlertCircle },
-  InProgress: { label: 'Em curso', variant: 'info', icon: Clock },
-  Completed: { label: 'Concluído', variant: 'success', icon: CheckCircle2 },
-};
+const getStatusMap = (t: TranslateFn): Record<string, { label: string; variant: BadgeVariant; icon: React.ElementType }> => ({
+  Open: { label: t('status.open'), variant: 'warning', icon: AlertCircle },
+  InProgress: { label: t('status.inProgress'), variant: 'info', icon: Clock },
+  Completed: { label: t('status.completed'), variant: 'success', icon: CheckCircle2 },
+});
 
 const priorityVariants: Record<string, BadgeVariant> = {
   Low: 'neutral',
@@ -25,12 +27,12 @@ const priorityVariants: Record<string, BadgeVariant> = {
   Critical: 'danger',
 };
 
-const priorityLabels: Record<string, string> = {
-  Low: 'Baixa',
-  Medium: 'Média',
-  High: 'Alta',
-  Critical: 'Crítica',
-};
+const getPriorityLabels = (t: TranslateFn): Record<string, string> => ({
+  Low: t('maintenance.priority.low'),
+  Medium: t('maintenance.priority.medium'),
+  High: t('maintenance.priority.high'),
+  Critical: t('maintenance.priority.critical'),
+});
 
 const normalizeMaintenanceStatus = (status: string) => {
   if (status === 'Resolved' || status === 'Closed') {
@@ -57,14 +59,19 @@ const getAvailableStatusOptions = (currentStatus: string) => {
 };
 
 export default function MaintenancePage() {
+  const { t, formatDate } = useTranslation();
   const { isAdmin, condominiumId, unitId } = useAuth();
   const { success, error: toastError, warning } = useToast();
+  const statusMap = getStatusMap(t);
+  const priorityLabels = getPriorityLabels(t);
   const [requests, setRequests] = useState<MaintenanceRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('Open');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ Open: 0, InProgress: 0, Completed: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -141,38 +148,59 @@ export default function MaintenancePage() {
   const load = useCallback(() => {
     if (!condominiumId) {
       setRequests([]);
-      setLoadError('Condomínio não identificado.');
+      setTotalItems(0);
+      setLoadError(t('maintenance.error.condominiumNotIdentified'));
       setLoading(false);
       return;
     }
 
     setLoading(true);
     setLoadError('');
-    maintenanceApi.getAll(condominiumId)
+    maintenanceApi.getPaged(condominiumId, currentPage, pageSize, debouncedSearch, filter === 'All' ? undefined : filter)
       .then((r) => {
-        const scopedItems = r.data
+        const scopedItems = r.data.items
           .map((item) => ({ ...item, status: normalizeMaintenanceStatus(item.status) }));
         setRequests(scopedItems);
+        setTotalItems(r.data.totalItems);
       })
       .catch(() => {
-        setLoadError('Não foi possível carregar os pedidos de manutenção.');
+        setLoadError(t('maintenance.error.load'));
       })
       .finally(() => setLoading(false));
+  }, [condominiumId, currentPage, debouncedSearch, filter, t]);
+
+  const loadStatusCounts = useCallback(() => {
+    if (!condominiumId) return;
+    maintenanceApi.getStatusCounts(condominiumId)
+      .then((r) => {
+        setStatusCounts({ Open: r.data.open, InProgress: r.data.inProgress, Completed: r.data.completed });
+      })
+      .catch(console.error);
   }, [condominiumId]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { setCurrentPage(1); }, [filter, debouncedSearch]);
+  useEffect(() => { loadStatusCounts(); }, [loadStatusCounts]);
+
+  const handleFilterChange = (value: string) => {
+    setFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('maintenance.error.noCondominiumSelected'));
       return;
     }
     
     if (!form.condominiumId || !form.unitId || !form.createdBy) {
-      toastError('O utlizador necessita de estar associado a uma fração para registo de manutenção.');
+      toastError(t('maintenance.error.needsUnit'));
       return;
     }
     
@@ -192,10 +220,11 @@ export default function MaintenancePage() {
         photos: [],
       });
       load();
-      success('Pedido de manutenção criado com sucesso.');
+      loadStatusCounts();
+      success(t('maintenance.success.created'));
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
-      toastError('Erro ao criar pedido de manutenção. Tente novamente.');
+      toastError(t('maintenance.error.create'));
     } finally {
       setSubmitting(false);
     }
@@ -237,18 +266,18 @@ export default function MaintenancePage() {
 
     if (isCompletedStatus(nextStatus)) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
-        warning('Por favor, indique o valor da despesa para registar como concluída.');
+        warning(t('maintenance.error.expenseRequiredComplete'));
         return;
       }
     }
 
     if (!isCompletedStatus(nextStatus) && statusForm.hasExpense) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
-        warning('Por favor, indique o valor da despesa.');
+        warning(t('maintenance.error.expenseRequired'));
         return;
       }
       if (!statusForm.invoiceDocumentId) {
-        warning('Por favor, anexe a fatura.');
+        warning(t('maintenance.error.invoiceRequired'));
         return;
       }
     }
@@ -256,7 +285,7 @@ export default function MaintenancePage() {
     setSubmitting(true);
     try {
       if (!condominiumId) {
-        toastError('Condomínio não selecionado.');
+        toastError(t('maintenance.error.noCondominiumSelected'));
         return;
       }
 
@@ -270,10 +299,11 @@ export default function MaintenancePage() {
       });
       handleCloseStatusPanel();
       load();
-      success('Estado da manutenção atualizado.');
+      loadStatusCounts();
+      success(t('maintenance.success.statusUpdated'));
     } catch (error) {
       console.error('Erro ao atualizar estado:', error);
-      toastError('Erro ao atualizar estado da manutenção. Tente novamente.');
+      toastError(t('maintenance.error.statusUpdate'));
     } finally {
       setSubmitting(false);
     }
@@ -311,9 +341,9 @@ export default function MaintenancePage() {
       setUploadFile(null);
       setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
       loadMaintenanceDocuments(selectedRequest.id);
-      success('Documento carregado com sucesso.');
+      success(t('maintenance.success.docUploaded'));
     } catch (err) {
-      toastError('Erro ao carregar documento. Tente novamente.');
+      toastError(t('maintenance.error.docUpload'));
       console.error(err);
     } finally {
       setUploading(false);
@@ -329,9 +359,9 @@ export default function MaintenancePage() {
     try {
       await documentsApi.delete(condominiumId, deleteDocId);
       loadMaintenanceDocuments(selectedRequest.id);
-      success('Documento eliminado.');
+      success(t('maintenance.success.docDeleted'));
     } catch (err) {
-      toastError('Erro ao eliminar documento. Tente novamente.');
+      toastError(t('maintenance.error.docDelete'));
       console.error(err);
     } finally {
       setDeleteDocId(null);
@@ -340,92 +370,68 @@ export default function MaintenancePage() {
 
   const handleDocDownload = async (id: string, fileName: string) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('maintenance.error.noCondominiumSelected'));
       return;
     }
 
     try {
       await documentsApi.download(condominiumId, id, fileName);
     } catch (error) {
-      toastError('Erro ao descarregar o documento. Tente novamente.');
+      toastError(t('maintenance.error.docDownload'));
       console.error(error);
     }
   };
 
-  const searchTerm = debouncedSearch.trim().toLowerCase();
-  const statusCounts = requests.reduce<Record<'Open' | 'InProgress' | 'Completed', number>>((acc, request) => {
-    const normalizedStatus = normalizeMaintenanceStatus(request.status) as 'Open' | 'InProgress' | 'Completed';
-    acc[normalizedStatus] += 1;
-    return acc;
-  }, { Open: 0, InProgress: 0, Completed: 0 });
-
-  const filtered = requests.filter((request) => {
-    const matchesFilter = filter === 'All' || normalizeMaintenanceStatus(request.status) === filter;
-    if (!matchesFilter) {
-      return false;
-    }
-
-    if (!searchTerm) {
-      return true;
-    }
-
-    return [request.title, request.description, request.location]
-      .filter(Boolean)
-      .some((value) => value.toLowerCase().includes(searchTerm));
-  });
-
-  const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedRequests = filtered.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
   const pagination: PaginatedResponse<MaintenanceRequestDto> = {
-    items: paginatedRequests,
-    page: safeCurrentPage,
+    items: requests,
+    page: currentPage,
     pageSize,
     totalItems,
     totalPages,
-    hasPreviousPage: safeCurrentPage > 1,
-    hasNextPage: safeCurrentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage * pageSize < totalItems,
   };
+  const allCount = statusCounts.Open + statusCounts.InProgress + statusCounts.Completed;
 
   return (
     <div className="space-y-5">
       <ConfirmModal
         open={deleteDocId !== null}
-        title="Eliminar documento"
-        message="Tem a certeza que deseja eliminar este documento? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('maintenance.deleteDoc.title')}
+        message={t('maintenance.deleteDoc.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDocDelete}
         onCancel={() => setDeleteDocId(null)}
       />
       <PageHeader
-        title="Manutenção"
-        subtitle="Pedidos de manutenção do condomínio"
+        title={t('maintenance.title')}
+        subtitle={t('maintenance.subtitle')}
         search={
           <SearchBar
             value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Pesquisar pedidos..."
+            onChange={handleSearchChange}
+            placeholder={t('maintenance.searchPlaceholder')}
           />
         }
         actions={
           <Button onClick={() => setShowForm(!showForm)} icon={Plus} fullWidth className="sm:w-auto">
-            Novo Pedido
+            {t('maintenance.newRequest')}
           </Button>
         }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { key: 'Open', label: 'Aberto', count: statusCounts.Open, className: 'border-yellow-200 bg-yellow-50 text-yellow-800' },
-          { key: 'InProgress', label: 'Em curso', count: statusCounts.InProgress, className: 'border-blue-200 bg-blue-50 text-blue-800' },
-          { key: 'Completed', label: 'Concluído', count: statusCounts.Completed, className: 'border-green-200 bg-green-50 text-green-800' },
+          { key: 'Open', label: t('status.open'), count: statusCounts.Open, className: 'border-yellow-200 bg-yellow-50 text-yellow-800' },
+          { key: 'InProgress', label: t('status.inProgress'), count: statusCounts.InProgress, className: 'border-blue-200 bg-blue-50 text-blue-800' },
+          { key: 'Completed', label: t('status.completed'), count: statusCounts.Completed, className: 'border-green-200 bg-green-50 text-green-800' },
         ].map((item) => (
           <button
             key={item.key}
             type="button"
-            onClick={() => setFilter(item.key)}
+            onClick={() => handleFilterChange(item.key)}
             className={`rounded-xl border p-4 text-left transition-colors ${item.className} ${filter === item.key ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
           >
             <p className="text-sm font-medium">{item.label}</p>
@@ -438,22 +444,22 @@ export default function MaintenancePage() {
       <ModalPopup
         open={showForm}
         onClose={() => setShowForm(false)}
-        title="Novo Pedido de Manutenção"
+        title={t('maintenance.form.title')}
         maxWidthClass="max-w-lg"
       >
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-ink-muted mb-1">Título</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.titleLabel')}</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Torneira avariada na cozinha"
+                placeholder={t('maintenance.form.titlePlaceholder')}
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.description')}</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -463,17 +469,17 @@ export default function MaintenancePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Localização</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.location')}</label>
               <input
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ex: Fração 3A"
+                placeholder={t('maintenance.form.locationPlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-muted mb-1">Prioridade</label>
+              <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.priority')}</label>
               <select
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
@@ -486,10 +492,10 @@ export default function MaintenancePage() {
             </div>
             <div className="sm:col-span-2 flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowForm(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button type="submit" loading={submitting}>
-                Guardar
+                {t('maintenance.form.save')}
               </Button>
             </div>
           </form>
@@ -500,12 +506,12 @@ export default function MaintenancePage() {
         {['All', 'Open', 'InProgress', 'Completed'].map((s) => (
           <button
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => handleFilterChange(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               filter === s ? 'bg-indigo-600 text-white' : 'bg-surface text-ink-muted border border-line hover:bg-surface-hover'
             }`}
           >
-            {s === 'All' ? `Todos (${requests.length})` : `${statusMap[s]?.label ?? s} (${statusCounts[s as 'Open' | 'InProgress' | 'Completed']})`}
+            {s === 'All' ? t('maintenance.filter.all', { count: allCount }) : t('maintenance.filter.count', { label: statusMap[s]?.label ?? s, count: statusCounts[s as 'Open' | 'InProgress' | 'Completed'] })}
           </button>
         ))}
       </div>
@@ -516,11 +522,11 @@ export default function MaintenancePage() {
           loading={loading}
           error={loadError || null}
           onRetry={load}
-          isEmpty={paginatedRequests.length === 0}
-          empty={<EmptyState icon={Wrench} title="Sem pedidos de manutenção" />}
+          isEmpty={requests.length === 0}
+          empty={<EmptyState icon={Wrench} title={t('maintenance.empty')} />}
         >
           <>
-            {paginatedRequests.map((m) => {
+            {requests.map((m) => {
               const { label, variant, icon: Icon } = statusMap[m.status] ?? statusMap['Open'];
               return (
                 <Card key={m.id} className="p-4">
@@ -546,7 +552,7 @@ export default function MaintenancePage() {
                         onClick={() => handleOpenStatusPanel(m)}
                         className="shrink-0 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg transition-colors"
                       >
-                        Gerir Estado
+                        {t('maintenance.manageStatus')}
                       </button>
                     ) : (
                       <button
@@ -554,12 +560,12 @@ export default function MaintenancePage() {
                         className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-surface-hover border border-line rounded-lg transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        Detalhes
+                        {t('maintenance.details')}
                       </button>
                     )}
                   </div>
                   <p className="text-xs text-ink-subtle mt-2">
-                    Criado em: {new Date(m.createdAt).toLocaleDateString('pt-PT')}
+                    {t('maintenance.createdAt', { date: formatDate(m.createdAt) })}
                   </p>
                 </Card>
               );
@@ -568,7 +574,7 @@ export default function MaintenancePage() {
             {pagination && (
               <Pagination
                 pagination={pagination}
-                currentPage={safeCurrentPage}
+                currentPage={currentPage}
                 onPageChange={setCurrentPage}
               />
             )}
@@ -580,7 +586,7 @@ export default function MaintenancePage() {
       <ModalPopup
         open={showStatusPanel && selectedRequest !== null}
         onClose={handleCloseStatusPanel}
-        title={isAdmin && selectedRequest && !isCompletedStatus(selectedRequest.status) ? 'Gerir Estado da Manutenção' : 'Detalhes da Manutenção'}
+        title={isAdmin && selectedRequest && !isCompletedStatus(selectedRequest.status) ? t('maintenance.statusPanel.manageTitle') : t('maintenance.statusPanel.detailsTitle')}
         maxWidthClass="max-w-3xl"
         bodyClassName="max-h-[75vh] overflow-y-auto px-6 py-4 space-y-5"
       >
@@ -600,7 +606,7 @@ export default function MaintenancePage() {
                 <form onSubmit={handleStatusUpdate} className="space-y-4">
                   {/* Status Select */}
                   <div>
-                    <label className="block text-sm font-medium text-ink-muted mb-1">Estado</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.status')}</label>
                     <select
                       value={statusForm.status}
                       onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
@@ -616,14 +622,14 @@ export default function MaintenancePage() {
                   {/* Supplier Select */}
                   <div>
                     <label className="block text-sm font-medium text-ink-muted mb-1">
-                      Fornecedor <span className="text-ink-subtle font-normal">(opcional)</span>
+                      {t('maintenance.form.supplier')} <span className="text-ink-subtle font-normal">{t('maintenance.optional')}</span>
                     </label>
                     <select
                       value={statusForm.supplierId}
                       onChange={(e) => setStatusForm({ ...statusForm, supplierId: e.target.value })}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
-                      <option value="">Sem fornecedor</option>
+                      <option value="">{t('maintenance.form.noSupplier')}</option>
                       {suppliers.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} - {s.specialty}</option>
                       ))}
@@ -636,7 +642,7 @@ export default function MaintenancePage() {
                       const selectedSupplier = suppliers.find(s => s.id === statusForm.supplierId);
                       return selectedSupplier ? (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                          <p className="text-xs font-medium text-blue-900 mb-2">Informações de Contato</p>
+                          <p className="text-xs font-medium text-blue-900 mb-2">{t('maintenance.contactInfo')}</p>
                           {selectedSupplier.phone && (
                             <div className="flex items-center gap-2 text-sm text-blue-700">
                               <Phone className="w-4 h-4" />
@@ -664,14 +670,14 @@ export default function MaintenancePage() {
                   {/* Admin Comments */}
                   <div>
                     <label className="block text-sm font-medium text-ink-muted mb-1">
-                      Comentário <span className="text-ink-subtle font-normal">(opcional)</span>
+                      {t('maintenance.form.comment')} <span className="text-ink-subtle font-normal">{t('maintenance.optional')}</span>
                     </label>
                     <textarea
                       value={statusForm.adminComments}
                       onChange={(e) => setStatusForm({ ...statusForm, adminComments: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                      placeholder="Adicione um comentário sobre esta atualização..."
+                      placeholder={t('maintenance.form.commentPlaceholder')}
                     />
                   </div>
 
@@ -679,10 +685,10 @@ export default function MaintenancePage() {
                     <div className="border-t border-line pt-4 space-y-4">
                       <div>
                         <p className="text-sm font-medium text-ink-muted mb-1">
-                          Custo da Manutenção <span className="text-red-500">*</span>
+                          {t('maintenance.form.cost')} <span className="text-red-500">*</span>
                         </p>
                         <p className="text-xs text-ink-subtle mb-3">
-                          O custo é obrigatório para registar a manutenção como concluída.
+                          {t('maintenance.form.costRequired')}
                         </p>
                       </div>
 
@@ -690,7 +696,7 @@ export default function MaintenancePage() {
                         {/* Expense Amount */}
                         <div>
                           <label className="block text-sm font-medium text-ink-muted mb-1">
-                            Valor da Despesa <span className="text-red-500">*</span>
+                            {t('maintenance.form.expenseAmount')} <span className="text-red-500">*</span>
                           </label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle">€</span>
@@ -710,25 +716,25 @@ export default function MaintenancePage() {
                         {/* Invoice Document */}
                         <div>
                           <label className="block text-sm font-medium text-ink-muted mb-1">
-                            Fatura <span className="text-ink-subtle font-normal">(opcional)</span>
+                            {t('maintenance.form.invoice')} <span className="text-ink-subtle font-normal">{t('maintenance.optional')}</span>
                           </label>
                           <select
                             value={statusForm.invoiceDocumentId}
                             onChange={(e) => setStatusForm({ ...statusForm, invoiceDocumentId: e.target.value })}
                             className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
-                            <option value="">Selecione a fatura (opcional)</option>
+                            <option value="">{t('maintenance.form.selectInvoice')}</option>
                             {maintenanceDocuments
                               .filter(doc => doc.type === 'MaintenanceInvoice')
                               .map((doc) => (
                                 <option key={doc.id} value={doc.id}>
-                                  {doc.name} ({new Date(doc.uploadedAt).toLocaleDateString('pt-PT')})
+                                  {t('maintenance.invoiceOption', { name: doc.name, date: formatDate(doc.uploadedAt) })}
                                 </option>
                               ))}
                           </select>
                           {maintenanceDocuments.filter(doc => doc.type === 'MaintenanceInvoice').length === 0 && (
                             <p className="mt-1 text-xs text-ink-subtle">
-                              Pode adicionar uma fatura na secção de documentos abaixo.
+                              {t('maintenance.form.addInvoiceHint')}
                             </p>
                           )}
                         </div>
@@ -739,7 +745,7 @@ export default function MaintenancePage() {
                   {/* Comment History */}
                   {selectedRequest.adminComments && (
                     <div>
-                      <label className="block text-sm font-medium text-ink-muted mb-2">Histórico de Comentários</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-2">{t('maintenance.commentHistory')}</label>
                       <div className="bg-surface-muted rounded-lg p-3 max-h-40 overflow-y-auto">
                         <pre className="text-xs text-ink-muted whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
                       </div>
@@ -750,21 +756,21 @@ export default function MaintenancePage() {
                   {!isCompletedStatus(selectedRequest.status) && (
                     <div className="border-t border-line pt-4">
                       <div className="flex items-center justify-between mb-3">
-                        <label className="block text-sm font-medium text-ink-muted">Documentos</label>
+                        <label className="block text-sm font-medium text-ink-muted">{t('maintenance.documents')}</label>
                         <button
                           type="button"
                           onClick={() => setShowDocUploadModal(true)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                         >
                           <Upload className="w-3.5 h-3.5" />
-                          Adicionar
+                          {t('maintenance.add')}
                         </button>
                       </div>
 
                       {maintenanceDocuments.length === 0 ? (
                         <div className="text-center py-6 text-ink-subtle bg-surface-muted rounded-lg">
                           <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                          <p className="text-xs">Nenhum documento anexado</p>
+                          <p className="text-xs">{t('maintenance.noDocuments')}</p>
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -778,7 +784,7 @@ export default function MaintenancePage() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                                   <p className="text-xs text-ink-subtle">
-                                    {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                    {formatDate(doc.uploadedAt)}
                                   </p>
                                 </div>
                               </div>
@@ -787,7 +793,7 @@ export default function MaintenancePage() {
                                   type="button"
                                   onClick={() => handleDocDownload(doc.id, doc.name)}
                                   className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Baixar"
+                                  title={t('maintenance.download')}
                                 >
                                   <Download className="w-3.5 h-3.5" />
                                 </button>
@@ -795,7 +801,7 @@ export default function MaintenancePage() {
                                   type="button"
                                   onClick={() => handleDocDelete(doc.id)}
                                   className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Excluir"
+                                  title={t('maintenance.deleteTooltip')}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -815,10 +821,10 @@ export default function MaintenancePage() {
                       fullWidth
                       className="flex-1 border border-line"
                     >
-                      Cancelar
+                      {t('common.cancel')}
                     </Button>
                     <Button type="submit" loading={submitting} fullWidth className="flex-1">
-                      Guardar Alterações
+                      {t('maintenance.saveChanges')}
                     </Button>
                   </div>
                 </form>
@@ -826,7 +832,7 @@ export default function MaintenancePage() {
                 <div className="space-y-4">
                   {/* Read-only Status */}
                   <div>
-                    <label className="block text-sm font-medium text-ink-muted mb-1">Estado</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.status')}</label>
                     <div className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface-muted text-ink">
                       {statusMap[selectedRequest.status as keyof typeof statusMap]?.label || selectedRequest.status}
                     </div>
@@ -838,12 +844,12 @@ export default function MaintenancePage() {
                       const supplier = suppliers.find(s => s.id === selectedRequest.supplierId);
                       return supplier ? (
                         <div>
-                          <label className="block text-sm font-medium text-ink-muted mb-1">Fornecedor</label>
+                          <label className="block text-sm font-medium text-ink-muted mb-1">{t('maintenance.form.supplier')}</label>
                           <div className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface-muted text-ink">
                             {supplier.name} - {supplier.specialty}
                           </div>
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 mt-2">
-                            <p className="text-xs font-medium text-blue-900 mb-2">Informações de Contato</p>
+                            <p className="text-xs font-medium text-blue-900 mb-2">{t('maintenance.contactInfo')}</p>
                             {supplier.phone && (
                               <div className="flex items-center gap-2 text-sm text-blue-700">
                                 <Phone className="w-4 h-4" />
@@ -872,7 +878,7 @@ export default function MaintenancePage() {
                   {/* Read-only Comment History */}
                   {selectedRequest.adminComments && (
                     <div>
-                      <label className="block text-sm font-medium text-ink-muted mb-2">Comentários</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-2">{t('maintenance.comments')}</label>
                       <div className="bg-surface-muted rounded-lg p-3 border border-line">
                         <pre className="text-xs text-ink-muted whitespace-pre-wrap font-sans">{selectedRequest.adminComments}</pre>
                       </div>
@@ -881,11 +887,11 @@ export default function MaintenancePage() {
 
                   {/* Read-only Documents */}
                   <div className="border-t border-line pt-4">
-                    <label className="block text-sm font-medium text-ink-muted mb-3">Documentos</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-3">{t('maintenance.documents')}</label>
                     {maintenanceDocuments.length === 0 ? (
                       <div className="text-center py-6 text-ink-subtle bg-surface-muted rounded-lg">
                         <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs">Nenhum documento anexado</p>
+                        <p className="text-xs">{t('maintenance.noDocuments')}</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -899,7 +905,7 @@ export default function MaintenancePage() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-ink truncate">{doc.name}</p>
                                 <p className="text-xs text-ink-subtle">
-                                  {new Date(doc.uploadedAt).toLocaleDateString('pt-PT')}
+                                  {formatDate(doc.uploadedAt)}
                                 </p>
                               </div>
                             </div>
@@ -907,7 +913,7 @@ export default function MaintenancePage() {
                               type="button"
                               onClick={() => handleDocDownload(doc.id, doc.name)}
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors shrink-0"
-                              title="Baixar"
+                              title={t('maintenance.download')}
                             >
                               <Download className="w-3.5 h-3.5" />
                             </button>
@@ -924,7 +930,7 @@ export default function MaintenancePage() {
                       onClick={handleCloseStatusPanel}
                       className="w-full px-4 py-2 bg-control hover:bg-control-hover text-ink rounded-lg text-sm font-medium transition-colors"
                     >
-                      Fechar
+                      {t('maintenance.close')}
                     </button>
                   </div>
                 </div>
@@ -941,20 +947,20 @@ export default function MaintenancePage() {
           setUploadFile(null);
           setUploadForm({ name: '', type: 'MaintenanceInvoice', description: '' });
         }}
-        title="Adicionar Documento"
+        title={t('maintenance.uploadDoc.title')}
         maxWidthClass="max-w-lg"
       >
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-700">
                 <Upload className="w-5 h-5" />
               </div>
-              <p className="text-sm text-ink-subtle">Orçamento, fatura ou outro documento</p>
+              <p className="text-sm text-ink-subtle">{t('maintenance.uploadDoc.subtitle')}</p>
             </div>
 
             <form onSubmit={handleDocUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Tipo de Documento *
+                  {t('maintenance.uploadDoc.typeLabel')} *
                 </label>
                 <select
                   required
@@ -962,34 +968,34 @@ export default function MaintenancePage() {
                   onChange={(e) => setUploadForm({ ...uploadForm, type: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="MaintenanceInvoice">Fatura</option>
-                  <option value="MaintenanceQuote">Orçamento</option>
-                  <option value="MaintenanceReport">Relatório</option>
+                  <option value="MaintenanceInvoice">{t('maintenance.docType.invoice')}</option>
+                  <option value="MaintenanceQuote">{t('maintenance.docType.quote')}</option>
+                  <option value="MaintenanceReport">{t('maintenance.docType.report')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Nome do Documento *
+                  {t('maintenance.uploadDoc.nameLabel')} *
                 </label>
                 <input
                   type="text"
                   required
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
-                  placeholder="Ex: Fatura de Reparação"
+                  placeholder={t('maintenance.uploadDoc.namePlaceholder')}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Descrição (opcional)
+                  {t('maintenance.uploadDoc.descriptionLabel')}
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                  placeholder="Detalhes sobre este documento..."
+                  placeholder={t('maintenance.uploadDoc.descriptionPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
@@ -1012,10 +1018,10 @@ export default function MaintenancePage() {
                   fullWidth
                   className="flex-1 border border-line"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" loading={uploading} disabled={!uploadFile} fullWidth className="flex-1">
-                  Adicionar
+                  {t('maintenance.add')}
                 </Button>
               </div>
             </form>

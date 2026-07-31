@@ -15,6 +15,7 @@ public class Unit
     public decimal MonthlyQuota { get; set; } // Quota mensal base da fração
     public Condominium Condominium { get; set; } = null!;
     public ICollection<User> Users { get; set; } = new List<User>();
+    public ICollection<UnitMembership> UnitMemberships { get; set; } = new List<UnitMembership>();
     public ICollection<MaintenanceRequest> MaintenanceRequests { get; set; } = new List<MaintenanceRequest>();
     public ICollection<Document> Documents { get; set; } = new List<Document>();
 }

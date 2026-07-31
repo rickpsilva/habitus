@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import { useTranslation } from '../i18n/I18nProvider';
 import { 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, 
@@ -33,10 +34,12 @@ export interface RichTextTokenDefinition {
 export default function RichTextEditor({
   value,
   onChange,
-  placeholder = 'Escreva aqui...',
+  placeholder,
   height = '300px',
   tokenDefinitions = [],
 }: RichTextEditorProps) {
+  const { t } = useTranslation();
+  const editorPlaceholder = placeholder ?? t('richText.placeholder');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -61,7 +64,7 @@ export default function RichTextEditor({
         },
       }),
       Placeholder.configure({
-        placeholder,
+        placeholder: editorPlaceholder,
       }),
       TextStyle,
       Color,
@@ -153,7 +156,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('heading', { level: 1 }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Título 1"
+          title={t('richText.heading1')}
           type="button"
         >
           <Heading1 className="w-4 h-4" />
@@ -161,7 +164,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('heading', { level: 2 }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Título 2"
+          title={t('richText.heading2')}
           type="button"
         >
           <Heading2 className="w-4 h-4" />
@@ -169,7 +172,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('heading', { level: 3 }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Título 3"
+          title={t('richText.heading3')}
           type="button"
         >
           <Heading3 className="w-4 h-4" />
@@ -181,7 +184,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('bold') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Negrito"
+          title={t('richText.bold')}
           type="button"
         >
           <Bold className="w-4 h-4" />
@@ -189,7 +192,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('italic') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Itálico"
+          title={t('richText.italic')}
           type="button"
         >
           <Italic className="w-4 h-4" />
@@ -197,7 +200,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('underline') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Sublinhado"
+          title={t('richText.underline')}
           type="button"
         >
           <UnderlineIcon className="w-4 h-4" />
@@ -205,7 +208,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleStrike().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('strike') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Riscado"
+          title={t('richText.strikethrough')}
           type="button"
         >
           <Strikethrough className="w-4 h-4" />
@@ -218,7 +221,7 @@ export default function RichTextEditor({
           <button
             onClick={() => setShowColorPicker(!showColorPicker)}
             className="p-1.5 rounded hover:bg-control-hover transition text-ink-muted"
-            title="Cor do texto"
+            title={t('richText.textColor')}
             type="button"
           >
             <Palette className="w-4 h-4" />
@@ -248,7 +251,7 @@ export default function RichTextEditor({
                   className="mt-2 w-full px-2 py-1 text-xs text-ink-muted hover:bg-surface-hover rounded"
                   type="button"
                 >
-                  Remover cor
+                  {t('richText.removeColor')}
                 </button>
               </div>
             </>
@@ -261,7 +264,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('bulletList') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Lista com marcadores"
+          title={t('richText.bulletList')}
           type="button"
         >
           <List className="w-4 h-4" />
@@ -269,7 +272,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('orderedList') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Lista numerada"
+          title={t('richText.orderedList')}
           type="button"
         >
           <ListOrdered className="w-4 h-4" />
@@ -281,7 +284,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive({ textAlign: 'left' }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Alinhar à esquerda"
+          title={t('richText.alignLeft')}
           type="button"
         >
           <AlignLeft className="w-4 h-4" />
@@ -289,7 +292,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive({ textAlign: 'center' }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Centralizar"
+          title={t('richText.alignCenter')}
           type="button"
         >
           <AlignCenter className="w-4 h-4" />
@@ -297,7 +300,7 @@ export default function RichTextEditor({
         <button
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive({ textAlign: 'right' }) ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Alinhar à direita"
+          title={t('richText.alignRight')}
           type="button"
         >
           <AlignRight className="w-4 h-4" />
@@ -309,7 +312,7 @@ export default function RichTextEditor({
         <button
           onClick={openLinkModal}
           className={`p-1.5 rounded hover:bg-control-hover transition ${editor.isActive('link') ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-          title="Inserir link"
+          title={t('richText.link')}
           type="button"
         >
           <Link2 className="w-4 h-4" />
@@ -321,10 +324,10 @@ export default function RichTextEditor({
             <button
               onClick={() => setShowTokenPicker((current) => !current)}
               className={`px-2.5 py-1.5 rounded hover:bg-control-hover transition text-xs font-semibold ${showTokenPicker ? 'bg-blue-100 text-blue-600' : 'text-ink-muted'}`}
-              title="Inserir tag"
+              title={t('richText.insertTag')}
               type="button"
             >
-              Tags
+              {t('richText.tags')}
             </button>
           </>
         )}
@@ -334,14 +337,14 @@ export default function RichTextEditor({
         <div className="border-b border-line bg-amber-50/60 px-4 py-3 space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h4 className="text-sm font-semibold text-ink">Inserir Tags do Template</h4>
-              <p className="text-xs text-ink-muted">Cada tag mostra o significado, um exemplo real e o comportamento quando não há valor.</p>
+              <h4 className="text-sm font-semibold text-ink">{t('richText.insertTemplateTags')}</h4>
+              <p className="text-xs text-ink-muted">{t('richText.tagHelp')}</p>
             </div>
             <input
               type="text"
               value={tokenSearch}
               onChange={(e) => setTokenSearch(e.target.value)}
-              placeholder="Pesquisar tag..."
+              placeholder={t('richText.searchTag')}
               className="w-full md:w-64 px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -363,8 +366,8 @@ export default function RichTextEditor({
                         <span className="text-xs font-medium text-ink">{definition.label}</span>
                       </div>
                       <p className="mt-1 text-xs text-ink-muted">{definition.description}</p>
-                      <p className="mt-1 text-xs text-ink-subtle">Exemplo: {definition.example}</p>
-                      <p className="mt-1 text-xs text-amber-700">Sem valor: {definition.missingBehavior}</p>
+                      <p className="mt-1 text-xs text-ink-subtle">{t('richText.exampleLabel', { value: definition.example })}</p>
+                      <p className="mt-1 text-xs text-amber-700">{t('richText.missingValueLabel', { value: definition.missingBehavior })}</p>
                     </button>
                   ))}
                 </div>
@@ -372,7 +375,7 @@ export default function RichTextEditor({
             ))}
             {filteredTokens.length === 0 && (
               <div className="rounded-lg border border-dashed border-line bg-surface px-3 py-4 text-sm text-ink-subtle">
-                Nenhuma tag encontrada para a pesquisa.
+                {t('richText.noTagsFound')}
               </div>
             )}
           </div>
@@ -456,7 +459,7 @@ export default function RichTextEditor({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={() => setShowLinkModal(false)}>
           <div className="bg-surface rounded-xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-              <h3 className="text-lg font-semibold text-ink">Inserir Link</h3>
+              <h3 className="text-lg font-semibold text-ink">{t('richText.insertLink')}</h3>
               <button onClick={() => setShowLinkModal(false)} className="p-1 hover:bg-surface-hover rounded-lg transition-colors">
                 <X className="w-5 h-5 text-ink-subtle" />
               </button>
@@ -469,7 +472,7 @@ export default function RichTextEditor({
                 type="url"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://exemplo.com"
+                placeholder={t('richText.linkUrlPlaceholder')}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
                 onKeyDown={(e) => {
@@ -484,20 +487,20 @@ export default function RichTextEditor({
                 onClick={removeLink}
                 className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
-                Remover Link
+                {t('richText.removeLink')}
               </button>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowLinkModal(false)}
                   className="px-4 py-2 text-sm text-ink-muted hover:text-ink"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={applyLink}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
                 >
-                  Aplicar
+                  {t('richText.apply')}
                 </button>
               </div>
             </div>

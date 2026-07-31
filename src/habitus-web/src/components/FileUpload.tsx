@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -24,6 +25,7 @@ export default function FileUpload({
   currentFile,
   removeFile
 }: FileUploadProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [platformMaxSizeBytes, setPlatformMaxSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
@@ -65,7 +67,7 @@ export default function FileUpload({
 
   const validateFile = (file: File): string | null => {
     if (!isFileSizeWithinLimit(file, effectiveMaxSizeBytes)) {
-      return `O ficheiro excede o limite de ${formatUploadSizeLabel(effectiveMaxSizeBytes)}`;
+      return t('upload.exceedsLimit', { limit: formatUploadSizeLabel(effectiveMaxSizeBytes) });
     }
 
     // Validate accept pattern if specified
@@ -77,7 +79,7 @@ export default function FileUpload({
       );
       
       if (!isAccepted) {
-        return `File type not accepted. Accepted types: ${accept}`;
+        return t('upload.typeNotAccepted', { types: accept });
       }
     }
 
@@ -166,7 +168,7 @@ export default function FileUpload({
                 onClick={removeFile}
                 disabled={disabled}
                 className="p-1 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                title="Remove file"
+                title={t('upload.removeFile')}
               >
                 <X className="w-5 h-5 text-red-600" />
               </button>
@@ -201,13 +203,13 @@ export default function FileUpload({
             <div>
               <p className={`font-medium ${error ? 'text-red-700' : 'text-ink-muted'}`}>
                 {error || (isDragging 
-                  ? 'Drop file here' 
-                  : 'Click to upload or drag and drop'
+                  ? t('upload.dropHere') 
+                  : t('upload.clickOrDrag')
                 )}
               </p>
               {!error && (
                 <p className="text-sm text-ink-subtle mt-1">
-                  Tamanho máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)}
+                  {t('upload.maxSize', { size: formatUploadSizeLabel(effectiveMaxSizeBytes) })}
                 </p>
               )}
             </div>

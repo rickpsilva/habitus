@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 import type { NotificationDto, PaginatedResponse } from '../types';
 
 function parseNotificationMessage(message: string) {
@@ -26,6 +27,7 @@ export default function NotificationsPage() {
   const { isAdmin, isManager, condominiumId } = useAuth();
   const navigate = useNavigate();
   const { success, error } = useToast();
+  const { t, formatDateTime } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -39,7 +41,7 @@ export default function NotificationsPage() {
       setPagination(null);
       setNotifications([]);
       setCurrentPage(page);
-      setLoadError('Condomínio não identificado.');
+      setLoadError(t('notifications.error.noCondominium'));
       setLoading(false);
       return;
     }
@@ -51,9 +53,9 @@ export default function NotificationsPage() {
       setNotifications(r.data.items);
       setCurrentPage(page);
     }).catch(() => {
-      setLoadError('Não foi possível carregar as notificações.');
+      setLoadError(t('notifications.error.load'));
     }).finally(() => setLoading(false));
-  }, [condominiumId]);
+  }, [condominiumId, t]);
 
   useEffect(() => {
     load(1);
@@ -71,21 +73,21 @@ export default function NotificationsPage() {
       if (confirmAction === 'markAll') {
         if (!condominiumId) return;
         await notificationsApi.markAllRead(condominiumId);
-        success('Todas as notificações marcadas como lidas.');
+        success(t('notifications.toast.allMarkedRead'));
         load(currentPage);
       } else if (confirmAction === 'clearAll') {
         if (!condominiumId) return;
         await notificationsApi.clearAll(condominiumId);
-        success('Notificações eliminadas.');
+        success(t('notifications.toast.allCleared'));
         load(1);
       } else {
         if (!condominiumId) return;
         await notificationsApi.delete(condominiumId, confirmAction);
-        success('Notificação eliminada.');
+        success(t('notifications.toast.deleted'));
         load(currentPage);
       }
     } catch {
-      error('Ocorreu um erro. Tente novamente.');
+      error(t('notifications.toast.error'));
     } finally {
       setConfirmAction(null);
     }
@@ -97,16 +99,16 @@ export default function NotificationsPage() {
     return (
       <div className="space-y-5">
         <PageHeader
-          title="Notificações"
-          subtitle="O perfil Gestor não recebe notificações operacionais de condóminos."
+          title={t('notifications.title')}
+          subtitle={t('notifications.manager.subtitle')}
         />
         <EmptyState
           icon={LayoutDashboard}
-          title="Sem notificações para o perfil Gestor"
-          description="Use o Dashboard do Gestor para acompanhamento da plataforma, billing e gestão da carteira de condomínios."
+          title={t('notifications.manager.emptyTitle')}
+          description={t('notifications.manager.emptyDesc')}
           action={
             <Link to="/" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-              Ir para o Dashboard
+              {t('notifications.manager.goToDashboard')}
             </Link>
           }
         />
@@ -118,31 +120,31 @@ export default function NotificationsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={confirmAction !== null}
-        title={confirmAction === 'clearAll' ? 'Eliminar todas as notificações' : confirmAction === 'markAll' ? 'Marcar todas como lidas' : 'Eliminar notificação'}
+        title={confirmAction === 'clearAll' ? t('notifications.confirmModal.clearAllTitle') : confirmAction === 'markAll' ? t('notifications.confirmModal.markAllTitle') : t('notifications.confirmModal.deleteTitle')}
         message={confirmAction === 'clearAll'
-          ? 'Esta ação elimina permanentemente todas as notificações e não pode ser revertida.'
+          ? t('notifications.confirmModal.clearAllMessage')
           : confirmAction === 'markAll'
-          ? 'Todas as notificações serão marcadas como lidas.'
-          : 'Esta notificação será eliminada permanentemente.'}
-        confirmLabel={confirmAction === 'clearAll' || (confirmAction !== null && confirmAction !== 'markAll') ? 'Eliminar' : 'Confirmar'}
+          ? t('notifications.confirmModal.markAllMessage')
+          : t('notifications.confirmModal.deleteMessage')}
+        confirmLabel={confirmAction === 'clearAll' || (confirmAction !== null && confirmAction !== 'markAll') ? t('common.delete') : t('notifications.confirm')}
         variant={confirmAction === 'clearAll' || (confirmAction !== null && confirmAction !== 'markAll') ? 'danger' : 'default'}
         onConfirm={handleConfirm}
         onCancel={() => setConfirmAction(null)}
       />
 
       <PageHeader
-        title="Notificações"
-        subtitle={`${pagination ? `${pagination.totalItems} total` : ''}${unreadCount > 0 ? ` • ${unreadCount} não lida${unreadCount > 1 ? 's' : ''}` : pagination?.totalItems ? ' • Todas lidas' : ''}`}
+        title={t('notifications.title')}
+        subtitle={`${pagination ? t('notifications.totalCount', { count: pagination.totalItems }) : ''}${unreadCount > 0 ? ` • ${unreadCount > 1 ? t('notifications.unreadMany', { count: unreadCount }) : t('notifications.unreadOne', { count: unreadCount })}` : pagination?.totalItems ? ` • ${t('notifications.allRead')}` : ''}`}
         actions={
           <>
             {unreadCount > 0 && (
               <Button icon={CheckCheck} onClick={() => setConfirmAction('markAll')} fullWidth className="sm:w-auto">
-                Marcar lidas
+                {t('notifications.markRead')}
               </Button>
             )}
             {pagination && pagination.totalItems > 0 && (
               <Button variant="danger" icon={Trash2} onClick={() => setConfirmAction('clearAll')} fullWidth className="sm:w-auto">
-                Limpar todas
+                {t('notifications.clearAll')}
               </Button>
             )}
           </>
@@ -155,7 +157,7 @@ export default function NotificationsPage() {
         onRetry={() => load(currentPage)}
         isEmpty={notifications.length === 0}
         skeleton="list"
-        empty={<EmptyState icon={Bell} title="Não há notificações" />}
+        empty={<EmptyState icon={Bell} title={t('notifications.empty')} />}
       >
         <div className="space-y-3">
           {notifications.map((n) => {
@@ -179,13 +181,13 @@ export default function NotificationsPage() {
                           {n.title}
                         </p>
                         <time className="text-xs text-ink-subtle shrink-0 whitespace-nowrap">
-                          {new Date(n.sentAt).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {formatDateTime(n.sentAt, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </time>
                       </div>
                       <p className="text-sm text-ink-subtle mt-0.5">{parsed.plain}</p>
                       {parsed.thumb && (
                         <a href={parsed.thumb} target="_blank" rel="noreferrer" className="inline-block mt-2">
-                          <img src={parsed.thumb} alt="Pré-visualização" className="w-28 h-20 object-cover rounded border border-line" />
+                          <img src={parsed.thumb} alt={t('notifications.thumbAlt')} className="w-28 h-20 object-cover rounded border border-line" />
                         </a>
                       )}
                       <div className="flex items-center gap-3 mt-2">
@@ -198,7 +200,7 @@ export default function NotificationsPage() {
                             }}
                             className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                           >
-                            Ver comunicado
+                            {t('notifications.viewAnnouncement')}
                           </button>
                         )}
                         {!n.isRead && (
@@ -207,7 +209,7 @@ export default function NotificationsPage() {
                             onClick={() => markRead(n.id)}
                             className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                           >
-                            Marcar como lida
+                            {t('notifications.markAsRead')}
                           </button>
                         )}
                         {isAdmin && (
@@ -217,7 +219,7 @@ export default function NotificationsPage() {
                             className="text-xs text-ink-subtle hover:text-red-500 flex items-center gap-1 transition-colors"
                           >
                             <Trash2 className="w-3 h-3" aria-hidden="true" />
-                            Eliminar
+                            {t('common.delete')}
                           </button>
                         )}
                       </div>

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Habitus.Application.DTOs.Auth;
+using Habitus.Application.DTOs.Memberships;
 using Habitus.Application.Helpers;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
@@ -38,6 +39,7 @@ public class AuthService
     private readonly IRepository<UserCondominium> _userCondominiumRepository;
     private readonly IRepository<Condominium> _condominiumRepository;
     private readonly IRepository<Unit> _unitRepository;
+    private readonly IRepository<UnitMembership> _unitMembershipRepository;
     private readonly IRepository<UserAuthProvider> _userAuthProviderRepository;
     private readonly IRepository<UserRecoveryCode> _userRecoveryCodeRepository;
     private readonly IRepository<AuthChallenge> _authChallengeRepository;
@@ -50,6 +52,7 @@ public class AuthService
         IRepository<UserCondominium> userCondominiumRepository,
         IRepository<Condominium> condominiumRepository,
         IRepository<Unit> unitRepository,
+        IRepository<UnitMembership> unitMembershipRepository,
         IRepository<UserAuthProvider> userAuthProviderRepository,
         IRepository<UserRecoveryCode> userRecoveryCodeRepository,
         IRepository<AuthChallenge> authChallengeRepository,
@@ -61,6 +64,7 @@ public class AuthService
         _userCondominiumRepository = userCondominiumRepository;
         _condominiumRepository = condominiumRepository;
         _unitRepository = unitRepository;
+        _unitMembershipRepository = unitMembershipRepository;
         _userAuthProviderRepository = userAuthProviderRepository;
         _userRecoveryCodeRepository = userRecoveryCodeRepository;
         _authChallengeRepository = authChallengeRepository;
@@ -446,10 +450,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(request.Email),
             EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = userRole,
             CondominiumId = request.CondominiumId,
@@ -505,10 +507,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(email),
             EmailHash = EmailHashHelper.GenerateEmailHash(email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(phone),
             Role = UserRole.Manager,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -543,10 +543,8 @@ public class AuthService
         {
             Id = Guid.NewGuid(),
             Name = request.Name,
-            Email = string.Empty,
             EmailEncrypted = EncryptEmail(request.Email),
             EmailHash = EmailHashHelper.GenerateEmailHash(request.Email),
-            Phone = string.Empty,
             PhoneEncrypted = EncryptPhone(request.Phone),
             Role = UserRole.Resident,
             CondominiumId = condominiumId,
@@ -698,6 +696,7 @@ Habitus Team
     {
         var userEmail = GetUserEmail(user);
         var accessibleCondominiums = await GetAccessibleCondominiumsAsync(user);
+        var membershipCount = await CountMembershipsAsync(user.Id);
 
         return new AuthResponse
         {
@@ -709,7 +708,14 @@ Habitus Team
             UnitId = user.UnitId,
             AccessibleCondominiums = accessibleCondominiums,
             RequiresTwoFactor = false,
+            RequiresContextSelection = membershipCount > 1,
         };
+    }
+
+    private async Task<int> CountMembershipsAsync(Guid userId)
+    {
+        var memberships = await _unitMembershipRepository.FindAsync(m => m.UserId == userId);
+        return memberships.Count();
     }
 
     private async Task<List<Guid>> GetAccessibleCondominiumsAsync(User user)
@@ -734,6 +740,133 @@ Habitus Team
         }
 
         return accessibleCondominiums;
+    }
+
+    /// <summary>
+    /// Returns the condominiums a user belongs to (union of <see cref="UnitMembership"/> and
+    /// <see cref="UserCondominium"/>), each with its units and primary flag, plus the current
+    /// active context. Managers list their <see cref="UserCondominium"/> access with empty units.
+    /// </summary>
+    public async Task<MembershipsDto> GetMembershipsAsync(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+
+        var dto = new MembershipsDto
+        {
+            ActiveContext = new ActiveContextDto
+            {
+                CondominiumId = user?.CondominiumId,
+                UnitId = user?.UnitId
+            }
+        };
+
+        if (user == null)
+        {
+            return dto;
+        }
+
+        var memberships = (await _unitMembershipRepository.FindAsync(m => m.UserId == userId)).ToList();
+        var userCondominiums = (await _userCondominiumRepository.FindAsync(uc => uc.UserId == userId)).ToList();
+
+        var condominiumIds = new HashSet<Guid>();
+        foreach (var membership in memberships) condominiumIds.Add(membership.CondominiumId);
+        foreach (var uc in userCondominiums) condominiumIds.Add(uc.CondominiumId);
+        if (condominiumIds.Count == 0 && user.CondominiumId.HasValue)
+        {
+            condominiumIds.Add(user.CondominiumId.Value);
+        }
+
+        foreach (var condominiumId in condominiumIds)
+        {
+            var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+            var condominiumDto = new MembershipCondominiumDto
+            {
+                CondominiumId = condominiumId,
+                CondominiumName = condominium?.Name ?? string.Empty
+            };
+
+            foreach (var membership in memberships.Where(m => m.CondominiumId == condominiumId))
+            {
+                var unit = await _unitRepository.GetByIdAsync(membership.UnitId);
+                condominiumDto.Units.Add(new MembershipUnitDto
+                {
+                    UnitId = membership.UnitId,
+                    UnitNumber = unit?.Number ?? string.Empty,
+                    IsPrimary = membership.IsPrimary
+                });
+            }
+
+            dto.Condominiums.Add(condominiumDto);
+        }
+
+        return dto;
+    }
+
+    /// <summary>
+    /// Switches the user's active context, returning a fresh <see cref="AuthResponse"/> whose token
+    /// carries the chosen condominium/unit claims. Rejects contexts the user does not actually hold
+    /// and re-checks that the target condominium is active.
+    /// </summary>
+    /// <exception cref="UnauthorizedAccessException">Thrown when the user does not hold the requested membership.</exception>
+    /// <exception cref="InactiveCondominiumAccessException">Thrown when the target condominium is inactive.</exception>
+    public async Task<AuthResponse?> SetActiveContextAsync(Guid userId, Guid condominiumId, Guid? unitId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return null;
+        }
+
+        if (!await UserHoldsMembershipAsync(user, condominiumId, unitId))
+        {
+            throw new UnauthorizedAccessException("The user does not hold the requested membership.");
+        }
+
+        if (user.Role != UserRole.Manager)
+        {
+            var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+            if (condominium?.IsActive != true)
+            {
+                throw new InactiveCondominiumAccessException();
+            }
+        }
+
+        var userEmail = GetUserEmail(user);
+        return new AuthResponse
+        {
+            Token = GenerateToken(user, userEmail, condominiumId, unitId),
+            Email = userEmail,
+            Name = user.Name,
+            Role = (int)user.Role,
+            CondominiumId = condominiumId,
+            UnitId = unitId,
+            AccessibleCondominiums = await GetAccessibleCondominiumsAsync(user),
+            RequiresTwoFactor = false,
+            RequiresContextSelection = false,
+        };
+    }
+
+    private async Task<bool> UserHoldsMembershipAsync(User user, Guid condominiumId, Guid? unitId)
+    {
+        if (unitId.HasValue)
+        {
+            return await _unitMembershipRepository.ExistsAsync(m =>
+                m.UserId == user.Id && m.UnitId == unitId.Value && m.CondominiumId == condominiumId);
+        }
+
+        if (await _unitMembershipRepository.ExistsAsync(m =>
+                m.UserId == user.Id && m.CondominiumId == condominiumId))
+        {
+            return true;
+        }
+
+        if (await _userCondominiumRepository.ExistsAsync(uc =>
+                uc.UserId == user.Id && uc.CondominiumId == condominiumId))
+        {
+            return true;
+        }
+
+        return user.CondominiumId == condominiumId;
     }
 
     private bool ValidateTotpCode(User user, string code)
@@ -807,6 +940,9 @@ Habitus Team
     }
 
     private string GenerateToken(User user, string userEmail)
+        => GenerateToken(user, userEmail, user.CondominiumId, user.UnitId);
+
+    private string GenerateToken(User user, string userEmail, Guid? condominiumId, Guid? unitId)
     {
         var secretKey = _configuration["JwtSettings:SecretKey"]
             ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
@@ -823,14 +959,14 @@ Habitus Team
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
-        if (user.CondominiumId.HasValue)
+        if (condominiumId.HasValue)
         {
-            claims.Add(new Claim("CondominiumId", user.CondominiumId.Value.ToString()));
+            claims.Add(new Claim("CondominiumId", condominiumId.Value.ToString()));
         }
 
-        if (user.UnitId.HasValue)
+        if (unitId.HasValue)
         {
-            claims.Add(new Claim("UnitId", user.UnitId.Value.ToString()));
+            claims.Add(new Claim("UnitId", unitId.Value.ToString()));
         }
 
         var token = new JwtSecurityToken(
@@ -864,36 +1000,20 @@ Habitus Team
 
     private string GetUserEmail(User user)
     {
-        if (!string.IsNullOrWhiteSpace(user.EmailEncrypted))
-        {
-            return _encryptionService.Decrypt(user.EmailEncrypted);
-        }
-
-        return user.Email;
+        return string.IsNullOrWhiteSpace(user.EmailEncrypted)
+            ? string.Empty
+            : _encryptionService.Decrypt(user.EmailEncrypted);
     }
 
     private async Task<User?> FindUserByEmailAsync(string email)
     {
         var emailHash = EmailHashHelper.GenerateEmailHash(email);
-        var user = await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
-        if (user != null)
-        {
-            return user;
-        }
-
-        var normalizedEmail = EmailHashHelper.Normalize(email);
-        return await _userRepository.FirstOrDefaultAsync(u => u.Email == normalizedEmail || u.Email == email);
+        return await _userRepository.FirstOrDefaultAsync(u => u.EmailHash == emailHash);
     }
 
     private async Task<bool> EmailExistsAsync(string email)
     {
         var emailHash = EmailHashHelper.GenerateEmailHash(email);
-        if (await _userRepository.ExistsAsync(u => u.EmailHash == emailHash))
-        {
-            return true;
-        }
-
-        var normalizedEmail = EmailHashHelper.Normalize(email);
-        return await _userRepository.ExistsAsync(u => u.Email == normalizedEmail || u.Email == email);
+        return await _userRepository.ExistsAsync(u => u.EmailHash == emailHash);
     }
 }

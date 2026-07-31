@@ -10,13 +10,8 @@ import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import { Button, Card, EmptyState } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 import type { UserDto, CreateUserRequest, UnitDto, CondominiumDto, PaginatedResponse, PendingUserDto } from '../types';
-
-const roleLabels: Record<number, string> = {
-  0: 'Gestor',
-  1: 'Administrador',
-  2: 'Morador',
-};
 
 const roleColors: Record<number, string> = {
   0: 'bg-emerald-100 text-emerald-700',
@@ -28,6 +23,12 @@ export default function UsersPage() {
   const { isManager, isAdmin, condominiumId } = useAuth();
   const navigate = useNavigate();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
+  const roleLabels: Record<number, string> = {
+    0: t('role.manager'),
+    1: t('role.admin'),
+    2: t('role.resident'),
+  };
   // Guard: Only Manager and Admin can access
   useEffect(() => {
     if (!isManager && !isAdmin) {
@@ -109,17 +110,17 @@ export default function UsersPage() {
       // Manager doesn't need units or condominiums in this view
     } catch (error) {
       console.error('Erro ao carregar utilizadores:', error);
-      setLoadError('Não foi possível carregar os utilizadores.');
+      setLoadError(t('users.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, isManager, condominiumId, pageSize, debouncedSearch]);
+  }, [isAdmin, isManager, condominiumId, pageSize, debouncedSearch, t]);
 
   const loadPending = useCallback(async () => {
     setPendingLoading(true);
     try {
       const r = await userRegistrationApi.getPendingUsers();
-      setPendingUsers(r.data);
+      setPendingUsers(r.data); if (r.data.length > 0) setShowPendingApprovals(true);
     } catch { /* silent */ } finally {
       setPendingLoading(false);
     }
@@ -129,12 +130,6 @@ export default function UsersPage() {
     load(1);
     if (isAdmin) loadPending();
   }, [load, loadPending, isAdmin]);
-
-  useEffect(() => {
-    if (pendingUsers.length > 0) {
-      setShowPendingApprovals(true);
-    }
-  }, [pendingUsers.length]);
 
   const handleApprove = async (userId: string) => {
     await userRegistrationApi.approveUser(userId);
@@ -153,7 +148,7 @@ export default function UsersPage() {
       await userRegistrationApi.rejectUser(rejectId);
       setPendingUsers((prev) => prev.filter((u) => u.id !== rejectId));
     } catch {
-      toastError('Erro ao recusar utilizador.');
+      toastError(t('users.error.reject'));
     } finally {
       setRejectId(null);
     }
@@ -165,18 +160,18 @@ export default function UsersPage() {
       // Validate based on role
       if (formData.role === 1 || formData.role === 2) {
         if (!formData.condominiumId) {
-          toastError('Admin e Morador precisam de um condomínio');
+          toastError(t('users.error.condoRequired'));
           return;
         }
       }
       if (formData.role === UserRole.Resident && !formData.unitId) {
-        toastError('Morador precisa de uma fração');
+        toastError(t('users.error.unitRequired'));
         return;
       }
 
       // Admin cannot create Manager
       if (isAdmin && formData.role === UserRole.Manager) {
-        toastError('Admin não pode criar Gestores');
+        toastError(t('users.error.adminCannotCreateManager'));
         return;
       }
 
@@ -206,7 +201,7 @@ export default function UsersPage() {
       load();
     } catch (error) {
       console.error('Erro ao guardar utilizador:', error);
-      toastError('Erro ao guardar utilizador. Tente novamente.');
+      toastError(t('users.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -257,7 +252,7 @@ export default function UsersPage() {
       load();
     } catch (error) {
       console.error('Erro ao remover utilizador:', error);
-      toastError('Erro ao remover utilizador. Tente novamente.');
+      toastError(t('users.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -272,7 +267,7 @@ export default function UsersPage() {
   const unitLabel = (unitId?: string) => {
     if (!unitId) return '-';
     const u = units.find((u) => u.id === unitId);
-    return u ? `Fração ${u.number} – Piso ${u.floor}` : unitId.slice(0, 8) + '…';
+    return u ? t('users.unitLabel', { number: u.number, floor: u.floor }) : unitId.slice(0, 8) + '…';
   };
 
   const condominiumLabel = (condoId?: string) => {
@@ -299,7 +294,7 @@ export default function UsersPage() {
     return (
       <div className="text-center py-20 text-ink-subtle">
         <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Acesso restrito a gestores e administradores</p>
+        <p>{t('users.accessRestricted')}</p>
       </div>
     );
   }
@@ -308,37 +303,37 @@ export default function UsersPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Remover utilizador"
-        message="Tem a certeza que deseja remover este utilizador? Esta ação não pode ser revertida."
-        confirmLabel="Remover"
+        title={t('users.delete.title')}
+        message={t('users.delete.message')}
+        confirmLabel={t('users.delete.confirm')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
       />
       <ConfirmModal
         open={rejectId !== null}
-        title="Recusar utilizador"
-        message="Tem a certeza que deseja recusar e remover este utilizador?"
-        confirmLabel="Recusar"
+        title={t('users.reject.title')}
+        message={t('users.reject.message')}
+        confirmLabel={t('users.reject.confirm')}
         variant="danger"
         onConfirm={confirmReject}
         onCancel={() => setRejectId(null)}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Utilizadores</h1>
-          <p className="text-ink-subtle text-sm mt-0.5">{users.length} utilizadores registados</p>
+          <h1 className="text-2xl font-bold text-ink">{t('users.title')}</h1>
+          <p className="text-ink-subtle text-sm mt-0.5">{t('users.registeredCount', { count: users.length })}</p>
         </div>
         <div className="flex w-full sm:w-auto items-center justify-end gap-3 flex-wrap sm:flex-nowrap">
           <div className="w-full sm:w-80">
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Pesquisar utilizadores..."
+              placeholder={t('users.searchPlaceholder')}
             />
           </div>
           <Button onClick={handleNew} icon={Plus} className="w-full sm:w-auto justify-center">
-            Novo Utilizador
+            {t('users.new')}
           </Button>
         </div>
       </div>
@@ -352,7 +347,7 @@ export default function UsersPage() {
           >
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
               <Clock className="w-4 h-4 text-amber-500" />
-              Aprovações pendentes
+              {t('users.pending.title')}
               <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
                 {pendingUsers.length}
               </span>
@@ -362,33 +357,33 @@ export default function UsersPage() {
 
           {showPendingApprovals && (
             pendingLoading ? (
-              <div className="px-4 py-3 text-sm text-ink-subtle">A carregar…</div>
+              <div className="px-4 py-3 text-sm text-ink-subtle">{t('users.pending.loading')}</div>
             ) : pendingUsers.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-ink-subtle">Nenhum pedido pendente.</div>
+              <div className="px-4 py-3 text-sm text-ink-subtle">{t('users.pending.empty')}</div>
             ) : (
               <ul className="divide-y divide-line app-scrollbar max-h-64 overflow-y-auto">
                 {pendingUsers.map((u) => (
                   <li key={u.id} className="flex flex-wrap sm:flex-nowrap items-center justify-between px-4 py-3 gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink truncate">{u.name}</p>
-                      <p className="text-xs text-ink-subtle truncate">{u.email} · {u.unitNumber ? `Fração ${u.unitNumber}` : '—'}</p>
+                      <p className="text-xs text-ink-subtle truncate">{u.email} · {u.unitNumber ? t('common.fraction', { number: u.unitNumber }) : '—'}</p>
                     </div>
                     <div className="w-full sm:w-auto flex gap-2 sm:flex-shrink-0">
                       <button
                         onClick={() => handleApprove(u.id)}
-                        title="Aprovar"
+                        title={t('users.pending.approve')}
                         className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
-                        Aprovar
+                        {t('users.pending.approve')}
                       </button>
                       <button
                         onClick={() => handleReject(u.id)}
-                        title="Recusar"
+                        title={t('users.pending.reject')}
                         className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-medium transition-colors"
                       >
                         <XCircle className="w-3.5 h-3.5" />
-                        Recusar
+                        {t('users.pending.reject')}
                       </button>
                     </div>
                   </li>
@@ -406,9 +401,9 @@ export default function UsersPage() {
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-surface"
           >
-            <option value="">Todas as funções</option>
-            <option value="1">Administrador</option>
-            <option value="2">Morador</option>
+            <option value="">{t('users.filter.allRoles')}</option>
+            <option value="1">{t('role.admin')}</option>
+            <option value="2">{t('role.resident')}</option>
           </select>
         </div>
       )}
@@ -426,14 +421,14 @@ export default function UsersPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Tentar novamente
+              {t('users.retry')}
             </button>
           </div>
         )}
         {loading ? (
-          <div className="col-span-full text-center py-12 text-ink-subtle">A carregar...</div>
+          <div className="col-span-full text-center py-12 text-ink-subtle">{t('users.loading')}</div>
         ) : !loadError && filtered.length === 0 ? (
-          <EmptyState icon={Users} title="Nenhum utilizador encontrado" className="col-span-full" />
+          <EmptyState icon={Users} title={t('users.empty')} className="col-span-full" />
         ) : !loadError ? (
           filtered.map((user) => (
             <Card key={user.id} interactive className="p-5">
@@ -502,12 +497,12 @@ export default function UsersPage() {
           setShowModal(false);
           setEditingId(null);
         }}
-        title={editingId ? 'Editar Utilizador' : 'Novo Utilizador'}
+        title={editingId ? t('users.form.editTitle') : t('users.new')}
         maxWidthClass="max-w-lg"
       >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Nome *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.name')} *</label>
                 <input
                   type="text"
                   required
@@ -517,7 +512,7 @@ export default function UsersPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Email *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.email')} *</label>
                 <input
                   type="email"
                   required
@@ -529,7 +524,7 @@ export default function UsersPage() {
               </div>
               {!editingId && (
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Senha *</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('users.form.password')} *</label>
                   <input
                     type="password"
                     required={!editingId}
@@ -540,7 +535,7 @@ export default function UsersPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Telefone *</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.phone')} *</label>
                 <input
                   type="tel"
                   required
@@ -552,12 +547,12 @@ export default function UsersPage() {
               {isManager ? (
                 // Manager: role is fixed to Manager, no condominium/unit
                 <div className="px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 font-medium">
-                  Gestor do Portal
+                  {t('users.form.portalManager')}
                 </div>
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-ink-muted mb-1">Função *</label>
+                    <label className="block text-sm font-medium text-ink-muted mb-1">{t('users.form.role')} *</label>
                     <select
                       required
                       value={formData.role}
@@ -569,16 +564,16 @@ export default function UsersPage() {
                       disabled={isAdmin && !editingId}
                       className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                     >
-                      <option value="1">Administrador</option>
-                      <option value="2">Morador</option>
+                      <option value="1">{t('role.admin')}</option>
+                      <option value="2">{t('role.resident')}</option>
                     </select>
                     {isAdmin && !editingId && (
-                      <p className="text-xs text-ink-subtle mt-1">Admin só pode criar Admin e Morador</p>
+                      <p className="text-xs text-ink-subtle mt-1">{t('users.form.adminRoleHint')}</p>
                     )}
                   </div>
                   {(formData.role === UserRole.Admin || formData.role === UserRole.Resident) && (
                     <div>
-                      <label className="block text-sm font-medium text-ink-muted mb-1">Condomínio *</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-1">{t('users.form.condominium')} *</label>
                       <select
                         required
                         value={formData.condominiumId || ''}
@@ -588,7 +583,7 @@ export default function UsersPage() {
                         disabled={isAdmin}
                         className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                       >
-                        <option value="">Selecione...</option>
+                        <option value="">{t('users.form.selectPlaceholder')}</option>
                         {condominiums.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -608,21 +603,21 @@ export default function UsersPage() {
                         className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
                       />
                       <label htmlFor="isInternalAdmin" className="text-sm font-medium text-ink-muted">
-                        Admin Interno (com fração atribuída)
+                        {t('users.form.internalAdmin')}
                       </label>
                     </div>
                   )}
                   {(formData.role === UserRole.Resident || (formData.role === UserRole.Admin && isInternalAdmin)) && (
                     <div>
-                      <label className="block text-sm font-medium text-ink-muted mb-1">Fração *</label>
+                      <label className="block text-sm font-medium text-ink-muted mb-1">{t('users.form.unit')} *</label>
                       {availableUnits.length === 0 ? (
                         <div className="w-full px-3 py-2 border border-amber-300 bg-amber-50 rounded-lg text-sm text-amber-700 flex items-center justify-between">
-                          <span>Nenhuma fração registada</span>
+                          <span>{t('users.form.noUnits')}</span>
                           <a
                             href="/units"
                             className="ml-2 font-semibold text-amber-900 hover:text-amber-600 underline transition-colors"
                           >
-                            Registar fração
+                            {t('users.form.registerUnit')}
                           </a>
                         </div>
                       ) : (
@@ -633,10 +628,10 @@ export default function UsersPage() {
                           disabled={!formData.condominiumId}
                           className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-surface-muted"
                         >
-                          <option value="">Selecione...</option>
+                          <option value="">{t('users.form.selectPlaceholder')}</option>
                           {availableUnits.map((u) => (
                             <option key={u.id} value={u.id}>
-                              Fração {u.number} – Piso {u.floor}
+                              {t('users.unitLabel', { number: u.number, floor: u.floor })}
                             </option>
                           ))}
                         </select>
@@ -655,7 +650,7 @@ export default function UsersPage() {
                     className="w-4 h-4 text-indigo-600 border-line rounded focus:ring-indigo-500"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-ink-muted">
-                    Utilizador Ativo
+                    {t('users.form.activeUser')}
                   </label>
                 </div>
               )}
@@ -670,10 +665,10 @@ export default function UsersPage() {
                   fullWidth
                   className="border border-line"
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" fullWidth loading={submitting}>
-                  {editingId ? 'Guardar' : 'Criar'}
+                  {editingId ? t('users.form.save') : t('users.form.create')}
                 </Button>
               </div>
             </form>

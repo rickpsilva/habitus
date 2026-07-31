@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, X, FileText, AlertCircle } from 'lucide-react';
+import { useTranslation } from '../i18n/I18nProvider';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -26,6 +27,7 @@ export default function MultipleFileUpload({
   removeFile,
   maxFiles = 10
 }: MultipleFileUploadProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [platformMaxSizeBytes, setPlatformMaxSizeBytes] = useState(DEFAULT_MAX_UPLOAD_SIZE_BYTES);
@@ -71,20 +73,20 @@ export default function MultipleFileUpload({
 
     Array.from(files).forEach((file) => {
       if (!isFileSizeWithinLimit(file, effectiveMaxSizeBytes)) {
-        errors.push(`${file.name}: Excede ${formatUploadSizeLabel(effectiveMaxSizeBytes)}`);
+        errors.push(t('upload.multiExceeds', { name: file.name, limit: formatUploadSizeLabel(effectiveMaxSizeBytes) }));
         return;
       }
 
       // Validate accept pattern if specified
       if (accept !== '*/*') {
-        const acceptedTypes = accept.split(',').map(t => t.trim());
+        const acceptedTypes = accept.split(',').map(at => at.trim());
         const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
         const isAccepted = acceptedTypes.some(
           type => type === file.type || type === fileExtension || type === '*/*'
         );
         
         if (!isAccepted) {
-          errors.push(`${file.name}: Tipo não aceite`);
+          errors.push(t('upload.multiTypeNotAccepted', { name: file.name }));
           return;
         }
       }
@@ -94,7 +96,7 @@ export default function MultipleFileUpload({
 
     // Check max files limit
     if (currentFiles.length + validFiles.length > maxFiles) {
-      errors.push(`Máximo de ${maxFiles} ficheiros permitidos`);
+      errors.push(t('upload.maxFilesAllowed', { max: maxFiles }));
       return { valid: [], errors };
     }
 
@@ -186,7 +188,7 @@ export default function MultipleFileUpload({
                   onClick={() => removeFile(index)}
                   disabled={disabled}
                   className="p-1 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
-                  title="Remover ficheiro"
+                  title={t('upload.removeFile')}
                 >
                   <X className="w-4 h-4 text-red-600" />
                 </button>
@@ -224,20 +226,20 @@ export default function MultipleFileUpload({
           <div>
             <p className={`text-sm font-medium ${error ? 'text-red-700' : 'text-ink-muted'}`}>
               {error || (isDragging 
-                ? 'Soltar ficheiros aqui' 
+                ? t('upload.dropFilesHere') 
                 : currentFiles.length > 0
-                  ? 'Adicionar mais ficheiros'
-                  : 'Clique ou arraste ficheiros'
+                  ? t('upload.addMoreFiles')
+                  : t('upload.clickOrDragFiles')
               )}
             </p>
             {!error && (
               <p className="text-xs text-ink-subtle mt-1">
-                Máximo: {formatUploadSizeLabel(effectiveMaxSizeBytes)} por ficheiro • {maxFiles} ficheiros no total
+                {t('upload.maxPerFile', { size: formatUploadSizeLabel(effectiveMaxSizeBytes), max: maxFiles })}
               </p>
             )}
             {currentFiles.length > 0 && !error && (
               <p className="text-xs text-indigo-600 font-medium mt-1">
-                {currentFiles.length} de {maxFiles} ficheiros selecionados
+                {t('upload.selectedCount', { count: currentFiles.length, max: maxFiles })}
               </p>
             )}
           </div>

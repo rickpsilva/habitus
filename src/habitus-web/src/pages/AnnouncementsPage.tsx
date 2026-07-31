@@ -26,6 +26,8 @@ import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
 import { PageHeader, Button, AsyncState, EmptyState, Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import {
   DEFAULT_MAX_UPLOAD_SIZE_BYTES,
   formatUploadSizeLabel,
@@ -42,22 +44,26 @@ import type {
   PaginatedResponse,
 } from '../types';
 
-const categoryLabels: Record<string, string> = {
-  Works: 'Obras',
-  Noise: 'Barulho/Perturbação',
-  Mail: 'Correspondência',
-  General: 'Geral',
-  Urgent: 'Urgente',
-  Event: 'Eventos',
-};
+function getCategoryLabels(t: TranslateFn): Record<string, string> {
+  return {
+    Works: t('announcements.category.works'),
+    Noise: t('announcements.category.noise'),
+    Mail: t('announcements.category.mail'),
+    General: t('announcements.category.general'),
+    Urgent: t('announcements.category.urgent'),
+    Event: t('announcements.category.event'),
+  };
+}
 
-const statusLabels: Record<string, string> = {
-  Draft: 'Rascunho',
-  PendingApproval: 'Aguarda aprovação',
-  Published: 'Publicado',
-  Rejected: 'Rejeitado',
-  Archived: 'Arquivado',
-};
+function getStatusLabels(t: TranslateFn): Record<string, string> {
+  return {
+    Draft: t('announcements.status.draft'),
+    PendingApproval: t('announcements.status.pendingApproval'),
+    Published: t('announcements.status.published'),
+    Rejected: t('announcements.status.rejected'),
+    Archived: t('announcements.status.archived'),
+  };
+}
 
 const statusVariants: Record<string, BadgeVariant> = {
   Draft: 'neutral',
@@ -96,7 +102,11 @@ function highlightText(text: string, query: string) {
 export default function AnnouncementsPage() {
   const { condominiumId, isAdmin } = useAuth();
   const { error: toastError } = useToast();
+  const { t, formatDate, formatDateTime } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const categoryLabels = useMemo(() => getCategoryLabels(t), [t]);
+  const statusLabels = useMemo(() => getStatusLabels(t), [t]);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -120,9 +130,15 @@ export default function AnnouncementsPage() {
   const [rejecting, setRejecting] = useState(false);
   const [attachmentPreviewUrls, setAttachmentPreviewUrls] = useState<Record<string, string>>({});
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 10;
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(searchText);
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchText]);
@@ -157,58 +173,23 @@ export default function AnnouncementsPage() {
     };
   }, []);
 
-  const filteredAnnouncements = useMemo(() => {
-    const query = debouncedSearchText.trim().toLowerCase();
-
-    return announcements.filter((a) => {
-      const statusMatch = statusFilter === 'All' || a.status === statusFilter;
-      const categoryMatch = categoryFilter === 'All' || a.category === categoryFilter;
-
-      if (!statusMatch || !categoryMatch) return false;
-      if (!query) return true;
-
-      const plainContent = a.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-      const title = a.title.toLowerCase();
-      const author = a.authorName.toLowerCase();
-      const unit = (a.unitNumber || '').toLowerCase();
-      const category = (categoryLabels[a.category] || a.category).toLowerCase();
-
-      return (
-        title.includes(query) ||
-        plainContent.includes(query) ||
-        author.includes(query) ||
-        unit.includes(query) ||
-        category.includes(query)
-      );
-    });
-  }, [announcements, statusFilter, categoryFilter, debouncedSearchText]);
-
-  const sortedAnnouncements = useMemo(
-    () => [...filteredAnnouncements].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [filteredAnnouncements]
-  );
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalItems = sortedAnnouncements.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedAnnouncements = sortedAnnouncements.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
   const pagination: PaginatedResponse<AnnouncementDto> = {
-    items: paginatedAnnouncements,
-    page: safeCurrentPage,
+    items: announcements,
+    page: currentPage,
     pageSize,
     totalItems,
     totalPages,
-    hasPreviousPage: safeCurrentPage > 1,
-    hasNextPage: safeCurrentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages,
   };
 
   const loadData = useCallback(async () => {
     if (!condominiumId) {
       setAnnouncements([]);
       setStats(null);
-      setLoadError('Condomínio não identificado.');
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoadError(t('announcements.error.condoNotIdentified'));
       setLoading(false);
       return;
     }
@@ -217,36 +198,39 @@ export default function AnnouncementsPage() {
     setLoadError('');
     try {
       const [aRes, sRes] = await Promise.all([
-        announcementsApi.getAll(condominiumId),
+        announcementsApi.getPaged(condominiumId, currentPage, pageSize, {
+          status: statusFilter,
+          category: categoryFilter,
+          search: debouncedSearchText.trim() || undefined,
+        }),
         announcementsApi.getStats(condominiumId),
       ]);
-      setAnnouncements(aRes.data);
+      setAnnouncements(aRes.data.items);
+      setTotalItems(aRes.data.totalItems);
+      setTotalPages(aRes.data.totalPages);
       setStats(sRes.data);
 
       const cRes = await announcementsApi.getSettings(condominiumId);
       setAllowComments(cRes.data.allowAnnouncementComments);
     } catch (error) {
       console.error('Erro ao carregar comunicados:', error);
-      setLoadError('Não foi possível carregar os comunicados.');
+      setLoadError(t('announcements.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId]);
+  }, [condominiumId, currentPage, pageSize, statusFilter, categoryFilter, debouncedSearchText, t]);
 
   useEffect(() => {
     loadData();
   }, [condominiumId, loadData]);
 
   useEffect(() => {
-    if (!condominiumId || announcements.length === 0) return;
+    if (!condominiumId) return;
 
     const openId = searchParams.get('open');
     if (!openId) return;
 
     if (selected?.id === openId) return;
-
-    const found = announcements.find((a) => a.id === openId);
-    if (!found) return;
 
     let cancelled = false;
 
@@ -255,16 +239,19 @@ export default function AnnouncementsPage() {
       .then((res) => {
         if (!cancelled) setSelected(res.data);
       })
-      .finally(async () => {
+      .catch(() => {
+        // Announcement not found or no access; ignore deep-link.
+      })
+      .finally(() => {
         if (!cancelled) {
-          await loadData();
+          loadData();
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [searchParams, announcements, condominiumId, selected?.id, loadData]);
+  }, [searchParams, condominiumId, selected?.id, loadData]);
 
   useEffect(() => {
     let active = true;
@@ -337,7 +324,7 @@ export default function AnnouncementsPage() {
 
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch {
-      toastError('Não foi possível abrir o anexo.');
+      toastError(t('announcements.error.openAttachment'));
     }
   };
 
@@ -395,7 +382,7 @@ export default function AnnouncementsPage() {
 
     const oversizedFile = files.find((file) => !isFileSizeWithinLimit(file, maxUploadSizeBytes));
     if (oversizedFile) {
-      toastError(`O ficheiro ${oversizedFile.name} excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+      toastError(t('announcements.error.fileExceedsLimit', { name: oversizedFile.name, limit: formatUploadSizeLabel(maxUploadSizeBytes) }));
       return;
     }
 
@@ -456,7 +443,7 @@ export default function AnnouncementsPage() {
       resetForm();
       await loadData();
     } catch {
-      toastError('Não foi possível guardar o comunicado.');
+      toastError(t('announcements.error.save'));
     } finally {
       setSubmitting(false);
     }
@@ -525,7 +512,7 @@ export default function AnnouncementsPage() {
       if (selected?.id === deleteId) closeDetails();
       await loadData();
     } catch {
-      toastError('Erro ao eliminar comunicado.');
+      toastError(t('announcements.error.delete'));
     } finally {
       setDeleteId(null);
     }
@@ -556,66 +543,66 @@ export default function AnnouncementsPage() {
     <div className="space-y-5">
       <ConfirmModal
         open={deleteId !== null}
-        title="Eliminar comunicado"
-        message="Tem a certeza que deseja eliminar este comunicado? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('announcements.delete.title')}
+        message={t('announcements.delete.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmRemove}
         onCancel={() => setDeleteId(null)}
       />
       <PageHeader
-        title="Comunicados"
-        subtitle="Mensagens da comunidade com moderação por administrador"
+        title={t('announcements.title')}
+        subtitle={t('announcements.subtitle')}
         actions={
           <Button icon={Plus} onClick={openNew} fullWidth className="sm:w-auto">
-            Novo comunicado
+            {t('announcements.new')}
           </Button>
         }
       />
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.totalAnnouncements}</strong> total</div>
-          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.published}</strong> publicados</div>
-          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.myDrafts}</strong> rascunhos</div>
-          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> por ler</div>
-          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> pendentes</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.totalAnnouncements}</strong> {t('announcements.stats.total')}</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.published}</strong> {t('announcements.stats.published')}</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.myDrafts}</strong> {t('announcements.stats.drafts')}</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> {t('announcements.stats.unread')}</div>
+          <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> {t('announcements.stats.pending')}</div>
         </div>
       )}
 
       <div className="bg-surface border border-line rounded-xl p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs text-ink-subtle mb-1">Pesquisar</label>
+            <label className="block text-xs text-ink-subtle mb-1">{t('announcements.filter.search')}</label>
             <input
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Título, conteúdo, autor, fração..."
+              placeholder={t('announcements.filter.searchPlaceholder')}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-ink-subtle mb-1">Estado</label>
+            <label className="block text-xs text-ink-subtle mb-1">{t('announcements.filter.status')}</label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
-              <option value="All">Todos</option>
+              <option value="All">{t('announcements.filter.allStatuses')}</option>
               {Object.keys(statusLabels).map((k) => (
                 <option key={k} value={k}>{statusLabels[k]}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-ink-subtle mb-1">Categoria</label>
+            <label className="block text-xs text-ink-subtle mb-1">{t('announcements.filter.category')}</label>
             <select
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
             >
-              <option value="All">Todas</option>
+              <option value="All">{t('announcements.filter.allCategories')}</option>
               {Object.keys(categoryLabels).map((k) => (
                 <option key={k} value={k}>{categoryLabels[k]}</option>
               ))}
@@ -627,10 +614,11 @@ export default function AnnouncementsPage() {
                 setSearchText('');
                 setStatusFilter('All');
                 setCategoryFilter('All');
+                setCurrentPage(1);
               }}
               className="px-3 py-2 rounded-lg bg-control hover:bg-control-hover text-sm text-ink"
             >
-              Limpar filtros
+              {t('announcements.filter.clear')}
             </button>
           </div>
         </div>
@@ -640,12 +628,12 @@ export default function AnnouncementsPage() {
         loading={loading}
         error={loadError || null}
         onRetry={loadData}
-        isEmpty={sortedAnnouncements.length === 0}
+        isEmpty={announcements.length === 0}
         skeleton="list"
-        empty={<EmptyState icon={Megaphone} title="Sem comunicados ainda" />}
+        empty={<EmptyState icon={Megaphone} title={t('announcements.empty')} />}
       >
         <div className="space-y-3">
-          {paginatedAnnouncements.map((a) => (
+          {announcements.map((a) => (
             <div key={a.id} className="bg-surface border border-line rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -660,7 +648,7 @@ export default function AnnouncementsPage() {
                     {a.isPinned && <Pin className="w-4 h-4 text-amber-500" />}
                   </div>
                   <p className="text-sm text-ink-subtle mt-1">
-                    {highlightText(a.isAnonymous ? 'Anónimo' : a.authorName, debouncedSearchText)} • {new Date(a.createdAt).toLocaleString('pt-PT')}
+                    {highlightText(a.isAnonymous ? t('announcements.anonymous') : a.authorName, debouncedSearchText)} • {formatDateTime(a.createdAt)}
                   </p>
                   <p className="text-sm text-ink-muted mt-1 line-clamp-2">
                     {highlightText(
@@ -674,37 +662,37 @@ export default function AnnouncementsPage() {
                     <span className="inline-flex items-center gap-1"><MessageSquare className="w-3 h-3" /> {a.totalComments}</span>
                     <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {a.totalAttachments}</span>
                     {a.validUntil && (
-                      <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="w-3 h-3" /> Válido até {new Date(a.validUntil).toLocaleDateString('pt-PT')}</span>
+                      <span className="inline-flex items-center gap-1 text-amber-700"><Clock className="w-3 h-3" /> {t('announcements.card.validUntil', { date: formatDate(a.validUntil) })}</span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => openDetails(a)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-control hover:bg-control-hover text-ink">
                     <Eye className="w-3.5 h-3.5" />
-                    Detalhes
+                    {t('announcements.card.details')}
                   </button>
                   {a.status === 'Draft' && (
-                    <button onClick={() => openEdit(a)} className="p-2 rounded hover:bg-blue-50 text-blue-600" title="Editar">
+                    <button onClick={() => openEdit(a)} className="p-2 rounded hover:bg-blue-50 text-blue-600" title={t('common.edit')}>
                       <Edit className="w-4 h-4" />
                     </button>
                   )}
                   {(a.status === 'Draft' || isAdmin) && (
-                    <button onClick={() => remove(a.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title="Eliminar">
+                    <button onClick={() => remove(a.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title={t('common.delete')}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                   {isAdmin && a.status === 'PendingApproval' && (
                     <>
-                      <button onClick={() => approve(a.id)} className="p-2 rounded hover:bg-green-50 text-green-600" title="Aprovar">
+                      <button onClick={() => approve(a.id)} className="p-2 rounded hover:bg-green-50 text-green-600" title={t('announcements.action.approve')}>
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => openRejectModal(a.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title="Rejeitar">
+                      <button onClick={() => openRejectModal(a.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title={t('announcements.action.reject')}>
                         <XCircle className="w-4 h-4" />
                       </button>
                     </>
                   )}
                   {isAdmin && a.status === 'Published' && (
-                    <button onClick={() => togglePin(a.id)} className="p-2 rounded hover:bg-amber-50 text-amber-600" title="Fixar/Desafixar">
+                    <button onClick={() => togglePin(a.id)} className="p-2 rounded hover:bg-amber-50 text-amber-600" title={t('announcements.action.togglePin')}>
                       <Pin className="w-4 h-4" />
                     </button>
                   )}
@@ -713,9 +701,9 @@ export default function AnnouncementsPage() {
             </div>
           ))}
         </div>
-        {sortedAnnouncements.length > 0 && (
+        {totalItems > 0 && (
           <div className="mt-4">
-            <Pagination pagination={pagination} currentPage={safeCurrentPage} onPageChange={setCurrentPage} />
+            <Pagination pagination={pagination} currentPage={currentPage} onPageChange={setCurrentPage} />
           </div>
         )}
       </AsyncState>
@@ -723,7 +711,7 @@ export default function AnnouncementsPage() {
       <ModalPopup
         open={showEditor}
         onClose={() => { setShowEditor(false); resetForm(); }}
-        title={editing ? 'Editar comunicado' : 'Novo comunicado'}
+        title={editing ? t('announcements.editor.editTitle') : t('announcements.editor.newTitle')}
         maxWidthClass="max-w-4xl"
       >
           <div className="space-y-4">
@@ -733,7 +721,7 @@ export default function AnnouncementsPage() {
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Título"
+                placeholder={t('announcements.form.titlePlaceholder')}
                 className="md:col-span-2 px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
               />
               <select
@@ -750,7 +738,7 @@ export default function AnnouncementsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="flex items-center gap-2 text-sm text-ink-muted">
                 <input type="checkbox" checked={!!form.isAnonymous} onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })} />
-                Publicar em anonimato (mostrar apenas fração)
+                {t('announcements.form.anonymous')}
               </label>
               <input
                 type="datetime-local"
@@ -760,12 +748,12 @@ export default function AnnouncementsPage() {
               />
             </div>
 
-            <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder="Escreve o conteúdo do comunicado..." height="240px" />
+            <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder={t('announcements.form.contentPlaceholder')} height="240px" />
 
             <div className="border border-line rounded-lg p-3">
-              <p className="text-sm font-medium text-ink mb-2">Anexos (máx. 5 imagens + 2 documentos)</p>
+              <p className="text-sm font-medium text-ink mb-2">{t('announcements.form.attachments')}</p>
               {editing && editing.attachments.length > 0 && (
-                <p className="text-xs text-ink-subtle mb-2">Rascunho atual: {editing.attachments.length} anexo(s) já guardado(s)</p>
+                <p className="text-xs text-ink-subtle mb-2">{t('announcements.form.currentDraftAttachments', { count: editing.attachments.length })}</p>
               )}
               <input
                 type="file"
@@ -776,7 +764,7 @@ export default function AnnouncementsPage() {
                   const oversizedFile = selectedFiles.find((file) => !isFileSizeWithinLimit(file, maxUploadSizeBytes));
 
                   if (oversizedFile) {
-                    toastError(`O ficheiro ${oversizedFile.name} excede o limite de ${formatUploadSizeLabel(maxUploadSizeBytes)}.`);
+                    toastError(t('announcements.error.fileExceedsLimit', { name: oversizedFile.name, limit: formatUploadSizeLabel(maxUploadSizeBytes) }));
                     setFiles([]);
                     return;
                   }
@@ -786,21 +774,21 @@ export default function AnnouncementsPage() {
                 className="block w-full text-sm"
               />
               <p className="text-xs text-ink-subtle mt-2">
-                Tamanho máximo por ficheiro: {formatUploadSizeLabel(maxUploadSizeBytes)}
+                {t('announcements.form.maxSizePerFile', { size: formatUploadSizeLabel(maxUploadSizeBytes) })}
               </p>
               {files.length > 0 && (
-                <p className="text-xs text-ink-subtle mt-2">{files.length} ficheiro(s) selecionado(s)</p>
+                <p className="text-xs text-ink-subtle mt-2">{t('announcements.form.selectedFiles', { count: files.length })}</p>
               )}
             </div>
 
             <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setShowEditor(false); resetForm(); }}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => { setShowEditor(false); resetForm(); }}>{t('common.cancel')}</Button>
               <Button
                 variant="secondary"
                 onClick={() => submitForm(false)}
                 disabled={submitting || uploadingFiles || !form.title.trim() || !form.content.trim()}
               >
-                Guardar rascunho
+                {t('announcements.form.saveDraft')}
               </Button>
               <Button
                 icon={Send}
@@ -808,7 +796,7 @@ export default function AnnouncementsPage() {
                 loading={submitting || uploadingFiles}
                 disabled={!form.title.trim() || !form.content.trim()}
               >
-                Enviar para aprovação
+                {t('announcements.form.submitApproval')}
               </Button>
             </div>
           </div>
@@ -817,7 +805,7 @@ export default function AnnouncementsPage() {
       <ModalPopup
         open={selected !== null && !!condominiumId}
         onClose={closeDetails}
-        title="Detalhes do comunicado"
+        title={t('announcements.details.title')}
         maxWidthClass="max-w-5xl"
         bodyClassName="p-5 space-y-4"
       >
@@ -827,10 +815,10 @@ export default function AnnouncementsPage() {
               <div>
                 <h2 className="text-xl font-semibold text-ink">{selected.title}</h2>
                 <p className="text-sm text-ink-subtle mt-1">
-                  {selected.isAnonymous ? 'Anónimo' : selected.authorName} • {new Date(selected.createdAt).toLocaleString('pt-PT')}
+                  {selected.isAnonymous ? t('announcements.anonymous') : selected.authorName} • {formatDateTime(selected.createdAt)}
                 </p>
               </div>
-              <Button variant="secondary" size="sm" onClick={closeDetails}>Fechar</Button>
+              <Button variant="secondary" size="sm" onClick={closeDetails}>{t('announcements.details.close')}</Button>
             </div>
 
             <div className="bg-surface-muted border border-line rounded-lg p-4">
@@ -839,7 +827,7 @@ export default function AnnouncementsPage() {
 
             {selected.attachments.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-ink">Anexos</h3>
+                <h3 className="text-sm font-semibold text-ink">{t('announcements.details.attachments')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {selected.attachments.map((att) => {
                     const isImage = att.type === 'Image' || (att.contentType?.startsWith('image/') ?? false);
@@ -860,7 +848,7 @@ export default function AnnouncementsPage() {
                             onClick={() => openAttachment(selected.id, att)}
                             className="w-full h-36 rounded border border-line bg-surface-muted text-xs text-ink-subtle flex items-center justify-center"
                           >
-                            Pré-visualização indisponível
+                            {t('announcements.details.previewUnavailable')}
                           </button>
                         ) : (
                           <button
@@ -869,7 +857,7 @@ export default function AnnouncementsPage() {
                             className="w-full h-36 rounded border border-line bg-surface-muted text-ink-muted hover:bg-surface-hover transition-colors flex flex-col items-center justify-center gap-2"
                           >
                             <FileText className="w-7 h-7" />
-                            <span className="text-sm">Abrir ficheiro</span>
+                            <span className="text-sm">{t('announcements.details.openFile')}</span>
                           </button>
                         )}
                       </div>
@@ -881,22 +869,22 @@ export default function AnnouncementsPage() {
 
             {selected.status === 'Published' && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-ink">Comentários</h3>
+                <h3 className="text-sm font-semibold text-ink">{t('announcements.details.comments')}</h3>
 
                 {!allowComments ? (
-                  <div className="text-sm text-ink-subtle">Comentários desativados neste condomínio.</div>
+                  <div className="text-sm text-ink-subtle">{t('announcements.details.commentsDisabled')}</div>
                 ) : (
                   <>
                     <div className="space-y-2 max-h-64 overflow-y-auto border border-line rounded-lg p-3">
                       {selected.comments.length === 0 ? (
-                        <p className="text-sm text-ink-subtle">Sem comentários ainda.</p>
+                        <p className="text-sm text-ink-subtle">{t('announcements.details.noComments')}</p>
                       ) : (
                         selected.comments
                           .slice()
                           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                           .map((c) => (
                             <div key={c.id} className="border-b border-line pb-2 last:border-b-0">
-                              <p className="text-xs text-ink-subtle">{c.authorName} • {new Date(c.createdAt).toLocaleString('pt-PT')}</p>
+                              <p className="text-xs text-ink-subtle">{c.authorName} • {formatDateTime(c.createdAt)}</p>
                               <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{c.content}</p>
                             </div>
                           ))
@@ -909,19 +897,19 @@ export default function AnnouncementsPage() {
                         onChange={(e) => setComment(e.target.value)}
                         rows={3}
                         className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
-                        placeholder="Escreve uma resposta..."
+                        placeholder={t('announcements.details.replyPlaceholder')}
                       />
                       <div className="flex items-center justify-between">
                         <label className="text-sm text-ink-muted inline-flex items-center gap-2">
                           <input type="checkbox" checked={commentAnonymous} onChange={(e) => setCommentAnonymous(e.target.checked)} />
-                          Comentar em anonimato
+                          {t('announcements.details.commentAnonymous')}
                         </label>
                         <Button
                           onClick={addComment}
                           loading={commenting}
                           disabled={!comment.trim()}
                         >
-                          {commenting ? 'A enviar...' : 'Comentar'}
+                          {commenting ? t('announcements.details.sending') : t('announcements.details.comment')}
                         </Button>
                       </div>
                     </div>
@@ -940,16 +928,16 @@ export default function AnnouncementsPage() {
           setRejectingId(null);
           setRejectionReason('');
         }}
-        title="Rejeitar comunicado"
+        title={t('announcements.reject.title')}
         maxWidthClass="max-w-md"
       >
-            <p className="text-sm text-ink-subtle">Indica o motivo da rejeição (obrigatório).</p>
+            <p className="text-sm text-ink-subtle">{t('announcements.reject.prompt')}</p>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               rows={4}
               className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
-              placeholder="Ex: Conteúdo incompleto ou não conforme as regras do condomínio"
+              placeholder={t('announcements.reject.placeholder')}
             />
             <div className="flex justify-end gap-2">
               <Button
@@ -960,7 +948,7 @@ export default function AnnouncementsPage() {
                   setRejectionReason('');
                 }}
               >
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="danger"
@@ -968,7 +956,7 @@ export default function AnnouncementsPage() {
                 loading={rejecting}
                 disabled={!rejectionReason.trim()}
               >
-                {rejecting ? 'A rejeitar...' : 'Rejeitar'}
+                {rejecting ? t('announcements.reject.rejecting') : t('announcements.reject.reject')}
               </Button>
             </div>
       </ModalPopup>

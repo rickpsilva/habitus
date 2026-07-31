@@ -4,7 +4,7 @@ title: First login requires acceptance of the RGPD terms before access is grante
 type: Functional
 module: Auth
 priority: High
-status: Draft
+status: Implemented
 roles:
   - Manager
   - Admin
@@ -14,16 +14,24 @@ relatedRequirements:
   - REQ-SEC-002
   - REQ-SEC-003
   - REQ-SEC-004
+  - REQ-SEC-005
+  - REQ-SEC-006
+  - REQ-AUTH-006
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/first-login-rgpd-acceptance.mmd
+  - docs/Requirements/diagrams/sequences/auth-condominium-scope-flow.mmd
+  - docs/Requirements/diagrams/sequences/first-login-rgpd-acceptance.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/AuthController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/UserRegistrationController.cs
-  - /home/rick/workspace/habitus/src/habitus-web/src/App.tsx
-  - /home/rick/workspace/habitus/src/habitus-web/src/pages/ProfilePage.tsx
+  - src/Habitus.Api/Controllers/AuthController.cs
+  - src/Habitus.Api/Controllers/UserRegistrationController.cs
+  - src/Habitus.Api/Controllers/MeController.cs
+  - src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs
+  - src/Habitus.Application/Services/ConsentService.cs
+  - src/habitus-web/src/App.tsx
+  - src/habitus-web/src/pages/ProfilePage.tsx
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/AuthServiceTests.cs
+  - tests/Habitus.Tests/AuthServiceTests.cs
+  - tests/Habitus.Tests/ConsentServiceTests.cs
+  - tests/Habitus.Api.IntegrationTests/ConsentGateIntegrationTests.cs
 ---
 
 # REQ-AUTH-005

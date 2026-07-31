@@ -12,13 +12,13 @@ relatedRequirements:
   - REQ-AUTH-001
   - REQ-DOC-001
 designRefs:
-  - /home/rick/workspace/habitus/docs/Requirements/diagrams/sequences/maintenance-expense-and-notification-flow.mmd
+  - docs/Requirements/diagrams/sequences/maintenance-expense-and-notification-flow.mmd
 implementationRefs:
-  - /home/rick/workspace/habitus/src/Habitus.Api/Controllers/MaintenanceController.cs
-  - /home/rick/workspace/habitus/src/Habitus.Application/Services/MaintenanceService.cs
+  - src/Habitus.Api/Controllers/MaintenanceController.cs
+  - src/Habitus.Application/Services/MaintenanceService.cs
 testRefs:
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/MaintenanceServiceIsolationTests.cs
-  - /home/rick/workspace/habitus/tests/Habitus.Tests/MaintenanceServiceTests.cs
+  - tests/Habitus.Tests/MaintenanceServiceIsolationTests.cs
+  - tests/Habitus.Tests/MaintenanceServiceTests.cs
 ---
 
 # REQ-MAINT-001

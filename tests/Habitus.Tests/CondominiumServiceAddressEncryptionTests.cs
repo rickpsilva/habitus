@@ -99,9 +99,7 @@ public class CondominiumServiceAddressEncryptionTests
 
         savedCondominium.Should().NotBeNull();
         savedCondominium!.AddressEncrypted.Should().Be("enc-address");
-        savedCondominium.Address.Should().BeEmpty();
         savedCondominium.EmailEncrypted.Should().Be("enc-email");
-        savedCondominium.Email.Should().BeEmpty();
         savedCondominium.PostalCodeEncrypted.Should().Be("enc-postal");
         savedCondominium.LocalityEncrypted.Should().Be("enc-locality");
         savedCondominium.ContactPhoneEncrypted.Should().Be("enc-phone");
@@ -121,12 +119,10 @@ public class CondominiumServiceAddressEncryptionTests
         {
             Id = Guid.NewGuid(),
             Name = "Condominio Norte",
-            Address = "legacy-address",
             AddressEncrypted = "enc-address",
             PostalCodeEncrypted = "enc-postal",
             LocalityEncrypted = "enc-locality",
             ContactPhoneEncrypted = "enc-phone",
-            Email = "legacy@email.pt",
             EmailEncrypted = "enc-email",
             CreatedAt = DateTime.UtcNow,
             IsActive = true
@@ -137,12 +133,16 @@ public class CondominiumServiceAddressEncryptionTests
             .ReturnsAsync(new[] { condominium });
 
         _userRepository
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>() ))
-            .ReturnsAsync(Array.Empty<User>());
+            .Setup(r => r.CountGroupedAsync(
+                It.IsAny<Expression<Func<User, Guid>>>(),
+                It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(new Dictionary<Guid, int>());
 
         _unitRepository
-            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<Unit, bool>>>() ))
-            .ReturnsAsync(Array.Empty<Unit>());
+            .Setup(r => r.CountGroupedAsync(
+                It.IsAny<Expression<Func<Unit, Guid>>>(),
+                It.IsAny<Expression<Func<Unit, bool>>>()))
+            .ReturnsAsync(new Dictionary<Guid, int>());
 
         _encryptionService
             .Setup(e => e.Decrypt("enc-address"))
@@ -177,9 +177,7 @@ public class CondominiumServiceAddressEncryptionTests
         {
             Id = Guid.NewGuid(),
             Name = "Condominio Sul",
-            Address = string.Empty,
             AddressEncrypted = "enc-address",
-            Email = "legacy@email.pt",
             EmailEncrypted = null,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -214,7 +212,6 @@ public class CondominiumServiceAddressEncryptionTests
         var response = await _service.UpdateCondominiumEmailAsync(condominium.Id, "  admin@condominio.pt  ");
 
         condominium.EmailEncrypted.Should().Be("enc-email");
-        condominium.Email.Should().BeEmpty();
         response.Email.Should().Be("admin@condominio.pt");
     }
 }

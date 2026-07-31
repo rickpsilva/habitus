@@ -8,11 +8,13 @@ import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import { PageHeader, Button, AsyncState, EmptyState } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 import type { SharedSpaceDto, PaginatedResponse } from '../types';
 
 export default function SharedSpacesPage({ embedded = false }: { embedded?: boolean }) {
   const { isAdmin, condominiumId } = useAuth();
   const { error: toastError } = useToast();
+  const { t } = useTranslation();
   const [spaces, setSpaces] = useState<SharedSpaceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -49,7 +51,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         setSpaces([]);
         setCurrentPage(page);
         setForm(prev => ({ ...prev, condominiumId: '' }));
-        setLoadError('Condomínio não identificado.');
+        setLoadError(t('sharedSpaces.error.condominiumNotIdentified'));
         return;
       }
 
@@ -61,11 +63,11 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       setForm(prev => ({ ...prev, condominiumId }));
     } catch (error) {
       console.error('Erro ao carregar espaços:', error);
-      setLoadError('Não foi possível carregar os espaços comuns.');
+      setLoadError(t('sharedSpaces.error.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [condominiumId, debouncedSearch]);
+  }, [condominiumId, debouncedSearch, t]);
 
   useEffect(() => { 
     load(1); 
@@ -75,12 +77,12 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     e.preventDefault();
     
     if (!condominiumId) {
-      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError(t('sharedSpaces.error.condominiumNotIdentifiedReload'));
       return;
     }
     
     if (!form.name || form.name.trim() === '') {
-      toastError('Nome e obrigatorio.');
+      toastError(t('sharedSpaces.error.nameRequired'));
       return;
     }
     
@@ -133,9 +135,9 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : error instanceof Error
             ? error.message
-            : 'Erro ao guardar espaço';
+            : t('sharedSpaces.error.saveFailed');
       console.error('Erro ao guardar espaço:', error);
-      toastError(`Erro ao guardar espaco: ${errorMessage}`);
+      toastError(t('sharedSpaces.error.saveFailedDetail', { message: errorMessage ?? '' }));
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +165,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     if (!deleteId) return;
     try {
       if (!condominiumId) {
-        toastError('Condomínio não identificado.');
+        toastError(t('sharedSpaces.error.condominiumNotIdentified'));
         return;
       }
 
@@ -178,9 +180,9 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : error instanceof Error
             ? error.message
-            : 'Erro ao eliminar espaço';
+            : t('sharedSpaces.error.deleteFailed');
       console.error('Erro ao eliminar espaço:', error);
-      toastError(`Erro ao eliminar espaço: ${errorMessage}`);
+      toastError(t('sharedSpaces.error.deleteFailedDetail', { message: errorMessage ?? '' }));
     } finally {
       setDeleteId(null);
     }
@@ -204,9 +206,9 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
     <div className={embedded ? "space-y-4" : "p-6 max-w-7xl mx-auto space-y-4"}>
       <ConfirmModal
         open={deleteId !== null}
-        title="Eliminar espaço"
-        message="Tem a certeza que deseja eliminar este espaço? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('sharedSpaces.delete.title')}
+        message={t('sharedSpaces.delete.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteId(null)}
@@ -216,7 +218,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
       <ModalPopup
         open={showForm}
         onClose={handleCancel}
-        title={editingId ? 'Editar Espaço' : 'Novo Espaço'}
+        title={editingId ? t('sharedSpaces.form.editTitle') : t('sharedSpaces.new')}
         maxWidthClass="max-w-lg"
       >
         <div className="p-6">
@@ -224,75 +226,75 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Nome *
+                  {t('sharedSpaces.form.name')}
                 </label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ex: Salão de Festas"
+                  placeholder={t('sharedSpaces.form.namePlaceholder')}
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Capacidade
+                  {t('sharedSpaces.form.capacity')}
                 </label>
                 <input
                   type="number"
                   value={form.capacity}
                   onChange={(e) => setForm({ ...form, capacity: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ex: 50 (deixe vazio para ilimitado)"
+                  placeholder={t('sharedSpaces.form.capacityPlaceholder')}
                   min="0"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Cor no Calendário
+                  {t('sharedSpaces.form.color')}
                 </label>
                 <input
                   type="color"
                   value={form.color}
                   onChange={(e) => setForm({ ...form, color: e.target.value })}
                   className="w-full h-10 px-1 py-1 border border-line bg-surface rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
-                  title="Escolha a cor para este espaço no calendário"
+                  title={t('sharedSpaces.form.colorTitle')}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Descrição
+                {t('common.description')}
               </label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={3}
-                placeholder="Descrição do espaço"
+                placeholder={t('sharedSpaces.form.descriptionPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Regras de Utilização
+                {t('sharedSpaces.form.rules')}
               </label>
               <textarea
                 value={form.rules}
                 onChange={(e) => setForm({ ...form, rules: e.target.value })}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={4}
-                placeholder="Ex: Horário: 8h-22h. Proibido fumar. Respeitar limites de ruído."
+                placeholder={t('sharedSpaces.form.rulesPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Taxa de Reserva (€)
+                {t('sharedSpaces.form.fee')}
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle">€</span>
@@ -307,16 +309,16 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                 />
               </div>
               <p className="mt-1 text-xs text-ink-subtle">
-                Taxa cobrada ao residente por cada reserva. Deixe 0 para reservas gratuitas.
+                {t('sharedSpaces.form.feeHelp')}
               </p>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 pt-2">
               <Button variant="ghost" onClick={handleCancel} className="border border-line">
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button type="submit" loading={submitting}>
-                {editingId ? 'Atualizar' : 'Criar'}
+                {editingId ? t('sharedSpaces.form.update') : t('sharedSpaces.form.create')}
               </Button>
             </div>
           </form>
@@ -325,19 +327,19 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
 
       {!embedded ? (
         <PageHeader
-          title="Espaços Comuns"
-          subtitle="Gestão dos espaços partilhados do condomínio"
+          title={t('sharedSpaces.title')}
+          subtitle={t('sharedSpaces.subtitle')}
           search={
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Pesquisar espaços..."
+              placeholder={t('sharedSpaces.searchPlaceholder')}
             />
           }
           actions={
             isAdmin && (
               <Button icon={Plus} onClick={() => setShowForm(true)} fullWidth className="sm:w-auto">
-                Novo Espaço
+                {t('sharedSpaces.new')}
               </Button>
             )
           }
@@ -348,12 +350,12 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Pesquisar espaços..."
+              placeholder={t('sharedSpaces.searchPlaceholder')}
             />
           </div>
           {isAdmin && (
             <Button icon={Plus} onClick={() => setShowForm(true)}>
-              Novo Espaço
+              {t('sharedSpaces.new')}
             </Button>
           )}
         </div>
@@ -369,8 +371,8 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
         empty={
           <EmptyState
             icon={Building}
-            title="Nenhum espaço comum registado"
-            description="Crie o primeiro espaço comum para começar"
+            title={t('sharedSpaces.empty.title')}
+            description={t('sharedSpaces.empty.description')}
           />
         }
       >
@@ -386,7 +388,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                     <h3 className="font-semibold text-ink truncate">{space.name}</h3>
                     {space.capacity && space.capacity > 0 && (
                       <p className="text-sm text-indigo-600 mt-0.5">
-                        Capacidade: {space.capacity} pessoas
+                        {t('sharedSpaces.card.capacity', { count: space.capacity })}
                       </p>
                     )}
                   </div>
@@ -395,14 +397,14 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
                       <button
                         onClick={() => handleEdit(space)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
+                        title={t('common.edit')}
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(space.id)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar"
+                        title={t('common.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -416,7 +418,7 @@ export default function SharedSpacesPage({ embedded = false }: { embedded?: bool
 
                 {space.rules && (
                   <div className="mt-2 pt-2 border-t border-line">
-                    <p className="text-xs font-medium text-ink-muted mb-1">Regras:</p>
+                    <p className="text-xs font-medium text-ink-muted mb-1">{t('sharedSpaces.card.rules')}</p>
                     <p className="text-xs text-ink-subtle whitespace-pre-line line-clamp-3">{space.rules}</p>
                   </div>
                 )}

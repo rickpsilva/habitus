@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -36,6 +36,8 @@ import type {
   UpdateSubscriptionPlanRequest,
   InvoiceDto,
 } from '../types';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn, TranslationKey } from '../i18n/types';
 
 const tierMeta: Record<string, { icon: React.ElementType; color: string; badge: string }> = {
   Free:   { icon: Layers,     color: 'border-line bg-surface-muted',          badge: 'bg-control text-ink-muted' },
@@ -43,15 +45,11 @@ const tierMeta: Record<string, { icon: React.ElementType; color: string; badge: 
   Gold:   { icon: TrendingUp, color: 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300', badge: 'bg-emerald-100 text-emerald-700' },
 };
 
-const cycleLabel: Record<string, string> = {
-  Monthly: 'Mensal',
-  Annual: 'Anual',
-  Quinquennial: '5 Anos',
-};
-
-function fmt(value: number) {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
-}
+const cycleLabels = (t: TranslateFn): Record<string, string> => ({
+  Monthly: t('billing.cycle.monthly'),
+  Annual: t('billing.cycle.annual'),
+  Quinquennial: t('billing.cycle.quinquennial'),
+});
 
 function formatDiscount(value: number) {
   if (value <= 0) return null;
@@ -93,21 +91,30 @@ function calculateDiscountedPrice(baseMonthly: number, months: number, discountP
 
 // ============= Invoice Status Helpers =============
 
-const statusMeta: Record<InvoiceDto['status'], { label: string; className: string; icon: React.ElementType }> = {
-  Draft:     { label: 'Rascunho', className: 'bg-control text-ink-muted', icon: Clock },
-  Emitted:   { label: 'Emitida',  className: 'bg-blue-100 text-blue-700', icon: FileText },
-  Paid:      { label: 'Paga',     className: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
-  Overdue:   { label: 'Vencida',  className: 'bg-red-100 text-red-700', icon: AlertTriangle },
-  Cancelled: { label: 'Cancelada', className: 'bg-control text-ink-muted', icon: XCircle },
+const statusMeta: Record<InvoiceDto['status'], { className: string; icon: React.ElementType }> = {
+  Draft:     { className: 'bg-control text-ink-muted', icon: Clock },
+  Emitted:   { className: 'bg-blue-100 text-blue-700', icon: FileText },
+  Paid:      { className: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+  Overdue:   { className: 'bg-red-100 text-red-700', icon: AlertTriangle },
+  Cancelled: { className: 'bg-control text-ink-muted', icon: XCircle },
+};
+
+const statusLabelKey: Record<InvoiceDto['status'], TranslationKey> = {
+  Draft:     'billing.invoiceStatus.draft',
+  Emitted:   'billing.invoiceStatus.emitted',
+  Paid:      'billing.invoiceStatus.paid',
+  Overdue:   'billing.invoiceStatus.overdue',
+  Cancelled: 'billing.invoiceStatus.cancelled',
 };
 
 function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
+  const { t } = useTranslation();
   const meta = statusMeta[status] ?? statusMeta.Draft;
   const Icon = meta.icon;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.className}`}>
       <Icon className="w-3 h-3" />
-      {meta.label}
+      {t(statusLabelKey[status] ?? 'billing.invoiceStatus.draft')}
     </span>
   );
 }
@@ -115,6 +122,7 @@ function StatusBadge({ status }: { status: InvoiceDto['status'] }) {
 // ============= Invoices Dashboard Sub-component =============
 
 function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] }) {
+  const { t, formatDate, formatCurrency } = useTranslation();
   const { success: toastSuccess, error: toastError } = useToast();
   const [confirmGenerateDue, setConfirmGenerateDue] = useState(false);
   const [cancelInvoiceId, setCancelInvoiceId] = useState<string | null>(null);
@@ -137,7 +145,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
     ...invoices.map((i) => String(i.year)),
   ])).sort((a, b) => Number(b) - Number(a));
 
-  const loadInvoices = async (condoId: string) => {
+  const loadInvoices = useCallback(async (condoId: string) => {
     if (!condoId) return;
     setLoading(true);
     setError('');
@@ -145,15 +153,15 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       const res = await invoicesApi.list(condoId);
       setInvoices(res.data);
     } catch {
-      setError('Não foi possível carregar as faturas.');
+      setError(t('billing.error.loadInvoices'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     if (selectedCondoId) loadInvoices(selectedCondoId);
-  }, [selectedCondoId]);
+  }, [selectedCondoId, loadInvoices]);
 
   const filtered = invoices.filter((inv) => {
     const statusOk = statusFilter === 'all' || inv.status === statusFilter;
@@ -174,7 +182,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated.data : i)));
       if (selectedInvoice?.id === invoiceId) setSelectedInvoice(updated.data);
     } catch {
-      setActionError('Erro ao marcar fatura como paga.');
+      setActionError(t('billing.error.markPaid'));
     } finally {
       setActionLoading(null);
     }
@@ -188,7 +196,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated.data : i)));
       if (selectedInvoice?.id === invoiceId) setSelectedInvoice(updated.data);
     } catch {
-      setActionError('Erro ao cancelar fatura.');
+      setActionError(t('billing.error.cancelInvoice'));
     } finally {
       setActionLoading(null);
     }
@@ -202,7 +210,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
   const confirmCancelInvoice = async () => {
     if (!cancelInvoiceId) return;
     if (!cancelReason.trim()) {
-      setActionError('Indique o motivo para cancelamento da fatura.');
+      setActionError(t('billing.error.cancelReasonRequired'));
       return;
     }
 
@@ -218,7 +226,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       const res = await invoicesApi.initiatePayment(invoiceId);
       window.open(res.data.paymentUrl, '_blank', 'noopener,noreferrer');
     } catch {
-      setActionError('Erro ao iniciar pagamento. Verifica a configuração do Stripe.');
+      setActionError(t('billing.error.initiatePayment'));
     } finally {
       setActionLoading(null);
     }
@@ -236,7 +244,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       toastSuccess(res.data.message);
       if (selectedCondoId) await loadInvoices(selectedCondoId);
     } catch {
-      toastError('Erro ao gerar faturas.');
+      toastError(t('billing.error.generateInvoices'));
     } finally {
       setGeneratingInvoices(false);
     }
@@ -245,57 +253,57 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
   const invoiceColumns: Column<InvoiceDto>[] = [
     {
       key: 'invoiceRef',
-      header: 'Referência',
-      mobileLabel: 'Referência',
+      header: t('billing.table.reference'),
+      mobileLabel: t('billing.table.reference'),
       render: (inv) => <span className="font-mono text-xs font-medium text-ink">{inv.invoiceRef}</span>,
     },
     {
       key: 'issuedDate',
-      header: 'Data',
-      mobileLabel: 'Data',
-      render: (inv) => <span className="text-ink-muted">{new Date(inv.issuedDate).toLocaleDateString('pt-PT')}</span>,
+      header: t('common.date'),
+      mobileLabel: t('common.date'),
+      render: (inv) => <span className="text-ink-muted">{formatDate(inv.issuedDate)}</span>,
     },
     {
       key: 'dueDate',
-      header: 'Vencimento',
-      mobileLabel: 'Vencimento',
+      header: t('billing.table.dueDate'),
+      mobileLabel: t('billing.table.dueDate'),
       render: (inv) => (
         <span className={inv.isOverdue ? 'text-red-600 font-medium' : 'text-ink-muted'}>
-          {new Date(inv.dueDate).toLocaleDateString('pt-PT')}
+          {formatDate(inv.dueDate)}
         </span>
       ),
     },
     {
       key: 'planName',
-      header: 'Plano',
-      mobileLabel: 'Plano',
+      header: t('billing.table.plan'),
+      mobileLabel: t('billing.table.plan'),
       render: (inv) => <span className="text-ink-muted">{inv.planName}</span>,
     },
     {
       key: 'totalAmount',
-      header: 'Total',
+      header: t('billing.table.total'),
       align: 'right',
-      mobileLabel: 'Total',
-      render: (inv) => <span className="font-semibold text-ink">{fmt(inv.totalAmount)}</span>,
+      mobileLabel: t('billing.table.total'),
+      render: (inv) => <span className="font-semibold text-ink">{formatCurrency(inv.totalAmount)}</span>,
     },
     {
       key: 'status',
-      header: 'Estado',
-      mobileLabel: 'Estado',
+      header: t('billing.table.status'),
+      mobileLabel: t('billing.table.status'),
       render: (inv) => <StatusBadge status={inv.status} />,
     },
     {
       key: 'actions',
       header: '',
       align: 'right',
-      mobileLabel: 'Ações',
+      mobileLabel: t('billing.table.actions'),
       render: (inv) => (
         <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
           {inv.pdfUrl && (
             <button
               onClick={() => invoicesApi.downloadPdf(inv.id)}
               className="p-1.5 rounded hover:bg-surface-hover text-ink-subtle hover:text-ink"
-              title="Descarregar PDF"
+              title={t('billing.action.downloadPdf')}
             >
               <Download className="w-4 h-4" />
             </button>
@@ -306,7 +314,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                 onClick={() => handleMarkPaid(inv.id)}
                 disabled={actionLoading === inv.id}
                 className="p-1.5 rounded hover:bg-emerald-50 text-emerald-600 disabled:opacity-50"
-                title="Marcar como paga"
+                title={t('billing.action.markPaid')}
               >
                 <CheckCircle2 className="w-4 h-4" />
               </button>
@@ -314,7 +322,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                 onClick={() => handleInitiatePayment(inv.id)}
                 disabled={actionLoading === `pay-${inv.id}`}
                 className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 disabled:opacity-50"
-                title="Pagar via gateway"
+                title={t('billing.action.payViaGateway')}
               >
                 <ExternalLink className="w-4 h-4" />
               </button>
@@ -322,7 +330,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                 onClick={() => openCancelModal(inv.id)}
                 disabled={actionLoading === inv.id}
                 className="p-1.5 rounded hover:bg-red-50 text-red-500 disabled:opacity-50"
-                title="Cancelar fatura"
+                title={t('billing.cancelInvoice.title')}
               >
                 <XCircle className="w-4 h-4" />
               </button>
@@ -337,18 +345,18 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
     <section className="space-y-4">
       <ConfirmModal
         open={confirmGenerateDue}
-        title="Gerar faturas em dívida"
-        message="Gerar faturas para todas as subscrições com cobrança em atraso?"
-        confirmLabel="Gerar"
+        title={t('billing.generateDue.title')}
+        message={t('billing.generateDue.message')}
+        confirmLabel={t('billing.generateDue.confirm')}
         variant="warning"
         onConfirm={confirmGenerateDueAction}
         onCancel={() => setConfirmGenerateDue(false)}
       />
       <ConfirmModal
         open={cancelInvoiceId !== null}
-        title="Cancelar fatura"
-        message="Esta ação vai cancelar a fatura selecionada."
-        confirmLabel="Confirmar cancelamento"
+        title={t('billing.cancelInvoice.title')}
+        message={t('billing.cancelInvoice.message')}
+        confirmLabel={t('billing.cancelInvoice.confirm')}
         variant="danger"
         onConfirm={confirmCancelInvoice}
         onCancel={() => {
@@ -359,21 +367,21 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
 
       {cancelInvoiceId !== null && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">
-          <label className="block text-sm font-medium text-red-900">Motivo para cancelamento</label>
+          <label className="block text-sm font-medium text-red-900">{t('billing.cancelInvoice.reasonLabel')}</label>
           <textarea
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-            placeholder="Explique o motivo do cancelamento..."
+            placeholder={t('billing.cancelInvoice.reasonPlaceholder')}
           />
-          <p className="text-xs text-red-700">O motivo sera registado na fatura.</p>
+          <p className="text-xs text-red-700">{t('billing.cancelInvoice.reasonHint')}</p>
         </div>
       )}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-ink flex items-center gap-2">
           <FileText className="w-4 h-4 text-indigo-600" />
-          Faturas
+          {t('billing.invoices.title')}
         </h2>
         <div className="flex items-center gap-2">
           <button
@@ -382,7 +390,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-line text-sm text-ink-muted hover:bg-surface-hover transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${generatingInvoices ? 'animate-spin' : ''}`} />
-            {generatingInvoices ? 'A gerar...' : 'Gerar Em Dívida'}
+            {generatingInvoices ? t('billing.generateDue.loading') : t('billing.generateDue.button')}
           </button>
           <button
             onClick={() => invoicesApi.downloadSaftXml(selectedCondoId, Number(saftYear), `SAFT-PT_${selectedCondoId}_${saftYear}.xml`)}
@@ -422,18 +430,18 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
           onChange={(e) => setStatusFilter(e.target.value)}
           className="border border-line rounded-lg px-3 py-1.5 text-sm bg-surface"
         >
-          <option value="all">Todos os estados</option>
-          <option value="Emitted">Emitidas</option>
-          <option value="Paid">Pagas</option>
-          <option value="Overdue">Vencidas</option>
-          <option value="Cancelled">Canceladas</option>
+          <option value="all">{t('billing.filter.allStatuses')}</option>
+          <option value="Emitted">{t('billing.filter.emitted')}</option>
+          <option value="Paid">{t('billing.filter.paid')}</option>
+          <option value="Overdue">{t('billing.filter.overdue')}</option>
+          <option value="Cancelled">{t('billing.filter.cancelled')}</option>
         </select>
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
           className="border border-line rounded-lg px-3 py-1.5 text-sm bg-surface"
         >
-          <option value="all">Todos os anos</option>
+          <option value="all">{t('billing.filter.allYears')}</option>
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
@@ -444,10 +452,10 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
       {!loading && invoices.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Emitido', value: fmt(totalEmitted), color: 'text-blue-700 bg-blue-50 border-blue-200' },
-            { label: 'Cobrado', value: fmt(totalPaid), color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-            { label: 'Em Dívida', value: fmt(totalOverdue), color: 'text-red-700 bg-red-50 border-red-200' },
-            { label: 'Vencidas', value: String(overdueCount), color: overdueCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-ink-muted bg-surface-muted border-line' },
+            { label: t('billing.stats.emitted'), value: formatCurrency(totalEmitted), color: 'text-blue-700 bg-blue-50 border-blue-200' },
+            { label: t('billing.stats.collected'), value: formatCurrency(totalPaid), color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+            { label: t('billing.stats.overdue'), value: formatCurrency(totalOverdue), color: 'text-red-700 bg-red-50 border-red-200' },
+            { label: t('billing.filter.overdue'), value: String(overdueCount), color: overdueCount > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-ink-muted bg-surface-muted border-line' },
           ].map((s) => (
             <div key={s.label} className={`rounded-lg border px-3 py-2 text-sm ${s.color}`}>
               <p className="text-xs opacity-70">{s.label}</p>
@@ -471,7 +479,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
         emptyState={
           <EmptyState
             icon={FileText}
-            title="Nenhuma fatura encontrada para os filtros selecionados."
+            title={t('billing.invoices.empty')}
           />
         }
       />
@@ -501,56 +509,56 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <div>
-                <p className="text-xs text-ink-subtle uppercase">Estado</p>
+                <p className="text-xs text-ink-subtle uppercase">{t('billing.table.status')}</p>
                 <StatusBadge status={selectedInvoice.status} />
               </div>
               <div>
-                <p className="text-xs text-ink-subtle uppercase">Plano</p>
+                <p className="text-xs text-ink-subtle uppercase">{t('billing.table.plan')}</p>
                 <p className="font-medium text-ink">{selectedInvoice.planName}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-subtle uppercase">Emitida</p>
-                <p className="text-ink-muted">{new Date(selectedInvoice.issuedDate).toLocaleDateString('pt-PT')}</p>
+                <p className="text-xs text-ink-subtle uppercase">{t('billing.invoiceStatus.emitted')}</p>
+                <p className="text-ink-muted">{formatDate(selectedInvoice.issuedDate)}</p>
               </div>
               <div>
-                <p className="text-xs text-ink-subtle uppercase">Vencimento</p>
+                <p className="text-xs text-ink-subtle uppercase">{t('billing.table.dueDate')}</p>
                 <p className={selectedInvoice.isOverdue ? 'text-red-600 font-semibold' : 'text-ink-muted'}>
-                  {new Date(selectedInvoice.dueDate).toLocaleDateString('pt-PT')}
+                  {formatDate(selectedInvoice.dueDate)}
                 </p>
               </div>
               {selectedInvoice.paidDate && (
                 <div>
-                  <p className="text-xs text-ink-subtle uppercase">Data de Pagamento</p>
-                  <p className="text-emerald-700">{new Date(selectedInvoice.paidDate).toLocaleDateString('pt-PT')}</p>
+                  <p className="text-xs text-ink-subtle uppercase">{t('billing.detail.paidDate')}</p>
+                  <p className="text-emerald-700">{formatDate(selectedInvoice.paidDate)}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-ink-subtle uppercase">Período</p>
+                <p className="text-xs text-ink-subtle uppercase">{t('billing.detail.period')}</p>
                 <p className="text-ink-muted">
-                  {new Date(selectedInvoice.periodStartDate).toLocaleDateString('pt-PT')} –{' '}
-                  {new Date(selectedInvoice.periodEndDate).toLocaleDateString('pt-PT')}
+                  {formatDate(selectedInvoice.periodStartDate)} –{' '}
+                  {formatDate(selectedInvoice.periodEndDate)}
                 </p>
               </div>
             </div>
 
             <div className="border-t border-line pt-3 space-y-1 text-sm">
               <div className="flex justify-between text-ink-muted">
-                <span>Subtotal</span>
-                <span>{fmt(selectedInvoice.subtotalAmount)}</span>
+                <span>{t('billing.detail.subtotal')}</span>
+                <span>{formatCurrency(selectedInvoice.subtotalAmount)}</span>
               </div>
               <div className="flex justify-between text-ink-muted">
-                <span>IVA ({(selectedInvoice.vatRate * 100).toFixed(0)}%)</span>
-                <span>{fmt(selectedInvoice.vatAmount)}</span>
+                <span>{t('billing.detail.vat', { rate: (selectedInvoice.vatRate * 100).toFixed(0) })}</span>
+                <span>{formatCurrency(selectedInvoice.vatAmount)}</span>
               </div>
               <div className="flex justify-between font-bold text-ink text-base border-t border-line pt-1 mt-1">
-                <span>Total</span>
-                <span>{fmt(selectedInvoice.totalAmount)}</span>
+                <span>{t('billing.table.total')}</span>
+                <span>{formatCurrency(selectedInvoice.totalAmount)}</span>
               </div>
             </div>
 
             {selectedInvoice.cancellationReason && (
               <p className="text-xs text-red-600 bg-red-50 rounded px-3 py-2">
-                Motivo de cancelamento: {selectedInvoice.cancellationReason}
+                {t('billing.detail.cancellationReason', { reason: selectedInvoice.cancellationReason })}
               </p>
             )}
 
@@ -563,7 +571,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
                 >
                   <Download className="w-4 h-4" />
-                  Descarregar PDF
+                  {t('billing.action.downloadPdf')}
                 </a>
               )}
               {(selectedInvoice.status === 'Emitted' || selectedInvoice.status === 'Overdue') && (
@@ -574,7 +582,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                     onClick={() => handleMarkPaid(selectedInvoice.id)}
                     loading={actionLoading === selectedInvoice.id}
                   >
-                    Marcar Paga
+                    {t('billing.action.markPaidShort')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -583,7 +591,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                     loading={actionLoading === `pay-${selectedInvoice.id}`}
                     className="border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700"
                   >
-                    Pagar via Stripe
+                    {t('billing.action.payViaStripe')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -592,7 +600,7 @@ function InvoicesDashboard({ condominiums }: { condominiums: CondominiumDto[] })
                     disabled={actionLoading === selectedInvoice.id}
                     className="border border-red-300 bg-red-50 hover:bg-red-100 text-red-600"
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </Button>
                 </>
               )}
@@ -615,6 +623,7 @@ function PlanCard({
   onAssign: (plan: SubscriptionPlanDto) => void;
   onEdit: (plan: SubscriptionPlanDto) => void;
 }) {
+  const { t, formatCurrency } = useTranslation();
   const meta = tierMeta[plan.tier] ?? tierMeta.Free;
   const Icon = meta.icon;
 
@@ -634,12 +643,12 @@ function PlanCard({
 
       <div className="space-y-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-ink">{fmt(plan.priceMonthly)}</span>
-          <span className="text-xs text-ink-subtle">/mês</span>
+          <span className="text-2xl font-bold text-ink">{formatCurrency(plan.priceMonthly)}</span>
+          <span className="text-xs text-ink-subtle">{t('billing.plan.perMonth')}</span>
         </div>
         {plan.priceAnnual > 0 && (
           <div className="text-xs text-ink-subtle">
-            {fmt(plan.priceAnnual)}/ano{' '}
+            {formatCurrency(plan.priceAnnual)}{t('billing.plan.perYear')}{' '}
             {formatDiscount(plan.annualDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.annualDiscountPercent)}</span>
             )}
@@ -647,7 +656,7 @@ function PlanCard({
         )}
         {plan.priceQuinquennial > 0 && (
           <div className="text-xs text-ink-subtle">
-            {fmt(plan.priceQuinquennial)}/5 anos{' '}
+            {formatCurrency(plan.priceQuinquennial)}{t('billing.plan.perFiveYears')}{' '}
             {formatDiscount(plan.quinquennialDiscountPercent) && (
               <span className="text-emerald-600 font-medium">{formatDiscount(plan.quinquennialDiscountPercent)}</span>
             )}
@@ -666,10 +675,10 @@ function PlanCard({
 
       <div className="mt-auto flex gap-2">
         <Button variant="ghost" onClick={() => onEdit(plan)} fullWidth className="flex-1 border border-line">
-          Editar
+          {t('common.edit')}
         </Button>
         <Button onClick={() => onAssign(plan)} fullWidth className="flex-1">
-          Atribuir
+          {t('billing.plan.assign')}
         </Button>
       </div>
     </div>
@@ -677,6 +686,7 @@ function PlanCard({
 }
 
 export default function BillingPage() {
+  const { t, formatDate, formatCurrency } = useTranslation();
   const { isManager } = useAuth();
   const navigate = useNavigate();
   const { error: toastError } = useToast();
@@ -710,7 +720,7 @@ export default function BillingPage() {
     if (!isManager) navigate('/dashboard');
   }, [isManager, navigate]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [plansRes, catalogRes, subsRes, condosRes, statsRes] = await Promise.all([
@@ -727,13 +737,13 @@ export default function BillingPage() {
       setMonthlyVolume(statsRes.data.monthlyBillingVolume);
       setPlansError('');
     } catch {
-      setPlansError('Não foi possível carregar a gestão de planos.');
+      setPlansError(t('billing.error.loadPlans'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const openCreatePlanModal = () => {
     const base = emptyPlanForm();
@@ -772,22 +782,22 @@ export default function BillingPage() {
 
   const handleSavePlan = async () => {
     if (!planForm.name.trim()) {
-      setPlanFormError('O nome do plano é obrigatório.');
+      setPlanFormError(t('billing.error.nameRequired'));
       return;
     }
 
     if (planForm.priceMonthly < 0 || planForm.annualDiscountPercent < 0 || planForm.quinquennialDiscountPercent < 0) {
-      setPlanFormError('Preço e descontos não podem ser negativos.');
+      setPlanFormError(t('billing.error.negativeValues'));
       return;
     }
 
     if (planForm.annualDiscountPercent > 100 || planForm.quinquennialDiscountPercent > 100) {
-      setPlanFormError('Os descontos têm de estar entre 0% e 100%.');
+      setPlanFormError(t('billing.error.discountRange'));
       return;
     }
 
     if (!Object.values(planForm.features).some(Boolean)) {
-      setPlanFormError('Ativa pelo menos uma funcionalidade no plano.');
+      setPlanFormError(t('billing.error.featureRequired'));
       return;
     }
 
@@ -819,7 +829,7 @@ export default function BillingPage() {
       setPlanModalOpen(false);
       await load();
     } catch {
-      setPlanFormError('Erro ao guardar plano. Verifica os valores e tenta novamente.');
+      setPlanFormError(t('billing.error.savePlan'));
     } finally {
       setSavingPlan(false);
     }
@@ -837,7 +847,7 @@ export default function BillingPage() {
       await subscriptionsApi.resetDefaultPlans();
       await load();
     } catch {
-      setPlansError('Não foi possível repor os planos padrão.');
+      setPlansError(t('billing.error.resetPlans'));
     } finally {
       setResettingPlans(false);
     }
@@ -845,7 +855,7 @@ export default function BillingPage() {
 
   const handleAssign = async () => {
     if (!assignModal || !assignModal.condominiumId) {
-      setAssignError('Seleciona um condomínio.');
+      setAssignError(t('billing.error.selectCondominium'));
       return;
     }
     setAssigning(true);
@@ -860,7 +870,7 @@ export default function BillingPage() {
       setAssignModal(null);
       await load();
     } catch {
-      setAssignError('Erro ao atribuir subscrição. Verifica os dados e tenta novamente.');
+      setAssignError(t('billing.error.assign'));
     } finally {
       setAssigning(false);
     }
@@ -876,12 +886,13 @@ export default function BillingPage() {
       await subscriptionsApi.cancel(cancelSubId);
       await load();
     } catch {
-      toastError('Erro ao cancelar subscrição.');
+      toastError(t('billing.error.cancelSubscription'));
     } finally {
       setCancelSubId(null);
     }
   };
 
+  const cycleLabel = cycleLabels(t);
   const activeSubMap = new Map(subscriptions.map((s) => [s.condominiumId, s]));
   const activeCount = subscriptions.length;
   const previewAnnual = calculateDiscountedPrice(planForm.priceMonthly, 12, planForm.annualDiscountPercent);
@@ -900,18 +911,18 @@ export default function BillingPage() {
     <div className="space-y-8">
       <ConfirmModal
         open={confirmResetPlans}
-        title="Repor planos padrão"
-        message="Isto irá repor os planos Free/Silver/Gold para os valores padrão. Pretendes continuar?"
-        confirmLabel="Repor"
+        title={t('billing.resetPlans.title')}
+        message={t('billing.resetPlans.message')}
+        confirmLabel={t('billing.resetPlans.confirm')}
         variant="warning"
         onConfirm={confirmResetPlansAction}
         onCancel={() => setConfirmResetPlans(false)}
       />
       <ConfirmModal
         open={cancelSubId !== null}
-        title="Cancelar subscrição"
-        message="Tem a certeza que deseja cancelar esta subscrição?"
-        confirmLabel="Cancelar subscrição"
+        title={t('billing.cancelSub.title')}
+        message={t('billing.cancelSub.message')}
+        confirmLabel={t('billing.cancelSub.confirm')}
         variant="danger"
         onConfirm={confirmCancelSub}
         onCancel={() => setCancelSubId(null)}
@@ -921,10 +932,10 @@ export default function BillingPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-indigo-600" />
-            Faturação e Subscrições
+            {t('billing.title')}
           </h1>
           <p className="text-ink-subtle mt-1 text-sm">
-            Gere os planos e subscrições dos condomínios da plataforma.
+            {t('billing.subtitle')}
           </p>
         </div>
       </div>
@@ -932,20 +943,20 @@ export default function BillingPage() {
       {/* Stats bar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="Condomínios"
+          title={t('billing.stat.condominiums')}
           value={condominiums.length}
           icon={Building2}
           color="bg-indigo-100 text-indigo-700"
         />
         <StatCard
-          title="Subscrições Ativas"
+          title={t('billing.stat.activeSubscriptions')}
           value={activeCount}
           icon={Check}
           color="bg-emerald-100 text-emerald-700"
         />
         <StatCard
-          title="Volume Mensal (MRR)"
-          value={monthlyVolume !== null ? fmt(monthlyVolume) : '—'}
+          title={t('billing.stat.monthlyVolume')}
+          value={monthlyVolume !== null ? formatCurrency(monthlyVolume) : '—'}
           icon={CreditCard}
           color="bg-amber-100 text-amber-700"
         />
@@ -954,21 +965,21 @@ export default function BillingPage() {
       {/* Plans */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-ink">Planos Disponíveis</h2>
+          <h2 className="text-base font-semibold text-ink">{t('billing.plansTitle')}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleResetDefaultPlans}
               disabled={resettingPlans}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors disabled:opacity-60"
             >
-              {resettingPlans ? 'A repor...' : 'Repor Padrão'}
+              {resettingPlans ? t('billing.resetPlans.loading') : t('billing.resetPlans.button')}
             </button>
             <button
               onClick={openCreatePlanModal}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-ink text-surface text-sm font-medium hover:opacity-90 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Novo Plano
+              {t('billing.newPlan')}
             </button>
           </div>
         </div>
@@ -995,16 +1006,16 @@ export default function BillingPage() {
 
       {/* Subscriptions table */}
       <section>
-        <h2 className="text-base font-semibold text-ink mb-3">Subscrições Ativas</h2>
+        <h2 className="text-base font-semibold text-ink mb-3">{t('billing.stat.activeSubscriptions')}</h2>
         <Card className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-ink-subtle uppercase bg-surface-muted border-b border-line">
-                <th className="px-4 py-3">Condomínio</th>
-                <th className="px-4 py-3">Plano</th>
-                <th className="px-4 py-3">Ciclo</th>
-                <th className="px-4 py-3">Valor</th>
-                <th className="px-4 py-3">Próxima Cobrança</th>
+                <th className="px-4 py-3">{t('billing.table.condominium')}</th>
+                <th className="px-4 py-3">{t('billing.table.plan')}</th>
+                <th className="px-4 py-3">{t('billing.table.cycle')}</th>
+                <th className="px-4 py-3">{t('billing.table.amount')}</th>
+                <th className="px-4 py-3">{t('billing.table.nextBilling')}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -1024,18 +1035,18 @@ export default function BillingPage() {
                           {sub.plan.name}
                         </span>
                       ) : (
-                        <span className="text-ink-subtle text-xs">Sem plano</span>
+                        <span className="text-ink-subtle text-xs">{t('billing.noPlan')}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
                       {sub ? cycleLabel[sub.billingCycle] ?? sub.billingCycle : '—'}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
-                      {sub ? fmt(sub.priceAtPurchase) : '—'}
+                      {sub ? formatCurrency(sub.priceAtPurchase) : '—'}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
                       {sub
-                        ? new Date(sub.nextBillingDate).toLocaleDateString('pt-PT')
+                        ? formatDate(sub.nextBillingDate)
                         : '—'}
                     </td>
                     <td className="px-4 py-3 flex items-center gap-2 justify-end">
@@ -1049,14 +1060,14 @@ export default function BillingPage() {
                         }
                         className="text-xs text-indigo-600 hover:underline"
                       >
-                        {sub ? 'Alterar' : 'Atribuir'}
+                        {sub ? t('billing.change') : t('billing.plan.assign')}
                       </button>
                       {sub && (
                         <button
                           onClick={() => handleCancel(sub.id)}
                           className="text-xs text-red-500 hover:underline"
                         >
-                          Cancelar
+                          {t('common.cancel')}
                         </button>
                       )}
                     </td>
@@ -1066,7 +1077,7 @@ export default function BillingPage() {
               {condominiums.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-ink-subtle text-sm">
-                    Nenhum condomínio encontrado.
+                    {t('billing.noCondominiums')}
                   </td>
                 </tr>
               )}
@@ -1080,7 +1091,7 @@ export default function BillingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md p-6 m-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-ink">Atribuir Subscrição</h3>
+              <h3 className="font-semibold text-ink">{t('billing.assign.title')}</h3>
               <button onClick={() => setAssignModal(null)}>
                 <X className="w-5 h-5 text-ink-subtle hover:text-ink-muted" />
               </button>
@@ -1090,7 +1101,7 @@ export default function BillingPage() {
               {/* Condominium select */}
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Condomínio
+                  {t('billing.table.condominium')}
                 </label>
                 <div className="relative">
                   <select
@@ -1113,7 +1124,7 @@ export default function BillingPage() {
               {/* Plan select */}
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Plano
+                  {t('billing.table.plan')}
                 </label>
                 <div className="relative">
                   <select
@@ -1137,7 +1148,7 @@ export default function BillingPage() {
               {/* Billing cycle */}
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Ciclo de Faturação
+                  {t('billing.assign.cycle')}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['Monthly', 'Annual', 'Quinquennial'] as const).map((cycle) => {
@@ -1159,7 +1170,7 @@ export default function BillingPage() {
                         }`}
                       >
                         <div className="font-medium">{cycleLabel[cycle]}</div>
-                        <div className="mt-0.5">{fmt(price)}</div>
+                        <div className="mt-0.5">{formatCurrency(price)}</div>
                         {cycle === 'Annual' && assignModal.plan.annualDiscountPercent > 0 && (
                           <div className="text-emerald-600 font-medium">-{assignModal.plan.annualDiscountPercent.toFixed(0)}%</div>
                         )}
@@ -1181,7 +1192,7 @@ export default function BillingPage() {
                 loading={assigning}
                 fullWidth
               >
-                Confirmar Atribuição
+                {t('billing.assign.confirm')}
               </Button>
             </div>
           </div>
@@ -1195,7 +1206,7 @@ export default function BillingPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-ink flex items-center gap-2">
                 <Pencil className="w-4 h-4" />
-                {planForm.id ? 'Editar Plano' : 'Criar Plano'}
+                {planForm.id ? t('billing.plan.editTitle') : t('billing.plan.createTitle')}
               </h3>
               <button onClick={() => setPlanModalOpen(false)}>
                 <X className="w-5 h-5 text-ink-subtle hover:text-ink-muted" />
@@ -1204,16 +1215,16 @@ export default function BillingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Nome</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('billing.form.name')}</label>
                 <input
                   value={planForm.name}
                   onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
                   className="w-full border border-line bg-surface text-ink rounded-lg px-3 py-2 text-sm"
-                  placeholder="Ex: Silver Plus"
+                  placeholder={t('billing.form.namePlaceholder')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Tier</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('billing.form.tier')}</label>
                 <select
                   value={planForm.tier}
                   onChange={(e) => setPlanForm({ ...planForm, tier: e.target.value })}
@@ -1225,7 +1236,7 @@ export default function BillingPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.description')}</label>
                 <textarea
                   value={planForm.description}
                   onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
@@ -1234,7 +1245,7 @@ export default function BillingPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Preço Mensal (EUR)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('billing.form.priceMonthly')}</label>
                 <input
                   type="number"
                   min={0}
@@ -1245,7 +1256,7 @@ export default function BillingPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Desconto Anual (%)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('billing.form.annualDiscount')}</label>
                 <input
                   type="number"
                   min={0}
@@ -1257,7 +1268,7 @@ export default function BillingPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Desconto 5 Anos (%)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('billing.form.quinquennialDiscount')}</label>
                 <input
                   type="number"
                   min={0}
@@ -1275,21 +1286,21 @@ export default function BillingPage() {
                   checked={planForm.isActive}
                   onChange={(e) => setPlanForm({ ...planForm, isActive: e.target.checked })}
                 />
-                <label htmlFor="plan-is-active" className="text-sm text-ink-muted">Plano ativo</label>
+                <label htmlFor="plan-is-active" className="text-sm text-ink-muted">{t('billing.form.planActive')}</label>
               </div>
             </div>
 
             <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
-              <p className="text-sm font-medium text-indigo-900 mb-1">Pré-visualização de Preços</p>
+              <p className="text-sm font-medium text-indigo-900 mb-1">{t('billing.form.pricePreview')}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-indigo-800">
-                <div>Mensal: <span className="font-semibold">{fmt(roundMoney(planForm.priceMonthly || 0))}</span></div>
-                <div>Anual: <span className="font-semibold">{fmt(previewAnnual)}</span></div>
-                <div>5 Anos: <span className="font-semibold">{fmt(previewQuinquennial)}</span></div>
+                <div>{t('billing.cycle.monthly')}: <span className="font-semibold">{formatCurrency(roundMoney(planForm.priceMonthly || 0))}</span></div>
+                <div>{t('billing.cycle.annual')}: <span className="font-semibold">{formatCurrency(previewAnnual)}</span></div>
+                <div>{t('billing.cycle.quinquennial')}: <span className="font-semibold">{formatCurrency(previewQuinquennial)}</span></div>
               </div>
             </div>
 
             <div className="border border-line rounded-lg p-4">
-              <h4 className="font-medium text-ink mb-3">Funcionalidades do Plano</h4>
+              <h4 className="font-medium text-ink mb-3">{t('billing.form.features')}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {featureCatalog.map((feature) => (
                   <label key={feature.featureKey} className="flex items-center justify-between border border-line rounded-lg px-3 py-2 text-sm">
@@ -1323,10 +1334,10 @@ export default function BillingPage() {
                 }}
                 className="border border-line"
               >
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSavePlan} loading={savingPlan}>
-                Guardar Plano
+                {t('billing.form.savePlan')}
               </Button>
             </div>
           </div>

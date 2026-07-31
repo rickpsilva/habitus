@@ -3,6 +3,8 @@ import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, In
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTranslation } from '../i18n/I18nProvider';
+import type { TranslateFn } from '../i18n/types';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
@@ -27,40 +29,39 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 }
 
 // Updated category mappings matching backend FinancialCategory enum
-const incomeCategoryLabels: Record<string, string> = {
-  MonthlyFees: 'Quotas Mensais',
-  ExtraordinaryFees: 'Quotas Extraordinárias',
-  LateFeeInterest: 'Juros de Mora',
-  OtherIncome: 'Outras Receitas',
-};
+const incomeCategoryLabels = (t: TranslateFn): Record<string, string> => ({
+  MonthlyFees: t('financial.category.MonthlyFees'),
+  ExtraordinaryFees: t('financial.category.ExtraordinaryFees'),
+  LateFeeInterest: t('financial.category.LateFeeInterest'),
+  OtherIncome: t('financial.category.OtherIncome'),
+});
 
-const expenseCategoryLabels: Record<string, string> = {
-  Maintenance: 'Manutenção',
-  Insurance: 'Seguros',
-  Utilities: 'Utilidades (Água, Luz, Gás)',
-  Administration: 'Administração',
-  Services: 'Serviços (Limpeza, Elevador)',
-  Property: 'IMI (Parte Comum)',
-  Legal: 'Serviços Jurídicos',
-  Accounting: 'Contabilista',
-  OtherExpense: 'Outras Despesas',
-};
-
-const allCategoryLabels = { ...incomeCategoryLabels, ...expenseCategoryLabels };
+const expenseCategoryLabels = (t: TranslateFn): Record<string, string> => ({
+  Maintenance: t('financial.category.Maintenance'),
+  Insurance: t('financial.category.Insurance'),
+  Utilities: t('financial.category.Utilities'),
+  Administration: t('financial.category.Administration'),
+  Services: t('financial.category.Services'),
+  Property: t('financial.category.Property'),
+  Legal: t('financial.category.Legal'),
+  Accounting: t('financial.category.Accounting'),
+  OtherExpense: t('financial.category.OtherExpense'),
+});
 
 // Financial document types
-const financialDocTypeLabels: Record<string, string> = {
-  FinancialBankStatement: 'Extrato Bancário',
-  FinancialAnnualReport: 'Relatório Anual',
-  FinancialBudget: 'Orçamento Anual',
-  FinancialAudit: 'Auditoria',
-  FinancialTaxDocument: 'Documentos Fiscais',
-  FinancialOther: 'Outros',
-};
+const financialDocTypeLabels = (t: TranslateFn): Record<string, string> => ({
+  FinancialBankStatement: t('financial.docType.FinancialBankStatement'),
+  FinancialAnnualReport: t('financial.docType.FinancialAnnualReport'),
+  FinancialBudget: t('financial.docType.FinancialBudget'),
+  FinancialAudit: t('financial.docType.FinancialAudit'),
+  FinancialTaxDocument: t('financial.docType.FinancialTaxDocument'),
+  FinancialOther: t('financial.docType.FinancialOther'),
+});
 
 export default function FinancialPage() {
   const { isAdmin, condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t, formatDate } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [dashboardLoadError, setDashboardLoadError] = useState('');
   const [recordsLoadError, setRecordsLoadError] = useState('');
@@ -149,11 +150,11 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar dados financeiros:', error);
-        setDashboardLoadError('Não foi possível carregar o resumo financeiro.');
-        toastError('Erro ao carregar dados financeiros.');
+        setDashboardLoadError(t('financial.error.loadDashboard'));
+        toastError(t('financial.error.loadDashboardToast'));
       })
       .finally(() => setLoading(false));
-  }, [condominiumId, selectedYear, toastError]);
+  }, [condominiumId, selectedYear, toastError, t]);
 
   // Load records with pagination
   const loadRecords = useCallback((page: number = 1) => {
@@ -168,9 +169,9 @@ export default function FinancialPage() {
       })
       .catch(error => {
         console.error('Erro ao carregar registos:', error);
-        setRecordsLoadError('Não foi possível carregar os registos financeiros.');
+        setRecordsLoadError(t('financial.error.loadRecords'));
       });
-  }, [condominiumId, selectedYear, pageSize, debouncedSearch, typeFilter]);
+  }, [condominiumId, selectedYear, pageSize, debouncedSearch, typeFilter, t]);
 
   useEffect(() => {
     if (condominiumId) {
@@ -182,22 +183,22 @@ export default function FinancialPage() {
     e.preventDefault();
 
     if (!condominiumId) {
-      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError(t('financial.error.noCondominium'));
       return;
     }
     
     if (!form.condominiumId) {
-      toastError('Condomínio não identificado. Por favor, recarregue a página.');
+      toastError(t('financial.error.noCondominium'));
       return;
     }
     
     if (!form.description || form.description.trim() === '') {
-      toastError('Descrição é obrigatória.');
+      toastError(t('financial.error.descriptionRequired'));
       return;
     }
     
     if (!form.amount || parseFloat(form.amount) <= 0) {
-      toastError('Valor deve ser maior que zero.');
+      toastError(t('financial.error.amountPositive'));
       return;
     }
     
@@ -236,7 +237,7 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro ao criar registo financeiro:', error);
-      toastError(`Erro ao criar registo financeiro: ${getApiErrorMessage(error, 'Erro desconhecido')}`);
+      toastError(t('financial.error.createRecord', { message: getApiErrorMessage(error, t('financial.error.unknown')) }));
     } finally {
       setSubmitting(false);
     }
@@ -261,7 +262,7 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error) {
       console.error('Erro ao eliminar registo:', error);
-      toastError('Erro ao eliminar registo.');
+      toastError(t('financial.error.deleteRecord'));
     } finally {
       setDeleteRecordId(null);
     }
@@ -269,7 +270,7 @@ export default function FinancialPage() {
 
   const handleDownloadProof = async (paymentId: string, description: string) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('financial.error.noCondominiumSelected'));
       return;
     }
 
@@ -277,14 +278,14 @@ export default function FinancialPage() {
       await paymentsApi.downloadProof(condominiumId, paymentId, description);
     } catch (error) {
       console.error('Erro ao fazer download:', error);
-      toastError('Erro ao fazer download do comprovativo.');
+      toastError(t('financial.error.downloadProof'));
     }
   };
 
   const handleFundOperation = async () => {
     if (!condominiumId) return;
     if (!fundAmount || parseFloat(fundAmount) <= 0) {
-      toastError('Valor inválido.');
+      toastError(t('financial.error.invalidAmount'));
       return;
     }
 
@@ -310,7 +311,7 @@ export default function FinancialPage() {
       loadRecords();
     } catch (error: unknown) {
       console.error('Erro na operação do fundo:', error);
-      toastError(getApiErrorMessage(error, 'Erro na operação do fundo de reserva'));
+      toastError(getApiErrorMessage(error, t('financial.error.fundOperation')));
     } finally {
       setSubmitting(false);
     }
@@ -342,10 +343,10 @@ export default function FinancialPage() {
         description: '',
         year: new Date().getFullYear().toString(),
       });
-      toastSuccess('Documento carregado com sucesso!');
+      toastSuccess(t('financial.success.documentUploaded'));
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      toastError('Erro ao fazer upload do documento.');
+      toastError(t('financial.error.uploadDocument'));
     } finally {
       setUploading(false);
     }
@@ -372,9 +373,9 @@ export default function FinancialPage() {
       setAllPayments(response.data.items);
     } catch (error) {
       console.error('Error loading payments:', error);
-      setPaymentsLoadError('Não foi possível carregar os pagamentos do cash in.');
+      setPaymentsLoadError(t('financial.error.loadPayments'));
     }
-  }, [isAdmin, condominiumId]);
+  }, [isAdmin, condominiumId, t]);
 
   const handleApprovePayment = async (paymentId: string) => {
     setApprovePaymentId(paymentId);
@@ -385,10 +386,10 @@ export default function FinancialPage() {
     try {
       await paymentsApi.approve(condominiumId, approvePaymentId);
       loadAllPayments();
-      toastSuccess('Pagamento aprovado com sucesso!');
+      toastSuccess(t('financial.success.paymentApproved'));
     } catch (error: unknown) {
       console.error('Error approving payment:', error);
-      toastError(getApiErrorMessage(error, 'Erro ao aprovar pagamento'));
+      toastError(getApiErrorMessage(error, t('financial.error.approvePayment')));
     } finally {
       setApprovePaymentId(null);
     }
@@ -396,7 +397,7 @@ export default function FinancialPage() {
 
   const handleRejectPayment = async () => {
     if (!selectedPayment || !rejectionReason.trim() || !condominiumId) {
-      toastError('Por favor insira o motivo da rejeição.');
+      toastError(t('financial.error.rejectionReasonRequired'));
       return;
     }
     try {
@@ -405,10 +406,10 @@ export default function FinancialPage() {
       setSelectedPayment(null);
       setRejectionReason('');
       loadAllPayments();
-      toastSuccess('Pagamento rejeitado.');
+      toastSuccess(t('financial.success.paymentRejected'));
     } catch (error: unknown) {
       console.error('Error rejecting payment:', error);
-      toastError(getApiErrorMessage(error, 'Erro ao rejeitar pagamento'));
+      toastError(getApiErrorMessage(error, t('financial.error.rejectPayment')));
     }
   };
 
@@ -421,10 +422,10 @@ export default function FinancialPage() {
     try {
       await paymentsApi.issueReceipt(condominiumId, issueReceiptId);
       loadAllPayments();
-      toastSuccess('Recibo emitido com sucesso!');
+      toastSuccess(t('financial.success.receiptIssued'));
     } catch (error: unknown) {
       console.error('Error issuing receipt:', error);
-      toastError(getApiErrorMessage(error, 'Erro ao emitir recibo'));
+      toastError(getApiErrorMessage(error, t('financial.error.issueReceipt')));
     } finally {
       setIssueReceiptId(null);
     }
@@ -432,19 +433,19 @@ export default function FinancialPage() {
 
   const handleDownloadReceipt = async (payment: PaymentDto) => {
     if (!condominiumId) {
-      toastError('Condomínio não selecionado.');
+      toastError(t('financial.error.noCondominiumSelected'));
       return;
     }
 
     if (!payment.receiptNumber || !payment.receiptYear) {
-      toastError('Este pagamento ainda não tem recibo emitido.');
+      toastError(t('financial.error.noReceiptYet'));
       return;
     }
     try {
       await paymentsApi.downloadReceipt(condominiumId, payment.id, payment.receiptNumber, payment.receiptYear);
     } catch (error: unknown) {
       console.error('Error downloading receipt:', error);
-      toastError(getApiErrorMessage(error, 'Erro ao baixar recibo'));
+      toastError(getApiErrorMessage(error, t('financial.error.downloadReceipt')));
     }
   };
 
@@ -490,41 +491,42 @@ export default function FinancialPage() {
     awaitingReceipt: allPayments.filter(p => p.status === 'Approved' && !p.hasReceipt).length,
   };
 
-  const currentCategories = form.type === 'Income' ? incomeCategoryLabels : expenseCategoryLabels;
+  const currentCategories = form.type === 'Income' ? incomeCategoryLabels(t) : expenseCategoryLabels(t);
+  const allCategoryLabels = { ...incomeCategoryLabels(t), ...expenseCategoryLabels(t) };
 
   return (
     <div className="space-y-5">
       <ConfirmModal
         open={deleteRecordId !== null}
-        title="Eliminar registo"
-        message="Tem a certeza que deseja eliminar este registo financeiro? Esta ação não pode ser revertida."
-        confirmLabel="Eliminar"
+        title={t('financial.confirm.deleteRecord.title')}
+        message={t('financial.confirm.deleteRecord.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDeleteRecord}
         onCancel={() => setDeleteRecordId(null)}
       />
       <ConfirmModal
         open={approvePaymentId !== null}
-        title="Aprovar pagamento"
-        message="Tem a certeza que deseja aprovar este pagamento?"
-        confirmLabel="Aprovar"
+        title={t('financial.confirm.approvePayment.title')}
+        message={t('financial.confirm.approvePayment.message')}
+        confirmLabel={t('financial.action.approve')}
         variant="default"
         onConfirm={confirmApprovePayment}
         onCancel={() => setApprovePaymentId(null)}
       />
       <ConfirmModal
         open={issueReceiptId !== null}
-        title="Emitir recibo"
-        message="Emitir recibo para este pagamento?"
-        confirmLabel="Emitir"
+        title={t('financial.confirm.issueReceipt.title')}
+        message={t('financial.confirm.issueReceipt.message')}
+        confirmLabel={t('financial.action.issue')}
         variant="default"
         onConfirm={confirmIssueReceipt}
         onCancel={() => setIssueReceiptId(null)}
       />
       {/* Header */}
       <PageHeader
-        title="Gestão Financeira"
-        subtitle="Conta corrente e fundo de reserva do condomínio"
+        title={t('financial.title')}
+        subtitle={t('financial.subtitle')}
         actions={
           <>
             <select
@@ -533,16 +535,16 @@ export default function FinancialPage() {
               className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {availableYears.map((year) => (
-                <option key={year} value={year}>Ano Fiscal {year}</option>
+                <option key={year} value={year}>{t('financial.fiscalYear', { year })}</option>
               ))}
             </select>
             {isAdmin && (
               <>
                 <Button variant="secondary" onClick={openDocumentModal} icon={FileText}>
-                  Adicionar Documento
+                  {t('financial.addDocument')}
                 </Button>
                 <Button onClick={() => setShowForm(true)} icon={Plus}>
-                  Novo Registo
+                  {t('financial.newRecord')}
                 </Button>
               </>
             )}
@@ -562,7 +564,7 @@ export default function FinancialPage() {
                   : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
-              Transações
+              {t('financial.tab.transactions')}
             </button>
             <button
               onClick={() => setActiveTab('cashin')}
@@ -572,7 +574,7 @@ export default function FinancialPage() {
                   : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
-              Cash In
+              {t('financial.tab.cashin')}
               {paymentCounts.pending > 0 && (
                 <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
                   {paymentCounts.pending}
@@ -587,7 +589,7 @@ export default function FinancialPage() {
                   : 'text-ink-subtle hover:text-ink-muted'
               }`}
             >
-              Planos de Quotas
+              {t('financial.tab.quotaPlans')}
             </button>
           </div>
         </div>
@@ -613,7 +615,7 @@ export default function FinancialPage() {
                       setReserveFund(fundRes.data);
                       setAvailableYears(yearsRes.data);
                     })
-                    .catch(() => setDashboardLoadError('Não foi possível carregar o resumo financeiro.'))
+                    .catch(() => setDashboardLoadError(t('financial.error.loadDashboard')))
                     .finally(() => setLoading(false));
                 }
               }}
@@ -624,11 +626,11 @@ export default function FinancialPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
             <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div className="text-sm text-blue-900">
-              <p className="font-medium mb-1">Como funciona a gestão financeira:</p>
+              <p className="font-medium mb-1">{t('financial.info.title')}</p>
               <ul className="list-disc list-inside space-y-1 text-blue-800">
-                <li><strong>Conta Corrente:</strong> Receitas e despesas do ano fiscal {selectedYear}</li>
-                <li><strong>Fundo de Reserva:</strong> Acumulado obrigatório por lei para grandes obras e emergências</li>
-                <li>No fim do ano, o saldo positivo da conta corrente pode ser transferido para o fundo</li>
+                <li><strong>{t('financial.info.currentAccount')}</strong> {t('financial.info.currentAccountDesc', { year: selectedYear })}</li>
+                <li><strong>{t('financial.info.reserveFund')}</strong> {t('financial.info.reserveFundDesc')}</li>
+                <li>{t('financial.info.yearEnd')}</li>
               </ul>
             </div>
           </div>
@@ -646,7 +648,7 @@ export default function FinancialPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Wallet className="w-5 h-5 text-indigo-600" />
-                  <h2 className="font-semibold text-ink">Conta Corrente {selectedYear}</h2>
+                  <h2 className="font-semibold text-ink">{t('financial.currentAccount', { year: selectedYear })}</h2>
                 </div>
                 <Calendar className="w-4 h-4 text-ink-subtle" />
               </div>
@@ -655,7 +657,7 @@ export default function FinancialPage() {
                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-900">Receitas</span>
+                    <span className="text-sm font-medium text-green-900">{t('financial.income')}</span>
                   </div>
                   <span className="text-lg font-bold text-green-700">
                     €{dashboard?.currentYearIncome.toFixed(2) || '0.00'}
@@ -665,7 +667,7 @@ export default function FinancialPage() {
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <TrendingDown className="w-4 h-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-900">Despesas</span>
+                    <span className="text-sm font-medium text-red-900">{t('financial.expenses')}</span>
                   </div>
                   <span className="text-lg font-bold text-red-700">
                     €{dashboard?.currentYearExpenses.toFixed(2) || '0.00'}
@@ -680,7 +682,7 @@ export default function FinancialPage() {
                   <span className={`text-sm font-semibold ${
                     (dashboard?.currentYearBalance || 0) >= 0 ? 'text-blue-900' : 'text-orange-900'
                   }`}>
-                    Saldo do Ano
+                    {t('financial.yearBalance')}
                   </span>
                   <span className={`text-xl font-bold ${
                     (dashboard?.currentYearBalance || 0) >= 0 ? 'text-blue-700' : 'text-orange-700'
@@ -696,7 +698,7 @@ export default function FinancialPage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <PiggyBank className="w-5 h-5 text-emerald-600" />
-                  <h2 className="font-semibold text-ink">Fundo de Reserva</h2>
+                  <h2 className="font-semibold text-ink">{t('financial.reserveFund')}</h2>
                 </div>
                 {isAdmin && (
                   <Button
@@ -707,14 +709,14 @@ export default function FinancialPage() {
                       setShowFundModal(true);
                     }}
                   >
-                    Gerir Fundo
+                    {t('financial.manageFund')}
                   </Button>
                 )}
               </div>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-emerald-900 font-medium">Saldo Atual</span>
+                  <span className="text-sm text-emerald-900 font-medium">{t('financial.currentBalance')}</span>
                   <span className="text-3xl font-bold text-emerald-700">
                     €{reserveFund?.closingBalance.toFixed(2) || '0.00'}
                   </span>
@@ -724,7 +726,7 @@ export default function FinancialPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-800 flex items-center gap-1">
                       <ArrowDownToLine className="w-3 h-3" />
-                      Depósitos {selectedYear}
+                      {t('financial.deposits', { year: selectedYear })}
                     </span>
                     <span className="font-semibold text-emerald-700">
                       +€{dashboard?.reserveFundDeposits.toFixed(2) || '0.00'}
@@ -734,7 +736,7 @@ export default function FinancialPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-800 flex items-center gap-1">
                       <ArrowUpFromLine className="w-3 h-3" />
-                      Levantamentos {selectedYear}
+                      {t('financial.withdrawals', { year: selectedYear })}
                     </span>
                     <span className="font-semibold text-red-600">
                       -€{dashboard?.reserveFundWithdrawals.toFixed(2) || '0.00'}
@@ -743,7 +745,7 @@ export default function FinancialPage() {
                 </div>
                 
                 <div className="pt-2 text-xs text-emerald-700">
-                  💡 Destinado a grandes obras, reparações estruturais e emergências
+                  {t('financial.reserveFundHint')}
                 </div>
               </div>
             </div>
@@ -752,18 +754,18 @@ export default function FinancialPage() {
           {/* Records List */}
           <Card className="overflow-hidden">
             <div className="px-5 py-4 border-b border-line flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-semibold text-ink">Registos de {selectedYear}</h2>
+              <h2 className="font-semibold text-ink">{t('financial.records', { year: selectedYear })}</h2>
               <div className="flex flex-wrap items-center gap-3">
                 <FilterBar>
-                  <FilterChip label="Todos" active={typeFilter === 'All'} onClick={() => setTypeFilter('All')} />
-                  <FilterChip label="Receitas" icon={TrendingUp} active={typeFilter === 'Income'} onClick={() => setTypeFilter('Income')} />
-                  <FilterChip label="Despesas" icon={TrendingDown} active={typeFilter === 'Expense'} onClick={() => setTypeFilter('Expense')} />
+                  <FilterChip label={t('financial.filter.all')} active={typeFilter === 'All'} onClick={() => setTypeFilter('All')} />
+                  <FilterChip label={t('financial.income')} icon={TrendingUp} active={typeFilter === 'Income'} onClick={() => setTypeFilter('Income')} />
+                  <FilterChip label={t('financial.expenses')} icon={TrendingDown} active={typeFilter === 'Expense'} onClick={() => setTypeFilter('Expense')} />
                 </FilterBar>
                 <div className="w-64">
                   <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Pesquisar..."
+                    placeholder={t('financial.searchPlaceholder')}
                   />
                 </div>
               </div>
@@ -778,7 +780,7 @@ export default function FinancialPage() {
             
             {!recordsLoadError && records.length === 0 ? (
               <div className="text-center py-12 text-ink-subtle">
-                {searchQuery ? `Sem resultados para "${searchQuery}"` : `Sem registos de ${selectedYear}`}
+                {searchQuery ? t('financial.noResultsFor', { query: searchQuery }) : t('financial.noRecords', { year: selectedYear })}
               </div>
             ) : !recordsLoadError ? (
               <>
@@ -797,7 +799,7 @@ export default function FinancialPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-ink truncate">{r.description}</p>
                         <p className="text-xs text-ink-subtle">
-                          {allCategoryLabels[r.category] || r.category} · {new Date(r.date).toLocaleDateString('pt-PT')}
+                          {allCategoryLabels[r.category] || r.category} · {formatDate(r.date)}
                         </p>
                       </div>
                       <p className={`font-semibold text-sm shrink-0 ${
@@ -835,13 +837,13 @@ export default function FinancialPage() {
       <ModalPopup
         open={showForm && isAdmin}
         onClose={() => setShowForm(false)}
-        title="Novo Registo Financeiro"
+        title={t('financial.form.title')}
         maxWidthClass="max-w-2xl"
       >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Tipo</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('financial.form.type')}</label>
                   <select
                     value={form.type}
                     onChange={(e) => {
@@ -854,13 +856,13 @@ export default function FinancialPage() {
                     }}
                     className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="Income">Receita</option>
-                    <option value="Expense">Despesa</option>
+                    <option value="Income">{t('financial.type.income')}</option>
+                    <option value="Expense">{t('financial.type.expense')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Categoria</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('financial.form.category')}</label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -873,7 +875,7 @@ export default function FinancialPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Valor (€)</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('financial.form.amount')}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -887,7 +889,7 @@ export default function FinancialPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-ink-muted mb-1">Data</label>
+                  <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.date')}</label>
                   <input
                     type="date"
                     value={form.date}
@@ -899,13 +901,13 @@ export default function FinancialPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('common.description')}</label>
                 <input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   required
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ex: Pagamento quotas Janeiro 2026"
+                  placeholder={t('financial.form.descriptionPlaceholder')}
                 />
               </div>
 
@@ -915,10 +917,10 @@ export default function FinancialPage() {
                   onClick={() => setShowForm(false)}
                   disabled={submitting}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" loading={submitting}>
-                  Guardar Registo
+                  {t('financial.form.save')}
                 </Button>
               </div>
             </form>
@@ -928,12 +930,12 @@ export default function FinancialPage() {
       <ModalPopup
         open={showFundModal && isAdmin}
         onClose={() => setShowFundModal(false)}
-        title="Gestão do Fundo de Reserva"
+        title={t('financial.fund.title')}
         maxWidthClass="max-w-md"
       >
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-2">Operação</label>
+                <label className="block text-sm font-medium text-ink-muted mb-2">{t('financial.fund.operation')}</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setFundOperation('deposit')}
@@ -943,7 +945,7 @@ export default function FinancialPage() {
                         : 'bg-control text-ink-muted hover:bg-control-hover'
                     }`}
                   >
-                    Depósito
+                    {t('financial.fund.deposit')}
                   </button>
                   <button
                     onClick={() => setFundOperation('withdrawal')}
@@ -953,13 +955,13 @@ export default function FinancialPage() {
                         : 'bg-control text-ink-muted hover:bg-control-hover'
                     }`}
                   >
-                    Levantamento
+                    {t('financial.fund.withdrawal')}
                   </button>
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1">Valor (€)</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1">{t('financial.form.amount')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -973,15 +975,15 @@ export default function FinancialPage() {
               
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
                 {fundOperation === 'deposit' ? (
-                  <p>💡 Esta transferência reduzirá o saldo da conta corrente e aumentará o fundo de reserva.</p>
+                  <p>{t('financial.fund.depositHint')}</p>
                 ) : (
-                  <p>⚠️ Levantamentos devem ser usados apenas para grandes obras ou emergências. Saldo disponível: €{reserveFund?.closingBalance.toFixed(2) || '0.00'}</p>
+                  <p>{t('financial.fund.withdrawalHint', { balance: reserveFund?.closingBalance.toFixed(2) || '0.00' })}</p>
                 )}
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-line flex flex-wrap justify-end gap-3">
               <Button variant="ghost" onClick={() => setShowFundModal(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 variant={fundOperation === 'deposit' ? 'success' : 'warning'}
@@ -989,7 +991,7 @@ export default function FinancialPage() {
                 loading={submitting}
                 disabled={!fundAmount || parseFloat(fundAmount) <= 0}
               >
-                {fundOperation === 'deposit' ? 'Transferir para Fundo' : 'Levantar do Fundo'}
+                {fundOperation === 'deposit' ? t('financial.fund.transferToFund') : t('financial.fund.withdrawFromFund')}
               </Button>
             </div>
       </ModalPopup>
@@ -998,13 +1000,13 @@ export default function FinancialPage() {
       <ModalPopup
         open={showDocumentModal}
         onClose={() => setShowDocumentModal(false)}
-        title="Adicionar Documento Financeiro"
+        title={t('financial.document.title')}
         maxWidthClass="max-w-2xl"
       >
             <form onSubmit={handleDocumentUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-2">
-                  Arquivo
+                  {t('financial.document.file')}
                 </label>
                 <FileUpload
                   onFileSelect={setUploadFile}
@@ -1016,14 +1018,14 @@ export default function FinancialPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Nome do Documento *
+                  {t('financial.document.name')}
                 </label>
                 <input
                   type="text"
                   value={uploadForm.name}
                   onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ex: Extrato Bancário Janeiro 2024"
+                  placeholder={t('financial.document.namePlaceholder')}
                   required
                   disabled={uploading}
                 />
@@ -1031,7 +1033,7 @@ export default function FinancialPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Tipo *
+                  {t('financial.document.type')}
                 </label>
                 <select
                   value={uploadForm.type}
@@ -1040,7 +1042,7 @@ export default function FinancialPage() {
                   required
                   disabled={uploading}
                 >
-                  {Object.entries(financialDocTypeLabels).map(([key, label]) => (
+                  {Object.entries(financialDocTypeLabels(t)).map(([key, label]) => (
                     <option key={key} value={key}>
                       {label}
                     </option>
@@ -1050,14 +1052,14 @@ export default function FinancialPage() {
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Descrição (opcional)
+                  {t('financial.document.description')}
                 </label>
                 <textarea
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                   className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   rows={3}
-                  placeholder="Adicione notas ou detalhes sobre o documento..."
+                  placeholder={t('financial.document.descriptionPlaceholder')}
                   disabled={uploading}
                 />
               </div>
@@ -1068,7 +1070,7 @@ export default function FinancialPage() {
                   onClick={() => setShowDocumentModal(false)}
                   disabled={uploading}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -1077,7 +1079,7 @@ export default function FinancialPage() {
                   loading={uploading}
                   disabled={!uploadFile}
                 >
-                  Carregar Documento
+                  {t('financial.document.upload')}
                 </Button>
               </div>
             </form>
@@ -1089,20 +1091,20 @@ export default function FinancialPage() {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-ink">
-                Cash In - Gestão de Pagamentos
+                {t('financial.cashin.title')}
               </h2>
               <div className="flex gap-2 text-xs text-ink-muted">
                 <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded">
-                  Pendentes: {paymentCounts.pending}
+                  {t('financial.cashin.pending', { count: paymentCounts.pending })}
                 </span>
                 <span className="px-2 py-1 bg-green-50 text-green-700 rounded">
-                  Aprovados: {paymentCounts.approved}
+                  {t('financial.cashin.approved', { count: paymentCounts.approved })}
                 </span>
                 <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded">
-                  Recibo em falta: {paymentCounts.awaitingReceipt}
+                  {t('financial.cashin.awaitingReceipt', { count: paymentCounts.awaitingReceipt })}
                 </span>
                 <span className="px-2 py-1 bg-red-50 text-red-700 rounded">
-                  Rejeitados: {paymentCounts.rejected}
+                  {t('financial.cashin.rejected', { count: paymentCounts.rejected })}
                 </span>
               </div>
             </div>
@@ -1113,7 +1115,7 @@ export default function FinancialPage() {
                 <SearchBar
                   value={paymentSearchQuery}
                   onChange={setPaymentSearchQuery}
-                  placeholder="Pesquisar por residente, fração, descrição ou valor..."
+                  placeholder={t('financial.cashin.searchPlaceholder')}
                 />
               </div>
               <div className="min-w-[200px]">
@@ -1122,11 +1124,11 @@ export default function FinancialPage() {
                   onChange={(e) => setPaymentStatusFilter(e.target.value as 'All' | 'Pending' | 'Approved' | 'Rejected' | 'AwaitingReceipt')}
                   className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
-                  <option value="Pending">🟡 Pendentes</option>
-                  <option value="Approved">🟢 Aprovados</option>
-                  <option value="AwaitingReceipt">🟠 Aguarda emissão de recibo</option>
-                  <option value="Rejected">🔴 Rejeitados</option>
-                  <option value="All">📋 Todos</option>
+                  <option value="Pending">{t('financial.cashin.filterPending')}</option>
+                  <option value="Approved">{t('financial.cashin.filterApproved')}</option>
+                  <option value="AwaitingReceipt">{t('financial.cashin.filterAwaitingReceipt')}</option>
+                  <option value="Rejected">{t('financial.cashin.filterRejected')}</option>
+                  <option value="All">{t('financial.cashin.filterAll')}</option>
                 </select>
               </div>
             </div>
@@ -1137,10 +1139,10 @@ export default function FinancialPage() {
             ) : filteredPayments.length === 0 ? (
               <div className="text-center py-12 text-ink-subtle">
                 {paymentSearchQuery ? 
-                  'Nenhum pagamento encontrado para a pesquisa' : 
+                  t('financial.cashin.noSearchResults') : 
                   paymentStatusFilter === 'AwaitingReceipt'
-                    ? 'Não há pagamentos a aguardar emissão de recibo'
-                    : `Não há pagamentos ${paymentStatusFilter === 'All' ? '' : paymentStatusFilter.toLowerCase()}`
+                    ? t('financial.cashin.noAwaitingReceipt')
+                    : t('financial.cashin.noPayments', { status: paymentStatusFilter === 'All' ? '' : paymentStatusFilter.toLowerCase() })
                 }
               </div>
             ) : (
@@ -1160,31 +1162,31 @@ export default function FinancialPage() {
                           {payment.status === 'Pending' && (
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-yellow-800 bg-yellow-100 rounded">
                               <Clock className="w-3 h-3 mr-1" />
-                              Pendente
+                              {t('status.pending')}
                             </span>
                           )}
                           {payment.status === 'Approved' && (
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
                               <CheckCircle className="w-3 h-3 mr-1" />
-                              Aprovado
+                              {t('financial.status.approved')}
                             </span>
                           )}
                           {payment.status === 'Rejected' && (
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded">
                               <XCircle className="w-3 h-3 mr-1" />
-                              Rejeitado
+                              {t('financial.status.rejected')}
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-ink-muted mt-1">{payment.description}</p>
                         <div className="flex items-center gap-3 mt-2">
                           <p className="text-xs text-ink-subtle">
-                            Criado: {new Date(payment.createdDate).toLocaleDateString('pt-PT')}
+                            {t('financial.payment.created', { date: formatDate(payment.createdDate) })}
                           </p>
                           <p className="text-xs text-blue-600">
-                            {payment.method === 'BankTransfer' ? 'Transferência Bancária' : 
-                             payment.method === 'MBWay' ? 'MB Way' : 
-                             payment.method === 'Card' ? 'Cartão' : payment.method}
+                            {payment.method === 'BankTransfer' ? t('financial.method.bankTransfer') : 
+                             payment.method === 'MBWay' ? t('financial.method.mbway') : 
+                             payment.method === 'Card' ? t('financial.method.card') : payment.method}
                           </p>
                         </div>
                         
@@ -1192,33 +1194,33 @@ export default function FinancialPage() {
                         {payment.status === 'Approved' && payment.hasReceipt && (
                           <div className="flex items-center gap-2 mt-2">
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded">
-                              ✓ Recibo Nº {payment.receiptNumber}/{payment.receiptYear}
+                              {t('financial.payment.receiptNumber', { number: payment.receiptNumber ?? '', year: payment.receiptYear ?? '' })}
                             </span>
                             {payment.receiptIssuedDate && (
                               <span className="text-xs text-ink-subtle">
-                                Emitido: {new Date(payment.receiptIssuedDate).toLocaleDateString('pt-PT')}
+                                {t('financial.payment.issued', { date: formatDate(payment.receiptIssuedDate) })}
                               </span>
                             )}
                           </div>
                         )}
                         {payment.status === 'Approved' && !payment.hasReceipt && (
                           <span className="inline-flex items-center mt-2 px-2 py-1 text-xs font-medium text-orange-800 bg-orange-100 rounded">
-                            ⏳ Aguarda emissão de recibo
+                            {t('financial.payment.awaitingReceipt')}
                           </span>
                         )}
                         
                         {/* Rejection Reason */}
                         {payment.status === 'Rejected' && payment.rejectionReason && (
                           <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                            <strong>Motivo:</strong> {payment.rejectionReason}
+                            <strong>{t('financial.payment.reason')}</strong> {payment.rejectionReason}
                           </div>
                         )}
 
                         {/* Processed Info */}
                         {payment.processedDate && (
                           <p className="text-xs text-ink-subtle mt-1">
-                            Processado: {new Date(payment.processedDate).toLocaleDateString('pt-PT')}
-                            {payment.processedByUserName && ` por ${payment.processedByUserName}`}
+                            {t('financial.payment.processed', { date: formatDate(payment.processedDate) })}
+                            {payment.processedByUserName && t('financial.payment.processedBy', { name: payment.processedByUserName })}
                           </p>
                         )}
                       </div>
@@ -1228,9 +1230,9 @@ export default function FinancialPage() {
                           €{payment.amount.toFixed(2)}
                         </div>
                         <span className="inline-block px-2 py-1 text-xs font-medium text-ink-muted bg-control rounded mt-1">
-                          {payment.type === 'MonthlyFee' ? 'Quotas' :
-                           payment.type === 'ExtraordinaryFee' ? 'Quota Extraordinária' :
-                           payment.type === 'Reservation' ? 'Reservas' : 'Outros'}
+                          {payment.type === 'MonthlyFee' ? t('financial.payType.monthlyFee') :
+                           payment.type === 'ExtraordinaryFee' ? t('financial.payType.extraordinaryFee') :
+                           payment.type === 'Reservation' ? t('financial.payType.reservation') : t('financial.payType.other')}
                         </span>
                       </div>
                     </div>
@@ -1242,21 +1244,21 @@ export default function FinancialPage() {
                           onClick={() => handleDownloadProof(payment.id, payment.description)}
                           className="text-sm text-indigo-600 hover:underline cursor-pointer"
                         >
-                          📎 Ver comprovativo de pagamento
+                          {t('financial.payment.viewProof')}
                         </button>
                       </div>
                     )}
                     {!payment.proofOfPaymentUrl && payment.method === 'BankTransfer' && payment.status === 'Pending' && (
                       <div className="mb-3">
                         <p className="text-xs text-orange-600">
-                          ⚠️ Comprovativo não anexado
+                          {t('financial.payment.proofNotAttached')}
                         </p>
                       </div>
                     )}
                     {payment.method !== 'BankTransfer' && payment.status === 'Pending' && (
                       <div className="mb-3">
                         <p className="text-xs text-green-600">
-                          ✓ Pagamento automático - sem comprovativo
+                          {t('financial.payment.autoPayment')}
                         </p>
                       </div>
                     )}
@@ -1272,7 +1274,7 @@ export default function FinancialPage() {
                             fullWidth
                             className="flex-1"
                           >
-                            Aprovar
+                            {t('financial.action.approve')}
                           </Button>
                           <Button
                             variant="danger"
@@ -1284,7 +1286,7 @@ export default function FinancialPage() {
                             fullWidth
                             className="flex-1"
                           >
-                            Rejeitar
+                            {t('financial.action.reject')}
                           </Button>
                         </>
                       )}
@@ -1298,7 +1300,7 @@ export default function FinancialPage() {
                               fullWidth
                               className="flex-1"
                             >
-                              Descarregar Recibo
+                              {t('financial.action.downloadReceipt')}
                             </Button>
                           ) : (
                             <Button
@@ -1308,7 +1310,7 @@ export default function FinancialPage() {
                               fullWidth
                               className="flex-1"
                             >
-                              Emitir Recibo
+                              {t('financial.action.issueReceipt')}
                             </Button>
                           )}
                         </>
@@ -1330,25 +1332,25 @@ export default function FinancialPage() {
           setSelectedPayment(null);
           setRejectionReason('');
         }}
-        title="Rejeitar Pagamento"
+        title={t('financial.reject.title')}
         maxWidthClass="max-w-md"
       >
         {selectedPayment && (
           <>
             <p className="text-sm text-ink-muted mb-4">
-              Pagamento de <strong>{selectedPayment.residentName}</strong> no valor de{' '}
+              {t('financial.reject.paymentFrom')} <strong>{selectedPayment.residentName}</strong> {t('financial.reject.amountOf')}{' '}
               <strong>€{selectedPayment.amount.toFixed(2)}</strong>
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-ink-muted mb-1">
-                Motivo da Rejeição *
+                {t('financial.reject.reasonLabel')}
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 rows={4}
-                placeholder="Explique o motivo da rejeição..."
+                placeholder={t('financial.reject.reasonPlaceholder')}
                 required
               />
             </div>
@@ -1363,7 +1365,7 @@ export default function FinancialPage() {
                 fullWidth
                 className="flex-1"
               >
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="danger"
@@ -1372,7 +1374,7 @@ export default function FinancialPage() {
                 fullWidth
                 className="flex-1"
               >
-                Rejeitar Pagamento
+                {t('financial.reject.submit')}
               </Button>
             </div>
           </>
@@ -1389,6 +1391,7 @@ export default function FinancialPage() {
 function FinancialPlansContent() {
   const { condominiumId } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   const [units, setUnits] = useState<UnitDto[]>([]);
   const [quotaPlans, setQuotaPlans] = useState<QuotaPlanDto[]>([]);
@@ -1450,7 +1453,7 @@ function FinancialPlansContent() {
       });
     } catch (error) {
       console.error('Error creating plan:', error);
-      toastError('Erro ao criar plano.');
+      toastError(t('financial.error.createPlan'));
     }
   };
 
@@ -1466,7 +1469,7 @@ function FinancialPlansContent() {
       setSelectedPlan(null);
     } catch (error) {
       console.error('Error updating plan:', error);
-      toastError('Erro ao atualizar plano.');
+      toastError(t('financial.error.updatePlan'));
     }
   };
 
@@ -1479,10 +1482,10 @@ function FinancialPlansContent() {
     try {
       await quotaPlansApi.apply(condominiumId!, applyPlanId);
       await loadData();
-      toastSuccess('Plano aplicado com sucesso!');
+      toastSuccess(t('financial.success.planApplied'));
     } catch (error) {
       console.error('Error applying plan:', error);
-      toastError('Erro ao aplicar plano.');
+      toastError(t('financial.error.applyPlan'));
     } finally {
       setApplyPlanId(null);
     }
@@ -1499,7 +1502,7 @@ function FinancialPlansContent() {
       await loadData();
     } catch (error) {
       console.error('Error deleting plan:', error);
-      toastError('Erro ao eliminar plano.');
+      toastError(t('financial.error.deletePlan'));
     } finally {
       setDeletePlanId(null);
     }
@@ -1531,11 +1534,11 @@ function FinancialPlansContent() {
           })
         )
       );
-      toastSuccess('Quotas atualizadas com sucesso!');
+      toastSuccess(t('financial.success.quotasSaved'));
       setIsQuotasPanelExpanded(false);
     } catch (error) {
       console.error('Error saving quotas:', error);
-      toastError('Erro ao guardar quotas.');
+      toastError(t('financial.error.saveQuotas'));
     }
   };
 
@@ -1547,10 +1550,10 @@ function FinancialPlansContent() {
       Archived: 'bg-yellow-100 text-yellow-800'
     };
     const labels = {
-      Draft: 'Rascunho',
-      Active: 'Ativo',
-      Applied: 'Aplicado',
-      Archived: 'Arquivado'
+      Draft: t('financial.plan.status.draft'),
+      Active: t('common.active'),
+      Applied: t('financial.plan.status.applied'),
+      Archived: t('financial.plan.status.archived')
     };
     return (
       <span className={`px-2 py-1 rounded text-xs font-medium ${badges[status as keyof typeof badges] || badges.Draft}`}>
@@ -1567,11 +1570,11 @@ function FinancialPlansContent() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-ink">Planos Financeiros</h2>
-            <p className="text-ink-muted mt-1">Gerir planos de quotas por ano</p>
+            <h2 className="text-2xl font-bold text-ink">{t('financial.plan.title')}</h2>
+            <p className="text-ink-muted mt-1">{t('financial.plan.subtitle')}</p>
           </div>
           <Button icon={Plus} onClick={() => setView('create')}>
-            Novo Plano
+            {t('financial.plan.new')}
           </Button>
         </div>
 
@@ -1579,9 +1582,9 @@ function FinancialPlansContent() {
         <div className="bg-surface rounded-lg shadow-sm border border-line">
           <div className="p-4 border-b border-line flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-semibold text-ink">Valores Base das Quotas Mensais por Fração</h3>
+              <h3 className="text-lg font-semibold text-ink">{t('financial.plan.baseQuotasTitle')}</h3>
               <p className="text-sm text-ink-muted mt-1">
-                Defina os valores mensais base para cada fração. Estes valores serão usados nos cálculos dos planos.
+                {t('financial.plan.baseQuotasDesc')}
               </p>
             </div>
             <button
@@ -1591,12 +1594,12 @@ function FinancialPlansContent() {
               {isQuotasPanelExpanded ? (
                 <>
                   <ChevronUp className="w-5 h-5" />
-                  Ocultar
+                  {t('financial.plan.hide')}
                 </>
               ) : (
                 <>
                   <ChevronDown className="w-5 h-5" />
-                  Expandir
+                  {t('financial.plan.expand')}
                 </>
               )}
             </button>
@@ -1631,7 +1634,7 @@ function FinancialPlansContent() {
               </div>
               <div className="mt-4 flex justify-end">
                 <Button variant="success" icon={Save} onClick={handleSaveUnitQuotas}>
-                  Guardar Quotas
+                  {t('financial.plan.saveQuotas')}
                 </Button>
               </div>
             </div>
@@ -1643,8 +1646,8 @@ function FinancialPlansContent() {
           {quotaPlans.length === 0 ? (
             <div className="text-center py-12 bg-surface rounded-lg border border-line">
               <TrendingUp className="w-12 h-12 text-ink-subtle mx-auto mb-3" />
-              <p className="text-ink-muted">Nenhum plano criado ainda</p>
-              <p className="text-ink-subtle text-sm mt-1">Clique em "Novo Plano" para começar</p>
+              <p className="text-ink-muted">{t('financial.plan.empty')}</p>
+              <p className="text-ink-subtle text-sm mt-1">{t('financial.plan.emptyHint')}</p>
             </div>
           ) : (
             quotaPlans.map(plan => (
@@ -1652,16 +1655,16 @@ function FinancialPlansContent() {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-bold text-ink">Plano {plan.year}</h3>
+                      <h3 className="text-xl font-bold text-ink">{t('financial.plan.planYear', { year: plan.year })}</h3>
                       {getStatusBadge(plan.status)}
                     </div>
                     <div className="flex gap-6 mt-3 text-sm">
                       <div>
-                        <span className="text-ink-muted">Inflação:</span>
+                        <span className="text-ink-muted">{t('financial.plan.inflation')}</span>
                         <span className="ml-2 font-semibold text-ink">{plan.inflationRate}%</span>
                       </div>
                       <div>
-                        <span className="text-ink-muted">Quota Extraordinária:</span>
+                        <span className="text-ink-muted">{t('financial.plan.extraordinaryQuota')}</span>
                         <span className="ml-2 font-semibold text-ink">€{plan.extraordinaryQuota.toFixed(2)}</span>
                       </div>
                     </div>
@@ -1670,7 +1673,7 @@ function FinancialPlansContent() {
                     <button
                       onClick={() => handleViewPlan(plan)}
                       className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                      title="Ver detalhes"
+                      title={t('financial.plan.viewDetails')}
                     >
                       <Eye className="w-5 h-5" />
                     </button>
@@ -1679,14 +1682,14 @@ function FinancialPlansContent() {
                         <button
                           onClick={() => handleEditPlan(plan)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar"
+                          title={t('common.edit')}
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeletePlan(plan.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar"
+                          title={t('common.delete')}
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
@@ -1702,7 +1705,7 @@ function FinancialPlansContent() {
                     onClick={() => handleApplyPlan(plan.id)}
                     fullWidth
                   >
-                    Aplicar Plano de Quota {plan.year}
+                    {t('financial.plan.applyQuotaPlan', { year: plan.year })}
                   </Button>
                 )}
               </div>
@@ -1721,14 +1724,14 @@ function FinancialPlansContent() {
             extraordinaryQuota: 0
           });
         }}
-        title={view === 'create' ? 'Criar Novo Plano' : 'Editar Plano'}
+        title={view === 'create' ? t('financial.plan.createTitle') : t('financial.plan.editTitle')}
         maxWidthClass="max-w-2xl"
       >
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Ano *
+                  {t('financial.plan.year')}
                 </label>
                 <input
                   type="number"
@@ -1741,14 +1744,14 @@ function FinancialPlansContent() {
                 />
                 {view === 'edit' && (
                   <p className="text-xs text-ink-subtle mt-1">
-                    O ano não pode ser alterado após a criação do plano
+                    {t('financial.plan.yearLocked')}
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Percentagem de Inflação (%)
+                  {t('financial.plan.inflationRate')}
                 </label>
                 <input
                   type="number"
@@ -1758,13 +1761,13 @@ function FinancialPlansContent() {
                   className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <p className="text-xs text-ink-subtle mt-1">
-                  Este valor será aplicado sobre a quota mensal base de cada fração
+                  {t('financial.plan.inflationHint')}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink-muted mb-1">
-                  Quota Extraordinária (€)
+                  {t('financial.plan.extraordinaryQuotaField')}
                 </label>
                 <input
                   type="number"
@@ -1774,7 +1777,7 @@ function FinancialPlansContent() {
                   className="w-full px-4 py-2 border border-line bg-surface text-ink rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <p className="text-xs text-ink-subtle mt-1">
-                  Valor adicional que será dividido igualmente por todas as frações
+                  {t('financial.plan.extraordinaryHint')}
                 </p>
               </div>
             </div>
@@ -1794,31 +1797,31 @@ function FinancialPlansContent() {
                 fullWidth
                 className="flex-1 border border-line"
               >
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button
                 onClick={view === 'create' ? handleCreatePlan : handleUpdatePlan}
                 fullWidth
                 className="flex-1"
               >
-                {view === 'create' ? 'Criar Plano' : 'Guardar Alterações'}
+                {view === 'create' ? t('financial.plan.createSubmit') : t('financial.plan.saveChanges')}
               </Button>
             </div>
       </ModalPopup>
       <ConfirmModal
         open={applyPlanId !== null}
-        title="Aplicar plano de quotas"
-        message="Tem a certeza que deseja aplicar este plano? Esta ação irá atualizar os valores das quotas de todas as frações."
-        confirmLabel="Aplicar"
+        title={t('financial.confirm.applyPlan.title')}
+        message={t('financial.confirm.applyPlan.message')}
+        confirmLabel={t('financial.action.apply')}
         variant="warning"
         onConfirm={confirmApplyPlan}
         onCancel={() => setApplyPlanId(null)}
       />
       <ConfirmModal
         open={deletePlanId !== null}
-        title="Eliminar plano"
-        message="Tem a certeza que deseja eliminar este plano?"
-        confirmLabel="Eliminar"
+        title={t('financial.confirm.deletePlan.title')}
+        message={t('financial.confirm.deletePlan.message')}
+        confirmLabel={t('common.delete')}
         variant="danger"
         onConfirm={confirmDeletePlan}
         onCancel={() => setDeletePlanId(null)}
@@ -1842,7 +1845,7 @@ function FinancialPlansContent() {
             className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700"
           >
             <ChevronDown className="w-5 h-5 rotate-90" />
-            Voltar
+            {t('financial.plan.back')}
           </button>
         </div>
 
@@ -1850,20 +1853,20 @@ function FinancialPlansContent() {
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <h2 className="text-2xl font-bold text-ink">Plano {selectedPlan.year}</h2>
+                <h2 className="text-2xl font-bold text-ink">{t('financial.plan.planYear', { year: selectedPlan.year })}</h2>
                 {getStatusBadge(selectedPlan.status)}
               </div>
               <div className="grid grid-cols-3 gap-6 text-sm">
                 <div>
-                  <span className="text-ink-muted">Inflação:</span>
+                  <span className="text-ink-muted">{t('financial.plan.inflation')}</span>
                   <span className="ml-2 font-semibold text-ink">{selectedPlan.inflationRate}%</span>
                 </div>
                 <div>
-                  <span className="text-ink-muted">Quota Extraordinária Total:</span>
+                  <span className="text-ink-muted">{t('financial.plan.extraordinaryTotal')}</span>
                   <span className="ml-2 font-semibold text-ink">€{selectedPlan.extraordinaryQuota.toFixed(2)}</span>
                 </div>
                 <div>
-                  <span className="text-ink-muted">Extraordinária por Fração:</span>
+                  <span className="text-ink-muted">{t('financial.plan.extraordinaryPerUnit')}</span>
                   <span className="ml-2 font-semibold text-ink">€{extraordinaryPerUnit.toFixed(2)}</span>
                 </div>
               </div>
@@ -1874,28 +1877,28 @@ function FinancialPlansContent() {
         {/* Calculations Table */}
         <DataTable<UnitDto>
           columns={[
-            { key: 'number', header: 'Fração', mobileLabel: 'Fração' },
+            { key: 'number', header: t('financial.plan.unit'), mobileLabel: t('financial.plan.unit') },
             {
               key: 'baseQuota',
-              header: 'Quota Base',
+              header: t('financial.plan.baseQuota'),
               align: 'right',
               render: (u) => `€${(u.monthlyQuota || 0).toFixed(2)}`,
             },
             {
               key: 'inflation',
-              header: `Inflação (${selectedPlan.inflationRate}%)`,
+              header: t('financial.plan.inflationColumn', { rate: selectedPlan.inflationRate }),
               align: 'right',
               render: (u) => `€${((u.monthlyQuota || 0) * (selectedPlan.inflationRate / 100)).toFixed(2)}`,
             },
             {
               key: 'extra',
-              header: 'Quota Extraordinária',
+              header: t('financial.plan.extraordinaryColumn'),
               align: 'right',
               render: () => `€${extraordinaryPerUnit.toFixed(2)}`,
             },
             {
               key: 'monthly',
-              header: 'Mensal',
+              header: t('financial.plan.monthly'),
               align: 'right',
               className: 'font-semibold text-ink',
               render: (u) => {
@@ -1906,7 +1909,7 @@ function FinancialPlansContent() {
             },
             {
               key: 'quarterly',
-              header: 'Trimestral',
+              header: t('financial.plan.quarterly'),
               align: 'right',
               render: (u) => {
                 const base = u.monthlyQuota || 0;
@@ -1916,7 +1919,7 @@ function FinancialPlansContent() {
             },
             {
               key: 'annual',
-              header: 'Anual',
+              header: t('financial.plan.annual'),
               align: 'right',
               render: (u) => {
                 const base = u.monthlyQuota || 0;
@@ -1929,7 +1932,7 @@ function FinancialPlansContent() {
           rowKey={(u) => u.id}
           footer={
             <tr>
-              <td className="px-4 py-3">TOTAL</td>
+              <td className="px-4 py-3">{t('financial.plan.total')}</td>
               <td className="px-4 py-3 text-right">
                 €{units.reduce((sum, u) => sum + (u.monthlyQuota || 0), 0).toFixed(2)}
               </td>
@@ -1967,7 +1970,7 @@ function FinancialPlansContent() {
           mobileFooter={
             <div className="bg-surface-muted rounded-xl border border-line p-4 space-y-2 font-semibold text-ink">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-medium text-ink-subtle">Total Mensal</span>
+                <span className="text-xs font-medium text-ink-subtle">{t('financial.plan.totalMonthly')}</span>
                 <span className="text-sm">
                   €{units
                     .reduce((sum, u) => {
@@ -1979,7 +1982,7 @@ function FinancialPlansContent() {
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-medium text-ink-subtle">Total Anual</span>
+                <span className="text-xs font-medium text-ink-subtle">{t('financial.plan.totalAnnual')}</span>
                 <span className="text-sm">
                   €{(units.reduce((sum, u) => {
                     const base = u.monthlyQuota || 0;
@@ -2000,7 +2003,7 @@ function FinancialPlansContent() {
               onClick={() => handleApplyPlan(selectedPlan.id)}
               fullWidth
             >
-              Aplicar Plano de Quota {selectedPlan.year}
+              {t('financial.plan.applyQuotaPlan', { year: selectedPlan.year })}
             </Button>
           </div>
         )}

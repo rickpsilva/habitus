@@ -139,7 +139,7 @@ public class UsefulContactsController : ControllerBase
 
     private object MapContact(UsefulContact contact)
     {
-        var phone = !string.IsNullOrEmpty(contact.PhoneEncrypted) ? _encryptionService.Decrypt(contact.PhoneEncrypted) : contact.Phone;
+        var phone = !string.IsNullOrEmpty(contact.PhoneEncrypted) ? _encryptionService.Decrypt(contact.PhoneEncrypted) : null;
         var email = !string.IsNullOrEmpty(contact.EmailEncrypted) ? _encryptionService.Decrypt(contact.EmailEncrypted) : null;
         var address = !string.IsNullOrEmpty(contact.AddressEncrypted) ? _encryptionService.Decrypt(contact.AddressEncrypted) : null;
         var postalCode = !string.IsNullOrEmpty(contact.PostalCodeEncrypted) ? _encryptionService.Decrypt(contact.PostalCodeEncrypted) : null;

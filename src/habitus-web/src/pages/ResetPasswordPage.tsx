@@ -1,28 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Building2, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { authApi } from '../api/services';
 import { Button } from '../components/ui';
+import { useTranslation } from '../i18n/I18nProvider';
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const email = searchParams.get('email');
+  const token = searchParams.get('token');
+  const [error, setError] = useState(() => (!email || !token) ? t('resetPassword.error.invalidLink') : '');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const email = searchParams.get('email');
-  const token = searchParams.get('token');
-
-  useEffect(() => {
-    if (!email || !token) {
-      setError('Link de recuperação inválido ou expirado.');
-    }
-  }, [email, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,19 +25,19 @@ export default function ResetPasswordPage() {
     setSuccess('');
 
     if (password !== confirmPassword) {
-      setError('As passwords não coincidem.');
+      setError(t('resetPassword.error.mismatch'));
       return;
     }
 
     if (password.length < 6) {
-      setError('A password deve ter pelo menos 6 caracteres.');
+      setError(t('resetPassword.error.minLength'));
       return;
     }
 
     setLoading(true);
     try {
       if (!email || !token) {
-        setError('Parâmetros inválidos.');
+        setError(t('resetPassword.error.invalidParams'));
         return;
       }
 
@@ -52,10 +47,10 @@ export default function ResetPasswordPage() {
         newPassword: password
       });
 
-      setSuccess('Password alterada com sucesso! Redirecionando para login...');
+      setSuccess(t('resetPassword.success'));
       setTimeout(() => navigate('/login'), 2000);
     } catch {
-      setError('Erro ao redefinir password. O link pode ter expirado.');
+      setError(t('resetPassword.error.resetFailed'));
     } finally {
       setLoading(false);
     }
@@ -70,13 +65,13 @@ export default function ResetPasswordPage() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-ink">Habitus</h1>
-          <p className="text-ink-subtle mt-1">Redefinir Password</p>
+          <p className="text-ink-subtle mt-1">{t('resetPassword.subtitle')}</p>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-xl p-8">
-          <h2 className="text-xl font-semibold text-ink mb-2">Criar nova password</h2>
+          <h2 className="text-xl font-semibold text-ink mb-2">{t('resetPassword.title')}</h2>
           <p className="text-ink-muted text-sm mb-6">
-            Introduza uma nova password segura.
+            {t('resetPassword.description')}
           </p>
 
           {error && (
@@ -94,7 +89,7 @@ export default function ResetPasswordPage() {
           {!error || email ? (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1.5">Nova Password</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('resetPassword.newPassword')}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                   <input
@@ -116,7 +111,7 @@ export default function ResetPasswordPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-muted mb-1.5">Confirmar Password</label>
+                <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('resetPassword.confirmPassword')}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-subtle" />
                   <input
@@ -138,7 +133,7 @@ export default function ResetPasswordPage() {
               </div>
 
               <Button type="submit" loading={loading} fullWidth>
-                {loading ? 'A redefinir...' : 'Redefinir Password'}
+                {loading ? t('resetPassword.submitting') : t('resetPassword.submit')}
               </Button>
             </form>
           ) : null}
@@ -146,7 +141,7 @@ export default function ResetPasswordPage() {
           <div className="flex items-center justify-center mt-6">
             <Link to="/login" className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
               <ArrowLeft className="w-4 h-4" />
-              Voltar para login
+              {t('forgotPassword.backToLogin')}
             </Link>
           </div>
         </div>

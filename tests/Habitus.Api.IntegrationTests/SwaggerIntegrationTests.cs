@@ -4,16 +4,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Habitus.Api.IntegrationTests;
 
-public class SwaggerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class SwaggerIntegrationTests : IClassFixture<CustomWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public SwaggerIntegrationTests(WebApplicationFactory<Program> factory)
+    public SwaggerIntegrationTests(CustomWebApplicationFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-        });
+        _factory = factory;
     }
 
     [Fact]
