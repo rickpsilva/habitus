@@ -34,6 +34,7 @@ const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
 const CondominiumSettingsPage = lazy(() => import('./pages/CondominiumSettingsPage'));
 const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
 const BillingPage = lazy(() => import('./pages/BillingPage'));
+const ConsentAdminPage = lazy(() => import('./pages/ConsentAdminPage'));
 const ConsentRequiredPage = lazy(() => import('./pages/ConsentRequiredPage'));
 
 // Centered, text-less fallback shown while a lazy route chunk downloads.
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/settings" element={<CondominiumSettingsPage />} />
+            <Route path="/settings/consents" element={<ConsentAdminPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             {/* Legacy route - redirect to users */}
             <Route path="/residents" element={<Navigate to="/users" replace />} />

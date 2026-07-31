@@ -25,6 +25,7 @@ import {
   UserCircle,
   CreditCard,
   Settings,
+  ShieldCheck,
   Moon,
   Sun,
   Search,
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
   { to: '/useful-contacts', labelKey: 'nav.usefulContacts', icon: Phone, featureKey: 'useful_contacts' },
   { to: '/assemblies', labelKey: 'nav.assemblies', icon: ClipboardList, featureKey: 'assemblies' },
   { to: '/settings', labelKey: 'nav.settings', icon: Settings, managerOrAdminOnly: true },
+  { to: '/settings/consents', labelKey: 'nav.consentAdmin', icon: ShieldCheck, managerOnly: true },
   { to: '/condominiums', labelKey: 'nav.condominiums', icon: Building2, managerOnly: true },
   { to: '/billing', labelKey: 'nav.billing', icon: CreditCard, managerOnly: true },
   { to: '/users', labelKey: 'nav.users', icon: Users, managerOrAdminOnly: true, featureKey: 'user_registration' },
@@ -98,6 +100,7 @@ const managerMenuOrder = [
   '/billing',
   '/users',
   '/settings',
+  '/settings/consents',
 ];
 
 // Visual grouping only. Sections are contiguous within every role menu order
@@ -109,7 +112,7 @@ const navSections: { id: string; labelKey: TranslationKey; routes: string[] }[] 
     labelKey: 'section.operations',
     routes: ['/maintenance', '/financial', '/reservations', '/payments', '/documents', '/useful-contacts', '/assemblies'],
   },
-  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/settings', '/condominiums', '/billing'] },
+  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/settings', '/settings/consents', '/condominiums', '/billing'] },
 ];
 
 const sectionIdForRoute = (to: string): string =>

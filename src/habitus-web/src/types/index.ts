@@ -99,6 +99,40 @@ export interface RecordConsentRequest {
   accepted: boolean;
 }
 
+// Manager-only consent authoring & versioning (REQ-SEC-008). Full definition
+// including the HTML `body` authored via the rich-text editor.
+export interface ConsentDefinitionDto {
+  id: string;
+  key: string;
+  version: string;
+  title: string;
+  url?: string | null;
+  body?: string | null;
+  isMandatory: boolean;
+  isActive: boolean;
+  createdAt: string;
+  createdByUserId?: string | null;
+  updatedAt?: string | null;
+  updatedByUserId?: string | null;
+}
+
+// In-place correction: keeps Key/Version, never forces re-consent.
+export interface UpdateConsentDefinitionRequest {
+  title: string;
+  url?: string | null;
+  body?: string | null;
+}
+
+// Publish a new version for a Key; a new mandatory version re-triggers consent.
+export interface PublishConsentVersionRequest {
+  key: string;
+  version: string;
+  title: string;
+  url?: string | null;
+  body?: string | null;
+  isMandatory: boolean;
+}
+
 // RGPD/GDPR self-service erasure (REQ-SEC-006). `type` is an INTEGER enum on the
 // wire — the API has no JsonStringEnumConverter, so the numeric value is sent.
 export const ErasureType = {

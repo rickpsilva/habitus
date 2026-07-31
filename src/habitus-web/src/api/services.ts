@@ -92,6 +92,9 @@ import type {
   CsvImportResult,
   ConsentStatusResponse,
   RecordConsentRequest,
+  ConsentDefinitionDto,
+  UpdateConsentDefinitionRequest,
+  PublishConsentVersionRequest,
   ErasureRequest,
   ErasureResult,
   MeLocalizationDto,
@@ -145,6 +148,16 @@ export const platformLocalizationApi = {
     api.put<PlatformLocalizationSettingsDto>('/platform/localization-settings', data),
   getPublicDefault: () =>
     api.get<PublicLocalizationDefaultDto>('/platform/localization-settings/public'),
+};
+
+// Manager-only consent authoring & versioning (REQ-SEC-008). All endpoints are
+// Manager-only server-side; a non-Manager receives HTTP 403.
+export const consentAdminApi = {
+  list: () => api.get<ConsentDefinitionDto[]>('/platform/consents'),
+  update: (id: string, data: UpdateConsentDefinitionRequest) =>
+    api.put<ConsentDefinitionDto>(`/platform/consents/${id}`, data),
+  publish: (data: PublishConsentVersionRequest) =>
+    api.post<ConsentDefinitionDto>('/platform/consents', data),
 };
 
 // New users API
