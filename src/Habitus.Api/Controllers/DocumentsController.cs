@@ -43,7 +43,7 @@ public class DocumentsController : ControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<MaintenanceRequest> _maintenanceRepository;
     private readonly IRepository<Payment> _paymentRepository;
-    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IBlobStorageService _blobStorage;
 
     public DocumentsController(
@@ -51,14 +51,14 @@ public class DocumentsController : ControllerBase
         IRepository<User> userRepository,
         IRepository<MaintenanceRequest> maintenanceRepository,
         IRepository<Payment> paymentRepository,
-        IRepository<PlatformUploadSettings> platformUploadSettingsRepository,
+        IPlatformSettingsCache settingsCache,
         IBlobStorageService blobStorage)
     {
         _repository = repository;
         _userRepository = userRepository;
         _maintenanceRepository = maintenanceRepository;
         _paymentRepository = paymentRepository;
-        _platformUploadSettingsRepository = platformUploadSettingsRepository;
+        _settingsCache = settingsCache;
         _blobStorage = blobStorage;
     }
 
@@ -977,7 +977,7 @@ public class DocumentsController : ControllerBase
     }
     private async Task<int> GetMaxUploadSizeBytesAsync()
     {
-        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetUploadAsync();
         return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
     }
 

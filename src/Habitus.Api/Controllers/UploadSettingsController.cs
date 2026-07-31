@@ -16,13 +16,16 @@ public class UploadSettingsController : ControllerBase
     private const int MaximumMaxUploadSizeBytes = 500 * 1024 * 1024;
 
     private readonly IRepository<PlatformUploadSettings> _repository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly ILogger<UploadSettingsController> _logger;
 
     public UploadSettingsController(
         IRepository<PlatformUploadSettings> repository,
+        IPlatformSettingsCache settingsCache,
         ILogger<UploadSettingsController> logger)
     {
         _repository = repository;
+        _settingsCache = settingsCache;
         _logger = logger;
     }
 
@@ -31,7 +34,7 @@ public class UploadSettingsController : ControllerBase
     {
         try
         {
-            var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+            var settings = await _settingsCache.GetUploadAsync();
             if (settings == null)
             {
                 return Ok(new PlatformUploadSettingsDto
@@ -88,6 +91,7 @@ public class UploadSettingsController : ControllerBase
             }
 
             await _repository.SaveChangesAsync();
+            _settingsCache.InvalidateUpload();
             return Ok(Map(settings));
         }
         catch (Exception ex)

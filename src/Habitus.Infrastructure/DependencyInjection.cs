@@ -119,6 +119,8 @@ public static class DependencyInjection
         services.AddScoped<IConsentService, ConsentService>();
         services.AddScoped<IFeatureEntitlementService, FeatureEntitlementService>();
         services.AddScoped<IPersonalDataService, PersonalDataService>();
+        // Caches the four platform-wide single-row settings tables via the singleton IMemoryCache.
+        services.AddScoped<IPlatformSettingsCache, PlatformSettingsCache>();
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();

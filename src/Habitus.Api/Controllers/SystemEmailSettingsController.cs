@@ -12,15 +12,18 @@ namespace Habitus.Api.Controllers;
 public class SystemEmailSettingsController : ControllerBase
 {
     private readonly IRepository<SystemEmailSettings> _repository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IEncryptionService _encryptionService;
     private readonly ILogger<SystemEmailSettingsController> _logger;
 
     public SystemEmailSettingsController(
         IRepository<SystemEmailSettings> repository,
+        IPlatformSettingsCache settingsCache,
         IEncryptionService encryptionService,
         ILogger<SystemEmailSettingsController> logger)
     {
         _repository = repository;
+        _settingsCache = settingsCache;
         _encryptionService = encryptionService;
         _logger = logger;
     }
@@ -30,7 +33,7 @@ public class SystemEmailSettingsController : ControllerBase
     {
         try
         {
-            var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+            var settings = await _settingsCache.GetSystemEmailAsync();
             if (settings == null)
             {
                 return Ok(new SystemEmailSettingsDto
@@ -95,6 +98,7 @@ public class SystemEmailSettingsController : ControllerBase
             }
 
             await _repository.SaveChangesAsync();
+            _settingsCache.InvalidateSystemEmail();
             return Ok(Map(settings));
         }
         catch (Exception ex)
@@ -109,7 +113,7 @@ public class SystemEmailSettingsController : ControllerBase
     {
         try
         {
-            var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+            var settings = await _settingsCache.GetSystemEmailAsync();
             if (settings == null || !settings.EmailEnabled)
                 return BadRequest(new { message = "Email do sistema não está configurado ou activado." });
 

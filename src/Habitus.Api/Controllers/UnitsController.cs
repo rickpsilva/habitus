@@ -15,14 +15,14 @@ namespace Habitus.Api.Controllers;
 public class UnitsController : ControllerBase
 {
     private readonly IRepository<Unit> _repository;
-    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
 
     public UnitsController(
         IRepository<Unit> repository,
-        IRepository<PlatformUploadSettings> platformUploadSettingsRepository)
+        IPlatformSettingsCache settingsCache)
     {
         _repository = repository;
-        _platformUploadSettingsRepository = platformUploadSettingsRepository;
+        _settingsCache = settingsCache;
     }
 
     private bool CanAccessCondominium(Guid condominiumId)
@@ -284,7 +284,7 @@ public class UnitsController : ControllerBase
 
     private async Task<int> GetMaxUploadSizeBytesAsync()
     {
-        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetUploadAsync();
         return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
     }
 

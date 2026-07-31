@@ -15,7 +15,7 @@ namespace Habitus.Infrastructure.Services;
 /// </summary>
 public class StripePaymentGatewayService : IPaymentGatewayService
 {
-    private readonly IRepository<PlatformBillingSettings> _platformBillingSettingsRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IEncryptionService _encryptionService;
     private readonly string? _fallbackSecretKey;
     private readonly string? _fallbackWebhookSecret;
@@ -25,12 +25,12 @@ public class StripePaymentGatewayService : IPaymentGatewayService
     private const string InvoiceIdMetadataKey = "habitus_invoice_id";
 
     public StripePaymentGatewayService(
-        IRepository<PlatformBillingSettings> platformBillingSettingsRepository,
+        IPlatformSettingsCache settingsCache,
         IEncryptionService encryptionService,
         IConfiguration configuration,
         ILogger<StripePaymentGatewayService> logger)
     {
-        _platformBillingSettingsRepository = platformBillingSettingsRepository;
+        _settingsCache = settingsCache;
         _encryptionService = encryptionService;
         _logger = logger;
         _fallbackSecretKey = configuration["Stripe:SecretKey"];
@@ -95,12 +95,12 @@ public class StripePaymentGatewayService : IPaymentGatewayService
     }
 
     /// <inheritdoc/>
-    public Task<PaymentWebhookResult> HandleWebhookAsync(
+    public async Task<PaymentWebhookResult> HandleWebhookAsync(
         string payload,
         string signatureHeader,
         CancellationToken ct = default)
     {
-        var webhookSecret = ResolveWebhookSecret();
+        var webhookSecret = await ResolveWebhookSecretAsync();
 
         Event stripeEvent;
         try
@@ -110,25 +110,25 @@ public class StripePaymentGatewayService : IPaymentGatewayService
         catch (StripeException ex)
         {
             _logger.LogWarning("Stripe webhook signature validation failed: {Message}", ex.Message);
-            return Task.FromResult(new PaymentWebhookResult { IsPaymentSucceeded = false });
+            return new PaymentWebhookResult { IsPaymentSucceeded = false };
         }
 
         // We listen for checkout.session.completed which fires when payment is collected
         if (stripeEvent.Type != EventTypes.CheckoutSessionCompleted)
         {
-            return Task.FromResult(new PaymentWebhookResult { IsPaymentSucceeded = false });
+            return new PaymentWebhookResult { IsPaymentSucceeded = false };
         }
 
         if (stripeEvent.Data.Object is not Session session)
         {
             _logger.LogWarning("Stripe checkout.session.completed event missing session object");
-            return Task.FromResult(new PaymentWebhookResult { IsPaymentSucceeded = false });
+            return new PaymentWebhookResult { IsPaymentSucceeded = false };
         }
 
         if (session.PaymentStatus != "paid")
         {
             // e.g., "unpaid" or "no_payment_required"
-            return Task.FromResult(new PaymentWebhookResult { IsPaymentSucceeded = false });
+            return new PaymentWebhookResult { IsPaymentSucceeded = false };
         }
 
         if (!session.Metadata.TryGetValue(InvoiceIdMetadataKey, out var invoiceIdStr)
@@ -137,24 +137,24 @@ public class StripePaymentGatewayService : IPaymentGatewayService
             _logger.LogWarning(
                 "Stripe session {SessionId} has no valid {Key} metadata",
                 session.Id, InvoiceIdMetadataKey);
-            return Task.FromResult(new PaymentWebhookResult { IsPaymentSucceeded = false });
+            return new PaymentWebhookResult { IsPaymentSucceeded = false };
         }
 
         _logger.LogInformation(
             "Stripe checkout.session.completed for invoice {InvoiceId}, session {SessionId}",
             invoiceId, session.Id);
 
-        return Task.FromResult(new PaymentWebhookResult
+        return new PaymentWebhookResult
         {
             IsPaymentSucceeded = true,
             InvoiceId = invoiceId,
             GatewayReference = session.Id
-        });
+        };
     }
 
     private async Task<string> ResolveSecretKeyAsync()
     {
-        var settings = (await _platformBillingSettingsRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetBillingAsync();
         if (!string.IsNullOrWhiteSpace(settings?.SecretKeyEncrypted))
         {
             return _encryptionService.Decrypt(settings.SecretKeyEncrypted);
@@ -168,9 +168,9 @@ public class StripePaymentGatewayService : IPaymentGatewayService
         throw new InvalidOperationException("Stripe:SecretKey is not configured");
     }
 
-    private string ResolveWebhookSecret()
+    private async Task<string> ResolveWebhookSecretAsync()
     {
-        var settings = _platformBillingSettingsRepository.GetAllAsync().GetAwaiter().GetResult().FirstOrDefault();
+        var settings = await _settingsCache.GetBillingAsync();
         if (!string.IsNullOrWhiteSpace(settings?.WebhookSecretEncrypted))
         {
             return _encryptionService.Decrypt(settings.WebhookSecretEncrypted);

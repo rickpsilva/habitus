@@ -17,13 +17,16 @@ namespace Habitus.Api.Controllers;
 public class PlatformLocalizationSettingsController : ControllerBase
 {
     private readonly IRepository<LocalizationSettings> _repository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly ILogger<PlatformLocalizationSettingsController> _logger;
 
     public PlatformLocalizationSettingsController(
         IRepository<LocalizationSettings> repository,
+        IPlatformSettingsCache settingsCache,
         ILogger<PlatformLocalizationSettingsController> logger)
     {
         _repository = repository;
+        _settingsCache = settingsCache;
         _logger = logger;
     }
 
@@ -34,7 +37,7 @@ public class PlatformLocalizationSettingsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetLocalizationAsync();
 
         if (settings == null)
         {
@@ -60,7 +63,7 @@ public class PlatformLocalizationSettingsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> GetPublicDefault()
     {
-        var settings = (await _repository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetLocalizationAsync();
 
         return Ok(new PublicLocalizationDefaultDto
         {
@@ -102,6 +105,7 @@ public class PlatformLocalizationSettingsController : ControllerBase
         }
 
         await _repository.SaveChangesAsync();
+        _settingsCache.InvalidateLocalization();
         _logger.LogInformation("Platform default language updated to {Default}", settings.DefaultLanguage);
 
         return Ok(ToDto(settings));

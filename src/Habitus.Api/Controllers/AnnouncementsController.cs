@@ -18,18 +18,18 @@ public class AnnouncementsController : ControllerBase
 {
     private readonly HabitusDbContext _context;
     private readonly IWebHostEnvironment _env;
-    private readonly IRepository<PlatformUploadSettings> _platformUploadSettingsRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly INotificationDispatchService _notificationDispatchService;
 
     public AnnouncementsController(
         HabitusDbContext context,
         IWebHostEnvironment env,
-        IRepository<PlatformUploadSettings> platformUploadSettingsRepository,
+        IPlatformSettingsCache settingsCache,
         INotificationDispatchService notificationDispatchService)
     {
         _context = context;
         _env = env;
-        _platformUploadSettingsRepository = platformUploadSettingsRepository;
+        _settingsCache = settingsCache;
         _notificationDispatchService = notificationDispatchService;
     }
 
@@ -711,7 +711,7 @@ public class AnnouncementsController : ControllerBase
 
     private async Task<int> GetMaxUploadSizeBytesAsync()
     {
-        var settings = (await _platformUploadSettingsRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetUploadAsync();
         return settings?.MaxUploadSizeBytes > 0 ? settings.MaxUploadSizeBytes : 600 * 1024;
     }
 

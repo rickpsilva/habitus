@@ -1,3 +1,5 @@
+using Habitus.Application.Interfaces;
+using Habitus.Domain.Entities;
 using Habitus.Infrastructure.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -57,6 +59,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             services.AddDbContext<HabitusDbContext>(options =>
                 options.UseNpgsql(TestConnectionString,
                     b => b.MigrationsAssembly("Habitus.Infrastructure")));
+
+            // The production IPlatformSettingsCache is backed by the singleton IMemoryCache, which
+            // would leak cached settings across tests that share this factory and seed rows directly
+            // through the DbContext (bypassing the API write paths that invalidate the cache).
+            // Replace it with a non-caching pass-through so every read hits the test database.
+            var cacheDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPlatformSettingsCache));
+            if (cacheDescriptor != null)
+                services.Remove(cacheDescriptor);
+            services.AddScoped<IPlatformSettingsCache, PassthroughPlatformSettingsCache>();
         });
 
         base.ConfigureWebHost(builder);
@@ -95,4 +106,46 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             _migrated = true;
         }
     }
+}
+
+/// <summary>
+/// Test-only <see cref="IPlatformSettingsCache"/> that always reads the current single row from the
+/// database (no caching, no cross-test state) so integration tests that seed settings directly via
+/// the DbContext observe their own data. Invalidation is a no-op because nothing is cached.
+/// </summary>
+internal sealed class PassthroughPlatformSettingsCache : IPlatformSettingsCache
+{
+    private readonly IRepository<LocalizationSettings> _localizationRepository;
+    private readonly IRepository<PlatformBillingSettings> _billingRepository;
+    private readonly IRepository<SystemEmailSettings> _systemEmailRepository;
+    private readonly IRepository<PlatformUploadSettings> _uploadRepository;
+
+    public PassthroughPlatformSettingsCache(
+        IRepository<LocalizationSettings> localizationRepository,
+        IRepository<PlatformBillingSettings> billingRepository,
+        IRepository<SystemEmailSettings> systemEmailRepository,
+        IRepository<PlatformUploadSettings> uploadRepository)
+    {
+        _localizationRepository = localizationRepository;
+        _billingRepository = billingRepository;
+        _systemEmailRepository = systemEmailRepository;
+        _uploadRepository = uploadRepository;
+    }
+
+    public Task<LocalizationSettings?> GetLocalizationAsync()
+        => _localizationRepository.FirstOrDefaultNoTrackingAsync(_ => true);
+
+    public Task<PlatformBillingSettings?> GetBillingAsync()
+        => _billingRepository.FirstOrDefaultNoTrackingAsync(_ => true);
+
+    public Task<SystemEmailSettings?> GetSystemEmailAsync()
+        => _systemEmailRepository.FirstOrDefaultNoTrackingAsync(_ => true);
+
+    public Task<PlatformUploadSettings?> GetUploadAsync()
+        => _uploadRepository.FirstOrDefaultNoTrackingAsync(_ => true);
+
+    public void InvalidateLocalization() { }
+    public void InvalidateBilling() { }
+    public void InvalidateSystemEmail() { }
+    public void InvalidateUpload() { }
 }

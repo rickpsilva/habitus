@@ -20,7 +20,7 @@ public class MeController : ControllerBase
     private readonly AuthService _authService;
     private readonly IConsentService _consentService;
     private readonly IRepository<User> _userRepository;
-    private readonly IRepository<LocalizationSettings> _localizationRepository;
+    private readonly IPlatformSettingsCache _settingsCache;
     private readonly IFeatureEntitlementService _featureEntitlementService;
     private readonly IPersonalDataService _personalDataService;
 
@@ -28,14 +28,14 @@ public class MeController : ControllerBase
         AuthService authService,
         IConsentService consentService,
         IRepository<User> userRepository,
-        IRepository<LocalizationSettings> localizationRepository,
+        IPlatformSettingsCache settingsCache,
         IFeatureEntitlementService featureEntitlementService,
         IPersonalDataService personalDataService)
     {
         _authService = authService;
         _consentService = consentService;
         _userRepository = userRepository;
-        _localizationRepository = localizationRepository;
+        _settingsCache = settingsCache;
         _featureEntitlementService = featureEntitlementService;
         _personalDataService = personalDataService;
     }
@@ -279,7 +279,7 @@ public class MeController : ControllerBase
     /// <summary>Returns the platform-wide default language, falling back to "pt" when unset.</summary>
     private async Task<string> GetPlatformDefaultLanguageAsync()
     {
-        var settings = (await _localizationRepository.GetAllAsync()).FirstOrDefault();
+        var settings = await _settingsCache.GetLocalizationAsync();
         return settings?.DefaultLanguage ?? LocalizationLanguages.Default;
     }
 }
