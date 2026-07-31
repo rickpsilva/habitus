@@ -287,7 +287,8 @@ public class UserService
         var activeUsers = await _userRepository.FindAsync(
             u => u.Role != UserRole.Manager && u.IsActive && u.LastLoginAt >= since);
         var grouped = activeUsers
-            .GroupBy(u => u.CondominiumId)
+            .Where(u => u.CondominiumId.HasValue)
+            .GroupBy(u => u.CondominiumId!.Value)
             .ToDictionary(g => g.Key, g => g.Count());
         return allCondominiums
             .Select(c => new CondominiumActiveUsersDto

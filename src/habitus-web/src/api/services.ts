@@ -34,7 +34,6 @@ import type {
   AssemblyDto,
   CreateAssemblyRequest,
   UpdateAssemblyRequest,
-  ResidentDto,
   UserDto,
   CreateUserRequest,
   UpdateUserRequest,
@@ -198,14 +197,6 @@ export const condominiumsApi = {
   updateContactPhone: (id: string, contactPhone?: string) =>
     api.put<CondominiumDto>(`/platform/condominiums/${id}/contact-phone`, { contactPhone }),
   delete: (id: string) => api.delete(`/platform/condominiums/${id}`),
-};
-
-// Deprecated - use usersApi instead
-export const residentsApi = {
-  getAll: () => api.get<ResidentDto[]>('/residents'),
-  getById: (id: string) => api.get<ResidentDto>(`/residents/${id}`),
-  getByUnit: (unitId: string) => api.get<ResidentDto[]>(`/residents/unit/${unitId}`),
-  delete: (id: string) => api.delete(`/residents/${id}`),
 };
 
 export const unitsApi = {

@@ -97,7 +97,6 @@ public static class DependencyInjection
         }
 
         services.AddScoped<AuthService>();
-        services.AddScoped<ResidentService>();
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();

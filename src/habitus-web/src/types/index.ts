@@ -218,17 +218,6 @@ export interface PendingUserDto {
   createdAt: string;
 }
 
-// Deprecated - use UserDto instead
-export interface ResidentDto {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  unitId: string;
-  role: string;
-  createdAt: string;
-}
-
 export const UserRole = {
   Manager: 0,
   Admin: 1,

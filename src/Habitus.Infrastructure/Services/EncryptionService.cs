@@ -135,9 +135,6 @@ public class EncryptionService : IEncryptionService
         // Use PBKDF2 to derive a 256-bit key from the input string
         var salt = Encoding.UTF8.GetBytes("habitus-encryption-salt"); // Fixed salt for consistency
         
-        using (var pbkdf2 = new Rfc2898DeriveBytes(keyString, salt, 100000, HashAlgorithmName.SHA256))
-        {
-            return pbkdf2.GetBytes(KeySize);
-        }
+        return Rfc2898DeriveBytes.Pbkdf2(keyString, salt, 100000, HashAlgorithmName.SHA256, KeySize);
     }
 }

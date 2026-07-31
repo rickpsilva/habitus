@@ -54,8 +54,6 @@ public class HabitusDbContext : DbContext
     public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
     
     // Deprecated entities (kept for migration compatibility)
-    [Obsolete("Use Users instead")]
-    public DbSet<Resident> Residents => Set<Resident>();
     [Obsolete("Use Condominiums instead")]
     public DbSet<Building> Buildings => Set<Building>();
 
@@ -396,7 +394,7 @@ public class HabitusDbContext : DbContext
             // This ensures no duplicate deliveries for the same dispatch to the same recipient
             entity.HasIndex(d => new { d.Channel, d.DispatchKey, d.RecipientUserId, d.RecipientExternalId })
                 .IsUnique()
-                .HasName("IX_NotificationDispatchDelivery_Unique_Delivery");
+                .HasDatabaseName("IX_NotificationDispatchDelivery_Unique_Delivery");
             
             entity.HasIndex(d => d.CondominiumId);
         });
