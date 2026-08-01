@@ -875,6 +875,7 @@ fi
 
 app_settings=(
     "ASPNETCORE_ENVIRONMENT=Production"
+    "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true"
     "Frontend__BaseUrl=${frontend_url}"
     "AllowedOrigins=${allowed_origins}"
     "AzureStorage__ContainerName=${DOCS_CONTAINER}"
@@ -997,13 +998,56 @@ if [[ "$SKIP_DEPLOY" == "false" && "$SKIP_API" == "false" ]]; then
         zip -qr "$temp_dir/api.zip" .
     )
 
-    az webapp deploy \
+    set +e
+    deploy_output="$(az webapp deploy \
         --resource-group "$RESOURCE_GROUP" \
         --name "$API_APP_NAME" \
         --src-path "$temp_dir/api.zip" \
         --type zip \
         --clean true \
-        --output none
+        --track-status false \
+        --timeout 900000 \
+        --output none 2>&1)"
+    deploy_exit_code=$?
+    set -e
+
+    if [[ $deploy_exit_code -ne 0 ]]; then
+        warn "az webapp deploy returned an error. Checking latest deployment status in App Service logs..."
+
+        latest_deploy_message="$(az webapp log deployment show \
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query '[-1].message' \
+            -o tsv 2>/dev/null || true)"
+
+        latest_deploy_status="$(az webapp log deployment list \
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query '[?is_temp==`false`] | [0].status' \
+            -o tsv 2>/dev/null || true)"
+
+        latest_deploy_id="$(az webapp log deployment list \
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query '[?is_temp==`false`] | [0].id' \
+            -o tsv 2>/dev/null || true)"
+
+        latest_deploy_url="https://${API_APP_NAME}.scm.azurewebsites.net/api/deployments/latest"
+
+        if [[ "$latest_deploy_message" == "Deployment successful. deployer = OneDeploy deploymentPath = OneDeploy" || "$latest_deploy_status" == "4" ]]; then
+            warn "Azure returned a transient error (for example 504), but Kudu reports deployment success. Continuing."
+        elif [[ "$latest_deploy_status" == "0" || "$latest_deploy_status" == "1" || "$latest_deploy_status" == "2" ]]; then
+            warn "Deployment is still in progress on Kudu (status=${latest_deploy_status}, id=${latest_deploy_id}). Continuing because Azure can return transient 502/504 while deploy keeps running."
+            warn "Track progress at: ${latest_deploy_url}"
+        else
+            printf '%s\n' "$deploy_output" >&2
+            if [[ -n "$latest_deploy_id" ]]; then
+                warn "Latest Kudu deployment id: ${latest_deploy_id} (status=${latest_deploy_status:-unknown})"
+                warn "Inspect details at: ${latest_deploy_url}"
+            fi
+            fail "API deployment failed and no successful deployment status was found in Kudu logs."
+        fi
+    fi
 
     success "API deployed"
 fi
