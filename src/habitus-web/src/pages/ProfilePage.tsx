@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, Lock, Save, Building2, Home, Shield, FileText, Download, Trash2, Upload, TrendingUp, Moon, Sun, Link2, RefreshCcw, ShieldCheck, ShieldAlert, Star, ExternalLink, Settings, BookOpen } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -8,14 +8,16 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import FileUpload from '../components/FileUpload';
+import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { PageHeader, Spinner, Button, Card, Skeleton, Badge, AsyncState } from '../components/ui';
+import { PageHeader, Spinner, Button, Card, Skeleton, Badge, AsyncState, FilterBar, FilterChip } from '../components/ui';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
 import type { CookieConsent } from '../utils/cookieConsent';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslationKey, TranslateFn } from '../i18n/types';
-import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest, MembershipCondominiumDto, ConsentItem, ErasureRequest } from '../types';
+import type { UpdateUserRequest, UserDto, CondominiumDto, UnitDto, DocumentDto, TwoFactorSecurityResponse, TwoFactorSetupResponse, DisableTwoFactorRequest, RegenerateRecoveryCodesRequest, MembershipCondominiumDto, ConsentItem, ErasureRequest, PaginatedResponse } from '../types';
 import { ConsentDecision, ErasureType } from '../types';
 
 // i18n overrides for well-known consent keys; unknown keys keep the DB title.
@@ -70,6 +72,14 @@ export default function ProfilePage() {
     confirmPassword: '',
   });
   const [unitDocuments, setUnitDocuments] = useState<DocumentDto[]>([]);
+  const [allUnitDocumentsData, setAllUnitDocumentsData] = useState<DocumentDto[]>([]);
+  const [unitDocumentsPagination, setUnitDocumentsPagination] = useState<PaginatedResponse<DocumentDto> | null>(null);
+  const [unitDocumentsCurrentPage, setUnitDocumentsCurrentPage] = useState(1);
+  const [unitDocumentsSearchQuery, setUnitDocumentsSearchQuery] = useState('');
+  const [unitDocumentsDebouncedSearch, setUnitDocumentsDebouncedSearch] = useState('');
+  const [unitDocumentsTypeFilter, setUnitDocumentsTypeFilter] = useState<string>('All');
+  const [unitDocumentsTypeCounts, setUnitDocumentsTypeCounts] = useState<Record<string, number>>({});
+  const unitDocumentsPageSize = 10;
   const [consents, setConsents] = useState<ConsentItem[]>([]);
   const [loadingConsents, setLoadingConsents] = useState(true);
   const [consentsError, setConsentsError] = useState<string | null>(null);
@@ -114,6 +124,61 @@ export default function ProfilePage() {
     useRecoveryCode: false,
   });
 
+  const loadUnitDocuments = useCallback(async () => {
+    if (!user || !user.condominiumId || !user.unitId) return;
+    try {
+      // Fetch all documents for this unit with search (no pagination from API)
+      const response = await documentsApi.getPaged(user.condominiumId, 1, 9999, unitDocumentsDebouncedSearch, 'Unit');
+      // Filter documents by unitId
+      let unitDocs = response.data.items.filter(doc => doc.unitId === user.unitId);
+      
+      // Calculate type counts from all unit documents
+      const counts: Record<string, number> = { All: unitDocs.length };
+      Object.keys(unitDocumentTypes(t)).forEach(type => {
+        counts[type] = unitDocs.filter(doc => doc.type === type).length;
+      });
+      setUnitDocumentsTypeCounts(counts);
+      
+      // Apply type filter to documents
+      let filteredDocs = unitDocs;
+      if (unitDocumentsTypeFilter !== 'All') {
+        filteredDocs = unitDocs.filter(doc => doc.type === unitDocumentsTypeFilter);
+      }
+      
+      // Calculate pagination locally
+      const totalItems = filteredDocs.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / unitDocumentsPageSize));
+      const startIndex = (unitDocumentsCurrentPage - 1) * unitDocumentsPageSize;
+      const endIndex = startIndex + unitDocumentsPageSize;
+      const paginatedDocs = filteredDocs.slice(startIndex, endIndex);
+      
+      setUnitDocuments(paginatedDocs);
+      setAllUnitDocumentsData(unitDocs);
+      setUnitDocumentsPagination({
+        items: paginatedDocs,
+        page: unitDocumentsCurrentPage,
+        pageSize: unitDocumentsPageSize,
+        totalItems: totalItems,
+        totalPages: totalPages,
+        hasPreviousPage: unitDocumentsCurrentPage > 1,
+        hasNextPage: unitDocumentsCurrentPage < totalPages,
+      });
+    } catch (err) {
+      console.error('Failed to load unit documents:', err);
+    }
+  }, [user, unitDocumentsCurrentPage, unitDocumentsDebouncedSearch, unitDocumentsTypeFilter, t]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setUnitDocumentsDebouncedSearch(unitDocumentsSearchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [unitDocumentsSearchQuery]);
+
+  useEffect(() => {
+    return onThemeChanged(() => {
+      setIsDarkMode(getIsDarkMode());
+    });
+  }, []);
+
   useEffect(() => {
     return onThemeChanged(() => {
       setIsDarkMode(getIsDarkMode());
@@ -130,6 +195,17 @@ export default function ProfilePage() {
         // Silent: falls back to the single active-unit display below.
       });
   }, [user]);
+
+  // Search debounce
+  useEffect(() => {
+    const timer = setTimeout(() => setUnitDocumentsDebouncedSearch(unitDocumentsSearchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [unitDocumentsSearchQuery]);
+
+  // Load documents when any relevant filter changes
+  useEffect(() => {
+    loadUnitDocuments();
+  }, [loadUnitDocuments]);
 
   // Whether the language selector should be shown, gated by the active
   // condominium's multilanguage flag (REQ-I18N-001). Mirrors Layout.tsx.
@@ -334,8 +410,6 @@ export default function ProfilePage() {
       .catch((err) => {
         console.error('Failed to load unit:', err);
       });
-
-    loadUnitDocuments(condominiumId, unitId);
   }, [user?.condominiumId, user?.unitId]);
 
   useEffect(() => {
@@ -445,17 +519,6 @@ export default function ProfilePage() {
     }
   };
 
-  async function loadUnitDocuments(condominiumId: string, unitId: string) {
-    try {
-      const response = await documentsApi.getPaged(condominiumId, 1, 100, '', 'Unit');
-      // Filter documents by unitId
-      const unitDocs = response.data.items.filter(doc => doc.unitId === unitId);
-      setUnitDocuments(unitDocs);
-    } catch (err) {
-      console.error('Failed to load unit documents:', err);
-    }
-  }
-
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile || !user?.unitId || !user.condominiumId) return;
@@ -478,13 +541,25 @@ export default function ProfilePage() {
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadForm({ name: '', type: 'UnitInsurance', description: '' });
-      loadUnitDocuments(user.condominiumId, user.unitId);
+      setUnitDocumentsCurrentPage(1);
+      // Force reload to show new document
+      loadUnitDocuments();
     } catch (err) {
       setError(t('profile.documents.uploadError'));
       console.error(err);
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleTypeFilter = (type: string) => {
+    setUnitDocumentsTypeFilter(type);
+    setUnitDocumentsCurrentPage(1);
+  };
+
+  const handleSearchDocuments = (value: string) => {
+    setUnitDocumentsSearchQuery(value);
+    setUnitDocumentsCurrentPage(1);
   };
 
   const handleDelete = async (id: string) => {
@@ -497,7 +572,8 @@ export default function ProfilePage() {
       await documentsApi.delete(user.condominiumId, deleteDocId);
       setSuccess(t('profile.documents.deleteSuccess'));
       setTimeout(() => setSuccess(''), 3000);
-      loadUnitDocuments(user.condominiumId, user.unitId);
+      // Force reload to update list
+      loadUnitDocuments();
     } catch (err) {
       toastError(t('profile.documents.deleteError'));
       console.error(err);
@@ -616,7 +692,7 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <div className="border-b border-line">
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto app-scrollbar pb-1">
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
@@ -1430,12 +1506,12 @@ export default function ProfilePage() {
 
       {activeTab === 'documents' && unit && (
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-700 shrink-0">
                 <FileText className="w-6 h-6" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-ink">{t('profile.documents.title')}</h2>
                 <p className="text-sm text-ink-subtle">{t('profile.documents.subtitle')}</p>
               </div>
@@ -1445,7 +1521,37 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {unitDocuments.length === 0 ? (
+          {/* Search Bar */}
+          <div className="mb-6">
+            <SearchBar
+              value={unitDocumentsSearchQuery}
+              onChange={handleSearchDocuments}
+              placeholder={t('documents.searchPlaceholder')}
+            />
+          </div>
+
+          {/* Type Filter Chips */}
+          <div className="mb-6">
+            <FilterBar>
+              <FilterChip
+                label={'All'}
+                count={unitDocumentsTypeCounts['All'] || 0}
+                active={unitDocumentsTypeFilter === 'All'}
+                onClick={() => handleTypeFilter('All')}
+              />
+              {Object.entries(unitDocumentTypes(t)).map(([type, label]) => (
+                <FilterChip
+                  key={type}
+                  label={label}
+                  count={unitDocumentsTypeCounts[type] || 0}
+                  active={unitDocumentsTypeFilter === type}
+                  onClick={() => handleTypeFilter(type)}
+                />
+              ))}
+            </FilterBar>
+          </div>
+
+          {allUnitDocumentsData.length === 0 ? (
             <div className="text-center py-12 text-ink-subtle">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="text-sm">{t('profile.documents.empty')}</p>
@@ -1453,51 +1559,66 @@ export default function ProfilePage() {
                 {t('profile.documents.emptyHint')}
               </p>
             </div>
+          ) : unitDocuments.length === 0 ? (
+            <div className="text-center py-12 text-ink-subtle">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">{t('documents.empty.noResults')}</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {unitDocuments.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-4 border border-line rounded-lg hover:bg-surface-hover transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <FileText className="w-5 h-5 text-ink-subtle" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-ink truncate">{doc.name}</p>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          unitDocumentColors[doc.type] || 'bg-control text-ink-muted'
-                        }`}>
-                          {unitDocumentTypes(t)[doc.type] || doc.type}
-                        </span>
+            <>
+              <div className="space-y-3 mb-6">
+                {unitDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-line rounded-lg hover:bg-surface-hover transition-colors"
+                  >
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <FileText className="w-5 h-5 text-ink-subtle flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                          <p className="font-medium text-ink truncate max-w-xs sm:max-w-sm">{doc.name}</p>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                            unitDocumentColors[doc.type] || 'bg-control text-ink-muted'
+                          }`}>
+                            {unitDocumentTypes(t)[doc.type] || doc.type}
+                          </span>
+                        </div>
+                        {doc.description && (
+                          <p className="text-sm text-ink-subtle truncate">{doc.description}</p>
+                        )}
+                        <p className="text-xs text-ink-subtle mt-1">
+                          {t('profile.documents.updatedAt', { date: formatDate(doc.uploadedAt) })}
+                        </p>
                       </div>
-                      {doc.description && (
-                        <p className="text-sm text-ink-subtle truncate">{doc.description}</p>
-                      )}
-                      <p className="text-xs text-ink-subtle mt-1">
-                        {t('profile.documents.updatedAt', { date: formatDate(doc.uploadedAt) })}
-                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleDownload(doc.id, doc.name)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title={t('profile.documents.tooltipDownload')}
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(doc.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title={t('profile.documents.tooltipDelete')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDownload(doc.id, doc.name)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title={t('profile.documents.tooltipDownload')}
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title={t('profile.documents.tooltipDelete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+
+              {unitDocumentsPagination && (
+                <Pagination
+                  pagination={unitDocumentsPagination}
+                  currentPage={unitDocumentsCurrentPage}
+                  onPageChange={setUnitDocumentsCurrentPage}
+                />
+              )}
+            </>
           )}
         </Card>
       )}
