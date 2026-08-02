@@ -21,6 +21,8 @@ project.lock.json
 Thumbs.db
 
 # Node / Frontend
+node_modules/
+**/node_modules/
 src/habitus-web/node_modules/
 src/habitus-web/dist/
 src/habitus-web/package-lock.json
