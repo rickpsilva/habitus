@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using FluentAssertions;
 using Habitus.Application.DTOs.Maintenance;
 using Habitus.Application.Interfaces;
@@ -11,6 +12,7 @@ public class MaintenanceServiceTests
 {
     private readonly Mock<IRepository<MaintenanceRequest>> _repositoryMock;
     private readonly Mock<IRepository<FinancialRecord>> _financialRepositoryMock;
+    private readonly Mock<IRepository<ExpenseCategory>> _expenseCategoryRepositoryMock;
     private readonly MaintenanceService _service;
 
     public MaintenanceServiceTests()
@@ -18,8 +20,9 @@ public class MaintenanceServiceTests
         _repositoryMock = new Mock<IRepository<MaintenanceRequest>>();
         var notificationRepoMock = new Mock<IRepository<Notification>>();
         _financialRepositoryMock = new Mock<IRepository<FinancialRecord>>();
+        _expenseCategoryRepositoryMock = new Mock<IRepository<ExpenseCategory>>();
         var dispatchMock = new Mock<INotificationDispatchService>();
-        _service = new MaintenanceService(_repositoryMock.Object, notificationRepoMock.Object, _financialRepositoryMock.Object, dispatchMock.Object);
+        _service = new MaintenanceService(_repositoryMock.Object, notificationRepoMock.Object, _financialRepositoryMock.Object, _expenseCategoryRepositoryMock.Object, dispatchMock.Object);
     }
 
     [Fact]
@@ -85,6 +88,7 @@ public class MaintenanceServiceTests
         var condominiumId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var unitId = Guid.NewGuid();
+        var expenseCategoryId = Guid.NewGuid();
         var entity = new MaintenanceRequest
         {
             Id = id,
@@ -99,13 +103,24 @@ public class MaintenanceServiceTests
         _repositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
         _financialRepositoryMock.Setup(r => r.AddAsync(It.IsAny<FinancialRecord>())).Returns(Task.CompletedTask);
         _financialRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _expenseCategoryRepositoryMock.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<ExpenseCategory, bool>>>()))
+            .ReturnsAsync((Expression<Func<ExpenseCategory, bool>> predicate) =>
+                new ExpenseCategory
+                {
+                    Id = expenseCategoryId,
+                    CondominiumId = condominiumId,
+                    Name = "Repairs",
+                    IsActive = true,
+                    IsDeleted = false
+                });
 
         var result = await _service.UpdateStatusAsync(
             id,
             new UpdateMaintenanceStatusRequest
             {
                 Status = "Completed",
-                ExpenseAmount = 120.50m
+                ExpenseAmount = 120.50m,
+                ExpenseCategoryId = expenseCategoryId
             },
             condominiumId,
             "Admin",
@@ -118,6 +133,7 @@ public class MaintenanceServiceTests
         entity.InvoiceDocumentId.Should().BeNull();
         entity.HasExpense.Should().BeTrue();
         entity.ExpenseAmount.Should().Be(120.50m);
+        entity.ExpenseCategoryId.Should().Be(expenseCategoryId);
     }
 
     [Fact]

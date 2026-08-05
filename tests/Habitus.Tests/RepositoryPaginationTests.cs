@@ -16,7 +16,7 @@ public class RepositoryPaginationTests
         return new HabitusDbContext(options);
     }
 
-    private static FinancialRecord Record(Guid condominiumId, string description, DateTime date, FinancialCategory category = FinancialCategory.MonthlyFees)
+    private static FinancialRecord Record(Guid condominiumId, string description, DateTime date, IncomeCategory incomeCategory = IncomeCategory.MonthlyFees)
         => new()
         {
             Id = Guid.NewGuid(),
@@ -25,7 +25,7 @@ public class RepositoryPaginationTests
             Description = description,
             Date = date,
             FiscalYear = date.Year,
-            Category = category,
+            IncomeCategory = incomeCategory,
             CondominiumId = condominiumId
         };
 

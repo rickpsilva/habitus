@@ -18,10 +18,11 @@ public class FinancialServicePaginationTests
         _repositoryMock = new Mock<IRepository<FinancialRecord>>();
         var reserveFundMock = new Mock<IRepository<ReserveFund>>();
         var announcementMock = new Mock<IRepository<Announcement>>();
-        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object);
+        var expenseCategoryMock = new Mock<IRepository<ExpenseCategory>>();
+        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object);
     }
 
-    private static FinancialRecord Record(Guid condominiumId, string description, FinancialCategory category = FinancialCategory.MonthlyFees)
+    private static FinancialRecord Record(Guid condominiumId, string description, IncomeCategory incomeCategory = IncomeCategory.MonthlyFees)
         => new()
         {
             Id = Guid.NewGuid(),
@@ -30,7 +31,7 @@ public class FinancialServicePaginationTests
             Description = description,
             Date = DateTime.UtcNow,
             FiscalYear = DateTime.UtcNow.Year,
-            Category = category,
+            IncomeCategory = incomeCategory,
             CondominiumId = condominiumId
         };
 
@@ -38,20 +39,30 @@ public class FinancialServicePaginationTests
     public async Task GetPagedAsync_MapsEntitiesToDtos_AndForwardsMetadata()
     {
         var condominiumId = Guid.NewGuid();
-        var entities = new List<FinancialRecord> { Record(condominiumId, "Water bill") };
-        _repositoryMock
-            .Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(),
-                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
-                It.IsAny<bool>()))
-            .ReturnsAsync(new PaginatedResponse<FinancialRecord>
+        var baseDate = DateTime.UtcNow.Date;
+        var entities = Enumerable.Range(0, 8)
+            .Select(i => new FinancialRecord
             {
-                Items = entities,
-                Page = 2,
-                PageSize = 5,
-                TotalItems = 8,
-                TotalPages = 2
-            });
+                Id = Guid.NewGuid(),
+                Type = FinancialType.Income,
+                Amount = 100m,
+                Description = i == 7 ? "Water bill" : $"Record {i}",
+                Date = baseDate.AddHours(-i),
+                FiscalYear = baseDate.Year,
+                IncomeCategory = IncomeCategory.MonthlyFees,
+                CondominiumId = condominiumId
+            })
+            .ToList();
+
+        _repositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter) => entities.Count(filter.Compile()));
+
+        _repositoryMock
+            .Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<string[]>()))
+            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter, string[] _) => entities.Where(filter.Compile()));
 
         var result = await _service.GetPagedAsync(page: 2, pageSize: 5, condominiumId: condominiumId);
 
@@ -69,13 +80,15 @@ public class FinancialServicePaginationTests
         var otherCondominiumId = Guid.NewGuid();
         Expression<Func<FinancialRecord, bool>>? capturedFilter = null;
         _repositoryMock
-            .Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(),
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+            .Callback<Expression<Func<FinancialRecord, bool>>>(filter => capturedFilter = filter)
+            .ReturnsAsync(0);
+
+        _repositoryMock
+            .Setup(r => r.FindWithIncludesAsync(
                 It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
-                It.IsAny<bool>()))
-            .Callback<int, int, Expression<Func<FinancialRecord, bool>>, Expression<Func<FinancialRecord, object>>, bool>(
-                (_, _, filter, _, _) => capturedFilter = filter)
-            .ReturnsAsync(new PaginatedResponse<FinancialRecord>());
+                It.IsAny<string[]>()))
+            .ReturnsAsync(Enumerable.Empty<FinancialRecord>());
 
         await _service.GetPagedAsync(page: 1, pageSize: 10, condominiumId: condominiumId);
 
@@ -89,25 +102,22 @@ public class FinancialServicePaginationTests
     public async Task GetPagedAsync_NormalizesInvalidPagingArguments()
     {
         var condominiumId = Guid.NewGuid();
-        var capturedPage = -1;
-        var capturedPageSize = -1;
         _repositoryMock
-            .Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(),
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+            .ReturnsAsync(0);
+
+        _repositoryMock
+            .Setup(r => r.FindWithIncludesAsync(
                 It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
-                It.IsAny<bool>()))
-            .Callback<int, int, Expression<Func<FinancialRecord, bool>>, Expression<Func<FinancialRecord, object>>, bool>(
-                (page, pageSize, _, _, _) =>
-                {
-                    capturedPage = page;
-                    capturedPageSize = pageSize;
-                })
-            .ReturnsAsync(new PaginatedResponse<FinancialRecord>());
+                It.IsAny<string[]>()))
+            .ReturnsAsync(Enumerable.Empty<FinancialRecord>());
 
-        await _service.GetPagedAsync(page: 0, pageSize: 999, condominiumId: condominiumId);
+        var result = await _service.GetPagedAsync(page: 0, pageSize: 999, condominiumId: condominiumId);
 
-        capturedPage.Should().Be(1);
-        capturedPageSize.Should().Be(10);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(10);
+        result.TotalItems.Should().Be(0);
+        result.Items.Should().BeEmpty();
     }
 
     [Fact]
@@ -116,13 +126,15 @@ public class FinancialServicePaginationTests
         var condominiumId = Guid.NewGuid();
         Expression<Func<FinancialRecord, bool>>? capturedFilter = null;
         _repositoryMock
-            .Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(),
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+            .Callback<Expression<Func<FinancialRecord, bool>>>(filter => capturedFilter = filter)
+            .ReturnsAsync(0);
+
+        _repositoryMock
+            .Setup(r => r.FindWithIncludesAsync(
                 It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
-                It.IsAny<bool>()))
-            .Callback<int, int, Expression<Func<FinancialRecord, bool>>, Expression<Func<FinancialRecord, object>>, bool>(
-                (_, _, filter, _, _) => capturedFilter = filter)
-            .ReturnsAsync(new PaginatedResponse<FinancialRecord>());
+                It.IsAny<string[]>()))
+            .ReturnsAsync(Enumerable.Empty<FinancialRecord>());
 
         await _service.GetPagedAsync(page: 1, pageSize: 10, condominiumId: condominiumId, search: "WATER");
 

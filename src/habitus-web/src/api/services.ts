@@ -19,8 +19,12 @@ import type {
   PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
+  UpdateMaintenanceStatusRequest,
   FinancialRecordDto,
   CreateFinancialRecordRequest,
+  ExpenseCategoryDto,
+  CreateExpenseCategoryRequest,
+  UpdateExpenseCategoryRequest,
   FinancialSummaryDto,
   FinancialDashboardDto,
   ReserveFundDto,
@@ -124,6 +128,8 @@ export const authApi = {
   regenerateRecoveryCodes: (data: RegenerateRecoveryCodesRequest) =>
     api.post<RecoveryCodesResponse>('/platform/auth/2fa/recovery-codes/regenerate', data),
   unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/platform/auth/providers/${provider}`),
+  repairEmailHashes: (email?: string) =>
+    api.post<{ repaired: number }>('/platform/auth/repair-email-hashes', email ? { email } : {}),
 };
 
 // Current user memberships & active-context switching (REQ-AUTH-006)
@@ -265,16 +271,24 @@ export const maintenanceApi = {
   create: (condominiumId: string, data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance`, data),
   update: (condominiumId: string, id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
     api.put<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`, data),
-  updateStatus: (condominiumId: string, id: string, data: { 
-    status: string; 
-    supplierId?: string; 
-    adminComments?: string;
-    hasExpense?: boolean;
-    expenseAmount?: number;
-    invoiceDocumentId?: string;
-  }) =>
+  updateStatus: (condominiumId: string, id: string, data: UpdateMaintenanceStatusRequest) =>
     api.put<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}/status`, data),
   delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/maintenance/${id}`),
+};
+
+export const expenseCategoriesApi = {
+  getAll: (condominiumId: string) =>
+    api.get<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories`),
+  getActive: (condominiumId: string) =>
+    api.get<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories/active`),
+  getById: (condominiumId: string, id: string) =>
+    api.get<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories/${id}`),
+  create: (condominiumId: string, data: CreateExpenseCategoryRequest) =>
+    api.post<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories`, data),
+  update: (condominiumId: string, id: string, data: UpdateExpenseCategoryRequest) =>
+    api.put<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories/${id}`, data),
+  delete: (condominiumId: string, id: string) =>
+    api.delete(`/condominiums/${condominiumId}/expense-categories/${id}`),
 };
 
 export const financialApi = {

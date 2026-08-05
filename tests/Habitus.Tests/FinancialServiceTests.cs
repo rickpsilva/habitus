@@ -19,7 +19,8 @@ public class FinancialServiceTests
         _repositoryMock = new Mock<IRepository<FinancialRecord>>();
         var reserveFundMock = new Mock<IRepository<ReserveFund>>();
         var announcementMock = new Mock<IRepository<Announcement>>();
-        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object);
+        var expenseCategoryMock = new Mock<IRepository<ExpenseCategory>>();
+        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object);
     }
 
     [Fact(Skip = "Legacy test - DTO fields updated. See FinancialServiceIsolationTests.")]
@@ -34,10 +35,12 @@ public class FinancialServiceTests
         var condominiumId = Guid.NewGuid();
         var records = new List<FinancialRecord>
         {
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 5000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, Description = "Fee", Category = FinancialCategory.MonthlyFees },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 2000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, Description = "Repair", Category = FinancialCategory.Maintenance }
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 5000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, Description = "Fee", IncomeCategory = IncomeCategory.MonthlyFees },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 2000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, Description = "Repair", ExpenseCategoryId = Guid.NewGuid() }
         };
-        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<string[]>()))
             .ReturnsAsync(records);
 
         var summary = await _service.GetSummaryAsync(condominiumId);
@@ -58,32 +61,24 @@ public class FinancialServiceTests
         var fiscalYear = DateTime.UtcNow.Year;
         var records = new List<FinancialRecord>
         {
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 5000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, FiscalYear = fiscalYear, Description = "Fee", Category = FinancialCategory.MonthlyFees },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 2000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, FiscalYear = fiscalYear, Description = "Repair", Category = FinancialCategory.Maintenance }
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 5000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, FiscalYear = fiscalYear, Description = "Fee", IncomeCategory = IncomeCategory.MonthlyFees },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 2000m, CondominiumId = condominiumId, Date = DateTime.UtcNow, FiscalYear = fiscalYear, Description = "Repair", ExpenseCategoryId = Guid.NewGuid() }
         };
 
-        _repositoryMock.Setup(r => r.GetPagedAsync(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
+        _repositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
+            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter) => records.Count(filter.Compile()));
+
+        _repositoryMock
+            .Setup(r => r.FindWithIncludesAsync(
                 It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
-                It.IsAny<bool>()))
-            .ReturnsAsync((int page, int pageSize, Expression<Func<FinancialRecord, bool>> filter, Expression<Func<FinancialRecord, object>> _, bool __) =>
-            {
-                var matched = records.Where(filter.Compile()).ToList();
-                return new PaginatedResponse<FinancialRecord>
-                {
-                    Items = matched,
-                    Page = page,
-                    PageSize = pageSize,
-                    TotalItems = matched.Count,
-                    TotalPages = 1
-                };
-            });
+                It.IsAny<string[]>()))
+            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter, string[] _) => records.Where(filter.Compile()));
 
         var result = await _service.GetPagedByYearAsync(condominiumId, fiscalYear, 1, 10, null, type);
 
         result.TotalItems.Should().Be(expectedCount);
+        result.Items.Should().HaveCount(expectedCount);
         if (type is "Income" or "Expense")
         {
             result.Items.Should().OnlyContain(i => i.Type == type);

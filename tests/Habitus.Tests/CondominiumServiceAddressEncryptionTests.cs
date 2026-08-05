@@ -23,6 +23,7 @@ public class CondominiumServiceAddressEncryptionTests
         _userRepository = new Mock<IRepository<User>>();
         _unitRepository = new Mock<IRepository<Unit>>();
         _paymentSettingsRepository = new Mock<IRepository<PaymentSettings>>();
+        var expenseCategoryRepository = new Mock<IRepository<ExpenseCategory>>();
         _encryptionService = new Mock<IEncryptionService>();
 
         _service = new CondominiumService(
@@ -30,6 +31,7 @@ public class CondominiumServiceAddressEncryptionTests
             _userRepository.Object,
             _unitRepository.Object,
             _paymentSettingsRepository.Object,
+            expenseCategoryRepository.Object,
             _encryptionService.Object);
     }
 

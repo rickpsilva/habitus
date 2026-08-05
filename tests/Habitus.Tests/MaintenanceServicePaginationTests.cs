@@ -19,6 +19,7 @@ public class MaintenanceServicePaginationTests
             _repositoryMock.Object,
             new Mock<IRepository<Notification>>().Object,
             new Mock<IRepository<FinancialRecord>>().Object,
+            new Mock<IRepository<ExpenseCategory>>().Object,
             new Mock<INotificationDispatchService>().Object);
     }
 

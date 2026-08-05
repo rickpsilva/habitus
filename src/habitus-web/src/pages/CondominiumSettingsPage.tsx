@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server, Languages
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server, Languages, Tags, Hash
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
@@ -12,7 +12,7 @@ import type { TranslateFn } from '../i18n/types';
 import ModalPopup from '../components/ModalPopup';
 import { PageHeader, Spinner, ErrorState, Button, Card } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi, platformLocalizationApi } from '../api/services';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi, platformLocalizationApi, authApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
@@ -28,6 +28,7 @@ import { formatUploadSizeLabel, invalidatePlatformUploadSizeCache } from '../uti
 import SharedSpacesPage from './SharedSpacesPage';
 import SuppliersPage from './SuppliersPage';
 import UnitsPage from './UnitsPage';
+import ExpenseCategoriesPage from './ExpenseCategoriesPage';
 
 const isHtmlTemplate = (value: string) => /<\/?[a-zA-Z][^>]*>/.test(value);
 
@@ -40,7 +41,7 @@ const templateToEditorHtml = (value: string) => {
   return isHtmlTemplate(trimmed) ? trimmed : (marked.parse(trimmed) as string);
 };
 
-type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email' | 'localization';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'categories' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email' | 'localization' | 'email-hash-repair';
 
 interface Tab {
   key: TabKey;
@@ -53,6 +54,7 @@ const getAdminTabs = (t: TranslateFn): Tab[] => [
   { key: 'spaces', label: t('condoSettings.tab.spaces'), icon: Warehouse },
   { key: 'suppliers', label: t('condoSettings.tab.suppliers'), icon: Truck },
   { key: 'units', label: t('condoSettings.tab.units'), icon: Home },
+  { key: 'categories', label: t('condoSettings.tab.categories'), icon: Tags },
   { key: 'receipts', label: t('condoSettings.tab.receipts'), icon: FileText },
   { key: 'payments', label: t('condoSettings.tab.payments'), icon: CreditCard },
   { key: 'communication', label: t('condoSettings.tab.communication'), icon: Mail },
@@ -63,6 +65,7 @@ const getManagerTabs = (t: TranslateFn): Tab[] => [
   { key: 'platform-upload', label: t('condoSettings.tab.platformUpload'), icon: FileText },
   { key: 'system-email', label: t('condoSettings.tab.systemEmail'), icon: Server },
   { key: 'localization', label: t('localization.tab'), icon: Languages },
+  { key: 'email-hash-repair', label: t('condoSettings.tab.emailHashRepair'), icon: Hash },
 ];
 
 export default function CondominiumSettingsPage() {
@@ -119,6 +122,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'spaces' && <SharedSpacesContent />}
           {activeTab === 'suppliers' && <SuppliersContent />}
           {activeTab === 'units' && <UnitsContent />}
+          {activeTab === 'categories' && <CategoriesContent />}
           {activeTab === 'general' && <GeneralCondominiumContent />}
           {activeTab === 'receipts' && <ReceiptTemplateContent />}
           {activeTab === 'payments' && <PaymentMethodsContent />}
@@ -127,6 +131,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
           {activeTab === 'localization' && <LocalizationContent />}
+          {activeTab === 'email-hash-repair' && <EmailHashRepairContent />}
         </div>
       </Card>
     </div>
@@ -722,6 +727,68 @@ function LocalizationContent() {
   );
 }
 
+function EmailHashRepairContent() {
+  const { isManager } = useAuth();
+  const { t } = useTranslation();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [email, setEmail] = useState('');
+  const [repaired, setRepaired] = useState<number | null>(null);
+  const [repairing, setRepairing] = useState(false);
+
+  const handleRepair = async () => {
+    setRepairing(true);
+    setRepaired(null);
+    try {
+      const response = await authApi.repairEmailHashes(email.trim() || undefined);
+      setRepaired(response.data.repaired);
+      toastSuccess(t('condoSettings.emailHashRepair.success', { count: response.data.repaired }));
+    } catch {
+      toastError(t('condoSettings.emailHashRepair.error'));
+    } finally {
+      setRepairing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.emailHashRepair.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.emailHashRepair.subtitle')}</p>
+        <p className="mt-1 text-xs text-ink-subtle">{t('condoSettings.emailHashRepair.hint')}</p>
+      </div>
+
+      <div className="border border-line rounded-lg p-4 bg-surface space-y-4 max-w-2xl">
+        <div>
+          <label className="block text-sm font-medium text-ink-muted mb-1.5">{t('condoSettings.emailHashRepair.emailLabel')}</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t('condoSettings.emailHashRepair.emailPlaceholder')}
+            disabled={!isManager}
+            className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <p className="mt-1 text-xs text-ink-subtle">{t('condoSettings.emailHashRepair.emailHint')}</p>
+        </div>
+
+        {repaired !== null && (
+          <div className="rounded-lg bg-green-50 text-green-700 px-4 py-3 text-sm">
+            {t('condoSettings.emailHashRepair.result', { count: repaired })}
+          </div>
+        )}
+
+        <Button onClick={handleRepair} loading={repairing} disabled={!isManager}>
+          {t('condoSettings.emailHashRepair.button')}
+        </Button>
+
+        {!isManager && (
+          <p className="text-xs text-ink-subtle">{t('condoSettings.emailHashRepair.managerOnly')}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Wrapper components to render existing pages without layout
 function SharedSpacesContent() {
   return <SharedSpacesPage embedded />;
@@ -735,6 +802,10 @@ function UnitsContent() {
   return (
     <UnitsPage embedded />
   );
+}
+
+function CategoriesContent() {
+  return <ExpenseCategoriesPage embedded />;
 }
 
 function ReceiptTemplateContent() {

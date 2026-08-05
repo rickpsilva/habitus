@@ -1,0 +1,46 @@
+erDiagram
+  CONDOMINIUM ||--o{ EXPENSE_CATEGORY : "configures"
+  CONDOMINIUM ||--o{ FINANCIAL_RECORD : "contains"
+  CONDOMINIUM ||--o{ MAINTENANCE_REQUEST : "contains"
+  EXPENSE_CATEGORY ||--o{ FINANCIAL_RECORD : "categorizes"
+  EXPENSE_CATEGORY ||--o{ MAINTENANCE_REQUEST : "categorizes"
+  MAINTENANCE_REQUEST ||--o| FINANCIAL_RECORD : "may generate"
+
+  CONDOMINIUM {
+    guid Id
+    string Name
+  }
+
+  EXPENSE_CATEGORY {
+    guid Id
+    guid CondominiumId
+    string Name
+    string Hashtags "semicolon-separated or JSON array"
+    bool IsActive
+    datetime CreatedAt
+    datetime UpdatedAt
+  }
+
+  FINANCIAL_RECORD {
+    guid Id
+    guid CondominiumId
+    FinancialType Type
+    decimal Amount
+    string Description
+    datetime Date
+    int FiscalYear
+    guid ExpenseCategoryId "nullable; only for Type = Expense"
+    string ReceiptUrl
+  }
+
+  MAINTENANCE_REQUEST {
+    guid Id
+    guid CondominiumId
+    MaintenanceStatus Status
+    MaintenancePriority Priority
+    bool HasExpense
+    decimal ExpenseAmount
+    guid ExpenseCategoryId "nullable; required when HasExpense and Status = Completed"
+    datetime CreatedAt
+    datetime ResolvedAt
+  }

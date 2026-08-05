@@ -22,6 +22,7 @@ public class CondominiumServiceCountAggregationTests
         _userRepository = new Mock<IRepository<User>>();
         _unitRepository = new Mock<IRepository<Unit>>();
         _paymentSettingsRepository = new Mock<IRepository<PaymentSettings>>();
+        var expenseCategoryRepository = new Mock<IRepository<ExpenseCategory>>();
         _encryptionService = new Mock<IEncryptionService>();
 
         // Focus on counts: decryption echoes its input back.
@@ -34,6 +35,7 @@ public class CondominiumServiceCountAggregationTests
             _userRepository.Object,
             _unitRepository.Object,
             _paymentSettingsRepository.Object,
+            expenseCategoryRepository.Object,
             _encryptionService.Object);
     }
 

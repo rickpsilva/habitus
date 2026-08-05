@@ -137,7 +137,7 @@ public class ReservationService
                 Description = $"Reserva (pendente): {space.Name} - {request.StartTime:dd/MM/yyyy HH:mm}",
                 Date = DateTime.UtcNow,
                 FiscalYear = DateTime.UtcNow.Year,
-                Category = FinancialCategory.OtherIncome,
+                IncomeCategory = IncomeCategory.OtherIncome,
                 CondominiumId = space.CondominiumId
             };
             await _financialRepository.AddAsync(financialRecord);

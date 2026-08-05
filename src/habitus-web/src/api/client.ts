@@ -44,7 +44,14 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (status === 401 && !isActiveContextRequest) {
+    if (status === 401 && !isActiveContextRequest) {      // Login/2FA requests are handled by LoginPage, which already shows a
+      // localized error. Wiping the session and hard-redirecting here would
+      // flash the error and immediately refresh the page, making it unreadable.
+      const pathname = window.location.pathname;
+      const isAuthRequest = requestUrl.includes('/platform/auth/');
+      if (pathname === '/login' || isAuthRequest) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
