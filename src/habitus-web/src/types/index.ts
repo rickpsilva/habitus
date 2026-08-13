@@ -486,6 +486,37 @@ export interface FinancialDashboardDto {
   noiseAnnouncementsPreviousYear: number;
 }
 
+export interface MonthlyFinancialBreakdownDto {
+  month: number;
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface CategoryTotalDto {
+  category: string;
+  total: number;
+}
+
+export interface TagMonthlyBreakdownDto {
+  tag: string;
+  category: string | null; // null when this row represents a tag group header
+  isTagGroup: boolean; // true if this row is a tag header, false if it's a category under a tag
+  monthlyValues: number[]; // 12 values, index 0 = January
+  total: number;
+}
+
+export interface AnnualFinancialReportDto {
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  monthlyBreakdown: MonthlyFinancialBreakdownDto[];
+  incomeByCategory: CategoryTotalDto[];
+  expensesByTag: CategoryTotalDto[];
+  expensesByTagMonthly: TagMonthlyBreakdownDto[];
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   page: number;

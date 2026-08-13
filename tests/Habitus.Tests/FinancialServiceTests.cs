@@ -50,6 +50,89 @@ public class FinancialServiceTests
         summary.Balance.Should().Be(3000m);
     }
 
+    [Fact]
+    public async Task GetAnnualReportAsync_ReturnsTotalsMonthlyAndCategoryBreakdowns()
+    {
+        var condominiumId = Guid.NewGuid();
+        const int year = 2026;
+        var records = new List<FinancialRecord>
+        {
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 1000m, CondominiumId = condominiumId, Date = new DateTime(year, 1, 10), FiscalYear = year, Description = "Fee Jan", IncomeCategory = IncomeCategory.MonthlyFees },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 500m, CondominiumId = condominiumId, Date = new DateTime(year, 3, 5), FiscalYear = year, Description = "Extra", IncomeCategory = IncomeCategory.ExtraordinaryFees },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 300m, CondominiumId = condominiumId, Date = new DateTime(year, 1, 20), FiscalYear = year, Description = "Cleaning", ExpenseCategory = new ExpenseCategory { Name = "Limpeza", Hashtags = new List<string> { "limpeza" } } },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 200m, CondominiumId = condominiumId, Date = new DateTime(year, 3, 15), FiscalYear = year, Description = "Elevator", ExpenseCategory = new ExpenseCategory { Name = "Manutenção", Hashtags = new List<string> { "manutencao" } } },
+            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 900m, CondominiumId = condominiumId, Date = new DateTime(year, 6, 1), FiscalYear = year, Description = "Reserve transfer", ReserveFundCategory = ReserveFundCategory.Transfer }
+        };
+        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<string[]>()))
+            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter, string[] _) => records.Where(filter.Compile()));
+
+        var report = await _service.GetAnnualReportAsync(condominiumId, year);
+
+        report.Year.Should().Be(year);
+        report.TotalIncome.Should().Be(1500m);
+        report.TotalExpenses.Should().Be(500m);
+        report.Balance.Should().Be(1000m);
+        report.MonthlyBreakdown.Should().HaveCount(12);
+        report.MonthlyBreakdown.Single(m => m.Month == 1).Income.Should().Be(1000m);
+        report.MonthlyBreakdown.Single(m => m.Month == 1).Expenses.Should().Be(300m);
+        report.MonthlyBreakdown.Single(m => m.Month == 1).Balance.Should().Be(700m);
+        report.MonthlyBreakdown.Single(m => m.Month == 3).Balance.Should().Be(300m);
+        report.IncomeByCategory.Should().Contain(c => c.Category == "MonthlyFees" && c.Total == 1000m);
+        report.IncomeByCategory.Should().Contain(c => c.Category == "ExtraordinaryFees" && c.Total == 500m);
+        report.ExpensesByTag.Should().Contain(c => c.Category == "limpeza" && c.Total == 300m);
+        report.ExpensesByTag.Should().Contain(c => c.Category == "manutencao" && c.Total == 200m);
+        // Reserve fund movements are excluded from the report.
+        report.ExpensesByTag.Sum(c => c.Total).Should().Be(500m);
+
+        // Verify monthly breakdown by tag (now hierarchical: tag header + category rows)
+        // Should have 4 rows: 2 tag headers + 2 category rows
+        report.ExpensesByTagMonthly.Should().HaveCount(4);
+
+        // limpeza tag header
+        var limpezaHeader = report.ExpensesByTagMonthly.First(r => r.Tag == "limpeza" && r.IsTagGroup);
+        limpezaHeader.Category.Should().BeNull();
+        limpezaHeader.MonthlyValues.Should().HaveCount(12);
+        limpezaHeader.MonthlyValues[0].Should().Be(300m); // January
+        limpezaHeader.Total.Should().Be(300m);
+
+        // limpeza category row
+        var limpezaCategory = report.ExpensesByTagMonthly.First(r => r.Tag == "limpeza" && !r.IsTagGroup);
+        limpezaCategory.Category.Should().Be("Limpeza");
+        limpezaCategory.MonthlyValues[0].Should().Be(300m);
+
+        // manutencao tag header
+        var manutencaoHeader = report.ExpensesByTagMonthly.First(r => r.Tag == "manutencao" && r.IsTagGroup);
+        manutencaoHeader.Category.Should().BeNull();
+        manutencaoHeader.MonthlyValues[2].Should().Be(200m); // March
+        manutencaoHeader.Total.Should().Be(200m);
+
+        // manutencao category row
+        var manutencaoCategory = report.ExpensesByTagMonthly.First(r => r.Tag == "manutencao" && !r.IsTagGroup);
+        manutencaoCategory.Category.Should().Be("Manutenção");
+    }
+
+    [Fact]
+    public async Task GetAnnualReportAsync_EmptyYear_ReturnsZeroedReport()
+    {
+        var condominiumId = Guid.NewGuid();
+        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<string[]>()))
+            .ReturnsAsync(Enumerable.Empty<FinancialRecord>());
+
+        var report = await _service.GetAnnualReportAsync(condominiumId, 2030);
+
+        report.TotalIncome.Should().Be(0m);
+        report.TotalExpenses.Should().Be(0m);
+        report.Balance.Should().Be(0m);
+        report.MonthlyBreakdown.Should().HaveCount(12);
+        report.MonthlyBreakdown.Should().OnlyContain(m => m.Income == 0m && m.Expenses == 0m && m.Balance == 0m);
+        report.IncomeByCategory.Should().BeEmpty();
+        report.ExpensesByTag.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("Income", 1)]
     [InlineData("Expense", 1)]

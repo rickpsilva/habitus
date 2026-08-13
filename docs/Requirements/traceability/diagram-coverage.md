@@ -64,3 +64,7 @@ This map links requirement artifacts to code-derived diagram files.
 - REQ-FIN-002 -> ../diagrams/sequences/financial-expense-category-selection.mmd
 - REQ-MAINT-002 -> ../diagrams/data/expense-categories.mmd
 - REQ-MAINT-002 -> ../diagrams/sequences/maintenance-expense-category-selection.mmd
+
+## Financial Annual Report
+
+- REQ-FIN-003 -> ../diagrams/sequences/financial-annual-report.mmd

@@ -231,6 +231,119 @@ public class FinancialService
         return records.Select(r => r.FiscalYear).Distinct().OrderByDescending(y => y).ToList();
     }
 
+    public async Task<AnnualFinancialReportDto> GetAnnualReportAsync(Guid condominiumId, int year)
+    {
+        var records = await _repository.FindWithIncludesAsync(
+            r => r.CondominiumId == condominiumId &&
+                 r.FiscalYear == year &&
+                 r.ReserveFundCategory == null,
+            nameof(FinancialRecord.ExpenseCategory));
+
+        var dtos = records.Select(MapToDto).ToList();
+        var income = dtos.Where(r => r.Type == nameof(FinancialType.Income)).ToList();
+        var expenses = dtos.Where(r => r.Type == nameof(FinancialType.Expense)).ToList();
+
+        var totalIncome = income.Sum(r => r.Amount);
+        var totalExpenses = expenses.Sum(r => r.Amount);
+
+        return new AnnualFinancialReportDto
+        {
+            Year = year,
+            TotalIncome = totalIncome,
+            TotalExpenses = totalExpenses,
+            Balance = totalIncome - totalExpenses,
+            MonthlyBreakdown = Enumerable.Range(1, 12).Select(month =>
+            {
+                var monthIncome = income.Where(r => r.Date.Month == month).Sum(r => r.Amount);
+                var monthExpenses = expenses.Where(r => r.Date.Month == month).Sum(r => r.Amount);
+                return new MonthlyFinancialBreakdownDto
+                {
+                    Month = month,
+                    Income = monthIncome,
+                    Expenses = monthExpenses,
+                    Balance = monthIncome - monthExpenses
+                };
+            }).ToList(),
+            IncomeByCategory = GroupByCategory(income),
+            ExpensesByTag = GroupByTag(expenses),
+            ExpensesByTagMonthly = BuildTagMonthlyBreakdown(expenses)
+        };
+    }
+
+    private static List<TagMonthlyBreakdownDto> BuildTagMonthlyBreakdown(IEnumerable<FinancialRecordDto> expenses)
+    {
+        var result = new List<TagMonthlyBreakdownDto>();
+
+        // Group by tag (first hashtag, fallback to category name)
+        var groupedByTag = expenses
+            .GroupBy(r =>
+                r.ExpenseCategoryHashtags.FirstOrDefault()
+                ?? (string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category))
+            .OrderByDescending(g => g.Sum(r => r.Amount));
+
+        foreach (var tagGroup in groupedByTag)
+        {
+            var tagName = tagGroup.Key;
+            var tagTotal = tagGroup.Sum(r => r.Amount);
+
+            // Calculate monthly totals for the tag
+            var tagMonthlyValues = Enumerable.Range(1, 12)
+                .Select(month => tagGroup.Where(r => r.Date.Month == month).Sum(r => r.Amount))
+                .ToList();
+
+            // Add tag header row
+            result.Add(new TagMonthlyBreakdownDto
+            {
+                Tag = tagName,
+                Category = null,
+                IsTagGroup = true,
+                MonthlyValues = tagMonthlyValues,
+                Total = tagTotal
+            });
+
+            // Group records under this tag by their specific category name
+            var groupedByCategory = tagGroup
+                .GroupBy(r => string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category)
+                .OrderByDescending(g => g.Sum(r => r.Amount));
+
+            foreach (var categoryGroup in groupedByCategory)
+            {
+                var categoryMonthlyValues = Enumerable.Range(1, 12)
+                    .Select(month => categoryGroup.Where(r => r.Date.Month == month).Sum(r => r.Amount))
+                    .ToList();
+
+                result.Add(new TagMonthlyBreakdownDto
+                {
+                    Tag = tagName,
+                    Category = categoryGroup.Key,
+                    IsTagGroup = false,
+                    MonthlyValues = categoryMonthlyValues,
+                    Total = categoryGroup.Sum(r => r.Amount)
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private static List<CategoryTotalDto> GroupByCategory(IEnumerable<FinancialRecordDto> records) =>
+        records
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category)
+            .Select(g => new CategoryTotalDto { Category = g.Key, Total = g.Sum(r => r.Amount) })
+            .OrderByDescending(c => c.Total)
+            .ToList();
+
+    // Expenses group by the category tag (first hashtag); falls back to the category
+    // name when the category has no hashtags, then to "Sem categoria".
+    private static List<CategoryTotalDto> GroupByTag(IEnumerable<FinancialRecordDto> records) =>
+        records
+            .GroupBy(r =>
+                r.ExpenseCategoryHashtags.FirstOrDefault()
+                ?? (string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category))
+            .Select(g => new CategoryTotalDto { Category = g.Key, Total = g.Sum(r => r.Amount) })
+            .OrderByDescending(c => c.Total)
+            .ToList();
+
     public async Task<PaginatedResponse<FinancialRecordDto>> GetPagedByYearAsync(
         Guid condominiumId,
         int fiscalYear,

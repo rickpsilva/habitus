@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save, BarChart3 } from 'lucide-react';
 import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi, expenseCategoriesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -7,6 +7,7 @@ import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslateFn } from '../i18n/types';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
+import AnnualReportModal from '../components/AnnualReportModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
@@ -76,6 +77,7 @@ export default function FinancialPage() {
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [approvePaymentId, setApprovePaymentId] = useState<string | null>(null);
   const [issueReceiptId, setIssueReceiptId] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   
   // Cash In - All payments (Admin only)
   const [allPayments, setAllPayments] = useState<PaymentDto[]>([]);
@@ -546,6 +548,12 @@ export default function FinancialPage() {
         onConfirm={confirmIssueReceipt}
         onCancel={() => setIssueReceiptId(null)}
       />
+      <AnnualReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        condominiumId={condominiumId}
+        year={selectedYear}
+      />
       {/* Header */}
       <PageHeader
         title={t('financial.title')}
@@ -563,6 +571,9 @@ export default function FinancialPage() {
             </select>
             {isAdmin && (
               <>
+                <Button variant="secondary" onClick={() => setShowReportModal(true)} icon={BarChart3}>
+                  {t('financial.report.open')}
+                </Button>
                 <Button variant="secondary" onClick={openDocumentModal} icon={FileText}>
                   {t('financial.addDocument')}
                 </Button>

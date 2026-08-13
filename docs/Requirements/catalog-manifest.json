@@ -216,6 +216,13 @@
       ]
     },
     {
+      "id": "REQ-FIN-003",
+      "file": "requirements/financial/REQ-FIN-003.md",
+      "diagrams": [
+        "diagrams/sequences/financial-annual-report.mmd"
+      ]
+    },
+    {
       "id": "REQ-MAINT-002",
       "file": "requirements/maintenance/REQ-MAINT-002.md",
       "diagrams": [
