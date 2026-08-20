@@ -94,6 +94,19 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Senha redefinida com sucesso." });
     }
 
+    /// <summary>
+    /// Recomputes the email hash for users that have an encrypted email but no hash.
+    /// This repairs logins that started failing after manual data edits or legacy imports.
+    /// If a specific email is provided, only that user is repaired; otherwise all affected users are repaired.
+    /// </summary>
+    [HttpPost("repair-email-hashes")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> RepairEmailHashes([FromBody] RepairEmailHashesRequest? request)
+    {
+        var repaired = await _authService.RepairMissingEmailHashesAsync(request?.Email);
+        return Ok(new { repaired });
+    }
+
     [HttpGet("security")]
     [Authorize]
     public async Task<IActionResult> GetSecurityOverview()

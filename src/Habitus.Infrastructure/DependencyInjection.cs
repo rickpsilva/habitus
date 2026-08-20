@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
         services.AddScoped<ReserveFundService>();
+        services.AddScoped<ExpenseCategoryService>();
         services.AddScoped<AssemblyService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationDispatchService, NotificationDispatchService>();

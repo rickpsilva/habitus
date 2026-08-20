@@ -13,6 +13,7 @@ public class CondominiumService
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Unit> _unitRepository;
     private readonly IRepository<PaymentSettings> _paymentSettingsRepository;
+    private readonly IRepository<ExpenseCategory> _expenseCategoryRepository;
     private readonly IEncryptionService _encryptionService;
 
     public CondominiumService(
@@ -20,12 +21,14 @@ public class CondominiumService
         IRepository<User> userRepository,
         IRepository<Unit> unitRepository,
         IRepository<PaymentSettings> paymentSettingsRepository,
+        IRepository<ExpenseCategory> expenseCategoryRepository,
         IEncryptionService encryptionService)
     {
         _condominiumRepository = condominiumRepository;
         _userRepository = userRepository;
         _unitRepository = unitRepository;
         _paymentSettingsRepository = paymentSettingsRepository;
+        _expenseCategoryRepository = expenseCategoryRepository;
         _encryptionService = encryptionService;
     }
 
@@ -190,6 +193,8 @@ public class CondominiumService
 
         await _condominiumRepository.AddAsync(condominium);
         await _condominiumRepository.SaveChangesAsync();
+
+        await SeedDefaultExpenseCategoriesAsync(condominium.Id, _expenseCategoryRepository);
 
         var decryptedTaxId = DecryptTaxId(condominium.TaxIdEncrypted);
         var decryptedAddress = DecryptAddress(condominium.AddressEncrypted);
@@ -559,5 +564,50 @@ public class CondominiumService
             entity = digitsOnly[..5];
             reference = digitsOnly.Substring(5, 9);
         }
+    }
+
+    public static async Task SeedDefaultExpenseCategoriesAsync(Guid condominiumId, IRepository<ExpenseCategory> repository)
+    {
+        var existing = await repository.FindAsync(e => e.CondominiumId == condominiumId && !e.IsDeleted);
+        var existingNormalized = new HashSet<string>(existing.Select(e => e.NormalizedName), StringComparer.OrdinalIgnoreCase);
+
+        var defaults = new (string Name, string Hashtag)[]
+        {
+            ("Manutenção", "manutencao"),
+            ("Seguros", "seguros"),
+            ("Consumos comuns", "consumos"),
+            ("Honorários administração", "administracao"),
+            ("Serviços", "servicos"),
+            ("IMI parte comum", "imi"),
+            ("Serviços jurídicos", "juridicos"),
+            ("Contabilista", "contabilista"),
+            ("Outras despesas", "outras")
+        };
+
+        foreach (var (name, hashtag) in defaults)
+        {
+            var normalized = ExpenseCategoryService.NormalizeName(name);
+            if (existingNormalized.Contains(normalized))
+            {
+                continue;
+            }
+
+            var category = new ExpenseCategory
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                NormalizedName = normalized,
+                Hashtags = new List<string> { hashtag },
+                IsActive = true,
+                IsDeleted = false,
+                CondominiumId = condominiumId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await repository.AddAsync(category);
+        }
+
+        await repository.SaveChangesAsync();
     }
 }

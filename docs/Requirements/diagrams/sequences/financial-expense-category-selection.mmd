@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor Admin
+    participant Browser
+    participant FinancialController
+    participant FinancialService
+    participant ExpenseCategoryService
+    participant Db
+
+    Admin->>Browser: Open expense form in /financial
+    Browser->>FinancialController: GET categories for condominium
+    FinancialController->>ExpenseCategoryService: List active categories
+    ExpenseCategoryService->>Db: SELECT * FROM ExpenseCategories WHERE CondominiumId = ...
+    Db-->>ExpenseCategoryService: categories with hashtags
+    ExpenseCategoryService-->>FinancialController: category DTOs
+    FinancialController-->>Browser: active category list
+
+    Admin->>Browser: Type in category autocomplete
+    Browser->>Browser: Filter by name/hashtag locally
+    Admin->>Browser: Select category and save expense
+    Browser->>FinancialController: POST expense with ExpenseCategoryId
+    FinancialController->>FinancialService: Create expense record
+    FinancialService->>FinancialService: Validate category belongs to condominium
+    FinancialService->>Db: INSERT FinancialRecord
+    Db-->>FinancialService: persisted record
+    FinancialService-->>FinancialController: result
+    FinancialController-->>Browser: 201 Created

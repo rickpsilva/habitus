@@ -357,6 +357,27 @@ export interface CreateUnitRequest {
   monthlyQuota: number;
 }
 
+export interface ExpenseCategoryDto {
+  id: string;
+  name: string;
+  hashtags: string[];
+  isActive: boolean;
+  condominiumId: string;
+}
+
+export interface CreateExpenseCategoryRequest {
+  name: string;
+  hashtags: string[];
+  isActive: boolean;
+  condominiumId: string;
+}
+
+export interface UpdateExpenseCategoryRequest {
+  name: string;
+  hashtags: string[];
+  isActive: boolean;
+}
+
 export interface MaintenanceRequestDto {
   id: string;
   title: string;
@@ -375,6 +396,9 @@ export interface MaintenanceRequestDto {
   hasExpense: boolean;
   expenseAmount?: number;
   invoiceDocumentId?: string;
+  expenseCategoryId?: string;
+  expenseCategoryName?: string;
+  expenseCategoryHashtags?: string[];
 }
 
 export interface CreateMaintenanceRequest {
@@ -388,6 +412,16 @@ export interface CreateMaintenanceRequest {
   photos?: string[];
 }
 
+export interface UpdateMaintenanceStatusRequest {
+  status: string;
+  supplierId?: string;
+  adminComments?: string;
+  hasExpense?: boolean;
+  expenseAmount?: number;
+  invoiceDocumentId?: string;
+  expenseCategoryId?: string;
+}
+
 export interface FinancialRecordDto {
   id: string;
   type: string;
@@ -396,6 +430,8 @@ export interface FinancialRecordDto {
   date: string;
   fiscalYear: number;
   category: string;
+  categoryType?: 'Income' | 'Expense';
+  hashtags?: string[];
   condominiumId: string;
   receiptUrl?: string;
 }
@@ -405,8 +441,9 @@ export interface CreateFinancialRecordRequest {
   amount: number;
   description: string;
   date: string; // ISO date string, will be converted to DateTime on backend
-  category: string;
   condominiumId: string;
+  incomeCategory?: string;
+  expenseCategoryId?: string;
   receiptUrl?: string;
 }
 
@@ -447,6 +484,37 @@ export interface FinancialDashboardDto {
   availableFiscalYears: number[];
   noiseAnnouncementsCurrentYear: number;
   noiseAnnouncementsPreviousYear: number;
+}
+
+export interface MonthlyFinancialBreakdownDto {
+  month: number;
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface CategoryTotalDto {
+  category: string;
+  total: number;
+}
+
+export interface TagMonthlyBreakdownDto {
+  tag: string;
+  category: string | null; // null when this row represents a tag group header
+  isTagGroup: boolean; // true if this row is a tag header, false if it's a category under a tag
+  monthlyValues: number[]; // 12 values, index 0 = January
+  total: number;
+}
+
+export interface AnnualFinancialReportDto {
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  monthlyBreakdown: MonthlyFinancialBreakdownDto[];
+  incomeByCategory: CategoryTotalDto[];
+  expensesByTag: CategoryTotalDto[];
+  expensesByTagMonthly: TagMonthlyBreakdownDto[];
 }
 
 export interface PaginatedResponse<T> {

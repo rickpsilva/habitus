@@ -37,6 +37,7 @@ public class HabitusDbContext : DbContext
     public DbSet<UsefulContact> UsefulContacts => Set<UsefulContact>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentSettings> PaymentSettings => Set<PaymentSettings>();
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<ReceiptTemplateSettings> ReceiptTemplateSettings => Set<ReceiptTemplateSettings>();
     public DbSet<CommunicationSettings> CommunicationSettings => Set<CommunicationSettings>();
     public DbSet<LocalizationSettings> LocalizationSettings => Set<LocalizationSettings>();
@@ -294,6 +295,11 @@ public class HabitusDbContext : DbContext
                 .HasForeignKey(m => m.CondominiumId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(m => m.ExpenseCategory)
+                .WithMany()
+                .HasForeignKey(m => m.ExpenseCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(m => new { m.CondominiumId, m.CreatedAt });
             
             // Note: Unit relationship is configured by convention (UnitId + Unit navigation property)
@@ -309,6 +315,62 @@ public class HabitusDbContext : DbContext
                     v => string.Join(',', v),
                     v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList())
                 .Metadata.SetValueComparer(photosComparer);
+        });
+
+        // Configure ExpenseCategory
+        modelBuilder.Entity<ExpenseCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.NormalizedName).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.IsActive).IsRequired();
+            entity.Property(e => e.IsDeleted).IsRequired();
+
+            var hashtagsComparer = new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c.ToList());
+
+            entity.Property(e => e.Hashtags)
+                .HasConversion(
+                    v => string.Join(',', v),
+                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList())
+                .Metadata.SetValueComparer(hashtagsComparer);
+
+            entity.HasIndex(e => new { e.CondominiumId, e.NormalizedName })
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => new { e.CondominiumId, e.IsActive, e.IsDeleted });
+
+            entity.HasOne(e => e.Condominium)
+                .WithMany(c => c.ExpenseCategories)
+                .HasForeignKey(e => e.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure FinancialRecord
+        modelBuilder.Entity<FinancialRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Description).IsRequired();
+            entity.Property(e => e.Date).IsRequired();
+            entity.Property(e => e.FiscalYear).IsRequired();
+            entity.Property(e => e.Type).IsRequired();
+
+            entity.HasOne(e => e.Condominium)
+                .WithMany(c => c.FinancialRecords)
+                .HasForeignKey(e => e.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ExpenseCategory)
+                .WithMany()
+                .HasForeignKey(e => e.ExpenseCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.CondominiumId, e.FiscalYear });
+            entity.HasIndex(e => new { e.CondominiumId, e.Type });
         });
 
         // Configure Reservation relationships

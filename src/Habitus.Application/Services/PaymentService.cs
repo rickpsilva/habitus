@@ -231,9 +231,9 @@ public class PaymentService
             Description = $"Pagamento de {payment.Type} - {resident?.Name ?? "Residente"}, Fração {unit?.Number ?? "N/A"} - {payment.Description}",
             Date = DateTime.UtcNow,
             FiscalYear = DateTime.UtcNow.Year,
-            Category = payment.Type == PaymentType.MonthlyFee ? FinancialCategory.MonthlyFees :
-                       payment.Type == PaymentType.ExtraordinaryFee ? FinancialCategory.ExtraordinaryFees :
-                       FinancialCategory.OtherIncome,
+            IncomeCategory = payment.Type == PaymentType.MonthlyFee ? IncomeCategory.MonthlyFees :
+                             payment.Type == PaymentType.ExtraordinaryFee ? IncomeCategory.ExtraordinaryFees :
+                             IncomeCategory.OtherIncome,
             CondominiumId = payment.CondominiumId,
             ReceiptUrl = payment.ProofOfPaymentUrl
         };

@@ -192,6 +192,43 @@
       "id": "REQ-I18N-002",
       "file": "requirements/localization/REQ-I18N-002.md",
       "diagrams": []
+    },
+    {
+      "id": "REQ-CONDO-002",
+      "file": "requirements/condominium/REQ-CONDO-002.md",
+      "diagrams": [
+        "diagrams/data/expense-categories.mmd"
+      ]
+    },
+    {
+      "id": "REQ-CONDO-003",
+      "file": "requirements/condominium/REQ-CONDO-003.md",
+      "diagrams": [
+        "diagrams/data/expense-categories.mmd"
+      ]
+    },
+    {
+      "id": "REQ-FIN-002",
+      "file": "requirements/financial/REQ-FIN-002.md",
+      "diagrams": [
+        "diagrams/data/expense-categories.mmd",
+        "diagrams/sequences/financial-expense-category-selection.mmd"
+      ]
+    },
+    {
+      "id": "REQ-FIN-003",
+      "file": "requirements/financial/REQ-FIN-003.md",
+      "diagrams": [
+        "diagrams/sequences/financial-annual-report.mmd"
+      ]
+    },
+    {
+      "id": "REQ-MAINT-002",
+      "file": "requirements/maintenance/REQ-MAINT-002.md",
+      "diagrams": [
+        "diagrams/data/expense-categories.mmd",
+        "diagrams/sequences/maintenance-expense-category-selection.mmd"
+      ]
     }
   ]
 }

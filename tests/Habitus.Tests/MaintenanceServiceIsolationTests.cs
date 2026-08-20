@@ -24,17 +24,21 @@ public class MaintenanceServiceIsolationTests
         _repositoryMock = new Mock<IRepository<MaintenanceRequest>>();
         var notificationRepoMock = new Mock<IRepository<Notification>>();
         var financialRepoMock = new Mock<IRepository<FinancialRecord>>();
+        var expenseCategoryRepoMock = new Mock<IRepository<ExpenseCategory>>();
         var dispatchMock = new Mock<INotificationDispatchService>();
         _service = new MaintenanceService(
             _repositoryMock.Object,
             notificationRepoMock.Object,
             financialRepoMock.Object,
+            expenseCategoryRepoMock.Object,
             dispatchMock.Object);
     }
 
     private void SetupFind(List<MaintenanceRequest> source) =>
-        _repositoryMock.Setup(r => r.FindAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()))
-            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate) =>
+        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
+                It.IsAny<Expression<Func<MaintenanceRequest, bool>>>(),
+                It.IsAny<string[]>()))
+            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate, string[] _) =>
                 source.Where(predicate.Compile()).ToList());
 
     [Fact]
@@ -74,7 +78,7 @@ public class MaintenanceServiceIsolationTests
     {
         var id = Guid.NewGuid();
         var request = new MaintenanceRequest { Id = id, Title = "Building lift", CondominiumId = _condominiumA, UnitId = Guid.NewGuid(), CreatedBy = Guid.NewGuid() };
-        _repositoryMock.Setup(r => r.GetByIdAsync(id)).ReturnsAsync(request);
+        _repositoryMock.Setup(r => r.GetByIdWithIncludesAsync(id, It.IsAny<string[]>())).ReturnsAsync(request);
 
         var result = await _service.GetByIdAsync(id, _condominiumA, "Resident", _residentUserId, _unitId);
 

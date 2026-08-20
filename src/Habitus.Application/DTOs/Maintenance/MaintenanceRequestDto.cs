@@ -18,5 +18,8 @@ public class MaintenanceRequestDto
     public string? AdminComments { get; set; }
     public bool HasExpense { get; set; }
     public decimal? ExpenseAmount { get; set; }
+    public Guid? ExpenseCategoryId { get; set; }
+    public string? ExpenseCategoryName { get; set; }
+    public List<string> ExpenseCategoryHashtags { get; set; } = new();
     public Guid? InvoiceDocumentId { get; set; }
 }

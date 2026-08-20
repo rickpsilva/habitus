@@ -138,6 +138,21 @@ public class FinancialController : ControllerBase
         return Ok(await _service.GetPagedByYearAsync(condominiumId, fiscalYear, page, pageSize, search, type));
     }
 
+    // Annual revenue + expenses report (Admin only)
+    [HttpGet("annual-report")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAnnualReport([FromRoute] Guid condominiumId, [FromQuery] int? year = null)
+    {
+        if (!HasCondominiumAccess(condominiumId))
+            return Forbid();
+
+        var targetYear = year ?? DateTime.UtcNow.Year;
+        if (targetYear < 2000 || targetYear > 2100)
+            return BadRequest(new { message = "Ano inválido" });
+
+        return Ok(await _service.GetAnnualReportAsync(condominiumId, targetYear));
+    }
+
     // Reserve Fund endpoints
     [HttpGet("reserve-fund")]
     public async Task<IActionResult> GetReserveFund([FromRoute] Guid condominiumId, [FromQuery] int? fiscalYear = null)

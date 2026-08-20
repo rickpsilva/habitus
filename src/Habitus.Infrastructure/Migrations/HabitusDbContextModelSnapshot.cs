@@ -641,6 +641,52 @@ namespace Habitus.Infrastructure.Migrations
                     b.ToTable("Documents");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Hashtags")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId", "NormalizedName")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("CondominiumId", "IsActive", "IsDeleted");
+
+                    b.ToTable("ExpenseCategories");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.FinancialRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -648,13 +694,10 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid?>("BuildingId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("Category")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("CondominiumId")
                         .HasColumnType("uuid");
@@ -666,11 +709,20 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ExpenseCategoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("IncomeCategory")
                         .HasColumnType("integer");
 
                     b.Property<string>("ReceiptUrl")
                         .HasColumnType("text");
+
+                    b.Property<int?>("ReserveFundCategory")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -679,7 +731,11 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("BuildingId");
 
-                    b.HasIndex("CondominiumId");
+                    b.HasIndex("ExpenseCategoryId");
+
+                    b.HasIndex("CondominiumId", "FiscalYear");
+
+                    b.HasIndex("CondominiumId", "Type");
 
                     b.ToTable("FinancialRecords");
                 });
@@ -918,6 +974,9 @@ namespace Habitus.Infrastructure.Migrations
                     b.Property<decimal?>("ExpenseAmount")
                         .HasColumnType("numeric");
 
+                    b.Property<Guid?>("ExpenseCategoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("HasExpense")
                         .HasColumnType("boolean");
 
@@ -952,6 +1011,8 @@ namespace Habitus.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpenseCategoryId");
 
                     b.HasIndex("SupplierId");
 
@@ -2560,6 +2621,17 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("UploadedByUser");
                 });
 
+            modelBuilder.Entity("Habitus.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.HasOne("Habitus.Domain.Entities.Condominium", "Condominium")
+                        .WithMany("ExpenseCategories")
+                        .HasForeignKey("CondominiumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Condominium");
+                });
+
             modelBuilder.Entity("Habitus.Domain.Entities.FinancialRecord", b =>
                 {
                     b.HasOne("Habitus.Domain.Entities.Building", null)
@@ -2572,7 +2644,14 @@ namespace Habitus.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Habitus.Domain.Entities.ExpenseCategory", "ExpenseCategory")
+                        .WithMany()
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Condominium");
+
+                    b.Navigation("ExpenseCategory");
                 });
 
             modelBuilder.Entity("Habitus.Domain.Entities.Intervention", b =>
@@ -2646,6 +2725,11 @@ namespace Habitus.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Habitus.Domain.Entities.ExpenseCategory", "ExpenseCategory")
+                        .WithMany()
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Habitus.Domain.Entities.Supplier", "Supplier")
                         .WithMany("MaintenanceRequests")
                         .HasForeignKey("SupplierId");
@@ -2657,6 +2741,8 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Condominium");
+
+                    b.Navigation("ExpenseCategory");
 
                     b.Navigation("Supplier");
 
@@ -3086,6 +3172,8 @@ namespace Habitus.Infrastructure.Migrations
                     b.Navigation("Assemblies");
 
                     b.Navigation("Documents");
+
+                    b.Navigation("ExpenseCategories");
 
                     b.Navigation("FinancialRecords");
 

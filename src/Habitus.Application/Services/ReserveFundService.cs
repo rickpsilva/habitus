@@ -81,7 +81,7 @@ public class ReserveFundService
             Description = description,
             Date = DateTime.UtcNow,
             FiscalYear = fiscalYear,
-            Category = FinancialCategory.ReserveFundTransfer,
+            ReserveFundCategory = ReserveFundCategory.Transfer,
             CondominiumId = condominiumId
         };
         
@@ -119,7 +119,7 @@ public class ReserveFundService
             Description = description,
             Date = DateTime.UtcNow,
             FiscalYear = fiscalYear,
-            Category = FinancialCategory.ReserveFundWithdrawal,
+            ReserveFundCategory = ReserveFundCategory.Withdrawal,
             CondominiumId = condominiumId
         };
         

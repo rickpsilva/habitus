@@ -10,17 +10,20 @@ public class MaintenanceService
     private readonly IRepository<MaintenanceRequest> _repository;
     private readonly IRepository<Notification> _notificationRepository;
     private readonly IRepository<FinancialRecord> _financialRepository;
+    private readonly IRepository<ExpenseCategory> _expenseCategoryRepository;
     private readonly INotificationDispatchService _notificationDispatchService;
 
     public MaintenanceService(
         IRepository<MaintenanceRequest> repository,
         IRepository<Notification> notificationRepository,
         IRepository<FinancialRecord> financialRepository,
+        IRepository<ExpenseCategory> expenseCategoryRepository,
         INotificationDispatchService notificationDispatchService)
     {
         _repository = repository;
         _notificationRepository = notificationRepository;
         _financialRepository = financialRepository;
+        _expenseCategoryRepository = expenseCategoryRepository;
         _notificationDispatchService = notificationDispatchService;
     }
 
@@ -36,7 +39,9 @@ public class MaintenanceService
             return Enumerable.Empty<MaintenanceRequestDto>();
         }
 
-        var requests = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
+        var requests = await _repository.FindWithIncludesAsync(
+            r => r.CondominiumId == condominiumId,
+            nameof(MaintenanceRequest.ExpenseCategory));
         return requests
             .Select(MapToDto)
             .OrderByDescending(r => r.CreatedAt);
@@ -172,7 +177,7 @@ public class MaintenanceService
 
     public async Task<MaintenanceRequestDto?> GetByIdAsync(Guid id, Guid condominiumId, string userRole, Guid userId, Guid? unitId)
     {
-        var request = await _repository.GetByIdAsync(id);
+        var request = await _repository.GetByIdWithIncludesAsync(id, nameof(MaintenanceRequest.ExpenseCategory));
         if (request == null) return null;
         if (!CanUserViewMaintenance(request, condominiumId, userRole)) return null;
 
@@ -275,10 +280,27 @@ public class MaintenanceService
             {
                 throw new InvalidOperationException("O custo da manutenção é obrigatório quando o estado é alterado para Concluído.");
             }
-            
+
+            if (!request.ExpenseCategoryId.HasValue)
+            {
+                throw new InvalidOperationException("A categoria de despesa é obrigatória quando o estado é alterado para Concluído.");
+            }
+
+            var category = await _expenseCategoryRepository.FirstOrDefaultAsync(c =>
+                c.Id == request.ExpenseCategoryId.Value &&
+                c.CondominiumId == entity.CondominiumId &&
+                c.IsActive &&
+                !c.IsDeleted);
+
+            if (category == null)
+            {
+                throw new InvalidOperationException("Categoria de despesa não encontrada ou inativa.");
+            }
+
             entity.HasExpense = true;
             entity.ExpenseAmount = request.ExpenseAmount;
-            
+            entity.ExpenseCategoryId = category.Id;
+
             if (!string.IsNullOrWhiteSpace(request.InvoiceDocumentId))
             {
                 entity.InvoiceDocumentId = Guid.Parse(request.InvoiceDocumentId);
@@ -287,6 +309,7 @@ public class MaintenanceService
         else
         {
             entity.HasExpense = request.HasExpense;
+            entity.ExpenseCategoryId = request.ExpenseCategoryId;
             if (request.HasExpense)
             {
                 if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
@@ -298,36 +321,51 @@ public class MaintenanceService
                     throw new InvalidOperationException("A fatura é obrigatória quando existe despesa.");
                 }
 
+                if (request.ExpenseCategoryId.HasValue)
+                {
+                    var category = await _expenseCategoryRepository.FirstOrDefaultAsync(c =>
+                        c.Id == request.ExpenseCategoryId.Value &&
+                        c.CondominiumId == entity.CondominiumId &&
+                        c.IsActive &&
+                        !c.IsDeleted);
+
+                    if (category == null)
+                    {
+                        throw new InvalidOperationException("Categoria de despesa não encontrada ou inativa.");
+                    }
+                }
+
                 entity.ExpenseAmount = request.ExpenseAmount;
                 entity.InvoiceDocumentId = Guid.Parse(request.InvoiceDocumentId);
             }
             else
             {
                 entity.ExpenseAmount = null;
+                entity.ExpenseCategoryId = null;
                 entity.InvoiceDocumentId = null;
             }
         }
-        
+
         if (IsCompletedStatus(entity.Status))
         {
             entity.ResolvedAt = DateTime.UtcNow;
-            
+
             // Create financial record if there is an expense
-            if (entity.HasExpense && entity.ExpenseAmount.HasValue)
+            if (entity.HasExpense && entity.ExpenseAmount.HasValue && entity.ExpenseCategoryId.HasValue)
             {
                 var financialRecord = new FinancialRecord
                 {
                     Id = Guid.NewGuid(),
                     Type = FinancialType.Expense,
                     Amount = entity.ExpenseAmount.Value,
-                    Description = $"Manuten\u00e7\u00e3o: {entity.Title}",
+                    Description = $"Manutenção: {entity.Title}",
                     Date = DateTime.UtcNow,
                     FiscalYear = DateTime.UtcNow.Year,
-                    Category = FinancialCategory.Maintenance,
+                    ExpenseCategoryId = entity.ExpenseCategoryId.Value,
                     CondominiumId = entity.CondominiumId,
                     ReceiptUrl = entity.InvoiceDocumentId.ToString()
                 };
-                
+
                 await _financialRepository.AddAsync(financialRecord);
             }
         }
@@ -454,6 +492,9 @@ public class MaintenanceService
         AdminComments = r.AdminComments,
         HasExpense = r.HasExpense,
         ExpenseAmount = r.ExpenseAmount,
+        ExpenseCategoryId = r.ExpenseCategoryId,
+        ExpenseCategoryName = r.ExpenseCategory?.Name,
+        ExpenseCategoryHashtags = r.ExpenseCategory?.Hashtags ?? new List<string>(),
         InvoiceDocumentId = r.InvoiceDocumentId
     };
 }

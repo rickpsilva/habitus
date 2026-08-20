@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Wrench, AlertCircle, Clock, CheckCircle2, Phone, Mail, MapPin, FileText, Upload, Download, Trash2, Eye } from 'lucide-react';
-import { maintenanceApi, usersApi, suppliersApi, documentsApi } from '../api/services';
+import { maintenanceApi, usersApi, suppliersApi, documentsApi, expenseCategoriesApi } from '../api/services';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,11 +8,11 @@ import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
-import { PageHeader, Button, AsyncState, EmptyState, Badge, Card } from '../components/ui';
+import { PageHeader, Button, AsyncState, EmptyState, Badge, Card, Autocomplete } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslateFn } from '../i18n/types';
-import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto } from '../types';
+import type { MaintenanceRequestDto, CreateMaintenanceRequest, SupplierDto, PaginatedResponse, DocumentDto, ExpenseCategoryDto } from '../types';
 
 const getStatusMap = (t: TranslateFn): Record<string, { label: string; variant: BadgeVariant; icon: React.ElementType }> => ({
   Open: { label: t('status.open'), variant: 'warning', icon: AlertCircle },
@@ -97,6 +97,8 @@ export default function MaintenancePage() {
   const [showStatusPanel, setShowStatusPanel] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequestDto | null>(null);
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategoryDto[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [statusForm, setStatusForm] = useState({
     status: '',
     supplierId: '',
@@ -104,6 +106,7 @@ export default function MaintenancePage() {
     hasExpense: false,
     expenseAmount: '',
     invoiceDocumentId: '',
+    expenseCategoryId: '',
   });
 
   // Documents state
@@ -144,6 +147,21 @@ export default function MaintenancePage() {
       }).catch(console.error);
     }
   }, [condominiumId]);
+
+  // Load active expense categories for completion flow
+  useEffect(() => {
+    if (!condominiumId) return;
+    setCategoriesLoading(true);
+    expenseCategoriesApi.getActive(condominiumId)
+      .then((r) => {
+        setExpenseCategories(r.data);
+      })
+      .catch((error) => {
+        console.error('Error loading expense categories:', error);
+        toastError(t('maintenance.error.loadCategories'));
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, [condominiumId, t, toastError]);
 
   const load = useCallback(() => {
     if (!condominiumId) {
@@ -239,6 +257,7 @@ export default function MaintenancePage() {
       hasExpense: request.hasExpense || false,
       expenseAmount: request.expenseAmount?.toString() || '',
       invoiceDocumentId: request.invoiceDocumentId || '',
+      expenseCategoryId: request.expenseCategoryId || '',
     });
     setShowStatusPanel(true);
     loadMaintenanceDocuments(request.id);
@@ -254,6 +273,7 @@ export default function MaintenancePage() {
       hasExpense: false,
       expenseAmount: '',
       invoiceDocumentId: '',
+      expenseCategoryId: '',
     });
     setMaintenanceDocuments([]);
   };
@@ -267,6 +287,10 @@ export default function MaintenancePage() {
     if (isCompletedStatus(nextStatus)) {
       if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
         warning(t('maintenance.error.expenseRequiredComplete'));
+        return;
+      }
+      if (!statusForm.expenseCategoryId) {
+        warning(t('maintenance.error.expenseCategoryRequired'));
         return;
       }
     }
@@ -296,6 +320,7 @@ export default function MaintenancePage() {
         hasExpense: isCompletedStatus(nextStatus) ? true : statusForm.hasExpense,
         expenseAmount: (isCompletedStatus(nextStatus) || statusForm.hasExpense) && statusForm.expenseAmount ? parseFloat(statusForm.expenseAmount) : undefined,
         invoiceDocumentId: (isCompletedStatus(nextStatus) || statusForm.hasExpense) && statusForm.invoiceDocumentId ? statusForm.invoiceDocumentId : undefined,
+        expenseCategoryId: (isCompletedStatus(nextStatus) || statusForm.hasExpense) && statusForm.expenseCategoryId ? statusForm.expenseCategoryId : undefined,
       });
       handleCloseStatusPanel();
       load();
@@ -711,6 +736,26 @@ export default function MaintenancePage() {
                               placeholder="0.00"
                             />
                           </div>
+                        </div>
+
+                        {/* Expense Category */}
+                        <div>
+                          <label className="block text-sm font-medium text-ink-muted mb-1">
+                            {t('financial.form.category')} <span className="text-red-500">*</span>
+                          </label>
+                          <Autocomplete
+                            value={statusForm.expenseCategoryId || null}
+                            onChange={(id) => setStatusForm({ ...statusForm, expenseCategoryId: id ?? '' })}
+                            options={expenseCategories.map((c) => ({
+                              id: c.id,
+                              label: c.name,
+                              hashtags: c.hashtags,
+                            }))}
+                            loading={categoriesLoading}
+                            placeholder={t('maintenance.form.categoryPlaceholder')}
+                            emptyMessage={t('maintenance.form.noCategories')}
+                            showSelectedHashtags
+                          />
                         </div>
 
                         {/* Invoice Document */}

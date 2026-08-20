@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -996,6 +997,62 @@ Habitus Team
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// Recomputes the email hash for active users that have an encrypted email
+    /// but a missing or empty hash. When <paramref name="email"/> is supplied,
+    /// only that user is repaired; otherwise every active user with a missing
+    /// hash is repaired. This is useful after data fixes or legacy imports where
+    /// the hash column was not populated, which breaks login (login looks up
+    /// users by SHA-256 email hash).
+    /// </summary>
+    /// <param name="email">Optional specific email to repair. If null or empty, all affected users are repaired.</param>
+    /// <returns>The number of repaired user rows.</returns>
+    public async Task<int> RepairMissingEmailHashesAsync(string? email = null)
+    {
+        Expression<Func<User, bool>> needsRepair = u =>
+            u.IsActive
+            && !string.IsNullOrWhiteSpace(u.EmailEncrypted)
+            && string.IsNullOrWhiteSpace(u.EmailHash);
+
+        IEnumerable<User> users;
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var normalized = EmailHashHelper.Normalize(email);
+            var encrypted = _encryptionService.Encrypt(normalized);
+            var candidate = await _userRepository.FirstOrDefaultAsync(
+                u => u.IsActive
+                     && !string.IsNullOrWhiteSpace(u.EmailEncrypted)
+                     && string.IsNullOrWhiteSpace(u.EmailHash)
+                     && u.EmailEncrypted == encrypted);
+            users = candidate == null ? Array.Empty<User>() : new[] { candidate };
+        }
+        else
+        {
+            users = await _userRepository.FindAsync(needsRepair);
+        }
+
+        var repaired = 0;
+        foreach (var user in users)
+        {
+            var decryptedEmail = GetUserEmail(user);
+            if (string.IsNullOrWhiteSpace(decryptedEmail))
+            {
+                continue;
+            }
+
+            user.EmailHash = EmailHashHelper.GenerateEmailHash(decryptedEmail);
+            _userRepository.Update(user);
+            repaired++;
+        }
+
+        if (repaired > 0)
+        {
+            await _userRepository.SaveChangesAsync();
+        }
+
+        return repaired;
     }
 
     private async Task<bool> IsCondominiumActiveForUserAsync(User user)

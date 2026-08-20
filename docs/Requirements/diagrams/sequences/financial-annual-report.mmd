@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant FE as FinancialPage (React)
+    participant Modal as AnnualReportModal
+    participant API as FinancialController
+    participant SVC as FinancialService
+    participant DB as PostgreSQL
+
+    Admin->>FE: Click "Annual report" (fiscal year selected)
+    FE->>Modal: Open modal (year)
+    Modal->>API: GET /api/condominiums/{condominiumId}/financial/annual-report?year=YYYY
+    API->>API: Authorize(Roles = "Admin") + tenant scope check
+    API->>SVC: GetAnnualReport(condominiumId, year)
+    SVC->>DB: Query FinancialRecords (condominiumId, year)
+    DB-->>SVC: Records (income + expenses)
+    SVC-->>API: AnnualReportDto (totals, monthly breakdown, expenses by category)
+    API-->>Modal: 200 OK (JSON)
+    Modal-->>Admin: Render report (totals + breakdowns)
+    Admin->>Modal: Click "Export PDF"
+    Modal->>Modal: Generate PDF from report data
+    Modal-->>Admin: Download annual-report-YYYY.pdf

@@ -24,3 +24,5 @@ export { FilterBar, FilterChip, Segmented } from './FilterBar';
 export type { FilterBarProps, FilterChipProps, SegmentedOption, SegmentedProps } from './FilterBar';
 export { default as PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
+export { default as Autocomplete } from './Autocomplete';
+export type { AutocompleteProps, AutocompleteOption } from './Autocomplete';

@@ -516,6 +516,57 @@ public class AuthServiceTests
 
     private const string TestUserEmail = "test@example.com";
 
+    [Fact]
+    public async Task RepairMissingEmailHashesAsync_ShouldRecomputeHash_WhenEmailEncryptedIsPresentAndHashIsMissing()
+    {
+        var user = BuildUser();
+        user.EmailHash = null;
+        user.EmailEncrypted = "enc:repair@example.com";
+
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(new List<User> { user });
+
+        var repaired = await _service.RepairMissingEmailHashesAsync();
+
+        repaired.Should().Be(1);
+        user.EmailHash.Should().Be(Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash("repair@example.com"));
+        _userRepositoryMock.Verify(r => r.Update(It.Is<User>(u => u.Id == user.Id)), Times.Once);
+        _userRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task RepairMissingEmailHashesAsync_ShouldSkip_WhenNoUserNeedsRepair()
+    {
+        _userRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(new List<User>());
+
+        var repaired = await _service.RepairMissingEmailHashesAsync();
+
+        repaired.Should().Be(0);
+        _userRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task RepairMissingEmailHashesAsync_WithEmail_ShouldRepairOnlyMatchingUser()
+    {
+        var user = BuildUser();
+        user.EmailHash = null;
+        user.EmailEncrypted = "enc:specific@example.com";
+
+        _userRepositoryMock
+            .Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync((Expression<Func<User, bool>> predicate) => new[] { user }.FirstOrDefault(predicate.Compile()));
+
+        var repaired = await _service.RepairMissingEmailHashesAsync("specific@example.com");
+
+        repaired.Should().Be(1);
+        user.EmailHash.Should().Be(Habitus.Application.Helpers.EmailHashHelper.GenerateEmailHash("specific@example.com"));
+        _userRepositoryMock.Verify(r => r.Update(It.Is<User>(u => u.Id == user.Id)), Times.Once);
+        _userRepositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
     private static User BuildUser()
     {
         return new User

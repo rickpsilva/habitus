@@ -588,7 +588,26 @@ public class DocumentsController : ControllerBase
             await _repository.AddAsync(document);
             await _repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetById), new { condominiumId, id = document.Id }, document);
+            var dto = new
+            {
+                id = document.Id.ToString(),
+                name = document.Name,
+                type = document.Type.ToString(),
+                context = document.Context.ToString(),
+                description = document.Description,
+                filePath = document.FilePath,
+                fileSize = document.FileSize,
+                mimeType = document.MimeType,
+                uploadedAt = document.UploadedAt,
+                uploadedBy = document.UploadedByUserId.ToString(),
+                condominiumId = document.CondominiumId.ToString(),
+                unitId = document.UnitId?.ToString(),
+                assemblyId = document.AssemblyId?.ToString(),
+                maintenanceRequestId = document.MaintenanceRequestId?.ToString(),
+                year = document.Year
+            };
+
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = document.Id }, dto);
         }
         catch (Exception ex)
         {

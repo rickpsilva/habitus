@@ -1,17 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save } from 'lucide-react';
-import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi } from '../api/services';
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Trash2, Calendar, Info, ArrowDownToLine, ArrowUpFromLine, FileText, Upload as UploadIcon, Check, XCircle, Clock, CheckCircle, Edit2, Eye, ChevronDown, ChevronUp, Save, BarChart3 } from 'lucide-react';
+import { financialApi, documentsApi, paymentsApi, unitsApi, quotaPlansApi, expenseCategoriesApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslateFn } from '../i18n/types';
 import ConfirmModal from '../components/ConfirmModal';
 import ModalPopup from '../components/ModalPopup';
+import AnnualReportModal from '../components/AnnualReportModal';
 import Pagination from '../components/Pagination';
 import SearchBar from '../components/SearchBar';
 import FileUpload from '../components/FileUpload';
-import { PageHeader, Button, Skeleton, ErrorState, DataTable, Card, FilterBar, FilterChip } from '../components/ui';
-import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto } from '../types';
+import { PageHeader, Button, Skeleton, ErrorState, DataTable, Card, FilterBar, FilterChip, Autocomplete, Badge } from '../components/ui';
+import type { FinancialRecordDto, CreateFinancialRecordRequest, PaginatedResponse, FinancialDashboardDto, ReserveFundDto, PaymentDto, UnitDto, QuotaPlanDto, ExpenseCategoryDto } from '../types';
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -76,6 +77,7 @@ export default function FinancialPage() {
   const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [approvePaymentId, setApprovePaymentId] = useState<string | null>(null);
   const [issueReceiptId, setIssueReceiptId] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   
   // Cash In - All payments (Admin only)
   const [allPayments, setAllPayments] = useState<PaymentDto[]>([]);
@@ -109,9 +111,12 @@ export default function FinancialPage() {
     amount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
-    category: 'OtherExpense',
+    incomeCategory: 'OtherIncome',
+    expenseCategoryId: '',
     condominiumId: condominiumId || '',
   });
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategoryDto[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Document upload states
@@ -131,6 +136,19 @@ export default function FinancialPage() {
       setForm(prev => ({ ...prev, condominiumId }));
     }
   }, [condominiumId]);
+
+  // Load active expense categories for the autocomplete
+  useEffect(() => {
+    if (!condominiumId) return;
+    setCategoriesLoading(true);
+    expenseCategoriesApi.getActive(condominiumId)
+      .then((r) => setExpenseCategories(r.data))
+      .catch((error) => {
+        console.error('Error loading expense categories:', error);
+        toastError(t('financial.error.loadCategories'));
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, [condominiumId, t, toastError]);
 
   // Load dashboard and available years
   useEffect(() => {
@@ -201,6 +219,11 @@ export default function FinancialPage() {
       toastError(t('financial.error.amountPositive'));
       return;
     }
+
+    if (form.type === 'Expense' && !form.expenseCategoryId) {
+      toastError(t('financial.error.expenseCategoryRequired'));
+      return;
+    }
     
     setSubmitting(true);
     try {
@@ -209,8 +232,10 @@ export default function FinancialPage() {
         amount: parseFloat(form.amount),
         description: form.description,
         date: `${form.date}T00:00:00.000Z`,
-        category: form.category,
         condominiumId: form.condominiumId,
+        ...(form.type === 'Income'
+          ? { incomeCategory: form.incomeCategory }
+          : { expenseCategoryId: form.expenseCategoryId || undefined }),
         receiptUrl: undefined,
       };
       
@@ -221,7 +246,8 @@ export default function FinancialPage() {
         amount: '', 
         description: '', 
         date: new Date().toISOString().split('T')[0], 
-        category: 'OtherExpense', 
+        incomeCategory: 'OtherIncome',
+        expenseCategoryId: '',
         condominiumId: form.condominiumId 
       });
       
@@ -491,7 +517,6 @@ export default function FinancialPage() {
     awaitingReceipt: allPayments.filter(p => p.status === 'Approved' && !p.hasReceipt).length,
   };
 
-  const currentCategories = form.type === 'Income' ? incomeCategoryLabels(t) : expenseCategoryLabels(t);
   const allCategoryLabels = { ...incomeCategoryLabels(t), ...expenseCategoryLabels(t) };
 
   return (
@@ -523,6 +548,12 @@ export default function FinancialPage() {
         onConfirm={confirmIssueReceipt}
         onCancel={() => setIssueReceiptId(null)}
       />
+      <AnnualReportModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        condominiumId={condominiumId}
+        year={selectedYear}
+      />
       {/* Header */}
       <PageHeader
         title={t('financial.title')}
@@ -540,6 +571,9 @@ export default function FinancialPage() {
             </select>
             {isAdmin && (
               <>
+                <Button variant="secondary" onClick={() => setShowReportModal(true)} icon={BarChart3}>
+                  {t('financial.report.open')}
+                </Button>
                 <Button variant="secondary" onClick={openDocumentModal} icon={FileText}>
                   {t('financial.addDocument')}
                 </Button>
@@ -799,8 +833,15 @@ export default function FinancialPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-ink truncate">{r.description}</p>
                         <p className="text-xs text-ink-subtle">
-                          {allCategoryLabels[r.category] || r.category} · {formatDate(r.date)}
+                          {r.categoryType === 'Income' ? (allCategoryLabels[r.category] || r.category) : r.category} · {formatDate(r.date)}
                         </p>
+                        {r.hashtags && r.hashtags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {r.hashtags.map((tag) => (
+                              <Badge key={tag} variant="info" size="sm">#{tag}</Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <p className={`font-semibold text-sm shrink-0 ${
                         r.type === 'Income' ? 'text-green-600' : 'text-red-600'
@@ -851,7 +892,8 @@ export default function FinancialPage() {
                       setForm({
                         ...form,
                         type: newType,
-                        category: newType === 'Income' ? 'MonthlyFees' : 'OtherExpense'
+                        incomeCategory: newType === 'Income' ? 'MonthlyFees' : form.incomeCategory,
+                        expenseCategoryId: newType === 'Expense' ? '' : form.expenseCategoryId,
                       });
                     }}
                     className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -863,15 +905,31 @@ export default function FinancialPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink-muted mb-1">{t('financial.form.category')}</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {Object.entries(currentCategories).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
+                  {form.type === 'Income' ? (
+                    <select
+                      value={form.incomeCategory}
+                      onChange={(e) => setForm({ ...form, incomeCategory: e.target.value })}
+                      className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {Object.entries(incomeCategoryLabels(t)).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Autocomplete
+                      value={form.expenseCategoryId || null}
+                      onChange={(id) => setForm({ ...form, expenseCategoryId: id ?? '' })}
+                      options={expenseCategories.map((c) => ({
+                        id: c.id,
+                        label: c.name,
+                        hashtags: c.hashtags,
+                      }))}
+                      loading={categoriesLoading}
+                      placeholder={t('financial.form.categoryPlaceholder')}
+                      emptyMessage={t('financial.form.noCategories')}
+                      showSelectedHashtags
+                    />
+                  )}
                 </div>
 
                 <div>

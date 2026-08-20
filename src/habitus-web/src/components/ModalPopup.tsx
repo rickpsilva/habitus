@@ -54,7 +54,7 @@ export default function ModalPopup({
         }
       }}
     >
-      <div className={`bg-surface rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-hidden flex flex-col`}>
+      <div className={`bg-surface rounded-xl shadow-xl w-full ${maxWidthClass} max-h-[92vh] overflow-visible flex flex-col`}>
         {header ? (
           header
         ) : (
@@ -71,7 +71,7 @@ export default function ModalPopup({
           </div>
         )}
 
-        <div className={`${bodyClassName} app-scrollbar overflow-y-auto`}>{children}</div>
+        <div className={`${bodyClassName} app-scrollbar overflow-visible`}>{children}</div>
       </div>
     </div>
   );

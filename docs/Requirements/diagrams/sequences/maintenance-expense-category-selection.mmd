@@ -1,0 +1,31 @@
+sequenceDiagram
+    actor Admin
+    participant Browser
+    participant MaintenanceController
+    participant MaintenanceService
+    participant ExpenseCategoryService
+    participant FinancialService
+    participant Db
+
+    Admin->>Browser: Mark maintenance request as Completed
+    Browser->>MaintenanceController: GET categories for condominium
+    MaintenanceController->>ExpenseCategoryService: List active categories
+    ExpenseCategoryService->>Db: SELECT active ExpenseCategories
+    Db-->>ExpenseCategoryService: categories with hashtags
+    ExpenseCategoryService-->>MaintenanceController: category DTOs
+    MaintenanceController-->>Browser: category list
+
+    Admin->>Browser: Check HasExpense, select category, enter amount
+    Browser->>MaintenanceController: PATCH maintenance to Completed
+    MaintenanceController->>MaintenanceService: Update status & expense details
+    MaintenanceService->>MaintenanceService: Validate Admin role & condominium scope
+    MaintenanceService->>MaintenanceService: If HasExpense then require ExpenseCategoryId
+    MaintenanceService->>ExpenseCategoryService: Verify category belongs to condominium
+    MaintenanceService->>FinancialService: Create/update expense FinancialRecord
+    FinancialService->>Db: INSERT/UPDATE FinancialRecord with ExpenseCategoryId
+    Db-->>FinancialService: persisted record
+    FinancialService-->>MaintenanceService: financial record reference
+    MaintenanceService->>Db: UPDATE MaintenanceRequest
+    Db-->>MaintenanceService: persisted request
+    MaintenanceService-->>MaintenanceController: result
+    MaintenanceController-->>Browser: 200 OK

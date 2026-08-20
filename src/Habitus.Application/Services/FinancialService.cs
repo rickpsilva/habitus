@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Financial;
 using Habitus.Application.Interfaces;
@@ -10,20 +11,25 @@ public class FinancialService
     private readonly IRepository<FinancialRecord> _repository;
     private readonly IRepository<ReserveFund> _reserveFundRepository;
     private readonly IRepository<Announcement> _announcementRepository;
+    private readonly IRepository<ExpenseCategory> _expenseCategoryRepository;
 
     public FinancialService(
         IRepository<FinancialRecord> repository,
         IRepository<ReserveFund> reserveFundRepository,
-        IRepository<Announcement> announcementRepository)
+        IRepository<Announcement> announcementRepository,
+        IRepository<ExpenseCategory> expenseCategoryRepository)
     {
         _repository = repository;
         _reserveFundRepository = reserveFundRepository;
         _announcementRepository = announcementRepository;
+        _expenseCategoryRepository = expenseCategoryRepository;
     }
 
     public async Task<IEnumerable<FinancialRecordDto>> GetAllAsync(Guid condominiumId)
     {
-        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
+        var records = await _repository.FindWithIncludesAsync(
+            r => r.CondominiumId == condominiumId,
+            nameof(FinancialRecord.ExpenseCategory));
         return records.Select(MapToDto);
     }
 
@@ -34,38 +40,50 @@ public class FinancialService
 
         var searchLower = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLower();
 
-        // Enum categories cannot be filtered with a text LIKE at the database level, so we
-        // pre-resolve the matching enum values (a small, bounded set) and translate the search
-        // into an IN clause the provider can execute server-side.
-        var matchingCategories = searchLower is null
-            ? Array.Empty<FinancialCategory>()
-            : Enum.GetValues<FinancialCategory>()
-                .Where(c => c.ToString().ToLower().Contains(searchLower))
+        // Pre-resolve matching income/reserve enum values and translate the search
+        // into predicates the provider can execute server-side.
+        var matchingIncomeCategories = searchLower is null
+            ? Array.Empty<IncomeCategory>()
+            : Enum.GetValues<IncomeCategory>()
+                .Where(c => c.ToString().ToLowerInvariant().Contains(searchLower))
                 .ToArray();
 
-        var paged = await _repository.GetPagedAsync(
-            page,
-            pageSize,
-            r => r.CondominiumId == condominiumId &&
-                 (searchLower == null ||
-                  r.Description.ToLower().Contains(searchLower) ||
-                  matchingCategories.Contains(r.Category)),
-            r => r.Date,
-            descending: true);
+        var matchingReserveCategories = searchLower is null
+            ? Array.Empty<ReserveFundCategory>()
+            : Enum.GetValues<ReserveFundCategory>()
+                .Where(c => c.ToString().ToLowerInvariant().Contains(searchLower))
+                .ToArray();
+
+        Expression<Func<FinancialRecord, bool>> filter = (FinancialRecord r) =>
+            r.CondominiumId == condominiumId &&
+            (searchLower == null ||
+             r.Description.ToLower().Contains(searchLower) ||
+             (r.IncomeCategory.HasValue && matchingIncomeCategories.Contains(r.IncomeCategory.Value)) ||
+             (r.ReserveFundCategory.HasValue && matchingReserveCategories.Contains(r.ReserveFundCategory.Value)) ||
+             (r.ExpenseCategory != null && r.ExpenseCategory.Name.ToLower().Contains(searchLower)));
+
+        var totalItems = await _repository.CountAsync(filter);
+        var records = await _repository.FindWithIncludesAsync(filter, nameof(FinancialRecord.ExpenseCategory));
+        var items = records
+            .OrderByDescending(r => r.Date)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapToDto)
+            .ToList();
 
         return new PaginatedResponse<FinancialRecordDto>
         {
-            Items = paged.Items.Select(MapToDto).ToList(),
-            Page = paged.Page,
-            PageSize = paged.PageSize,
-            TotalItems = paged.TotalItems,
-            TotalPages = paged.TotalPages
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
         };
     }
 
     public async Task<FinancialRecordDto?> GetByIdAsync(Guid id, Guid condominiumId)
     {
-        var item = await _repository.GetByIdAsync(id);
+        var item = await _repository.GetByIdWithIncludesAsync(id, nameof(FinancialRecord.ExpenseCategory));
         if (item == null || item.CondominiumId != condominiumId) return null;
         return MapToDto(item);
     }
@@ -79,40 +97,73 @@ public class FinancialService
         return true;
     }
 
-
     public async Task<FinancialRecordDto> CreateAsync(CreateFinancialRecordRequest request)
     {
-        try
+        var type = Enum.Parse<FinancialType>(request.Type, ignoreCase: true);
+
+        FinancialRecord entity;
+        if (type == FinancialType.Income)
         {
-            var entity = new FinancialRecord
+            if (string.IsNullOrWhiteSpace(request.IncomeCategory))
+            {
+                throw new InvalidOperationException("Categoria de receita é obrigatória para registos de receita.");
+            }
+
+            entity = new FinancialRecord
             {
                 Id = Guid.NewGuid(),
-                Type = Enum.Parse<FinancialType>(request.Type, ignoreCase: true),
+                Type = type,
                 Amount = request.Amount,
                 Description = request.Description,
                 Date = request.Date,
-                FiscalYear = request.Date.Year, // Automatically set fiscal year from date
-                Category = Enum.Parse<FinancialCategory>(request.Category, ignoreCase: true),
+                FiscalYear = request.Date.Year,
+                IncomeCategory = Enum.Parse<IncomeCategory>(request.IncomeCategory, ignoreCase: true),
                 CondominiumId = request.CondominiumId,
                 ReceiptUrl = request.ReceiptUrl
             };
-            await _repository.AddAsync(entity);
-            await _repository.SaveChangesAsync();
-            return MapToDto(entity);
         }
-        catch (ArgumentException ex)
+        else
         {
-            throw new InvalidOperationException($"Invalid Type value: {request.Type}. Expected 'Income' or 'Expense'.", ex);
+            if (!request.ExpenseCategoryId.HasValue)
+            {
+                throw new InvalidOperationException("Categoria de despesa é obrigatória para registos de despesa.");
+            }
+
+            var category = await _expenseCategoryRepository.FirstOrDefaultAsync(c =>
+                c.Id == request.ExpenseCategoryId.Value &&
+                c.CondominiumId == request.CondominiumId &&
+                c.IsActive &&
+                !c.IsDeleted);
+
+            if (category == null)
+            {
+                throw new InvalidOperationException("Categoria de despesa não encontrada ou inativa.");
+            }
+
+            entity = new FinancialRecord
+            {
+                Id = Guid.NewGuid(),
+                Type = type,
+                Amount = request.Amount,
+                Description = request.Description,
+                Date = request.Date,
+                FiscalYear = request.Date.Year,
+                ExpenseCategoryId = category.Id,
+                CondominiumId = request.CondominiumId,
+                ReceiptUrl = request.ReceiptUrl
+            };
         }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Error creating financial record: {ex.Message}", ex);
-        }
+
+        await _repository.AddAsync(entity);
+        await _repository.SaveChangesAsync();
+        return MapToDto(entity);
     }
 
     public async Task<FinancialSummaryDto> GetSummaryAsync(Guid condominiumId)
     {
-        var records = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
+        var records = await _repository.FindWithIncludesAsync(
+            r => r.CondominiumId == condominiumId,
+            nameof(FinancialRecord.ExpenseCategory));
         var dtos = records.Select(MapToDto).ToList();
         var totalIncome = dtos.Where(r => r.Type == "Income").Sum(r => r.Amount);
         var totalExpense = dtos.Where(r => r.Type == "Expense").Sum(r => r.Amount);
@@ -129,23 +180,22 @@ public class FinancialService
     {
         var targetYear = fiscalYear ?? DateTime.UtcNow.Year;
         var previousYear = targetYear - 1;
-        
+
         // Get records for the target year (exclude reserve fund movements)
-        var yearRecords = await _repository.FindAsync(r => 
-            r.CondominiumId == condominiumId && 
+        var yearRecords = await _repository.FindAsync(r =>
+            r.CondominiumId == condominiumId &&
             r.FiscalYear == targetYear &&
-            r.Category != FinancialCategory.ReserveFundTransfer &&
-            r.Category != FinancialCategory.ReserveFundWithdrawal);
-        
+            r.ReserveFundCategory == null);
+
         var yearDtos = yearRecords.Select(MapToDto).ToList();
         var yearIncome = yearDtos.Where(r => r.Type == "Income").Sum(r => r.Amount);
         var yearExpenses = yearDtos.Where(r => r.Type == "Expense").Sum(r => r.Amount);
-        
+
         // Get reserve fund for current year
-        var reserveFund = await _reserveFundRepository.FindAsync(f => 
+        var reserveFund = await _reserveFundRepository.FindAsync(f =>
             f.CondominiumId == condominiumId && f.FiscalYear == targetYear);
         var fund = reserveFund.FirstOrDefault();
-        
+
         // Get all fiscal years available
         var allRecords = await _repository.FindAsync(r => r.CondominiumId == condominiumId);
         var availableYears = allRecords.Select(r => r.FiscalYear).Distinct().OrderByDescending(y => y).ToList();
@@ -158,7 +208,7 @@ public class FinancialService
 
         var noiseCurrentYear = noiseAnnouncements.Count(a => (a.PublishedAt ?? a.CreatedAt).Year == targetYear);
         var noisePreviousYear = noiseAnnouncements.Count(a => (a.PublishedAt ?? a.CreatedAt).Year == previousYear);
-        
+
         return new FinancialDashboardDto
         {
             CurrentYear = targetYear,
@@ -181,11 +231,124 @@ public class FinancialService
         return records.Select(r => r.FiscalYear).Distinct().OrderByDescending(y => y).ToList();
     }
 
+    public async Task<AnnualFinancialReportDto> GetAnnualReportAsync(Guid condominiumId, int year)
+    {
+        var records = await _repository.FindWithIncludesAsync(
+            r => r.CondominiumId == condominiumId &&
+                 r.FiscalYear == year &&
+                 r.ReserveFundCategory == null,
+            nameof(FinancialRecord.ExpenseCategory));
+
+        var dtos = records.Select(MapToDto).ToList();
+        var income = dtos.Where(r => r.Type == nameof(FinancialType.Income)).ToList();
+        var expenses = dtos.Where(r => r.Type == nameof(FinancialType.Expense)).ToList();
+
+        var totalIncome = income.Sum(r => r.Amount);
+        var totalExpenses = expenses.Sum(r => r.Amount);
+
+        return new AnnualFinancialReportDto
+        {
+            Year = year,
+            TotalIncome = totalIncome,
+            TotalExpenses = totalExpenses,
+            Balance = totalIncome - totalExpenses,
+            MonthlyBreakdown = Enumerable.Range(1, 12).Select(month =>
+            {
+                var monthIncome = income.Where(r => r.Date.Month == month).Sum(r => r.Amount);
+                var monthExpenses = expenses.Where(r => r.Date.Month == month).Sum(r => r.Amount);
+                return new MonthlyFinancialBreakdownDto
+                {
+                    Month = month,
+                    Income = monthIncome,
+                    Expenses = monthExpenses,
+                    Balance = monthIncome - monthExpenses
+                };
+            }).ToList(),
+            IncomeByCategory = GroupByCategory(income),
+            ExpensesByTag = GroupByTag(expenses),
+            ExpensesByTagMonthly = BuildTagMonthlyBreakdown(expenses)
+        };
+    }
+
+    private static List<TagMonthlyBreakdownDto> BuildTagMonthlyBreakdown(IEnumerable<FinancialRecordDto> expenses)
+    {
+        var result = new List<TagMonthlyBreakdownDto>();
+
+        // Group by tag (first hashtag, fallback to category name)
+        var groupedByTag = expenses
+            .GroupBy(r =>
+                r.ExpenseCategoryHashtags.FirstOrDefault()
+                ?? (string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category))
+            .OrderByDescending(g => g.Sum(r => r.Amount));
+
+        foreach (var tagGroup in groupedByTag)
+        {
+            var tagName = tagGroup.Key;
+            var tagTotal = tagGroup.Sum(r => r.Amount);
+
+            // Calculate monthly totals for the tag
+            var tagMonthlyValues = Enumerable.Range(1, 12)
+                .Select(month => tagGroup.Where(r => r.Date.Month == month).Sum(r => r.Amount))
+                .ToList();
+
+            // Add tag header row
+            result.Add(new TagMonthlyBreakdownDto
+            {
+                Tag = tagName,
+                Category = null,
+                IsTagGroup = true,
+                MonthlyValues = tagMonthlyValues,
+                Total = tagTotal
+            });
+
+            // Group records under this tag by their specific category name
+            var groupedByCategory = tagGroup
+                .GroupBy(r => string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category)
+                .OrderByDescending(g => g.Sum(r => r.Amount));
+
+            foreach (var categoryGroup in groupedByCategory)
+            {
+                var categoryMonthlyValues = Enumerable.Range(1, 12)
+                    .Select(month => categoryGroup.Where(r => r.Date.Month == month).Sum(r => r.Amount))
+                    .ToList();
+
+                result.Add(new TagMonthlyBreakdownDto
+                {
+                    Tag = tagName,
+                    Category = categoryGroup.Key,
+                    IsTagGroup = false,
+                    MonthlyValues = categoryMonthlyValues,
+                    Total = categoryGroup.Sum(r => r.Amount)
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private static List<CategoryTotalDto> GroupByCategory(IEnumerable<FinancialRecordDto> records) =>
+        records
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category)
+            .Select(g => new CategoryTotalDto { Category = g.Key, Total = g.Sum(r => r.Amount) })
+            .OrderByDescending(c => c.Total)
+            .ToList();
+
+    // Expenses group by the category tag (first hashtag); falls back to the category
+    // name when the category has no hashtags, then to "Sem categoria".
+    private static List<CategoryTotalDto> GroupByTag(IEnumerable<FinancialRecordDto> records) =>
+        records
+            .GroupBy(r =>
+                r.ExpenseCategoryHashtags.FirstOrDefault()
+                ?? (string.IsNullOrWhiteSpace(r.Category) ? "Sem categoria" : r.Category))
+            .Select(g => new CategoryTotalDto { Category = g.Key, Total = g.Sum(r => r.Amount) })
+            .OrderByDescending(c => c.Total)
+            .ToList();
+
     public async Task<PaginatedResponse<FinancialRecordDto>> GetPagedByYearAsync(
-        Guid condominiumId, 
-        int fiscalYear, 
-        int page, 
-        int pageSize, 
+        Guid condominiumId,
+        int fiscalYear,
+        int page,
+        int pageSize,
         string? search = null,
         string? type = null)
     {
@@ -200,31 +363,44 @@ public class FinancialService
             typeFilter = parsedType;
         }
 
-        var matchingCategories = searchLower is null
-            ? Array.Empty<FinancialCategory>()
-            : Enum.GetValues<FinancialCategory>()
-                .Where(c => c.ToString().ToLower().Contains(searchLower))
+        var matchingIncomeCategories = searchLower is null
+            ? Array.Empty<IncomeCategory>()
+            : Enum.GetValues<IncomeCategory>()
+                .Where(c => c.ToString().ToLowerInvariant().Contains(searchLower))
                 .ToArray();
 
-        var paged = await _repository.GetPagedAsync(
-            page,
-            pageSize,
-            r => r.CondominiumId == condominiumId &&
-                 r.FiscalYear == fiscalYear &&
-                 (typeFilter == null || r.Type == typeFilter.Value) &&
-                 (searchLower == null ||
-                  r.Description.ToLower().Contains(searchLower) ||
-                  matchingCategories.Contains(r.Category)),
-            r => r.Date,
-            descending: true);
+        var matchingReserveCategories = searchLower is null
+            ? Array.Empty<ReserveFundCategory>()
+            : Enum.GetValues<ReserveFundCategory>()
+                .Where(c => c.ToString().ToLowerInvariant().Contains(searchLower))
+                .ToArray();
+
+        Expression<Func<FinancialRecord, bool>> filter = (FinancialRecord r) =>
+            r.CondominiumId == condominiumId &&
+            r.FiscalYear == fiscalYear &&
+            (typeFilter == null || r.Type == typeFilter.Value) &&
+            (searchLower == null ||
+             r.Description.ToLower().Contains(searchLower) ||
+             (r.IncomeCategory.HasValue && matchingIncomeCategories.Contains(r.IncomeCategory.Value)) ||
+             (r.ReserveFundCategory.HasValue && matchingReserveCategories.Contains(r.ReserveFundCategory.Value)) ||
+             (r.ExpenseCategory != null && r.ExpenseCategory.Name.ToLower().Contains(searchLower)));
+
+        var totalItems = await _repository.CountAsync(filter);
+        var records = await _repository.FindWithIncludesAsync(filter, nameof(FinancialRecord.ExpenseCategory));
+        var items = records
+            .OrderByDescending(r => r.Date)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapToDto)
+            .ToList();
 
         return new PaginatedResponse<FinancialRecordDto>
         {
-            Items = paged.Items.Select(MapToDto).ToList(),
-            Page = paged.Page,
-            PageSize = paged.PageSize,
-            TotalItems = paged.TotalItems,
-            TotalPages = paged.TotalPages
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
         };
     }
 
@@ -236,7 +412,11 @@ public class FinancialService
         Description = r.Description,
         Date = r.Date,
         FiscalYear = r.FiscalYear,
-        Category = r.Category.ToString(),
+        IncomeCategory = r.IncomeCategory?.ToString(),
+        ExpenseCategoryId = r.ExpenseCategoryId,
+        ExpenseCategoryName = r.ExpenseCategory?.Name,
+        ExpenseCategoryHashtags = r.ExpenseCategory?.Hashtags ?? new List<string>(),
+        ReserveFundCategory = r.ReserveFundCategory?.ToString(),
         CondominiumId = r.CondominiumId,
         ReceiptUrl = r.ReceiptUrl
     };
