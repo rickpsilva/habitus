@@ -1,0 +1,57 @@
+sequenceDiagram
+    autonumber
+    actor Manager
+    participant Frontend
+    participant AuthController
+    participant AuthService
+    participant DB
+    participant Middleware
+
+    Note over Manager,Middleware: Start Impersonation
+
+    Manager->>Frontend: Clicks "Impersonate" on user row
+    Frontend->>AuthController: POST /api/platform/auth/impersonate/start {targetUserId, unitId?}
+    AuthController->>AuthService: StartImpersonationAsync(managerId, request, ip, ua)
+    AuthService->>DB: Validate manager is Manager role
+    AuthService->>DB: Load target user (Admin/Resident)
+    AuthService->>DB: Verify target in manager's accessible condominiums
+    AuthService->>DB: Verify target role != Manager
+    AuthService->>DB: Create ImpersonationSession record
+    AuthService->>AuthService: Generate JWT with impersonation claims
+    AuthService-->>AuthController: ImpersonationResponse {token, expiresAt, ...}
+    AuthController-->>Frontend: 200 OK with impersonation token
+    Frontend->>Frontend: Store impersonation token, update AuthContext
+    Frontend->>Manager: Show ImpersonationBanner "Impersonating as John (Resident)"
+
+    Note over Manager,Middleware: Operating Under Impersonation
+
+    Manager->>Frontend: Calls any API (e.g., GET /platform/maintenance)
+    Frontend->>Middleware: Request with impersonation JWT
+    Middleware->>Middleware: Extract claims (IsImpersonation=true)
+    Middleware->>Middleware: Use ImpersonatedUserId, ImpersonatedRole, CondominiumId for scope check
+    Middleware->>DB: Validate condominium access for impersonated context
+    Middleware-->>Frontend: Allow/deny based on impersonated role
+    Note over Middleware: Audit log records both<br/>Manager ID and Impersonated ID
+
+    Note over Manager,Middleware: End Impersonation
+
+    Manager->>Frontend: Clicks "Exit Impersonation"
+    Frontend->>AuthController: POST /api/platform/auth/impersonate/end
+    AuthController->>AuthService: EndImpersonationAsync(managerId)
+    AuthService->>DB: Update ImpersonationSession (EndedAt, EndReason="ExplicitExit")
+    AuthService->>AuthService: Generate Manager's original token
+    AuthService-->>AuthController: AuthResponse (Manager's token)
+    AuthController-->>Frontend: 200 OK with Manager token
+    Frontend->>Frontend: Restore Manager context, hide banner
+    Frontend->>Manager: Back to Manager dashboard
+
+    Note over Manager,Middleware: Auto-Expiry (Alternative End)
+
+    loop Background / Middleware check
+        Middleware->>Middleware: Check ImpersonationExpiresAt claim
+        alt Expired
+            Middleware->>DB: Update session EndReason="Expired"
+            Middleware-->>Frontend: 401 with code "impersonation_expired"
+            Frontend->>Frontend: Clear impersonation, redirect to login
+        end
+    end

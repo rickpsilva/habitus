@@ -1,30 +1,59 @@
 using Habitus.Application.DTOs.ExpenseCategory;
 using Habitus.Application.Interfaces;
 using Habitus.Domain.Entities;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Habitus.Application.Services;
 
 public class ExpenseCategoryService
 {
     private readonly IRepository<ExpenseCategory> _repository;
+    private readonly IMemoryCache _cache;
 
-    public ExpenseCategoryService(IRepository<ExpenseCategory> repository)
+    public ExpenseCategoryService(IRepository<ExpenseCategory> repository, IMemoryCache cache)
     {
         _repository = repository;
+        _cache = cache;
     }
+
+    private const string CacheKeyPrefix = "expense_categories_";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+
+    private string GetCacheKey(Guid condominiumId, bool activeOnly = false)
+        => $"{CacheKeyPrefix}{condominiumId}_{(activeOnly ? "active" : "all")}";
 
     public async Task<IEnumerable<ExpenseCategoryDto>> GetAllAsync(Guid condominiumId)
     {
+        var cacheKey = GetCacheKey(condominiumId, false);
+        
+        if (_cache.TryGetValue(cacheKey, out IEnumerable<ExpenseCategoryDto>? cached))
+        {
+            return cached!;
+        }
+
         var categories = await _repository.FindAsync(c =>
             c.CondominiumId == condominiumId);
-        return categories.OrderBy(c => c.Name).Select(MapToDto);
+        var result = categories.OrderBy(c => c.Name).Select(MapToDto).ToList();
+        
+        _cache.Set(cacheKey, result, CacheDuration);
+        return result;
     }
 
     public async Task<IEnumerable<ExpenseCategoryDto>> GetActiveAsync(Guid condominiumId)
     {
+        var cacheKey = GetCacheKey(condominiumId, true);
+        
+        if (_cache.TryGetValue(cacheKey, out IEnumerable<ExpenseCategoryDto>? cached))
+        {
+            return cached!;
+        }
+
         var categories = await _repository.FindAsync(c =>
             c.CondominiumId == condominiumId && c.IsActive && !c.IsDeleted);
-        return categories.OrderBy(c => c.Name).Select(MapToDto);
+        var result = categories.OrderBy(c => c.Name).Select(MapToDto).ToList();
+        
+        _cache.Set(cacheKey, result, CacheDuration);
+        return result;
     }
 
     public async Task<ExpenseCategoryDto?> GetByIdAsync(Guid id, Guid condominiumId)
@@ -54,6 +83,10 @@ public class ExpenseCategoryService
 
         await _repository.AddAsync(category);
         await _repository.SaveChangesAsync();
+        
+        // Invalidate cache
+        InvalidateCache(request.CondominiumId);
+        
         return MapToDto(category);
     }
 
@@ -76,6 +109,10 @@ public class ExpenseCategoryService
 
         _repository.Update(category);
         await _repository.SaveChangesAsync();
+        
+        // Invalidate cache
+        InvalidateCache(condominiumId);
+        
         return MapToDto(category);
     }
 
@@ -89,7 +126,17 @@ public class ExpenseCategoryService
         category.UpdatedAt = DateTime.UtcNow;
         _repository.Update(category);
         await _repository.SaveChangesAsync();
+        
+        // Invalidate cache
+        InvalidateCache(condominiumId);
+        
         return true;
+    }
+
+    private void InvalidateCache(Guid condominiumId)
+    {
+        _cache.Remove(GetCacheKey(condominiumId, false));
+        _cache.Remove(GetCacheKey(condominiumId, true));
     }
 
     public static List<string> NormalizeHashtags(IEnumerable<string> hashtags)

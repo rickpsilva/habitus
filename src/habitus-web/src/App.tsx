@@ -25,6 +25,7 @@ const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 const AssembliesPage = lazy(() => import('./pages/AssembliesPage'));
 const CondominiumsPage = lazy(() => import('./pages/CondominiumsPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
+const HelpdeskPage = lazy(() => import('./pages/HelpdeskPage'));
 const UnitsPage = lazy(() => import('./pages/UnitsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const SharedSpacesPage = lazy(() => import('./pages/SharedSpacesPage'));
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="/condominiums" element={<CondominiumsPage />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/helpdesk" element={<HelpdeskPage />} />
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/settings" element={<CondominiumSettingsPage />} />
             <Route path="/settings/consents" element={<ConsentAdminPage />} />

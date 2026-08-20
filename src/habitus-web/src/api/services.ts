@@ -1,4 +1,4 @@
-import api from './client';
+import api, { deduplicatedGet } from './client';
 import type {
   AuthResponse,
   LoginRequest,
@@ -16,6 +16,9 @@ import type {
   UnitPublicDto,
   MembershipsResponse,
   SetActiveContextRequest,
+  StartImpersonationRequest,
+  ImpersonationResponse,
+  ImpersonationStatusResponse,
   PendingUserDto,
   MaintenanceRequestDto,
   CreateMaintenanceRequest,
@@ -131,14 +134,22 @@ export const authApi = {
   unlinkProvider: (provider: 'google' | 'microsoft') => api.delete(`/platform/auth/providers/${provider}`),
   repairEmailHashes: (email?: string) =>
     api.post<{ repaired: number }>('/platform/auth/repair-email-hashes', email ? { email } : {}),
+
+  // Impersonation endpoints (REQ-USERS-004)
+  startImpersonation: (data: StartImpersonationRequest) =>
+    api.post<ImpersonationResponse>('/platform/auth/impersonate/start', data),
+  endImpersonation: () =>
+    api.post<AuthResponse>('/platform/auth/impersonate/end'),
+  getImpersonationStatus: () =>
+    api.get<ImpersonationStatusResponse>('/platform/auth/impersonate/status'),
 };
 
 // Current user memberships & active-context switching (REQ-AUTH-006)
 export const meApi = {
-  getMemberships: () => api.get<MembershipsResponse>('/platform/me/memberships'),
+  getMemberships: () => deduplicatedGet<MembershipsResponse>('/platform/me/memberships'),
   setActiveContext: (data: SetActiveContextRequest) =>
     api.post<AuthResponse>('/platform/me/active-context', data),
-  getConsents: () => api.get<ConsentStatusResponse>('/platform/me/consents'),
+  getConsents: () => deduplicatedGet<ConsentStatusResponse>('/platform/me/consents'),
   recordConsent: (data: RecordConsentRequest) =>
     api.post<ConsentStatusResponse>('/platform/me/consents', data),
   // RGPD/GDPR self-service (REQ-SEC-006). Export returns a JSON file download;
@@ -146,7 +157,7 @@ export const meApi = {
   exportData: () => api.get('/platform/me/export', { responseType: 'blob' }),
   eraseData: (data: ErasureRequest) =>
     api.post<ErasureResult>('/platform/me/personal-data/erasure', data),
-  getLocalization: () => api.get<MeLocalizationDto>('/platform/me/localization'),
+  getLocalization: () => deduplicatedGet<MeLocalizationDto>('/platform/me/localization'),
   setLanguage: (data: SetLanguageRequest) =>
     api.put<MeLocalizationDto>('/platform/me/language', data),
 };
@@ -159,13 +170,13 @@ export const platformLocalizationApi = {
   update: (data: UpdatePlatformLocalizationSettingsRequest) =>
     api.put<PlatformLocalizationSettingsDto>('/platform/localization-settings', data),
   getPublicDefault: () =>
-    api.get<PublicLocalizationDefaultDto>('/platform/localization-settings/public'),
+    deduplicatedGet<PublicLocalizationDefaultDto>('/platform/localization-settings/public'),
 };
 
 // Manager-only consent authoring & versioning (REQ-SEC-008). All endpoints are
 // Manager-only server-side; a non-Manager receives HTTP 403.
 export const consentAdminApi = {
-  list: () => api.get<ConsentDefinitionDto[]>('/platform/consents'),
+  list: () => deduplicatedGet<ConsentDefinitionDto[]>('/platform/consents'),
   update: (id: string, data: UpdateConsentDefinitionRequest) =>
     api.put<ConsentDefinitionDto>(`/platform/consents/${id}`, data),
   publish: (data: PublishConsentVersionRequest) =>
@@ -174,14 +185,16 @@ export const consentAdminApi = {
 
 // New users API
 export const usersApi = {
-  getAll: () => api.get<UserDto[]>('/platform/users'),
+  getAll: () => deduplicatedGet<UserDto[]>('/platform/users'),
   getPaged: (page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<UserDto>>(`/platform/users/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getByCondominium: (condominiumId: string) => api.get<UserDto[]>(`/platform/users/condominium/${condominiumId}`),
+    deduplicatedGet<PaginatedResponse<UserDto>>(`/platform/users/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getImpersonatable: (page: number = 1, pageSize: number = 10, search?: string, condominiumId?: string) =>
+    deduplicatedGet<PaginatedResponse<UserDto>>(`/platform/users/impersonatable?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${condominiumId ? `&condominiumId=${encodeURIComponent(condominiumId)}` : ''}`),
+  getByCondominium: (condominiumId: string) => deduplicatedGet<UserDto[]>(`/platform/users/condominium/${condominiumId}`),
   getByCondominiumPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<UserDto>>(`/platform/users/condominium/${condominiumId}/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getMe: () => api.get<UserDto>('/platform/users/me'),
-  getById: (id: string) => api.get<UserDto>(`/platform/users/${id}`),
+    deduplicatedGet<PaginatedResponse<UserDto>>(`/platform/users/condominium/${condominiumId}/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getMe: () => deduplicatedGet<UserDto>('/platform/users/me'),
+  getById: (id: string) => deduplicatedGet<UserDto>(`/platform/users/${id}`),
   create: (data: CreateUserRequest) => {
     // Convert role to string if it's a number
     const payload = {
@@ -215,11 +228,11 @@ export const associationApi = {
   create: (data: CreateAssociationRequestRequest) =>
     api.post<AssociationRequestResponseDto>('/platform/membership-association-requests', data),
   getMy: (status?: number) =>
-    api.get<AssociationRequestResponseDto[]>(
+    deduplicatedGet<AssociationRequestResponseDto[]>(
       `/platform/membership-association-requests/my${status !== undefined ? `?status=${status}` : ''}`,
     ),
   getPending: () =>
-    api.get<AssociationRequestResponseDto[]>('/platform/membership-association-requests/pending'),
+    deduplicatedGet<AssociationRequestResponseDto[]>('/platform/membership-association-requests/pending'),
   approve: (id: string, data: ReviewAssociationRequestRequest) =>
     api.post<AssociationRequestResponseDto>(`/platform/membership-association-requests/${id}/approve`, data),
   reject: (id: string, data: ReviewAssociationRequestRequest) =>
@@ -263,12 +276,12 @@ export const unitsApi = {
 };
 
 export const maintenanceApi = {
-  getAll: (condominiumId: string) => api.get<MaintenanceRequestDto[]>(`/condominiums/${condominiumId}/maintenance`),
+  getAll: (condominiumId: string) => deduplicatedGet<MaintenanceRequestDto[]>(`/condominiums/${condominiumId}/maintenance`),
   getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string, status?: string) =>
-    api.get<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
+    deduplicatedGet<PaginatedResponse<MaintenanceRequestDto>>(`/condominiums/${condominiumId}/maintenance/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}`),
   getStatusCounts: (condominiumId: string) =>
-    api.get<MaintenanceStatusCountsDto>(`/condominiums/${condominiumId}/maintenance/status-counts`),
-  getById: (condominiumId: string, id: string) => api.get<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`),
+    deduplicatedGet<MaintenanceStatusCountsDto>(`/condominiums/${condominiumId}/maintenance/status-counts`),
+  getById: (condominiumId: string, id: string) => deduplicatedGet<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`),
   create: (condominiumId: string, data: CreateMaintenanceRequest) => api.post<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance`, data),
   update: (condominiumId: string, id: string, data: Partial<CreateMaintenanceRequest> & { status?: string }) =>
     api.put<MaintenanceRequestDto>(`/condominiums/${condominiumId}/maintenance/${id}`, data),
@@ -279,11 +292,11 @@ export const maintenanceApi = {
 
 export const expenseCategoriesApi = {
   getAll: (condominiumId: string) =>
-    api.get<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories`),
+    deduplicatedGet<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories`),
   getActive: (condominiumId: string) =>
-    api.get<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories/active`),
+    deduplicatedGet<ExpenseCategoryDto[]>(`/condominiums/${condominiumId}/expense-categories/active`),
   getById: (condominiumId: string, id: string) =>
-    api.get<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories/${id}`),
+    deduplicatedGet<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories/${id}`),
   create: (condominiumId: string, data: CreateExpenseCategoryRequest) =>
     api.post<ExpenseCategoryDto>(`/condominiums/${condominiumId}/expense-categories`, data),
   update: (condominiumId: string, id: string, data: UpdateExpenseCategoryRequest) =>
@@ -293,17 +306,17 @@ export const expenseCategoriesApi = {
 };
 
 export const financialApi = {
-  getAll: (condominiumId: string) => api.get<FinancialRecordDto[]>(`/condominiums/${condominiumId}/financial`),
+  getAll: (condominiumId: string) => deduplicatedGet<FinancialRecordDto[]>(`/condominiums/${condominiumId}/financial`),
   getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
-  getSummary: (condominiumId: string) => api.get<FinancialSummaryDto>(`/condominiums/${condominiumId}/financial/summary`),
+    deduplicatedGet<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getSummary: (condominiumId: string) => deduplicatedGet<FinancialSummaryDto>(`/condominiums/${condominiumId}/financial/summary`),
   getDashboard: (condominiumId: string, fiscalYear?: number) =>
-    api.get<FinancialDashboardDto>(`/condominiums/${condominiumId}/financial/dashboard${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
-  getFiscalYears: (condominiumId: string) => api.get<number[]>(`/condominiums/${condominiumId}/financial/fiscal-years`),
+    deduplicatedGet<FinancialDashboardDto>(`/condominiums/${condominiumId}/financial/dashboard${fiscalYear ? `?fiscalYear=${fiscalYear}` : ''}`),
+  getFiscalYears: (condominiumId: string) => deduplicatedGet<number[]>(`/condominiums/${condominiumId}/financial/fiscal-years`),
   getAnnualReport: (condominiumId: string, year: number) =>
-    api.get<AnnualFinancialReportDto>(`/condominiums/${condominiumId}/financial/annual-report?year=${year}`),
+    deduplicatedGet<AnnualFinancialReportDto>(`/condominiums/${condominiumId}/financial/annual-report?year=${year}`),
   getByYear: (condominiumId: string, fiscalYear: number, page: number = 1, pageSize: number = 10, search?: string, type?: string) =>
-    api.get<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/by-year?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${type ? `&type=${encodeURIComponent(type)}` : ''}`),
+    deduplicatedGet<PaginatedResponse<FinancialRecordDto>>(`/condominiums/${condominiumId}/financial/by-year?fiscalYear=${fiscalYear}&page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}${type ? `&type=${encodeURIComponent(type)}` : ''}`),
   create: (condominiumId: string, data: CreateFinancialRecordRequest) => api.post<FinancialRecordDto>(`/condominiums/${condominiumId}/financial`, data),
   delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/financial/${id}`),
   
@@ -322,7 +335,7 @@ export const financialApi = {
 
 export const notificationsApi = {
   getAll: (condominiumId: string, page: number = 1, pageSize: number = 10) => 
-    api.get<PaginatedResponse<NotificationDto>>(`/condominiums/${condominiumId}/notifications?page=${page}&pageSize=${pageSize}`),
+    deduplicatedGet<PaginatedResponse<NotificationDto>>(`/condominiums/${condominiumId}/notifications?page=${page}&pageSize=${pageSize}`),
   markRead: (condominiumId: string, id: string) => api.put<NotificationDto>(`/condominiums/${condominiumId}/notifications/${id}/read`),
   markAllRead: (condominiumId: string) => api.put(`/condominiums/${condominiumId}/notifications/mark-all-read`),
   clearAll: (condominiumId: string) => api.delete(`/condominiums/${condominiumId}/notifications/clear-all`),
@@ -330,9 +343,9 @@ export const notificationsApi = {
 };
 
 export const reservationsApi = {
-  getAll: (condominiumId: string) => api.get<ReservationDto[]>(`/condominiums/${condominiumId}/reservations`),
+  getAll: (condominiumId: string) => deduplicatedGet<ReservationDto[]>(`/condominiums/${condominiumId}/reservations`),
   getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, search?: string) =>
-    api.get<PaginatedResponse<ReservationDto>>(`/condominiums/${condominiumId}/reservations/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    deduplicatedGet<PaginatedResponse<ReservationDto>>(`/condominiums/${condominiumId}/reservations/paged?page=${page}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
   create: (condominiumId: string, data: { spaceId: string; userId: string; startTime: string; endTime: string }) =>
     api.post<ReservationDto>(`/condominiums/${condominiumId}/reservations`, data),
   update: (condominiumId: string, id: string, data: { spaceId: string; startTime: string; endTime: string }) =>

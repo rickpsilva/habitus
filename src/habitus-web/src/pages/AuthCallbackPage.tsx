@@ -35,6 +35,7 @@ export default function AuthCallbackPage() {
     }
 
     const authResponse: AuthResponse = {
+      id: '', // Will be populated from JWT token after login
       token,
       email,
       name,

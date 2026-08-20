@@ -406,6 +406,87 @@ public class UserService
         };
     }
 
+    // ── Impersonation support ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns all impersonatable users (Admins and Residents) from condominiums the Manager has access to.
+    /// Used by Managers to find users they can impersonate for support operations.
+    /// </summary>
+    public async Task<IEnumerable<UserResponse>> GetImpersonatableUsersAsync(Guid managerId)
+    {
+        // Get condominiums the Manager has access to
+        var managerCondominiums = await _userCondominiumRepository.FindAsync(
+            uc => uc.UserId == managerId && uc.CanManage);
+
+        var condominiumIds = managerCondominiums.Select(uc => uc.CondominiumId).ToList();
+
+        if (!condominiumIds.Any())
+        {
+            return new List<UserResponse>();
+        }
+
+        // Get all active Admins and Residents from these condominiums
+        var users = await _userRepository.FindWithIncludesAsync(
+            u => condominiumIds.Contains(u.CondominiumId.Value) 
+                 && (u.Role == UserRole.Admin || u.Role == UserRole.Resident)
+                 && u.IsActive,
+            "Condominium", "Unit");
+
+        return users.Select(MapToResponse);
+    }
+
+    /// <summary>
+    /// Returns paginated impersonatable users (Admins and Residents) from condominiums the Manager has access to.
+    /// Optionally filters by a specific condominium.
+    /// </summary>
+    public async Task<PaginatedResponse<UserResponse>> GetImpersonatableUsersPagedAsync(
+        Guid managerId, int page, int pageSize, string? search = null, Guid? condominiumId = null)
+    {
+        // Get condominiums the Manager has access to
+        var managerCondominiums = await _userCondominiumRepository.FindAsync(
+            uc => uc.UserId == managerId && uc.CanManage);
+
+        var condominiumIds = managerCondominiums.Select(uc => uc.CondominiumId).ToList();
+
+        // If specific condominium requested, verify manager has access to it
+        if (condominiumId.HasValue)
+        {
+            if (!condominiumIds.Contains(condominiumId.Value))
+            {
+                return new PaginatedResponse<UserResponse>
+                {
+                    Items = new List<UserResponse>(),
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = 0,
+                    TotalPages = 0
+                };
+            }
+            condominiumIds = new List<Guid> { condominiumId.Value };
+        }
+
+        if (!condominiumIds.Any())
+        {
+            return new PaginatedResponse<UserResponse>
+            {
+                Items = new List<UserResponse>(),
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = 0,
+                TotalPages = 0
+            };
+        }
+
+        // Search (name/email) is handled by GetPaginatedUsersAsync which decrypts emails in-memory
+        // Only apply condominium, role and active filters here (SQL-compatible)
+        Expression<Func<User, bool>> filter = u =>
+            condominiumIds.Contains(u.CondominiumId.Value) &&
+            (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
+            u.IsActive;
+
+        return await GetPaginatedUsersAsync(filter, page, pageSize, search);
+    }
+
     // ── Pending resident approval ─────────────────────────────────────────────
 
     /// <summary>

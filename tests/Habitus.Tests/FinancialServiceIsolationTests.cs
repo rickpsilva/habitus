@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Habitus.Application.DTOs.Common;
 using Habitus.Application.DTOs.Financial;
 using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
@@ -10,6 +11,7 @@ namespace Habitus.Tests;
 public class FinancialServiceIsolationTests
 {
     private readonly Mock<IRepository<FinancialRecord>> _repositoryMock;
+    private readonly Mock<IFinancialQueryService> _financialQueryServiceMock;
     private readonly FinancialService _service;
 
     private readonly Guid _condominiumA = Guid.NewGuid();
@@ -21,7 +23,8 @@ public class FinancialServiceIsolationTests
         var reserveFundMock = new Mock<IRepository<ReserveFund>>();
         var announcementMock = new Mock<IRepository<Announcement>>();
         var expenseCategoryMock = new Mock<IRepository<ExpenseCategory>>();
-        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object);
+        _financialQueryServiceMock = new Mock<IFinancialQueryService>();
+        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object, _financialQueryServiceMock.Object);
     }
 
     [Fact]
@@ -52,15 +55,29 @@ public class FinancialServiceIsolationTests
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumA, Description = "A Record", Type = FinancialType.Income, Amount = 100, Date = DateTime.UtcNow, FiscalYear = DateTime.UtcNow.Year, IncomeCategory = IncomeCategory.MonthlyFees },
             new() { Id = Guid.NewGuid(), CondominiumId = _condominiumB, Description = "B Record", Type = FinancialType.Expense, Amount = 50, Date = DateTime.UtcNow, FiscalYear = DateTime.UtcNow.Year, ExpenseCategoryId = Guid.NewGuid() },
         };
-        _repositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, bool>>>()))
-            .ReturnsAsync((System.Linq.Expressions.Expression<Func<FinancialRecord, bool>> filter) => records.Count(filter.Compile()));
 
         _repositoryMock
-            .Setup(r => r.FindWithIncludesAsync(
+            .Setup(r => r.GetPagedWithIncludesAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<FinancialRecord, object>>>(),
+                It.IsAny<bool>(),
                 It.IsAny<string[]>()))
-            .ReturnsAsync((System.Linq.Expressions.Expression<Func<FinancialRecord, bool>> filter, string[] _) => records.Where(filter.Compile()));
+            .Returns((int page, int pageSize, System.Linq.Expressions.Expression<Func<FinancialRecord, bool>> filter, System.Linq.Expressions.Expression<Func<FinancialRecord, object>> orderBy, bool descending, string[] includes) =>
+            {
+                var filtered = records.Where(filter.Compile()).OrderByDescending(orderBy.Compile()).ToList();
+                var totalItems = filtered.Count;
+                var items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                return Task.FromResult(new PaginatedResponse<FinancialRecord>
+                {
+                    Items = items,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+                });
+            });
 
         var result = await _service.GetPagedAsync(1, 10, _condominiumA);
 

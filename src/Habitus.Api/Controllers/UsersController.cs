@@ -87,6 +87,31 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Get impersonatable users (Admins and Residents) for the authenticated Manager.
+    /// Returns users from condominiums the Manager has access to.
+    /// </summary>
+    [HttpGet("impersonatable")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetImpersonatableUsers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? condominiumId = null)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var managerId))
+        {
+            return Unauthorized("User ID not found in token");
+        }
+
+        var users = await _userService.GetImpersonatableUsersPagedAsync(managerId, page, pageSize, search, condominiumId);
+        return Ok(users);
+    }
+
+    /// <summary>
     /// Get current authenticated user
     /// </summary>
     [HttpGet("me")]
@@ -103,11 +128,6 @@ public class UsersController : ControllerBase
 
         return Ok(user);
     }
-
-    /// <summary>
-    /// Get user by ID (Manager, Admin for same condominium, or self)
-    /// </summary>
-    [HttpGet("{id}")]
     public async Task<IActionResult> GetUserById(Guid id)
     {
         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

@@ -1,11 +1,23 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+// Request deduplication cache - stores the promise for in-flight GET requests
+const pendingRequests = new Map<string, Promise<any>>();
+
+function getRequestKey(config: AxiosRequestConfig): string {
+  const method = config.method?.toUpperCase() ?? 'GET';
+  const url = config.url ?? '';
+  const params = config.params ? JSON.stringify(config.params) : '';
+  const data = config.data ? JSON.stringify(config.data) : '';
+  return `${method}:${url}:${params}:${data}`;
+}
 
 const api = axios.create({
   baseURL: configuredBaseUrl && configuredBaseUrl.length > 0 ? configuredBaseUrl : '/api',
 });
 
+// Add auth header to all requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -13,6 +25,48 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Request deduplication wrapper - call this instead of api.get() directly for GET requests
+// to enable deduplication. For other methods, use api directly.
+// Returns the full axios response (with .data) to maintain compatibility with existing code.
+export async function deduplicatedGet<T>(url: string, config?: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  const key = `GET:${url}:${config?.params ? JSON.stringify(config.params) : ''}`;
+  
+  const existing = pendingRequests.get(key);
+  if (existing) {
+    return existing as Promise<import('axios').AxiosResponse<T>>;
+  }
+  
+  const promise = api.get<T>(url, config).finally(() => {
+    pendingRequests.delete(key);
+  });
+  
+  pendingRequests.set(key, promise);
+  return promise;
+}
+
+export async function deduplicatedRequest<T>(config: AxiosRequestConfig): Promise<import('axios').AxiosResponse<T>> {
+  const key = getRequestKey(config);
+  
+  if (config.method?.toUpperCase() === 'GET') {
+    const existing = pendingRequests.get(key);
+    if (existing) {
+      return existing as Promise<import('axios').AxiosResponse<T>>;
+    }
+  }
+  
+  const promise = api.request<T>(config).finally(() => {
+    if (config.method?.toUpperCase() === 'GET') {
+      pendingRequests.delete(key);
+    }
+  });
+  
+  if (config.method?.toUpperCase() === 'GET') {
+    pendingRequests.set(key, promise);
+  }
+  
+  return promise;
+}
 
 api.interceptors.response.use(
   (response) => response,

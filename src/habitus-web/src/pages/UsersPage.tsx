@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, Mail, Phone, Shield, Building2, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronUp, UserCheck } from 'lucide-react';
 import { usersApi, unitsApi, condominiumsApi, userRegistrationApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -20,7 +20,7 @@ const roleColors: Record<number, string> = {
 };
 
 export default function UsersPage() {
-  const { isManager, isAdmin, condominiumId } = useAuth();
+  const { isManager, isAdmin, condominiumId, startImpersonation } = useAuth();
   const navigate = useNavigate();
   const { error: toastError } = useToast();
   const { t } = useTranslation();
@@ -80,13 +80,16 @@ export default function UsersPage() {
 
       if (isAdmin && condominiumId) {
         usersResponse = await usersApi.getByCondominiumPaged(condominiumId, page, pageSize, debouncedSearch);
+      } else if (isManager) {
+        // Manager sees platform Managers for platform management
+        usersResponse = await usersApi.getPaged(page, pageSize, debouncedSearch);
       } else {
         usersResponse = await usersApi.getPaged(page, pageSize, debouncedSearch);
       }
 
       let usersData = usersResponse.data.items;
       if (isManager) {
-        // Manager only sees other platform Managers
+        // Manager only sees other platform Managers for platform management
         usersData = usersData.filter(u => u.role === UserRole.Manager);
       } else if (isAdmin) {
         // Admin never sees platform Managers
@@ -151,6 +154,17 @@ export default function UsersPage() {
       toastError(t('users.error.reject'));
     } finally {
       setRejectId(null);
+    }
+  };
+
+  const handleImpersonate = async (userId: string, unitId?: string) => {
+    try {
+      await startImpersonation(userId, unitId);
+      toastError(t('impersonation.startedSuccessfully') || 'Representação iniciada com sucesso');
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Impersonation failed:', err);
+      toastError(t('auth.error.impersonationFailed'));
     }
   };
 
@@ -440,6 +454,16 @@ export default function UsersPage() {
                   </span>
                 </div>
                 <div className="flex gap-1">
+                  {isManager && (user.role === UserRole.Admin || user.role === UserRole.Resident) && (
+                    <button
+                      onClick={() => handleImpersonate(user.id, user.unitId ?? undefined)}
+                      className="p-1.5 text-ink-subtle hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      title={t('impersonation.startImpersonation')}
+                      aria-label={t('impersonation.startImpersonation')}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEdit(user)}
                     className="p-1.5 text-ink-subtle hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"

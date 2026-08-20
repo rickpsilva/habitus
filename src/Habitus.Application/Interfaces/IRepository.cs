@@ -6,6 +6,7 @@ namespace Habitus.Application.Interfaces;
 public interface IRepository<T> where T : class
 {
     Task<T?> GetByIdAsync(Guid id);
+    Task<T?> GetByIdNoTrackingAsync(Guid id);
     Task<T?> GetByIdWithIncludesAsync(Guid id, params string[] includes);
     Task<IEnumerable<T>> GetAllAsync();
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
@@ -41,6 +42,17 @@ public interface IRepository<T> where T : class
         Expression<Func<T, object>> orderBy,
         bool descending = false);
     Task<IEnumerable<T>> FindWithIncludesAsync(Expression<Func<T, bool>> predicate, params string[] includes);
+
+    /// <summary>
+    /// Returns a single page of entities with includes, applying filtering, ordering and paging at the database level.
+    /// </summary>
+    Task<PaginatedResponse<T>> GetPagedWithIncludesAsync(
+        int page,
+        int pageSize,
+        Expression<Func<T, bool>> filter,
+        Expression<Func<T, object>> orderBy,
+        bool descending,
+        params string[] includes);
     Task AddAsync(T entity);
     void Update(T entity);
     void Remove(T entity);
