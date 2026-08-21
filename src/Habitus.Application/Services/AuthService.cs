@@ -57,6 +57,7 @@ public class AuthService
     private readonly IRepository<UserAuthProvider> _userAuthProviderRepository;
     private readonly IRepository<UserRecoveryCode> _userRecoveryCodeRepository;
     private readonly IRepository<AuthChallenge> _authChallengeRepository;
+    private readonly IRepository<ImpersonationSession> _impersonationSessionRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
     private readonly IEncryptionService _encryptionService;
@@ -70,6 +71,7 @@ public class AuthService
         IRepository<UserAuthProvider> userAuthProviderRepository,
         IRepository<UserRecoveryCode> userRecoveryCodeRepository,
         IRepository<AuthChallenge> authChallengeRepository,
+        IRepository<ImpersonationSession> impersonationSessionRepository,
         IConfiguration configuration,
         IEmailService emailService,
         IEncryptionService encryptionService)
@@ -82,6 +84,7 @@ public class AuthService
         _userAuthProviderRepository = userAuthProviderRepository;
         _userRecoveryCodeRepository = userRecoveryCodeRepository;
         _authChallengeRepository = authChallengeRepository;
+        _impersonationSessionRepository = impersonationSessionRepository;
         _configuration = configuration;
         _emailService = emailService;
         _encryptionService = encryptionService;
@@ -1091,5 +1094,306 @@ Habitus Team
     {
         var emailHash = EmailHashHelper.GenerateEmailHash(email);
         return await _userRepository.ExistsAsync(u => u.EmailHash == emailHash);
+    }
+
+    // ==================== Impersonation Methods ====================
+
+    private const int DefaultImpersonationDurationMinutes = 30;
+
+    /// <summary>
+    /// Starts an impersonation session for a Manager to act as an Admin or Resident.
+    /// </summary>
+    /// <param name="managerId">The Manager's user ID.</param>
+    /// <param name="request">The impersonation request with target user and optional unit.</param>
+    /// <param name="ipAddress">The Manager's IP address for audit.</param>
+    /// <param name="userAgent">The Manager's user agent for audit.</param>
+    /// <returns>Impersonation response with token and session details, or null if invalid.</returns>
+    public async Task<ImpersonationResponse?> StartImpersonationAsync(
+        Guid managerId,
+        StartImpersonationRequest request,
+        string? ipAddress = null,
+        string? userAgent = null)
+    {
+        // Repositories share the scoped DbContext; EF Core does not allow concurrent
+        // operations on the same instance, so load entities sequentially.
+        var manager = await _userRepository.GetByIdNoTrackingAsync(managerId);
+        var targetUser = await _userRepository.GetByIdNoTrackingAsync(request.TargetUserId);
+
+        if (manager == null || !manager.IsActive || manager.Role != UserRole.Manager)
+        {
+            return null;
+        }
+
+        if (targetUser == null || !targetUser.IsActive)
+        {
+            return null;
+        }
+
+        // Cannot impersonate other Managers
+        if (targetUser.Role == UserRole.Manager)
+        {
+            return null;
+        }
+
+        // Verify Manager has access to target user's condominium
+        var targetCondominiumId = targetUser.CondominiumId;
+        if (!targetCondominiumId.HasValue)
+        {
+            return null;
+        }
+
+        // Access checks must be sequential because repositories share the scoped DbContext.
+        var hasAccess = await _userCondominiumRepository.ExistsAsync(uc =>
+            uc.UserId == managerId && uc.CondominiumId == targetCondominiumId.Value);
+        if (!hasAccess)
+        {
+            return null;
+        }
+
+        Guid? unitId = request.UnitId;
+        if (unitId.HasValue)
+        {
+            var hasUnitMembership = await _unitMembershipRepository.ExistsAsync(m =>
+                m.UserId == targetUser.Id && m.UnitId == unitId.Value && m.CondominiumId == targetCondominiumId.Value);
+            if (!hasUnitMembership)
+            {
+                unitId = null; // Fall back to condominium-level
+            }
+        }
+
+        // End any existing active impersonation session for this manager
+        var existingSession = await _impersonationSessionRepository.FirstOrDefaultAsync(
+            s => s.ImpersonatorUserId == managerId && s.IsActive);
+
+        if (existingSession != null)
+        {
+            existingSession.IsActive = false;
+            existingSession.EndedAt = DateTime.UtcNow;
+            existingSession.EndReason = "ExplicitExit";
+            _impersonationSessionRepository.Update(existingSession);
+        }
+
+        // Create new impersonation session
+        var durationMinutes = GetImpersonationDurationMinutes();
+        var expiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
+
+        var session = new ImpersonationSession
+        {
+            Id = Guid.NewGuid(),
+            ImpersonatorUserId = managerId,
+            ImpersonatedUserId = targetUser.Id,
+            CondominiumId = targetCondominiumId.Value,
+            UnitId = unitId,
+            StartedAt = DateTime.UtcNow,
+            ExpiresAt = expiresAt,
+            IpAddress = ipAddress ?? "unknown",
+            UserAgent = userAgent,
+            IsActive = true
+        };
+
+        await _impersonationSessionRepository.AddAsync(session);
+        await _impersonationSessionRepository.SaveChangesAsync();
+
+        // Generate impersonation token
+        var targetUserEmail = GetUserEmail(targetUser);
+        var expiresAtUnix = ((DateTimeOffset)expiresAt).ToUnixTimeSeconds();
+        var token = GenerateImpersonationToken(
+            manager,
+            targetUser,
+            targetUserEmail,
+            targetCondominiumId.Value,
+            unitId,
+            expiresAtUnix);
+
+        // Load related info sequentially because repositories share the scoped DbContext.
+        var condominium = await _condominiumRepository.GetByIdAsync(targetCondominiumId.Value);
+        Unit? unit = null;
+        if (unitId.HasValue)
+        {
+            unit = await _unitRepository.GetByIdAsync(unitId.Value);
+        }
+
+        return new ImpersonationResponse
+        {
+            Token = token,
+            ExpiresAt = expiresAtUnix, // Unix timestamp
+            ImpersonatedUserId = targetUser.Id,
+            ImpersonatedRole = (int)targetUser.Role,
+            CondominiumId = targetCondominiumId.Value,
+            UnitId = unitId,
+            ImpersonatedUserName = targetUser.Name,
+            CondominiumName = condominium?.Name ?? string.Empty,
+            UnitIdentifier = unit?.Number
+        };
+    }
+
+    /// <summary>
+    /// Ends the current impersonation session and returns the Manager's original token.
+    /// </summary>
+    /// <param name="managerId">The Manager's user ID.</param>
+    /// <returns>AuthResponse with Manager's original token, or null if no active session.</returns>
+    public virtual async Task<AuthResponse?> EndImpersonationAsync(Guid managerId)
+    {
+        var session = await _impersonationSessionRepository.FirstOrDefaultAsync(
+            s => s.ImpersonatorUserId == managerId && s.IsActive);
+
+        if (session == null)
+        {
+            return null;
+        }
+
+        session.IsActive = false;
+        session.EndedAt = DateTime.UtcNow;
+        session.EndReason = "ExplicitExit";
+        _impersonationSessionRepository.Update(session);
+        await _impersonationSessionRepository.SaveChangesAsync();
+
+        // Return Manager's original token
+        var manager = await _userRepository.GetByIdAsync(managerId);
+        if (manager == null || !manager.IsActive)
+        {
+            return null;
+        }
+
+        var managerEmail = GetUserEmail(manager);
+        return await CreateAuthenticatedResponseAsync(manager);
+    }
+
+    /// <summary>
+    /// Gets the current impersonation status for a Manager.
+    /// </summary>
+    /// <param name="managerId">The Manager's user ID.</param>
+    /// <returns>Impersonation status, or null if Manager not found.</returns>
+    public async Task<ImpersonationStatusResponse?> GetImpersonationStatusAsync(Guid managerId)
+    {
+        // Load sequentially because repositories share the scoped DbContext.
+        var manager = await _userRepository.GetByIdAsync(managerId);
+        var session = await _impersonationSessionRepository.FirstOrDefaultAsync(
+            s => s.ImpersonatorUserId == managerId && s.IsActive);
+
+        if (manager == null)
+        {
+            return null;
+        }
+
+        if (session == null)
+        {
+            return new ImpersonationStatusResponse
+            {
+                IsImpersonating = false,
+                ImpersonatorUserId = managerId,
+                ImpersonatorUserName = manager.Name
+            };
+        }
+
+        // Check if expired
+        if (session.ExpiresAt <= DateTime.UtcNow)
+        {
+            session.IsActive = false;
+            session.EndedAt = DateTime.UtcNow;
+            session.EndReason = "Expired";
+            _impersonationSessionRepository.Update(session);
+            await _impersonationSessionRepository.SaveChangesAsync();
+
+            return new ImpersonationStatusResponse
+            {
+                IsImpersonating = false,
+                ImpersonatorUserId = managerId,
+                ImpersonatorUserName = manager.Name
+            };
+        }
+
+        // Load related entities sequentially because repositories share the scoped DbContext.
+        var targetUser = await _userRepository.GetByIdAsync(session.ImpersonatedUserId);
+        var condominium = await _condominiumRepository.GetByIdAsync(session.CondominiumId);
+        Unit? unit = null;
+        if (session.UnitId.HasValue)
+        {
+            unit = await _unitRepository.GetByIdAsync(session.UnitId.Value);
+        }
+
+        string? unitIdentifier = unit?.Number;
+
+        return new ImpersonationStatusResponse
+        {
+            IsImpersonating = true,
+            ImpersonatedUserId = session.ImpersonatedUserId,
+            ImpersonatedRole = targetUser != null ? (int)targetUser.Role : null,
+            ImpersonatedUserName = targetUser?.Name,
+            CondominiumId = session.CondominiumId,
+            CondominiumName = condominium?.Name,
+            UnitId = session.UnitId,
+            UnitIdentifier = unitIdentifier,
+            ExpiresAt = ((DateTimeOffset)session.ExpiresAt).ToUnixTimeSeconds(),
+            ImpersonatorUserId = managerId,
+            ImpersonatorUserName = manager.Name
+        };
+    }
+
+    /// <summary>
+    /// Validates an impersonation token and returns the session if valid.
+    /// </summary>
+    public async Task<ImpersonationSession?> ValidateImpersonationTokenAsync(string token)
+    {
+        // This would typically be called from middleware after JWT validation
+        // The token itself contains the session ID or we can look up by impersonator/impersonated
+        // For now, we'll look up active sessions - in production you'd want to embed session ID in token
+        return await _impersonationSessionRepository.FirstOrDefaultAsync(s => s.IsActive && s.ExpiresAt > DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Generates a JWT token for impersonation with additional claims.
+    /// </summary>
+    private string GenerateImpersonationToken(
+        User manager,
+        User targetUser,
+        string targetUserEmail,
+        Guid condominiumId,
+        Guid? unitId,
+        long expiresAtUnix)
+    {
+        var secretKey = _configuration["JwtSettings:SecretKey"]
+            ?? throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, targetUser.Id.ToString()), // Token subject is the target user
+            new Claim(ClaimTypes.Email, targetUserEmail),
+            new Claim(ClaimTypes.Name, targetUser.Name),
+            new Claim(ClaimTypes.Role, targetUser.Role.ToString()), // Target role
+            new Claim("CondominiumId", condominiumId.ToString()),
+            new Claim("ImpersonatedUserId", targetUser.Id.ToString()),
+            new Claim("ImpersonatedRole", targetUser.Role.ToString()),
+            new Claim("ImpersonatorUserId", manager.Id.ToString()),
+            new Claim("ImpersonatorRole", manager.Role.ToString()),
+            new Claim("IsImpersonation", "true"),
+            new Claim("ImpersonationExpiresAt", expiresAtUnix.ToString())
+        };
+
+        if (unitId.HasValue)
+        {
+            claims.Add(new Claim("UnitId", unitId.Value.ToString()));
+        }
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix).UtcDateTime,
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private int GetImpersonationDurationMinutes()
+    {
+        var configured = _configuration["ImpersonationSettings:DurationMinutes"];
+        if (int.TryParse(configured, out var minutes) && minutes > 0)
+        {
+            return minutes;
+        }
+        return DefaultImpersonationDurationMinutes;
     }
 }

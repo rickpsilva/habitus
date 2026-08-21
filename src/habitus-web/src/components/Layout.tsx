@@ -7,6 +7,7 @@ import { announcementsApi, notificationsApi, subscriptionsApi, meApi } from '../
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import CommandPalette from './CommandPalette';
 import LanguageSwitcher from './LanguageSwitcher';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import {
   LayoutDashboard,
   Wrench,
@@ -34,6 +35,7 @@ import {
   ArrowLeftRight,
   Link2,
   UserCheck,
+  LifeBuoy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { MembershipCondominiumDto } from '../types';
@@ -61,6 +63,7 @@ const navItems: NavItem[] = [
   { to: '/documents', labelKey: 'nav.documents', icon: FileText, featureKey: 'documents' },
   { to: '/useful-contacts', labelKey: 'nav.usefulContacts', icon: Phone, featureKey: 'useful_contacts' },
   { to: '/assemblies', labelKey: 'nav.assemblies', icon: ClipboardList, featureKey: 'assemblies' },
+  { to: '/helpdesk', labelKey: 'nav.helpdesk', icon: LifeBuoy, managerOnly: true },
   { to: '/settings', labelKey: 'nav.settings', icon: Settings, managerOrAdminOnly: true },
   { to: '/settings/consents', labelKey: 'nav.consentAdmin', icon: ShieldCheck, managerOnly: true },
   { to: '/association-requests', labelKey: 'nav.associationRequests', icon: UserCheck, adminOnly: true },
@@ -85,8 +88,8 @@ const adminMenuOrder = [
   '/assemblies',
   '/users',
   '/association-requests',
-  '/my-associations',
   '/settings',
+  '/my-associations',
 ];
 
 const residentMenuOrder = [
@@ -108,6 +111,7 @@ const managerMenuOrder = [
   '/condominiums',
   '/billing',
   '/users',
+  '/helpdesk',
   '/settings',
   '/settings/consents',
 ];
@@ -121,7 +125,7 @@ const navSections: { id: string; labelKey: TranslationKey; routes: string[] }[] 
     labelKey: 'section.operations',
     routes: ['/maintenance', '/financial', '/reservations', '/payments', '/documents', '/useful-contacts', '/assemblies', '/my-associations'],
   },
-  { id: 'admin', labelKey: 'section.admin', routes: ['/users', '/association-requests', '/settings', '/settings/consents', '/condominiums', '/billing'] },
+  { id: 'admin', labelKey: 'section.admin', routes: ['/helpdesk', '/users', '/association-requests', '/settings', '/settings/consents', '/condominiums', '/billing'] },
 ];
 
 const sectionIdForRoute = (to: string): string =>
@@ -532,7 +536,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">
+        {/*
+          Impersonation banner - shown at the top of main content when a Manager
+          is impersonating another user. This is a global indicator that persists
+          across all pages during the impersonation session.
+        */}
+        <ImpersonationBanner />
+        {children}
+      </main>
       </div>
 
       {paletteOpen && (

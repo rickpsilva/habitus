@@ -96,12 +96,14 @@ public static class DependencyInjection
             services.AddScoped<IPaymentGatewayService, StripePaymentGatewayService>();
         }
 
+        services.AddMemoryCache();
         services.AddScoped<AuthService>();
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
         services.AddScoped<ReserveFundService>();
         services.AddScoped<ExpenseCategoryService>();
+        services.AddScoped<IFinancialQueryService, FinancialQueryService>();
         services.AddScoped<AssemblyService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationDispatchService, NotificationDispatchService>();

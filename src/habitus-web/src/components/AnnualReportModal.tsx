@@ -6,8 +6,7 @@ import ModalPopup from './ModalPopup';
 import { Button } from './ui';
 import { financialApi } from '../api/services';
 import { useTranslation } from '../i18n/I18nProvider';
-import type { TranslateFn } from '../i18n/types';
-import type { AnnualFinancialReportDto, CategoryTotalDto, TagMonthlyBreakdownDto } from '../types';
+import type { AnnualFinancialReportDto } from '../types';
 
 interface AnnualReportModalProps {
   open: boolean;
@@ -20,13 +19,6 @@ interface ReportContentProps {
   condominiumId: string;
   year: number;
 }
-
-const incomeCategoryLabels = (t: TranslateFn): Record<string, string> => ({
-  MonthlyFees: t('financial.category.MonthlyFees'),
-  ExtraordinaryFees: t('financial.category.ExtraordinaryFees'),
-  LateFeeInterest: t('financial.category.LateFeeInterest'),
-  OtherIncome: t('financial.category.OtherIncome'),
-});
 
 const monthAbbreviations = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const monthAbbreviationsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -70,19 +62,6 @@ function ReportContent({ condominiumId, year }: ReportContentProps) {
       cancelled = true;
     };
   }, [condominiumId, year, t]);
-
-  const monthLabel = (month: number): string =>
-    new Intl.DateTimeFormat(language, { month: 'long' }).format(new Date(year, month - 1, 1));
-
-  const categoryLabel = (category: string): string => {
-    const incomeLabels = incomeCategoryLabels(t);
-    if (category in incomeLabels) return incomeLabels[category];
-    if (category === 'Sem categoria') return t('financial.report.uncategorized');
-    return category;
-  };
-
-  const tagLabel = (tag: string): string =>
-    tag === 'Sem categoria' ? t('financial.report.uncategorized') : `#${tag}`;
 
   const monthAbbr = language.startsWith('pt') ? monthAbbreviations : monthAbbreviationsEn;
 

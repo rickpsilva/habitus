@@ -54,6 +54,13 @@
       ]
     },
     {
+      "id": "REQ-USERS-004",
+      "file": "requirements/users/REQ-USERS-004.md",
+      "diagrams": [
+        "diagrams/sequences/manager-impersonation-flow.mmd"
+      ]
+    },
+    {
       "id": "REQ-SEC-003",
       "file": "requirements/security/REQ-SEC-003.md",
       "diagrams": [

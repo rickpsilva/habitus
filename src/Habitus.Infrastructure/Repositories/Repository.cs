@@ -19,6 +19,8 @@ public class Repository<T> : IRepository<T> where T : class
 
     public async Task<T?> GetByIdAsync(Guid id) => await _dbSet.FindAsync(id);
 
+    public async Task<T?> GetByIdNoTrackingAsync(Guid id) => await _dbSet.AsNoTracking().FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id);
+
     public async Task<T?> GetByIdWithIncludesAsync(Guid id, params string[] includes)
     {
         IQueryable<T> query = _dbSet;
@@ -109,6 +111,44 @@ public class Repository<T> : IRepository<T> where T : class
         }
         
         return await query.Where(predicate).ToListAsync();
+    }
+
+    public async Task<PaginatedResponse<T>> GetPagedWithIncludesAsync(
+        int page,
+        int pageSize,
+        Expression<Func<T, bool>> filter,
+        Expression<Func<T, object>> orderBy,
+        bool descending = false,
+        params string[] includes)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        IQueryable<T> query = _dbSet.AsNoTracking();
+        
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+        
+        query = query.Where(filter);
+        query = descending ? query.OrderByDescending(orderBy) : query.OrderBy(orderBy);
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PaginatedResponse<T>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        };
     }
 
     public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);

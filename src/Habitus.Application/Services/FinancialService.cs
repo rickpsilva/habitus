@@ -12,17 +12,20 @@ public class FinancialService
     private readonly IRepository<ReserveFund> _reserveFundRepository;
     private readonly IRepository<Announcement> _announcementRepository;
     private readonly IRepository<ExpenseCategory> _expenseCategoryRepository;
+    private readonly IFinancialQueryService _financialQueryService;
 
     public FinancialService(
         IRepository<FinancialRecord> repository,
         IRepository<ReserveFund> reserveFundRepository,
         IRepository<Announcement> announcementRepository,
-        IRepository<ExpenseCategory> expenseCategoryRepository)
+        IRepository<ExpenseCategory> expenseCategoryRepository,
+        IFinancialQueryService financialQueryService)
     {
         _repository = repository;
         _reserveFundRepository = reserveFundRepository;
         _announcementRepository = announcementRepository;
         _expenseCategoryRepository = expenseCategoryRepository;
+        _financialQueryService = financialQueryService;
     }
 
     public async Task<IEnumerable<FinancialRecordDto>> GetAllAsync(Guid condominiumId)
@@ -62,22 +65,21 @@ public class FinancialService
              (r.ReserveFundCategory.HasValue && matchingReserveCategories.Contains(r.ReserveFundCategory.Value)) ||
              (r.ExpenseCategory != null && r.ExpenseCategory.Name.ToLower().Contains(searchLower)));
 
-        var totalItems = await _repository.CountAsync(filter);
-        var records = await _repository.FindWithIncludesAsync(filter, nameof(FinancialRecord.ExpenseCategory));
-        var items = records
-            .OrderByDescending(r => r.Date)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(MapToDto)
-            .ToList();
+        var paged = await _repository.GetPagedWithIncludesAsync(
+            page,
+            pageSize,
+            filter,
+            r => r.Date,
+            descending: true,
+            nameof(FinancialRecord.ExpenseCategory));
 
         return new PaginatedResponse<FinancialRecordDto>
         {
-            Items = items,
-            Page = page,
-            PageSize = pageSize,
-            TotalItems = totalItems,
-            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
         };
     }
 
@@ -233,18 +235,26 @@ public class FinancialService
 
     public async Task<AnnualFinancialReportDto> GetAnnualReportAsync(Guid condominiumId, int year)
     {
-        var records = await _repository.FindWithIncludesAsync(
-            r => r.CondominiumId == condominiumId &&
-                 r.FiscalYear == year &&
-                 r.ReserveFundCategory == null,
-            nameof(FinancialRecord.ExpenseCategory));
+        // Use raw SQL for efficient server-side aggregation via IFinancialQueryService
+        var monthlyBreakdown = await _financialQueryService.GetMonthlyBreakdownAsync(condominiumId, year);
+        var incomeByCategory = await _financialQueryService.GetIncomeByCategoryAsync(condominiumId, year);
+        var expensesByTag = await _financialQueryService.GetExpensesByTagAsync(condominiumId, year);
+        var expensesByTagMonthly = await _financialQueryService.GetExpensesByTagMonthlyAsync(condominiumId, year);
 
-        var dtos = records.Select(MapToDto).ToList();
-        var income = dtos.Where(r => r.Type == nameof(FinancialType.Income)).ToList();
-        var expenses = dtos.Where(r => r.Type == nameof(FinancialType.Expense)).ToList();
+        // Debug: check if mock is returning null
+        Console.WriteLine($"DEBUG: monthlyBreakdown is null: {monthlyBreakdown == null}");
+        Console.WriteLine($"DEBUG: monthlyBreakdown count: {monthlyBreakdown?.Count ?? -1}");
+        Console.WriteLine($"DEBUG: incomeByCategory is null: {incomeByCategory == null}");
+        Console.WriteLine($"DEBUG: expensesByTag is null: {expensesByTag == null}");
+        Console.WriteLine($"DEBUG: expensesByTagMonthly is null: {expensesByTagMonthly == null}");
 
-        var totalIncome = income.Sum(r => r.Amount);
-        var totalExpenses = expenses.Sum(r => r.Amount);
+        monthlyBreakdown ??= new List<MonthlyFinancialBreakdownDto>();
+        incomeByCategory ??= new List<CategoryTotalDto>();
+        expensesByTag ??= new List<CategoryTotalDto>();
+        expensesByTagMonthly ??= new List<TagMonthlyBreakdownDto>();
+
+        var totalIncome = monthlyBreakdown.Sum(m => m.Income);
+        var totalExpenses = monthlyBreakdown.Sum(m => m.Expenses);
 
         return new AnnualFinancialReportDto
         {
@@ -252,21 +262,10 @@ public class FinancialService
             TotalIncome = totalIncome,
             TotalExpenses = totalExpenses,
             Balance = totalIncome - totalExpenses,
-            MonthlyBreakdown = Enumerable.Range(1, 12).Select(month =>
-            {
-                var monthIncome = income.Where(r => r.Date.Month == month).Sum(r => r.Amount);
-                var monthExpenses = expenses.Where(r => r.Date.Month == month).Sum(r => r.Amount);
-                return new MonthlyFinancialBreakdownDto
-                {
-                    Month = month,
-                    Income = monthIncome,
-                    Expenses = monthExpenses,
-                    Balance = monthIncome - monthExpenses
-                };
-            }).ToList(),
-            IncomeByCategory = GroupByCategory(income),
-            ExpensesByTag = GroupByTag(expenses),
-            ExpensesByTagMonthly = BuildTagMonthlyBreakdown(expenses)
+            MonthlyBreakdown = monthlyBreakdown,
+            IncomeByCategory = incomeByCategory,
+            ExpensesByTag = expensesByTag,
+            ExpensesByTagMonthly = expensesByTagMonthly
         };
     }
 
@@ -385,22 +384,21 @@ public class FinancialService
              (r.ReserveFundCategory.HasValue && matchingReserveCategories.Contains(r.ReserveFundCategory.Value)) ||
              (r.ExpenseCategory != null && r.ExpenseCategory.Name.ToLower().Contains(searchLower)));
 
-        var totalItems = await _repository.CountAsync(filter);
-        var records = await _repository.FindWithIncludesAsync(filter, nameof(FinancialRecord.ExpenseCategory));
-        var items = records
-            .OrderByDescending(r => r.Date)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(MapToDto)
-            .ToList();
+        var paged = await _repository.GetPagedWithIncludesAsync(
+            page,
+            pageSize,
+            filter,
+            r => r.Date,
+            descending: true,
+            nameof(FinancialRecord.ExpenseCategory));
 
         return new PaginatedResponse<FinancialRecordDto>
         {
-            Items = items,
-            Page = page,
-            PageSize = pageSize,
-            TotalItems = totalItems,
-            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+            Items = paged.Items.Select(MapToDto).ToList(),
+            Page = paged.Page,
+            PageSize = paged.PageSize,
+            TotalItems = paged.TotalItems,
+            TotalPages = paged.TotalPages
         };
     }
 

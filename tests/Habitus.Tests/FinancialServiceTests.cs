@@ -12,6 +12,7 @@ namespace Habitus.Tests;
 public class FinancialServiceTests
 {
     private readonly Mock<IRepository<FinancialRecord>> _repositoryMock;
+    private readonly Mock<IFinancialQueryService> _financialQueryServiceMock;
     private readonly FinancialService _service;
 
     public FinancialServiceTests()
@@ -20,7 +21,8 @@ public class FinancialServiceTests
         var reserveFundMock = new Mock<IRepository<ReserveFund>>();
         var announcementMock = new Mock<IRepository<Announcement>>();
         var expenseCategoryMock = new Mock<IRepository<ExpenseCategory>>();
-        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object);
+        _financialQueryServiceMock = new Mock<IFinancialQueryService>();
+        _service = new FinancialService(_repositoryMock.Object, reserveFundMock.Object, announcementMock.Object, expenseCategoryMock.Object, _financialQueryServiceMock.Object);
     }
 
     [Fact(Skip = "Legacy test - DTO fields updated. See FinancialServiceIsolationTests.")]
@@ -55,18 +57,48 @@ public class FinancialServiceTests
     {
         var condominiumId = Guid.NewGuid();
         const int year = 2026;
-        var records = new List<FinancialRecord>
+
+        // Mock the financial query service responses
+        var monthlyBreakdown = new List<MonthlyFinancialBreakdownDto>
         {
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 1000m, CondominiumId = condominiumId, Date = new DateTime(year, 1, 10), FiscalYear = year, Description = "Fee Jan", IncomeCategory = IncomeCategory.MonthlyFees },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Income, Amount = 500m, CondominiumId = condominiumId, Date = new DateTime(year, 3, 5), FiscalYear = year, Description = "Extra", IncomeCategory = IncomeCategory.ExtraordinaryFees },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 300m, CondominiumId = condominiumId, Date = new DateTime(year, 1, 20), FiscalYear = year, Description = "Cleaning", ExpenseCategory = new ExpenseCategory { Name = "Limpeza", Hashtags = new List<string> { "limpeza" } } },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 200m, CondominiumId = condominiumId, Date = new DateTime(year, 3, 15), FiscalYear = year, Description = "Elevator", ExpenseCategory = new ExpenseCategory { Name = "Manutenção", Hashtags = new List<string> { "manutencao" } } },
-            new() { Id = Guid.NewGuid(), Type = FinancialType.Expense, Amount = 900m, CondominiumId = condominiumId, Date = new DateTime(year, 6, 1), FiscalYear = year, Description = "Reserve transfer", ReserveFundCategory = ReserveFundCategory.Transfer }
+            new() { Month = 1, Income = 1000m, Expenses = 300m, Balance = 700m },
+            new() { Month = 2, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 3, Income = 500m, Expenses = 200m, Balance = 300m },
+            new() { Month = 4, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 5, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 6, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 7, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 8, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 9, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 10, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 11, Income = 0m, Expenses = 0m, Balance = 0m },
+            new() { Month = 12, Income = 0m, Expenses = 0m, Balance = 0m },
         };
-        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
-                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<string[]>()))
-            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter, string[] _) => records.Where(filter.Compile()));
+
+        var incomeByCategory = new List<CategoryTotalDto>
+        {
+            new() { Category = "MonthlyFees", Total = 1000m },
+            new() { Category = "ExtraordinaryFees", Total = 500m },
+        };
+
+        var expensesByTag = new List<CategoryTotalDto>
+        {
+            new() { Category = "limpeza", Total = 300m },
+            new() { Category = "manutencao", Total = 200m },
+        };
+
+        var expensesByTagMonthly = new List<TagMonthlyBreakdownDto>
+        {
+            new() { Tag = "limpeza", Category = null, IsTagGroup = true, MonthlyValues = new List<decimal> { 300m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, Total = 300m },
+            new() { Tag = "limpeza", Category = "Limpeza", IsTagGroup = false, MonthlyValues = new List<decimal> { 300m, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, Total = 300m },
+            new() { Tag = "manutencao", Category = null, IsTagGroup = true, MonthlyValues = new List<decimal> { 0, 0, 200m, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, Total = 200m },
+            new() { Tag = "manutencao", Category = "Manutenção", IsTagGroup = false, MonthlyValues = new List<decimal> { 0, 0, 200m, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, Total = 200m },
+        };
+
+        _financialQueryServiceMock.Setup(s => s.GetMonthlyBreakdownAsync(condominiumId, year)).ReturnsAsync(monthlyBreakdown).Verifiable();
+        _financialQueryServiceMock.Setup(s => s.GetIncomeByCategoryAsync(condominiumId, year)).ReturnsAsync(incomeByCategory).Verifiable();
+        _financialQueryServiceMock.Setup(s => s.GetExpensesByTagAsync(condominiumId, year)).ReturnsAsync(expensesByTag).Verifiable();
+        _financialQueryServiceMock.Setup(s => s.GetExpensesByTagMonthlyAsync(condominiumId, year)).ReturnsAsync(expensesByTagMonthly).Verifiable();
 
         var report = await _service.GetAnnualReportAsync(condominiumId, year);
 
@@ -117,12 +149,20 @@ public class FinancialServiceTests
     public async Task GetAnnualReportAsync_EmptyYear_ReturnsZeroedReport()
     {
         var condominiumId = Guid.NewGuid();
-        _repositoryMock.Setup(r => r.FindWithIncludesAsync(
-                It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
-                It.IsAny<string[]>()))
-            .ReturnsAsync(Enumerable.Empty<FinancialRecord>());
+        const int year = 2030;
 
-        var report = await _service.GetAnnualReportAsync(condominiumId, 2030);
+        var monthlyBreakdown = new List<MonthlyFinancialBreakdownDto>();
+        for (int m = 1; m <= 12; m++)
+        {
+            monthlyBreakdown.Add(new MonthlyFinancialBreakdownDto { Month = m, Income = 0m, Expenses = 0m, Balance = 0m });
+        }
+
+        _financialQueryServiceMock.Setup(s => s.GetMonthlyBreakdownAsync(condominiumId, year)).ReturnsAsync(monthlyBreakdown);
+        _financialQueryServiceMock.Setup(s => s.GetIncomeByCategoryAsync(condominiumId, year)).ReturnsAsync(new List<CategoryTotalDto>());
+        _financialQueryServiceMock.Setup(s => s.GetExpensesByTagAsync(condominiumId, year)).ReturnsAsync(new List<CategoryTotalDto>());
+        _financialQueryServiceMock.Setup(s => s.GetExpensesByTagMonthlyAsync(condominiumId, year)).ReturnsAsync(new List<TagMonthlyBreakdownDto>());
+
+        var report = await _service.GetAnnualReportAsync(condominiumId, year);
 
         report.TotalIncome.Should().Be(0m);
         report.TotalExpenses.Should().Be(0m);
@@ -149,14 +189,25 @@ public class FinancialServiceTests
         };
 
         _repositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<FinancialRecord, bool>>>()))
-            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter) => records.Count(filter.Compile()));
-
-        _repositoryMock
-            .Setup(r => r.FindWithIncludesAsync(
+            .Setup(r => r.GetPagedWithIncludesAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<Expression<Func<FinancialRecord, bool>>>(),
+                It.IsAny<Expression<Func<FinancialRecord, object>>>(),
+                It.IsAny<bool>(),
                 It.IsAny<string[]>()))
-            .ReturnsAsync((Expression<Func<FinancialRecord, bool>> filter, string[] _) => records.Where(filter.Compile()));
+            .ReturnsAsync((int page, int pageSize, Expression<Func<FinancialRecord, bool>> filter, Expression<Func<FinancialRecord, object>> orderBy, bool descending, string[] includes) =>
+            {
+                var filtered = records.Where(filter.Compile()).ToList();
+                return new PaginatedResponse<FinancialRecord>
+                {
+                    Items = filtered,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = filtered.Count,
+                    TotalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize)
+                };
+            });
 
         var result = await _service.GetPagedByYearAsync(condominiumId, fiscalYear, 1, 10, null, type);
 

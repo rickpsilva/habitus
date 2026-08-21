@@ -419,4 +419,81 @@ public class AuthController : ControllerBase
         return HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Frontend:BaseUrl"]?.TrimEnd('/')
             ?? "http://localhost:5173";
     }
+
+    // ==================== Impersonation Endpoints ====================
+
+    /// <summary>
+    /// Starts an impersonation session for a Manager to act as an Admin or Resident.
+    /// Only accessible by users with Manager role.
+    /// </summary>
+    [HttpPost("impersonate/start")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> StartImpersonation([FromBody] StartImpersonationRequest request)
+    {
+        if (!TryGetCurrentUserId(out var managerId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _authService.StartImpersonationAsync(managerId, request, GetIpAddress(), GetUserAgent());
+        if (result == null)
+        {
+            return BadRequest(new { code = "impersonation_failed", message = "Unable to start impersonation. Verify the target user exists, is an Admin or Resident, and belongs to a condominium you manage." });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Ends the current impersonation session and returns the Manager's original token.
+    /// Only accessible during an active impersonation session.
+    /// </summary>
+    [HttpPost("impersonate/end")]
+    [Authorize]
+    public async Task<IActionResult> EndImpersonation()
+    {
+        if (!TryGetCurrentUserId(out _))
+        {
+            return Unauthorized();
+        }
+
+        // During impersonation the token belongs to the impersonated user; the original Manager's ID
+        // is preserved in the ImpersonatorUserId claim.
+        var isImpersonating = User.FindFirstValue("IsImpersonation") == "true";
+        var impersonatorIdClaim = User.FindFirstValue("ImpersonatorUserId");
+
+        if (!isImpersonating || !Guid.TryParse(impersonatorIdClaim, out var impersonatorId))
+        {
+            return BadRequest(new { code = "not_impersonating", message = "No active impersonation session to end." });
+        }
+
+        var result = await _authService.EndImpersonationAsync(impersonatorId);
+        if (result == null)
+        {
+            return BadRequest(new { code = "impersonation_end_failed", message = "Unable to end impersonation session." });
+        }
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gets the current impersonation status for the authenticated Manager.
+    /// </summary>
+    [HttpGet("impersonate/status")]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> GetImpersonationStatus()
+    {
+        if (!TryGetCurrentUserId(out var managerId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _authService.GetImpersonationStatusAsync(managerId);
+        if (result == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(result);
+    }
 }

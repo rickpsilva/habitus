@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
@@ -29,12 +29,6 @@ export interface AutocompleteProps {
   showSelectedHashtags?: boolean;
 }
 
-/**
- * Accessible, mobile-friendly autocomplete/select hybrid.
- * - Filters options as the user types.
- * - Supports keyboard navigation (ArrowDown/Up, Enter, Escape).
- * - Shows selected option hashtags as pills when `showSelectedHashtags` is true.
- */
 export default function Autocomplete({
   label,
   placeholder = 'Search...',
@@ -98,16 +92,14 @@ export default function Autocomplete({
     );
   }, [options, inputValue]);
 
+  // Consolidated effect for active index management
   useEffect(() => {
     setActiveIndex(0);
-  }, [filteredOptions.length]);
-
-  useEffect(() => {
     if (isOpen && selectedOption) {
       const idx = filteredOptions.findIndex((o) => o.id === selectedOption.id);
       if (idx >= 0) setActiveIndex(idx);
     }
-  }, [isOpen, selectedOption, filteredOptions]);
+  }, [filteredOptions, isOpen, selectedOption]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -122,21 +114,21 @@ export default function Autocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedOption]);
 
-  const handleSelect = (option: AutocompleteOption) => {
+  const handleSelect = useCallback((option: AutocompleteOption) => {
     onChange(option.id);
     setInputValue(option.label);
     setIsOpen(false);
     inputRef.current?.focus();
-  };
+  }, [onChange]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     onChange(null);
     setInputValue('');
     setIsOpen(true);
     inputRef.current?.focus();
-  };
+  }, [onChange]);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setIsOpen(true);
@@ -158,7 +150,7 @@ export default function Autocomplete({
       setInputValue(selectedOption?.label ?? '');
       inputRef.current?.blur();
     }
-  };
+  }, [filteredOptions, activeIndex, isOpen, selectedOption, handleSelect]);
 
   const handleFocus = () => {
     setInputValue('');

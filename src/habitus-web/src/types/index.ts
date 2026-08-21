@@ -1,4 +1,5 @@
 export interface AuthResponse {
+  id: string;
   token: string;
   email: string;
   name: string;
@@ -65,6 +66,38 @@ export interface MembershipsResponse {
 export interface SetActiveContextRequest {
   condominiumId: string;
   unitId: string | null;
+}
+
+// Impersonation (REQ-USERS-004)
+export interface StartImpersonationRequest {
+  targetUserId: string;
+  unitId?: string | null;
+}
+
+export interface ImpersonationResponse {
+  token: string;
+  expiresAt: number; // Unix timestamp
+  impersonatedUserId: string;
+  impersonatedRole: number;
+  condominiumId: string;
+  unitId?: string | null;
+  impersonatedUserName: string;
+  condominiumName: string;
+  unitIdentifier?: string | null;
+}
+
+export interface ImpersonationStatusResponse {
+  isImpersonating: boolean;
+  impersonatedUserId?: string | null;
+  impersonatedRole?: number | null;
+  impersonatedUserName?: string | null;
+  condominiumId?: string | null;
+  condominiumName?: string | null;
+  unitId?: string | null;
+  unitIdentifier?: string | null;
+  expiresAt?: number | null; // Unix timestamp
+  impersonatorUserId?: string | null;
+  impersonatorUserName?: string | null;
 }
 
 // RGPD/GDPR consent (F4/F5). `decision` is a numeric enum from the backend:
@@ -267,7 +300,9 @@ export interface UserDto {
   phone: string;
   role: UserRole;
   condominiumId?: string;
+  condominiumName?: string;
   unitId?: string;
+  unitNumber?: string;
   isActive: boolean;
   createdAt: string;
 }

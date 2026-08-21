@@ -19,6 +19,7 @@ public class HabitusDbContext : DbContext
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<AuthChallenge> AuthChallenges => Set<AuthChallenge>();
     public DbSet<PersonalDataRequest> PersonalDataRequests => Set<PersonalDataRequest>();
+    public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
     // Existing entities (updated to use Condominium)
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<Document> Documents => Set<Document>();
