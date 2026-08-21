@@ -438,6 +438,7 @@ public class UserService
     /// <summary>
     /// Returns paginated impersonatable users (Admins and Residents) from condominiums the Manager has access to.
     /// Optionally filters by a specific condominium.
+    /// If the Manager has no UserCondominium entries (platform-level manager), they can access all condominiums.
     /// </summary>
     public async Task<PaginatedResponse<UserResponse>> GetImpersonatableUsersPagedAsync(
         Guid managerId, int page, int pageSize, string? search = null, Guid? condominiumId = null)
@@ -451,7 +452,7 @@ public class UserService
         // If specific condominium requested, verify manager has access to it
         if (condominiumId.HasValue)
         {
-            if (!condominiumIds.Contains(condominiumId.Value))
+            if (condominiumIds.Any() && !condominiumIds.Contains(condominiumId.Value))
             {
                 return new PaginatedResponse<UserResponse>
                 {
@@ -465,24 +466,24 @@ public class UserService
             condominiumIds = new List<Guid> { condominiumId.Value };
         }
 
+        // If Manager has no UserCondominium entries (platform-level manager), they can access all condominiums
+        // In this case, we don't filter by condominiumIds
+        Expression<Func<User, bool>> filter;
         if (!condominiumIds.Any())
         {
-            return new PaginatedResponse<UserResponse>
-            {
-                Items = new List<UserResponse>(),
-                Page = page,
-                PageSize = pageSize,
-                TotalItems = 0,
-                TotalPages = 0
-            };
+            // Platform-level manager - no condominium filter, just role and active status
+            filter = u =>
+                (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
+                u.IsActive;
         }
-
-        // Search (name/email) is handled by GetPaginatedUsersAsync which decrypts emails in-memory
-        // Only apply condominium, role and active filters here (SQL-compatible)
-        Expression<Func<User, bool>> filter = u =>
-            condominiumIds.Contains(u.CondominiumId.Value) &&
-            (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
-            u.IsActive;
+        else
+        {
+            // Condominium-scoped manager
+            filter = u =>
+                condominiumIds.Contains(u.CondominiumId.Value) &&
+                (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
+                u.IsActive;
+        }
 
         return await GetPaginatedUsersAsync(filter, page, pageSize, search);
     }
