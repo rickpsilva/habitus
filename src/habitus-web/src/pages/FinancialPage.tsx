@@ -137,9 +137,9 @@ export default function FinancialPage() {
     }
   }, [condominiumId]);
 
-  // Load active expense categories for the autocomplete
+  // Load active expense categories for the autocomplete (Admin only - Residents don't need expense categories)
   useEffect(() => {
-    if (!condominiumId) return;
+    if (!condominiumId || !isAdmin) return;
     setCategoriesLoading(true);
     expenseCategoriesApi.getActive(condominiumId)
       .then((r) => setExpenseCategories(r.data))
@@ -148,7 +148,7 @@ export default function FinancialPage() {
         toastError(t('financial.error.loadCategories'));
       })
       .finally(() => setCategoriesLoading(false));
-  }, [condominiumId, t, toastError]);
+  }, [condominiumId, isAdmin, t, toastError]);
 
   // Load dashboard and available years
   useEffect(() => {

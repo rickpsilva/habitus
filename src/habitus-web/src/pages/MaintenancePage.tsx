@@ -148,9 +148,9 @@ export default function MaintenancePage() {
     }
   }, [condominiumId]);
 
-  // Load active expense categories for completion flow
+  // Load active expense categories for completion flow (Admin only - Residents don't need expense categories)
   useEffect(() => {
-    if (!condominiumId) return;
+    if (!condominiumId || !isAdmin) return;
     setCategoriesLoading(true);
     expenseCategoriesApi.getActive(condominiumId)
       .then((r) => {
@@ -161,7 +161,7 @@ export default function MaintenancePage() {
         toastError(t('maintenance.error.loadCategories'));
       })
       .finally(() => setCategoriesLoading(false));
-  }, [condominiumId, t, toastError]);
+  }, [condominiumId, isAdmin, t, toastError]);
 
   const load = useCallback(() => {
     if (!condominiumId) {
