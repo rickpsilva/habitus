@@ -22,6 +22,9 @@ public interface IPlatformSettingsCache
     /// <summary>Gets the cached platform upload settings, or <c>null</c> when no row exists.</summary>
     Task<PlatformUploadSettings?> GetUploadAsync();
 
+    /// <summary>Gets the cached system auth provider settings, or <c>null</c> when no row exists.</summary>
+    Task<SystemAuthProviderSettings?> GetSystemAuthProviderAsync();
+
     /// <summary>Evicts the cached platform localization settings.</summary>
     void InvalidateLocalization();
 
@@ -33,4 +36,7 @@ public interface IPlatformSettingsCache
 
     /// <summary>Evicts the cached platform upload settings.</summary>
     void InvalidateUpload();
+
+    /// <summary>Evicts the cached system auth provider settings.</summary>
+    void InvalidateSystemAuthProvider();
 }

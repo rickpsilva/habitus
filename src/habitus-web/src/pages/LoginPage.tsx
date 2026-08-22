@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
-import { authApi, associationApi } from '../api/services';
+import { authApi, associationApi, systemAuthProviderApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../i18n/I18nProvider';
@@ -42,8 +42,28 @@ export default function LoginPage() {
   const [showCookieBanner, setShowCookieBanner] = useState(
     () => getCookieConsent() === null,
   );
+  const [authProviders, setAuthProviders] = useState<{ googleEnabled: boolean; microsoftEnabled: boolean } | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Load auth provider settings on mount
+  useEffect(() => {
+    const loadAuthProviders = async () => {
+      try {
+        const response = await systemAuthProviderApi.get();
+        setAuthProviders({
+          googleEnabled: response.data.googleEnabled,
+          microsoftEnabled: response.data.microsoftEnabled,
+        });
+      } catch (error) {
+        console.error('Failed to load auth provider settings:', error);
+        // Default to enabled if loading fails
+        setAuthProviders({ googleEnabled: true, microsoftEnabled: true });
+      }
+    };
+
+    loadAuthProviders();
+  }, []);
 
   // After a successful login, resolve any pending register-fallback association
   // intent (FLOW A): auto-create the membership request, inform the user, and
@@ -219,34 +239,40 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6">
-                <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-ink-subtle mb-4">
-                  <div className="h-px flex-1 bg-line" />
-                  <span>{t('login.orContinue')}</span>
-                  <div className="h-px flex-1 bg-line" />
-                </div>
+              {authProviders && (authProviders.googleEnabled || authProviders.microsoftEnabled) && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-ink-subtle mb-4">
+                    <div className="h-px flex-1 bg-line" />
+                    <span>{t('login.orContinue')}</span>
+                    <div className="h-px flex-1 bg-line" />
+                  </div>
 
-                <div className="grid grid-cols-1 gap-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    fullWidth
-                    onClick={() => startSocialLogin('google')}
-                    className="border border-line text-ink"
-                  >
-                    {t('login.continueGoogle')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    fullWidth
-                    onClick={() => startSocialLogin('microsoft')}
-                    className="border border-line text-ink"
-                  >
-                    {t('login.continueMicrosoft')}
-                  </Button>
+                  <div className="grid grid-cols-1 gap-3">
+                    {authProviders.googleEnabled && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        fullWidth
+                        onClick={() => startSocialLogin('google')}
+                        className="border border-line text-ink"
+                      >
+                        {t('login.continueGoogle')}
+                      </Button>
+                    )}
+                    {authProviders.microsoftEnabled && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        fullWidth
+                        onClick={() => startSocialLogin('microsoft')}
+                        className="border border-line text-ink"
+                      >
+                        {t('login.continueMicrosoft')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <p className="text-center text-sm text-ink-subtle mt-6">
                 {t('login.noAccount')}{' '}

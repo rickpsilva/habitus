@@ -1,4 +1,5 @@
 using Habitus.Application.DTOs.Auth;
+using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -13,8 +14,10 @@ namespace Habitus.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly IPlatformSettingsCache _settingsCache;
 
-    public AuthController(AuthService authService) => _authService = authService;
+    public AuthController(AuthService authService, IPlatformSettingsCache settingsCache) => 
+        (_authService, _settingsCache) = (authService, settingsCache);
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -178,11 +181,25 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("external/{provider}/start")]
-    public IActionResult StartExternalLogin(string provider)
+    public async Task<IActionResult> StartExternalLogin(string provider)
     {
-        if (!TryGetExternalProvider(provider, out var normalizedProvider))
+        if (!TryGetExternalProvider(provider, out var normalizedProvider, out var externalProvider))
         {
             return BadRequest("Unsupported external provider.");
+        }
+
+        // Check if the provider is enabled in system settings
+        var authSettings = await _settingsCache.GetSystemAuthProviderAsync();
+        if (authSettings != null)
+        {
+            bool isEnabled = externalProvider == ExternalAuthProvider.Google 
+                ? authSettings.GoogleEnabled 
+                : authSettings.MicrosoftEnabled;
+            
+            if (!isEnabled)
+            {
+                return Redirect(BuildFrontendErrorRedirect("unsupported_provider"));
+            }
         }
 
         var callbackUrl = Url.ActionLink(nameof(ExternalLoginCallback), values: new { provider = normalizedProvider.ToLowerInvariant() });

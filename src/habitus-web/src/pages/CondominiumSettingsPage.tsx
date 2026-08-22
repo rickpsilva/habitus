@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server, Languages, Tags, Hash
+  Warehouse, Truck, Home, FileText, CreditCard, Mail, Save, KeyRound, Server, Languages, Tags, Hash, Settings
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { marked } from 'marked';
@@ -12,7 +12,7 @@ import type { TranslateFn } from '../i18n/types';
 import ModalPopup from '../components/ModalPopup';
 import { PageHeader, Spinner, ErrorState, Button, Card } from '../components/ui';
 import RichTextEditor, { type RichTextTokenDefinition } from '../components/RichTextEditor';
-import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi, platformLocalizationApi, authApi } from '../api/services';
+import { paymentSettingsApi, communicationSettingsApi, platformBillingSettingsApi, condominiumsApi, systemEmailSettingsApi, receiptTemplateSettingsApi, uploadSettingsApi, platformLocalizationApi, systemAuthProviderApi, authApi } from '../api/services';
 import type {
   CommunicationSettingsDto,
   UpdateCommunicationSettingsRequest,
@@ -23,6 +23,7 @@ import type {
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
   PlatformLocalizationSettingsDto,
+  UpdateSystemAuthProviderSettingsRequest,
 } from '../types';
 import { formatUploadSizeLabel, invalidatePlatformUploadSizeCache } from '../utils/uploadLimits';
 import SharedSpacesPage from './SharedSpacesPage';
@@ -41,7 +42,7 @@ const templateToEditorHtml = (value: string) => {
   return isHtmlTemplate(trimmed) ? trimmed : (marked.parse(trimmed) as string);
 };
 
-type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'categories' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email' | 'localization' | 'email-hash-repair';
+type TabKey = 'general' | 'spaces' | 'suppliers' | 'units' | 'categories' | 'receipts' | 'payments' | 'communication' | 'platform-billing' | 'platform-upload' | 'system-email' | 'system' | 'localization' | 'email-hash-repair';
 
 interface Tab {
   key: TabKey;
@@ -64,6 +65,7 @@ const getManagerTabs = (t: TranslateFn): Tab[] => [
   { key: 'platform-billing', label: t('condoSettings.tab.platformBilling'), icon: KeyRound },
   { key: 'platform-upload', label: t('condoSettings.tab.platformUpload'), icon: FileText },
   { key: 'system-email', label: t('condoSettings.tab.systemEmail'), icon: Server },
+  { key: 'system', label: t('condoSettings.tab.system'), icon: Settings },
   { key: 'localization', label: t('localization.tab'), icon: Languages },
   { key: 'email-hash-repair', label: t('condoSettings.tab.emailHashRepair'), icon: Hash },
 ];
@@ -130,6 +132,7 @@ export default function CondominiumSettingsPage() {
           {activeTab === 'platform-billing' && <PlatformBillingContent />}
           {activeTab === 'platform-upload' && <PlatformUploadContent />}
           {activeTab === 'system-email' && <SystemEmailContent />}
+          {activeTab === 'system' && <SystemAuthProviderContent />}
           {activeTab === 'localization' && <LocalizationContent />}
           {activeTab === 'email-hash-repair' && <EmailHashRepairContent />}
         </div>
@@ -722,6 +725,138 @@ function LocalizationContent() {
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SystemAuthProviderContent() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { t } = useTranslation();
+  const [form, setForm] = useState<UpdateSystemAuthProviderSettingsRequest>({
+    googleEnabled: true,
+    microsoftEnabled: true,
+  });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const response = await systemAuthProviderApi.get();
+        setForm({
+          googleEnabled: response.data.googleEnabled,
+          microsoftEnabled: response.data.microsoftEnabled,
+        });
+      } catch (error) {
+        console.error('Error loading system auth provider settings:', error);
+        setLoadError(t('condoSettings.system.errorLoad'));
+        toastError(t('condoSettings.system.errorLoadToast'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, [toastError, t]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await systemAuthProviderApi.update(form);
+      toastSuccess(t('condoSettings.system.saveSuccess'));
+    } catch (error) {
+      console.error('Error saving system auth provider settings:', error);
+      toastError(t('condoSettings.system.saveError'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-8 text-ink-subtle"><Spinner label={t('condoSettings.loading')} /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {loadError && (
+        <ErrorState message={loadError} onRetry={() => window.location.reload()} />
+      )}
+
+      <div>
+        <h3 className="text-lg font-semibold text-ink mb-1">{t('condoSettings.system.title')}</h3>
+        <p className="text-sm text-ink-subtle">{t('condoSettings.system.subtitle')}</p>
+      </div>
+
+      <div className="space-y-4 max-w-3xl">
+        <div className="border border-line rounded-lg overflow-hidden">
+          <div className="p-4 bg-surface">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="font-medium text-ink">{t('condoSettings.system.authProvidersTitle')}</p>
+            </div>
+            <p className="text-sm text-ink-subtle">{t('condoSettings.system.authProvidersDesc')}</p>
+          </div>
+
+          <div className="px-4 pb-4 bg-surface-muted border-t border-line space-y-4">
+            <div className="border border-line rounded-lg overflow-hidden">
+              <div className="p-4 bg-surface">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-ink">{t('condoSettings.system.googleEnabled')}</p>
+                      {form.googleEnabled && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-ink-subtle">{t('condoSettings.system.googleDesc')}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={form.googleEnabled}
+                      onChange={(e) => setForm({ ...form, googleEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-line rounded-lg overflow-hidden">
+              <div className="p-4 bg-surface">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-ink">{t('condoSettings.system.microsoftEnabled')}</p>
+                      {form.microsoftEnabled && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">{t('common.active')}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-ink-subtle">{t('condoSettings.system.microsoftDesc')}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={form.microsoftEnabled}
+                      onChange={(e) => setForm({ ...form, microsoftEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <Button icon={Save} onClick={handleSave} loading={saving}>
+            {t('condoSettings.saveSettings')}
+          </Button>
+        </div>
       </div>
     </div>
   );

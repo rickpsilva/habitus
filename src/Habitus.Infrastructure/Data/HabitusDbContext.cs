@@ -55,6 +55,7 @@ public class HabitusDbContext : DbContext
     public DbSet<PlatformBillingSettings> PlatformBillingSettings => Set<PlatformBillingSettings>();
     public DbSet<PlatformUploadSettings> PlatformUploadSettings => Set<PlatformUploadSettings>();
     public DbSet<SystemEmailSettings> SystemEmailSettings => Set<SystemEmailSettings>();
+    public DbSet<SystemAuthProviderSettings> SystemAuthProviderSettings => Set<SystemAuthProviderSettings>();
     
     // Deprecated entities (kept for migration compatibility)
     [Obsolete("Use Condominiums instead")]

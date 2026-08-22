@@ -918,6 +918,20 @@ export interface UpdatePlatformUploadSettingsRequest {
   maxUploadSizeBytes: number;
 }
 
+// System Auth Provider Settings
+export interface SystemAuthProviderSettingsDto {
+  id: string;
+  googleEnabled: boolean;
+  microsoftEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSystemAuthProviderSettingsRequest {
+  googleEnabled: boolean;
+  microsoftEnabled: boolean;
+}
+
 // Communication Settings
 export interface CommunicationSettingsDto {
   id: string;
