@@ -2133,7 +2133,7 @@ export const pt = {
   'helpdesk.selectCondominium': 'Selecionar condomínio',
   'helpdesk.userType': 'Tipo de utilizador',
   'helpdesk.allTypes': 'Todos os tipos',
-  'helpdesk.searchPlaceholder': 'Pesquisar por nome, email ou condomínio...',
+  'helpdesk.searchPlaceholder': 'Pesquisar por nome, email, fração ou condomínio...',
   'helpdesk.role': 'Função',
   'helpdesk.fraction': 'Fração',
   'helpdesk.actions': 'Ações',

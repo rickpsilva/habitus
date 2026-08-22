@@ -608,7 +608,8 @@ public class UserService
             var searchLower = search.ToLower();
             dtos = dtos.Where(u =>
                 u.Name.ToLower().Contains(searchLower) ||
-                u.Email.ToLower().Contains(searchLower)
+                u.Email.ToLower().Contains(searchLower) ||
+                (u.UnitNumber != null && u.UnitNumber.ToLower().Contains(searchLower))
             ).OrderBy(u => u.Name);
         }
 
