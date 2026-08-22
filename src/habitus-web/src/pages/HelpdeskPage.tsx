@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LifeBuoy, UserCheck, Search } from 'lucide-react';
+import { LifeBuoy, UserCheck, Search, User } from 'lucide-react';
 import { usersApi, condominiumsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../i18n/I18nProvider';
 import { Button, Card, Badge } from '../components/ui';
+import { maskEmail } from '../lib/emailMask';
 import type { CondominiumDto, PaginatedResponse } from '../types';
 import { UserRole } from '../types';
 import Pagination from '../components/Pagination';
@@ -48,7 +49,7 @@ export default function HelpdeskPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterUserType, setFilterUserType] = useState<'all' | 'admin' | 'resident'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState<PaginatedResponse<any> | null>(null);
+  const [pagination, setPagination] = useState<PaginatedResponse<ImpersonatableUser> | null>(null);
   const pageSize = 10;
   const [impersonating, setImpersonating] = useState<string | null>(null);
 
@@ -122,7 +123,7 @@ export default function HelpdeskPage() {
 
   useEffect(() => {
     loadUsers(1);
-  }, [loadUsers]);
+  }, [loadUsers, selectedCondominiumId]);
 
   const handleImpersonate = async (user: ImpersonatableUser) => {
     setImpersonating(user.id);
@@ -286,7 +287,7 @@ export default function HelpdeskPage() {
                         <td className="px-4 py-3">
                           <div className="font-medium text-ink">{user.name}</div>
                         </td>
-                        <td className="px-4 py-3 text-ink-muted">{user.email}</td>
+                        <td className="px-4 py-3 text-ink-muted">{maskEmail(user.email)}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeClass(user.role)}`}>
                             {roleLabel(user.role)}
@@ -304,9 +305,12 @@ export default function HelpdeskPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            icon={User}
+                            iconPosition="left"
                             onClick={() => handleImpersonate(user)}
                             disabled={impersonating === user.id}
-                            className="w-24"
+                            aria-label={t('helpdesk.impersonate')}
+                            title={t('helpdesk.impersonate')}
                           >
                             {impersonating === user.id ? (
                               <span className="flex items-center justify-center gap-1.5">
@@ -316,9 +320,7 @@ export default function HelpdeskPage() {
                                 </svg>
                                 {t('helpdesk.starting')}
                               </span>
-                            ) : (
-                              t('helpdesk.impersonate')
-                            )}
+                            ) : null}
                           </Button>
                         </td>
                       </tr>

@@ -2134,7 +2134,7 @@ export const en: Record<TranslationKey, string> = {
   'helpdesk.selectCondominium': 'Select condominium',
   'helpdesk.userType': 'User type',
   'helpdesk.allTypes': 'All types',
-  'helpdesk.searchPlaceholder': 'Search by name, email or condominium...',
+  'helpdesk.searchPlaceholder': 'Search by name, email, fraction or condominium...',
   'helpdesk.role': 'Role',
   'helpdesk.fraction': 'Fraction',
   'helpdesk.actions': 'Actions',
