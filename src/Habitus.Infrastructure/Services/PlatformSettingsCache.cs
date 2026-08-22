@@ -19,25 +19,29 @@ public class PlatformSettingsCache : IPlatformSettingsCache
     private static readonly string BillingKey = KeyPrefix + nameof(PlatformBillingSettings);
     private static readonly string SystemEmailKey = KeyPrefix + nameof(SystemEmailSettings);
     private static readonly string UploadKey = KeyPrefix + nameof(PlatformUploadSettings);
+    private static readonly string SystemAuthProviderKey = KeyPrefix + nameof(SystemAuthProviderSettings);
 
     private readonly IMemoryCache _cache;
     private readonly IRepository<LocalizationSettings> _localizationRepository;
     private readonly IRepository<PlatformBillingSettings> _billingRepository;
     private readonly IRepository<SystemEmailSettings> _systemEmailRepository;
     private readonly IRepository<PlatformUploadSettings> _uploadRepository;
+    private readonly IRepository<SystemAuthProviderSettings> _systemAuthProviderRepository;
 
     public PlatformSettingsCache(
         IMemoryCache cache,
         IRepository<LocalizationSettings> localizationRepository,
         IRepository<PlatformBillingSettings> billingRepository,
         IRepository<SystemEmailSettings> systemEmailRepository,
-        IRepository<PlatformUploadSettings> uploadRepository)
+        IRepository<PlatformUploadSettings> uploadRepository,
+        IRepository<SystemAuthProviderSettings> systemAuthProviderRepository)
     {
         _cache = cache;
         _localizationRepository = localizationRepository;
         _billingRepository = billingRepository;
         _systemEmailRepository = systemEmailRepository;
         _uploadRepository = uploadRepository;
+        _systemAuthProviderRepository = systemAuthProviderRepository;
     }
 
     /// <inheritdoc/>
@@ -57,6 +61,10 @@ public class PlatformSettingsCache : IPlatformSettingsCache
         => GetOrCreateAsync(UploadKey, _uploadRepository);
 
     /// <inheritdoc/>
+    public Task<SystemAuthProviderSettings?> GetSystemAuthProviderAsync()
+        => GetOrCreateAsync(SystemAuthProviderKey, _systemAuthProviderRepository);
+
+    /// <inheritdoc/>
     public void InvalidateLocalization() => _cache.Remove(LocalizationKey);
 
     /// <inheritdoc/>
@@ -67,6 +75,9 @@ public class PlatformSettingsCache : IPlatformSettingsCache
 
     /// <inheritdoc/>
     public void InvalidateUpload() => _cache.Remove(UploadKey);
+
+    /// <inheritdoc/>
+    public void InvalidateSystemAuthProvider() => _cache.Remove(SystemAuthProviderKey);
 
     /// <summary>
     /// Returns the cached single row for <typeparamref name="T"/>, loading it with a no-tracking

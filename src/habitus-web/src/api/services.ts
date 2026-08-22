@@ -97,6 +97,8 @@ import type {
   InitiateInvoicePaymentResponse,
   SystemEmailSettingsDto,
   UpdateSystemEmailSettingsRequest,
+  SystemAuthProviderSettingsDto,
+  UpdateSystemAuthProviderSettingsRequest,
   CsvImportResult,
   ConsentStatusResponse,
   RecordConsentRequest,
@@ -160,6 +162,14 @@ export const meApi = {
   getLocalization: () => deduplicatedGet<MeLocalizationDto>('/platform/me/localization'),
   setLanguage: (data: SetLanguageRequest) =>
     api.put<MeLocalizationDto>('/platform/me/language', data),
+};
+
+// System Auth Provider settings (Manager-only)
+export const systemAuthProviderApi = {
+  get: () =>
+    api.get<SystemAuthProviderSettingsDto>('/platform/systemauthprovidersettings'),
+  update: (data: UpdateSystemAuthProviderSettingsRequest) =>
+    api.put<SystemAuthProviderSettingsDto>('/platform/systemauthprovidersettings', data),
 };
 
 // Platform-wide localization settings (REQ-I18N-001). Read allowed for any

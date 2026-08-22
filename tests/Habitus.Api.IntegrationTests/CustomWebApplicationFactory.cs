@@ -119,17 +119,20 @@ internal sealed class PassthroughPlatformSettingsCache : IPlatformSettingsCache
     private readonly IRepository<PlatformBillingSettings> _billingRepository;
     private readonly IRepository<SystemEmailSettings> _systemEmailRepository;
     private readonly IRepository<PlatformUploadSettings> _uploadRepository;
+    private readonly IRepository<SystemAuthProviderSettings> _systemAuthProviderRepository;
 
     public PassthroughPlatformSettingsCache(
         IRepository<LocalizationSettings> localizationRepository,
         IRepository<PlatformBillingSettings> billingRepository,
         IRepository<SystemEmailSettings> systemEmailRepository,
-        IRepository<PlatformUploadSettings> uploadRepository)
+        IRepository<PlatformUploadSettings> uploadRepository,
+        IRepository<SystemAuthProviderSettings> systemAuthProviderRepository)
     {
         _localizationRepository = localizationRepository;
         _billingRepository = billingRepository;
         _systemEmailRepository = systemEmailRepository;
         _uploadRepository = uploadRepository;
+        _systemAuthProviderRepository = systemAuthProviderRepository;
     }
 
     public Task<LocalizationSettings?> GetLocalizationAsync()
@@ -144,8 +147,12 @@ internal sealed class PassthroughPlatformSettingsCache : IPlatformSettingsCache
     public Task<PlatformUploadSettings?> GetUploadAsync()
         => _uploadRepository.FirstOrDefaultNoTrackingAsync(_ => true);
 
+    public Task<SystemAuthProviderSettings?> GetSystemAuthProviderAsync()
+        => _systemAuthProviderRepository.FirstOrDefaultNoTrackingAsync(_ => true);
+
     public void InvalidateLocalization() { }
     public void InvalidateBilling() { }
     public void InvalidateSystemEmail() { }
     public void InvalidateUpload() { }
+    public void InvalidateSystemAuthProvider() { }
 }

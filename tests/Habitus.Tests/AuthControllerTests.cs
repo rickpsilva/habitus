@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Habitus.Api.Controllers;
 using Habitus.Application.DTOs.Auth;
+using Habitus.Application.Interfaces;
 using Habitus.Application.Services;
 using Habitus.Domain.Entities;
 using Microsoft.AspNetCore.Http;
@@ -17,25 +18,30 @@ namespace Habitus.Tests;
 public class AuthControllerTests
 {
     private readonly Mock<AuthService> _authServiceMock;
+    private readonly Mock<IPlatformSettingsCache> _settingsCacheMock;
     private readonly AuthController _controller;
 
     public AuthControllerTests()
     {
         _authServiceMock = new Mock<AuthService>(
-            Mock.Of<Application.Interfaces.IRepository<User>>(),
-            Mock.Of<Application.Interfaces.IRepository<UserCondominium>>(),
-            Mock.Of<Application.Interfaces.IRepository<Condominium>>(),
-            Mock.Of<Application.Interfaces.IRepository<Unit>>(),
-            Mock.Of<Application.Interfaces.IRepository<UnitMembership>>(),
-            Mock.Of<Application.Interfaces.IRepository<UserAuthProvider>>(),
-            Mock.Of<Application.Interfaces.IRepository<UserRecoveryCode>>(),
-            Mock.Of<Application.Interfaces.IRepository<AuthChallenge>>(),
-            Mock.Of<Application.Interfaces.IRepository<ImpersonationSession>>(),
+            Mock.Of<IRepository<User>>(),
+            Mock.Of<IRepository<UserCondominium>>(),
+            Mock.Of<IRepository<Condominium>>(),
+            Mock.Of<IRepository<Unit>>(),
+            Mock.Of<IRepository<UnitMembership>>(),
+            Mock.Of<IRepository<UserAuthProvider>>(),
+            Mock.Of<IRepository<UserRecoveryCode>>(),
+            Mock.Of<IRepository<AuthChallenge>>(),
+            Mock.Of<IRepository<ImpersonationSession>>(),
             new ConfigurationManager(),
-            Mock.Of<Application.Interfaces.IEmailService>(),
-            Mock.Of<Application.Interfaces.IEncryptionService>());
+            Mock.Of<IEmailService>(),
+            Mock.Of<IEncryptionService>());
 
-        _controller = new AuthController(_authServiceMock.Object);
+        _settingsCacheMock = new Mock<IPlatformSettingsCache>();
+        _settingsCacheMock.Setup(x => x.GetSystemAuthProviderAsync())
+            .ReturnsAsync((SystemAuthProviderSettings?)null); // Default to null, which means enabled by default
+
+        _controller = new AuthController(_authServiceMock.Object, _settingsCacheMock.Object);
     }
 
     [Fact]
