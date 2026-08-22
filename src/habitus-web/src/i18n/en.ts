@@ -1474,6 +1474,7 @@ export const en: Record<TranslationKey, string> = {
   'assemblies.card.insertMinutes': 'Insert Minutes (marks as completed)',
   'assemblies.card.minutes': 'Minutes',
   'assemblies.card.cancelAssembly': 'Cancel Assembly',
+  'assemblies.card.downloadMinutesPdf': 'Download Minutes PDF',
 
   // Assemblies — form
   'assemblies.form.editTitle': 'Edit Assembly',
@@ -1506,6 +1507,7 @@ export const en: Record<TranslationKey, string> = {
   'assemblies.detail.attachedDocuments': 'Attached Documents',
   'assemblies.detail.addDocument': 'Add Document',
   'assemblies.detail.close': 'Close',
+  'assemblies.detail.downloadMinutesPdf': 'Download Minutes (PDF)',
 
   // Assemblies — upload form
   'assemblies.upload.docNameLabel': 'Document Name *',
@@ -1569,6 +1571,7 @@ export const en: Record<TranslationKey, string> = {
   'assemblies.error.downloadDocument': 'Error downloading the document.',
   'assemblies.error.fileTooLarge': 'File "{name}" is too large. Maximum: 100MB',
   'assemblies.error.maxFiles': 'Maximum {max} files at a time.',
+  'assemblies.error.downloadMinutesPdf': 'Error downloading minutes PDF.',
 
   // Documents
   'documents.title': 'Documents',

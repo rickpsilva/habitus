@@ -1473,6 +1473,7 @@ export const pt = {
   'assemblies.card.insertMinutes': 'Inserir Atas (marca como concluída)',
   'assemblies.card.minutes': 'Atas',
   'assemblies.card.cancelAssembly': 'Cancelar Assembleia',
+  'assemblies.card.downloadMinutesPdf': 'Descarregar ATA em PDF',
 
   // Assemblies — form
   'assemblies.form.editTitle': 'Editar Assembleia',
@@ -1505,6 +1506,7 @@ export const pt = {
   'assemblies.detail.attachedDocuments': 'Documentos Anexados',
   'assemblies.detail.addDocument': 'Adicionar Documento',
   'assemblies.detail.close': 'Fechar',
+  'assemblies.detail.downloadMinutesPdf': 'Descarregar ATA (PDF)',
 
   // Assemblies — upload form
   'assemblies.upload.docNameLabel': 'Nome do Documento *',
@@ -1568,6 +1570,7 @@ export const pt = {
   'assemblies.error.downloadDocument': 'Erro ao fazer download do documento.',
   'assemblies.error.fileTooLarge': 'Ficheiro "{name}" demasiado grande. Máximo: 100MB',
   'assemblies.error.maxFiles': 'Máximo de {max} ficheiros por vez.',
+  'assemblies.error.downloadMinutesPdf': 'Erro ao descarregar ATA em PDF.',
 
   // Documents
   'documents.title': 'Documentos',
