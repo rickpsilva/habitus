@@ -16,15 +16,18 @@ namespace Habitus.Api.Controllers;
 public class AssembliesController : ControllerBase
 {
     private readonly AssemblyService _service;
+    private readonly AssemblyMinutesPdfService _pdfService;
     private readonly IRepository<AssemblyAttendance> _attendanceRepository;
     private readonly IRepository<AssemblyDecision> _decisionRepository;
 
     public AssembliesController(
         AssemblyService service,
+        AssemblyMinutesPdfService pdfService,
         IRepository<AssemblyAttendance> attendanceRepository,
         IRepository<AssemblyDecision> decisionRepository)
     {
         _service = service;
+        _pdfService = pdfService;
         _attendanceRepository = attendanceRepository;
         _decisionRepository = decisionRepository;
     }
@@ -106,6 +109,23 @@ public class AssembliesController : ControllerBase
 
         var result = await _service.UpdateMinutesDraftAsync(id, request, condominiumId, userRole);
         return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("{id}/minutes/pdf")]
+    public async Task<IActionResult> DownloadMinutesPdf([FromRoute] Guid condominiumId, [FromRoute] Guid id)
+    {
+        if (!TryGetScope(condominiumId, out _))
+            return Forbid();
+
+        try
+        {
+            var (pdfBytes, fileName) = await _pdfService.GenerateAsync(id, condominiumId);
+            return File(pdfBytes, "application/pdf", fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id}/notes")]

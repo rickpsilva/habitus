@@ -105,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<ExpenseCategoryService>();
         services.AddScoped<IFinancialQueryService, FinancialQueryService>();
         services.AddScoped<AssemblyService>();
+        services.AddScoped<AssemblyMinutesPdfService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<INotificationDispatchService, NotificationDispatchService>();
         services.AddScoped<PaymentService>();
