@@ -1143,8 +1143,22 @@ Habitus Team
         }
 
         // Access checks must be sequential because repositories share the scoped DbContext.
-        var hasAccess = await _userCondominiumRepository.ExistsAsync(uc =>
-            uc.UserId == managerId && uc.CondominiumId == targetCondominiumId.Value);
+        // Check if manager has any UserCondominium entries with CanManage = true
+        var managerCondominiums = await _userCondominiumRepository.FindAsync(
+            uc => uc.UserId == managerId && uc.CanManage);
+
+        var hasAccess = false;
+        if (!managerCondominiums.Any())
+        {
+            // Platform-level manager - no UserCondominium entries means access to all condominiums
+            hasAccess = true;
+        }
+        else
+        {
+            // Condominium-scoped manager - must have access to the target condominium
+            hasAccess = managerCondominiums.Any(uc => uc.CondominiumId == targetCondominiumId.Value);
+        }
+
         if (!hasAccess)
         {
             return null;

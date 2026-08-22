@@ -411,6 +411,7 @@ public class UserService
     /// <summary>
     /// Returns all impersonatable users (Admins and Residents) from condominiums the Manager has access to.
     /// Used by Managers to find users they can impersonate for support operations.
+    /// If the Manager has no UserCondominium entries (platform-level manager), they can access all condominiums.
     /// </summary>
     public async Task<IEnumerable<UserResponse>> GetImpersonatableUsersAsync(Guid managerId)
     {
@@ -420,16 +421,26 @@ public class UserService
 
         var condominiumIds = managerCondominiums.Select(uc => uc.CondominiumId).ToList();
 
+        // If Manager has no UserCondominium entries (platform-level manager), they can access all condominiums
+        Expression<Func<User, bool>> filter;
         if (!condominiumIds.Any())
         {
-            return new List<UserResponse>();
+            // Platform-level manager - no condominium filter, just role and active status
+            filter = u =>
+                (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
+                u.IsActive;
+        }
+        else
+        {
+            // Condominium-scoped manager
+            filter = u =>
+                condominiumIds.Contains(u.CondominiumId.Value) &&
+                (u.Role == UserRole.Admin || u.Role == UserRole.Resident) &&
+                u.IsActive;
         }
 
-        // Get all active Admins and Residents from these condominiums
         var users = await _userRepository.FindWithIncludesAsync(
-            u => condominiumIds.Contains(u.CondominiumId.Value) 
-                 && (u.Role == UserRole.Admin || u.Role == UserRole.Resident)
-                 && u.IsActive,
+            filter,
             "Condominium", "Unit");
 
         return users.Select(MapToResponse);

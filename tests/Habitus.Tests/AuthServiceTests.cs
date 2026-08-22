@@ -679,9 +679,10 @@ public class AuthServiceTests
 
         _userRepositoryMock.Setup(r => r.GetByIdNoTrackingAsync(manager.Id)).ReturnsAsync(manager);
         _userRepositoryMock.Setup(r => r.GetByIdNoTrackingAsync(target.Id)).ReturnsAsync(target);
+        // Manager has UserCondominium entries but not for the target condominium
         _userCondominiumRepositoryMock
-            .Setup(r => r.ExistsAsync(It.IsAny<Expression<Func<UserCondominium, bool>>>()))
-            .ReturnsAsync(false);
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UserCondominium, bool>>>()))
+            .ReturnsAsync(new List<UserCondominium> { new UserCondominium { UserId = manager.Id, CondominiumId = Guid.NewGuid(), CanManage = true } });
 
         var result = await _service.StartImpersonationAsync(manager.Id, new StartImpersonationRequest
         {
@@ -689,6 +690,42 @@ public class AuthServiceTests
         });
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task StartImpersonationAsync_WithPlatformLevelManager_ReturnsToken()
+    {
+        var condominiumId = Guid.NewGuid();
+        var manager = BuildUser();
+        manager.Role = UserRole.Manager;
+        var target = BuildUser();
+        target.Role = UserRole.Admin;
+        target.CondominiumId = condominiumId;
+        var condominium = new Condominium { Id = condominiumId, Name = "Cond A", IsActive = true };
+
+        _userRepositoryMock.Setup(r => r.GetByIdNoTrackingAsync(manager.Id)).ReturnsAsync(manager);
+        _userRepositoryMock.Setup(r => r.GetByIdNoTrackingAsync(target.Id)).ReturnsAsync(target);
+        // Platform-level manager: no UserCondominium entries
+        _userCondominiumRepositoryMock
+            .Setup(r => r.FindAsync(It.IsAny<Expression<Func<UserCondominium, bool>>>()))
+            .ReturnsAsync(new List<UserCondominium>());
+        _condominiumRepositoryMock.Setup(r => r.GetByIdAsync(condominiumId)).ReturnsAsync(condominium);
+        _impersonationSessionRepositoryMock.Setup(r => r.AddAsync(It.IsAny<ImpersonationSession>())).Returns(Task.CompletedTask);
+        _impersonationSessionRepositoryMock.Setup(r => r.SaveChangesAsync()).ReturnsAsync(1);
+        _unitRepositoryMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Unit?)null);
+
+        var result = await _service.StartImpersonationAsync(manager.Id, new StartImpersonationRequest
+        {
+            TargetUserId = target.Id,
+        });
+
+        result.Should().NotBeNull();
+        result!.Token.Should().NotBeNullOrEmpty();
+        result.ImpersonatedUserId.Should().Be(target.Id);
+        _impersonationSessionRepositoryMock.Verify(r => r.AddAsync(It.Is<ImpersonationSession>(s =>
+            s.ImpersonatorUserId == manager.Id &&
+            s.ImpersonatedUserId == target.Id &&
+            s.CondominiumId == condominiumId)), Times.Once);
     }
 
     [Fact]
