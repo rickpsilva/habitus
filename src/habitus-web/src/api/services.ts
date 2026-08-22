@@ -442,6 +442,30 @@ export const assembliesApi = {
   updateNotes: (condominiumId: string, id: string, notes: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/notes`, { notes }),
   cancel: (condominiumId: string, id: string, cancellationReason: string) => api.put<AssemblyDto>(`/condominiums/${condominiumId}/assemblies/${id}/cancel`, { cancellationReason }),
   delete: (condominiumId: string, id: string) => api.delete(`/condominiums/${condominiumId}/assemblies/${id}`),
+  downloadMinutesPdf: async (condominiumId: string, id: string, title: string, scheduledAt: string) => {
+    const response = await api.get(`/condominiums/${condominiumId}/assemblies/${id}/minutes/pdf`, {
+      responseType: 'blob',
+    });
+    const contentType = String(response.headers['content-type'] || 'application/pdf');
+    const contentDisposition = String(response.headers['content-disposition'] || '');
+    let downloadFileName = `ATA_${title}_${new Date(scheduledAt).toISOString().slice(0, 10)}.pdf`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFileName = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = new Blob([response.data], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = downloadFileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export const suppliersApi = {

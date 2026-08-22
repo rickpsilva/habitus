@@ -7,6 +7,7 @@ interface ModalPopupProps {
   onClose: () => void;
   title?: string;
   header?: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
   maxWidthClass?: string;
   bodyClassName?: string;
@@ -19,6 +20,7 @@ export default function ModalPopup({
   onClose,
   title,
   header,
+  footer,
   children,
   maxWidthClass = 'max-w-md',
   bodyClassName = 'p-6',
@@ -71,7 +73,13 @@ export default function ModalPopup({
           </div>
         )}
 
-        <div className={`${bodyClassName} app-scrollbar overflow-visible`}>{children}</div>
+        <div className={`${bodyClassName} app-scrollbar overflow-y-auto`}>{children}</div>
+
+        {footer && (
+          <div className="sticky bottom-0 z-10 bg-surface border-t border-line px-6 py-4 flex flex-wrap justify-end gap-3">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

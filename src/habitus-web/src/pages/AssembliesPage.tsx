@@ -493,6 +493,19 @@ export default function AssembliesPage() {
     AssemblyAttachment: t('assemblies.docType.attachment'),
   };
 
+  const handleDownloadMinutesPdf = async (assembly: AssemblyDto) => {
+    if (!condominiumId) {
+      toastError(t('assemblies.error.condominiumNotSelected'));
+      return;
+    }
+    try {
+      await assembliesApi.downloadMinutesPdf(condominiumId, assembly.id, assembly.title, assembly.scheduledAt);
+    } catch (error) {
+      console.error('Erro ao descarregar ATA em PDF:', error);
+      toastError(t('assemblies.error.downloadMinutesPdf'));
+    }
+  };
+
   // Quick upload from card
   const openQuickUpload = (assembly: AssemblyDto) => {
     setQuickUploadAssembly(assembly);
@@ -818,6 +831,16 @@ export default function AssembliesPage() {
                           {t('assemblies.card.minutes')}
                         </button>
                       )}
+                      {a.status === 'Completed' && (
+                        <button 
+                          onClick={() => handleDownloadMinutesPdf(a)}
+                          className="px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors flex items-center gap-1.5"
+                          title={t('assemblies.card.downloadMinutesPdf')}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          {t('assemblies.card.minutes')}
+                        </button>
+                      )}
                       {isAdmin && a.status !== 'Cancelled' && a.status !== 'Completed' && (
                         <button 
                           onClick={() => openCancel(a)}
@@ -892,21 +915,29 @@ export default function AssembliesPage() {
               {selectedAssembly.notes && (
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.card.notes')}</label>
-                  <div className="mt-1 p-3 bg-surface-muted rounded-lg">
+                  <div className="mt-1 p-3 bg-surface-muted rounded-lg max-h-96 overflow-y-auto app-scrollbar">
                     <RichTextDisplay content={selectedAssembly.notes} className="text-sm" />
                   </div>
                 </div>
               )}
-              {selectedAssembly.minutes && (selectedAssembly.status === 'Completed' || (selectedAssembly.status === 'InProgress' && isAdmin)) && (
+              {selectedAssembly.status === 'Completed' && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => handleDownloadMinutesPdf(selectedAssembly)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                    title={t('assemblies.detail.downloadMinutesPdf')}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    {t('assemblies.detail.downloadMinutesPdf')}
+                  </button>
+                </div>
+              )}
+              {selectedAssembly.minutes && selectedAssembly.status === 'InProgress' && isAdmin && (
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">
-                    {t('assemblies.card.minutes')} {selectedAssembly.status === 'InProgress' && t('assemblies.detail.draftEditing')}
+                    {t('assemblies.card.minutes')} {t('assemblies.detail.draftEditing')}
                   </label>
-                  <div className={`mt-1 p-3 rounded-lg border ${
-                    selectedAssembly.status === 'Completed' 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-yellow-50 border-yellow-200'
-                  }`}>
+                  <div className="mt-1 p-3 rounded-lg border bg-yellow-50 border-yellow-200 max-h-96 overflow-y-auto app-scrollbar">
                     <RichTextDisplay content={selectedAssembly.minutes} className="text-sm" />
                   </div>
                 </div>
@@ -914,7 +945,7 @@ export default function AssembliesPage() {
               {selectedAssembly.cancellationReason && (
                 <div>
                   <label className="text-xs font-medium text-ink-subtle uppercase">{t('assemblies.detail.cancellationReason')}</label>
-                  <div className="mt-1 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="mt-1 p-3 bg-red-50 rounded-lg border border-red-200 max-h-96 overflow-y-auto app-scrollbar">
                     <p className="text-sm text-ink-muted">{selectedAssembly.cancellationReason}</p>
                   </div>
                 </div>
