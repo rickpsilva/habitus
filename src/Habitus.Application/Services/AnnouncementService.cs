@@ -12,6 +12,7 @@ public class AnnouncementService : IAnnouncementService
     private readonly IRepository<Announcement> _announcementRepository;
     private readonly IRepository<AnnouncementComment> _commentRepository;
     private readonly IRepository<AnnouncementAttachment> _attachmentRepository;
+    private readonly IRepository<AnnouncementReadStatus> _readStatusRepository;
     private readonly IRepository<CommunicationSettings> _settingsRepository;
     private readonly IRepository<Notification> _notificationRepository;
     private readonly IRepository<User> _userRepository;
@@ -21,6 +22,7 @@ public class AnnouncementService : IAnnouncementService
         IRepository<Announcement> announcementRepository,
         IRepository<AnnouncementComment> commentRepository,
         IRepository<AnnouncementAttachment> attachmentRepository,
+        IRepository<AnnouncementReadStatus> readStatusRepository,
         IRepository<CommunicationSettings> settingsRepository,
         IRepository<Notification> notificationRepository,
         IRepository<User> userRepository,
@@ -29,6 +31,7 @@ public class AnnouncementService : IAnnouncementService
         _announcementRepository = announcementRepository;
         _commentRepository = commentRepository;
         _attachmentRepository = attachmentRepository;
+        _readStatusRepository = readStatusRepository;
         _settingsRepository = settingsRepository;
         _notificationRepository = notificationRepository;
         _userRepository = userRepository;
@@ -127,20 +130,23 @@ public class AnnouncementService : IAnnouncementService
         if (announcement.Status != AnnouncementStatus.Published && announcement.AuthorId != userId && !isAdmin)
             throw new UnauthorizedAccessException("Cannot access unpublished announcements");
 
-        // Mark as read if published
+        // Mark as read if published - use separate repository to avoid concurrency issues
         if (announcement.Status == AnnouncementStatus.Published)
         {
-            var existingRead = announcement.ReadStatuses?.FirstOrDefault(r => r.UserId == userId);
+            var existingRead = await _readStatusRepository.FirstOrDefaultAsync(
+                r => r.AnnouncementId == announcementId && r.UserId == userId,
+                cancellationToken);
             if (existingRead == null)
             {
-                announcement.ReadStatuses?.Add(new AnnouncementReadStatus
+                var readStatus = new AnnouncementReadStatus
                 {
                     Id = Guid.NewGuid(),
                     AnnouncementId = announcementId,
                     UserId = userId,
                     ReadAt = DateTime.UtcNow
-                });
-                await _announcementRepository.SaveChangesAsync(cancellationToken);
+                };
+                await _readStatusRepository.AddAsync(readStatus);
+                await _readStatusRepository.SaveChangesAsync(cancellationToken);
             }
         }
 
