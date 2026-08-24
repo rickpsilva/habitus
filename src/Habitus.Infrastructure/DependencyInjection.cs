@@ -98,6 +98,8 @@ public static class DependencyInjection
 
         services.AddMemoryCache();
         services.AddScoped<AuthService>();
+        services.AddScoped<AnnouncementService>();
+        services.AddScoped<IAnnouncementService>(sp => sp.GetRequiredService<AnnouncementService>());
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();
@@ -128,6 +130,7 @@ public static class DependencyInjection
         // Background services for daily tasks
         services.AddHostedService<InitialManagerBootstrapHostedService>();
         services.AddHostedService<InvoiceGenerationBackgroundService>();
+        services.AddHostedService<AnnouncementExpiryBackgroundService>();
 
         // Encryption service for sensitive data. Singleton: PBKDF2(100k) key derivation
         // runs once at boot instead of per request; the service is stateless afterwards.

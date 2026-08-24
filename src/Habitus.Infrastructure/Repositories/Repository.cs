@@ -51,8 +51,16 @@ public class Repository<T> : IRepository<T> where T : class
     public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         => await _dbSet.AnyAsync(predicate);
 
-    public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
-        => predicate == null ? await _dbSet.CountAsync() : await _dbSet.CountAsync(predicate);
+    public IQueryable<T> Query() => _dbSet.AsNoTracking();
+
+    public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default)
+        => predicate == null ? await _dbSet.CountAsync(cancellationToken) : await _dbSet.CountAsync(predicate, cancellationToken);
+
+    public async Task<List<T>> ToListAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default)
+        => predicate == null ? await _dbSet.ToListAsync(cancellationToken) : await _dbSet.Where(predicate).ToListAsync(cancellationToken);
+
+    public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+        => await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
 
     public async Task<Dictionary<Guid, int>> CountGroupedAsync(
         Expression<Func<T, Guid>> keySelector,
@@ -157,5 +165,26 @@ public class Repository<T> : IRepository<T> where T : class
 
     public void Remove(T entity) => _dbSet.Remove(entity);
 
-    public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
+    public async Task RemoveAsync(T entity) => _dbSet.Remove(entity);
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => await _context.SaveChangesAsync(cancellationToken);
+
+    public async Task<List<T>> GetFilteredWithIncludesAsync(
+        Expression<Func<T, bool>> filter,
+        Expression<Func<T, object>> orderBy,
+        bool descending,
+        params string[] includes)
+    {
+        IQueryable<T> query = _dbSet.AsNoTracking();
+        
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+        
+        query = query.Where(filter);
+        query = descending ? query.OrderByDescending(orderBy) : query.OrderBy(orderBy);
+
+        return await query.ToListAsync();
+    }
 }

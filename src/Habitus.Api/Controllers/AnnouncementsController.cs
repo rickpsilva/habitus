@@ -1,9 +1,10 @@
 using Habitus.Application.DTOs.Announcements;
 using Habitus.Application.DTOs.Common;
 using Habitus.Application.Interfaces;
+using Habitus.Application.Services;
 using Habitus.Api.Middleware;
 using Habitus.Domain.Entities;
-using Habitus.Infrastructure.Data;
+using Habitus.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,18 +18,27 @@ namespace Habitus.Api.Controllers;
 [RequireFeature("announcements")]
 public class AnnouncementsController : ControllerBase
 {
-    private readonly HabitusDbContext _context;
+    private readonly IAnnouncementService _announcementService;
+    private readonly IRepository<Announcement> _announcementRepository;
+    private readonly IRepository<AnnouncementAttachment> _attachmentRepository;
+    private readonly IRepository<User> _userRepository;
     private readonly IWebHostEnvironment _env;
     private readonly IPlatformSettingsCache _settingsCache;
     private readonly INotificationDispatchService _notificationDispatchService;
 
     public AnnouncementsController(
-        HabitusDbContext context,
+        IAnnouncementService announcementService,
+        IRepository<Announcement> announcementRepository,
+        IRepository<AnnouncementAttachment> attachmentRepository,
+        IRepository<User> userRepository,
         IWebHostEnvironment env,
         IPlatformSettingsCache settingsCache,
         INotificationDispatchService notificationDispatchService)
     {
-        _context = context;
+        _announcementService = announcementService;
+        _announcementRepository = announcementRepository;
+        _attachmentRepository = attachmentRepository;
+        _userRepository = userRepository;
         _env = env;
         _settingsCache = settingsCache;
         _notificationDispatchService = notificationDispatchService;
@@ -48,48 +58,9 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return Unauthorized();
-
-        var isAdmin = user.Role == UserRole.Admin;
-
-        var query = _context.Announcements
-            .Include(a => a.Author)
-            .Include(a => a.Unit)
-            .Include(a => a.ApprovedByUser)
-            .Include(a => a.Attachments)
-            .Include(a => a.Comments)
-            .Include(a => a.ReadStatuses)
-            .Where(a => a.CondominiumId == condominiumId);
-
-        // Visibility rules (always applied, even when status filter is used):
-        // - Resident: published announcements + own announcements
-        // - Admin: all except drafts from other users
-        if (isAdmin)
-        {
-            query = query.Where(a => a.Status != AnnouncementStatus.Draft || a.AuthorId == userId);
-        }
-        else
-        {
-            query = query.Where(a => a.Status == AnnouncementStatus.Published || a.AuthorId == userId);
-        }
-
-        // Filter by status
-        if (!string.IsNullOrEmpty(status))
-        {
-            if (Enum.TryParse<AnnouncementStatus>(status, out var statusEnum))
-            {
-                query = query.Where(a => a.Status == statusEnum);
-            }
-        }
-
-        var announcements = await query
-            .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt)
-            .ToListAsync();
-
-        var dtos = announcements.Select(a => MapToDto(a, userId)).ToList();
-        return Ok(dtos);
+        
+        var pagedResult = await _announcementService.GetPagedAsync(condominiumId, userId, 1, 100, status, null, null);
+        return Ok(pagedResult.Items);
     }
 
     // GET: api/condominiums/{condominiumId:guid}/announcements/paged
@@ -104,72 +75,9 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return Unauthorized();
-
-        if (page < 1) page = 1;
-        if (pageSize < 1 || pageSize > 100) pageSize = 10;
-
-        var isAdmin = user.Role == UserRole.Admin;
-
-        var query = _context.Announcements
-            .Include(a => a.Author)
-            .Include(a => a.Unit)
-            .Include(a => a.ApprovedByUser)
-            .Include(a => a.Attachments)
-            .Include(a => a.Comments)
-            .Include(a => a.ReadStatuses)
-            .Where(a => a.CondominiumId == condominiumId);
-
-        // Visibility rules must match GetAll exactly (never widen visibility).
-        if (isAdmin)
-        {
-            query = query.Where(a => a.Status != AnnouncementStatus.Draft || a.AuthorId == userId);
-        }
-        else
-        {
-            query = query.Where(a => a.Status == AnnouncementStatus.Published || a.AuthorId == userId);
-        }
-
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<AnnouncementStatus>(status, out var statusEnum))
-        {
-            query = query.Where(a => a.Status == statusEnum);
-        }
-
-        // Category is an AnnouncementCategory enum on the entity, so the string filter is parsed.
-        if (!string.IsNullOrEmpty(category) && category != "All"
-            && Enum.TryParse<AnnouncementCategory>(category, out var categoryEnum))
-        {
-            query = query.Where(a => a.Category == categoryEnum);
-        }
-
-        // Server-side search over raw Title/Content only (translated to SQL via ToLower/Contains).
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim().ToLower();
-            query = query.Where(a => a.Title.ToLower().Contains(term) || a.Content.ToLower().Contains(term));
-        }
-
-        query = query
-            .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.PublishedAt ?? a.CreatedAt);
-
-        var totalItems = await query.CountAsync();
-        var announcements = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        var dtos = announcements.Select(a => MapToDto(a, userId)).ToList();
-
-        return Ok(new PaginatedResponse<AnnouncementDto>
-        {
-            Items = dtos,
-            Page = page,
-            PageSize = pageSize,
-            TotalItems = totalItems,
-            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
-        });
+        
+        var result = await _announcementService.GetPagedAsync(condominiumId, userId, page, pageSize, status, category, search);
+        return Ok(result);
     }
 
     // GET: api/condominiums/{condominiumId:guid}/announcements/{id}
@@ -178,50 +86,20 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return Unauthorized();
-        var isAdmin = user.Role == UserRole.Admin;
         
-        var announcement = await _context.Announcements
-            .Include(a => a.Author)
-            .Include(a => a.Unit)
-            .Include(a => a.ApprovedByUser)
-            .Include(a => a.Attachments)
-            .Include(a => a.Comments).ThenInclude(c => c.Author)
-            .Include(a => a.Comments).ThenInclude(c => c.Unit)
-            .Include(a => a.ReadStatuses)
-            .FirstOrDefaultAsync(a => a.Id == id && a.CondominiumId == condominiumId);
-
-        if (announcement == null) return NotFound();
-
-        // Drafts are private to author only.
-        if (announcement.Status == AnnouncementStatus.Draft && announcement.AuthorId != userId)
-            return Forbid();
-
-        // Unpublished announcements are not visible to other residents.
-        if (announcement.Status != AnnouncementStatus.Published && announcement.AuthorId != userId && !isAdmin)
-            return Forbid();
-
-        // Mark as read if published
-        if (announcement.Status == AnnouncementStatus.Published)
+        try
         {
-            var existingRead = await _context.AnnouncementReadStatuses
-                .FirstOrDefaultAsync(r => r.AnnouncementId == id && r.UserId == userId);
-
-            if (existingRead == null)
-            {
-                _context.AnnouncementReadStatuses.Add(new AnnouncementReadStatus
-                {
-                    Id = Guid.NewGuid(),
-                    AnnouncementId = id,
-                    UserId = userId,
-                    ReadAt = DateTime.UtcNow
-                });
-                await _context.SaveChangesAsync();
-            }
+            var dto = await _announcementService.GetByIdAsync(condominiumId, id, userId);
+            return Ok(dto);
         }
-
-        return Ok(MapToDto(announcement, userId));
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     // GET: api/condominiums/{condominiumId:guid}/announcements/stats
@@ -230,30 +108,20 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return Unauthorized();
-
-        var isAdmin = user.Role == UserRole.Admin;
-
-        var baseQuery = _context.Announcements.Where(a => a.CondominiumId == condominiumId);
-
-        // Keep stats aligned with visibility rules used by the list endpoint.
-        var visibleQuery = isAdmin
-            ? baseQuery.Where(a => a.Status != AnnouncementStatus.Draft || a.AuthorId == userId)
-            : baseQuery.Where(a => a.Status == AnnouncementStatus.Published || a.AuthorId == userId);
-
-        var publishedVisibleQuery = visibleQuery.Where(a => a.Status == AnnouncementStatus.Published);
-
-        var stats = new AnnouncementStatsDto
+        
+        try
         {
-            TotalAnnouncements = await visibleQuery.CountAsync(),
-            PendingApproval = isAdmin ? await visibleQuery.CountAsync(a => a.Status == AnnouncementStatus.PendingApproval) : 0,
-            Published = await publishedVisibleQuery.CountAsync(),
-            MyDrafts = await baseQuery.CountAsync(a => a.AuthorId == userId && a.Status == AnnouncementStatus.Draft),
-            Unread = await publishedVisibleQuery.CountAsync(a => !a.ReadStatuses.Any(r => r.UserId == userId))
-        };
-
-        return Ok(stats);
+            var stats = await _announcementService.GetStatsAsync(condominiumId, userId);
+            return Ok(stats);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     // GET: api/condominiums/{condominiumId:guid}/announcements/settings
@@ -262,17 +130,12 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _userRepository.GetByIdAsync(userId);
         if (user == null || user.CondominiumId != condominiumId)
             return Forbid();
 
-        var settings = await _context.CommunicationSettings
-            .FirstOrDefaultAsync(s => s.CondominiumId == condominiumId);
-
-        return Ok(new
-        {
-            allowAnnouncementComments = settings?.AllowAnnouncementComments ?? true
-        });
+        var settings = await _announcementService.GetSettingsAsync(condominiumId);
+        return Ok(settings);
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements
@@ -281,40 +144,20 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null) return Unauthorized();
-
-        if (!Enum.TryParse<AnnouncementCategory>(request.Category, out var category))
-            return BadRequest("Invalid category");
-
-        var status = request.PublishImmediately 
-            ? AnnouncementStatus.PendingApproval 
-            : AnnouncementStatus.Draft;
-
-        var announcement = new Announcement
+        
+        try
         {
-            Id = Guid.NewGuid(),
-            Title = request.Title,
-            Content = request.Content,
-            Category = category,
-            Status = status,
-            IsAnonymous = request.IsAnonymous,
-            ValidUntil = request.ValidUntil,
-            AuthorId = userId,
-            CondominiumId = condominiumId,
-            UnitId = user.UnitId,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.Announcements.Add(announcement);
-        await _context.SaveChangesAsync();
-
-        if (status == AnnouncementStatus.PendingApproval)
-        {
-            await NotifyAdminsPendingApprovalAsync(condominiumId, announcement);
+            var dto = await _announcementService.CreateAsync(condominiumId, userId, request);
+            return CreatedAtAction(nameof(GetById), new { condominiumId, id = dto.Id }, dto);
         }
-
-        return CreatedAtAction(nameof(GetById), new { condominiumId, id = announcement.Id }, MapToDto(announcement, userId));
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     // PUT: api/condominiums/{condominiumId:guid}/announcements/{id}
@@ -323,30 +166,28 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var announcement = await _context.Announcements.FindAsync(id);
-
-        if (announcement == null || announcement.CondominiumId != condominiumId)
+        
+        try
+        {
+            var dto = await _announcementService.UpdateAsync(condominiumId, id, userId, request);
+            return Ok(dto);
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        if (announcement.AuthorId != userId)
+        }
+        catch (UnauthorizedAccessException)
+        {
             return Forbid();
-
-        if (announcement.Status != AnnouncementStatus.Draft)
-            return BadRequest("Only draft announcements can be edited");
-
-        if (!Enum.TryParse<AnnouncementCategory>(request.Category, out var category))
-            return BadRequest("Invalid category");
-
-        announcement.Title = request.Title;
-        announcement.Content = request.Content;
-        announcement.Category = category;
-        announcement.IsAnonymous = request.IsAnonymous;
-        announcement.ValidUntil = request.ValidUntil;
-        announcement.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return Ok(MapToDto(announcement, userId));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/publish
@@ -355,23 +196,24 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var announcement = await _context.Announcements.FindAsync(id);
-
-        if (announcement == null || announcement.CondominiumId != condominiumId)
+        
+        try
+        {
+            await _announcementService.PublishAsync(condominiumId, id, userId);
+            return Ok(new { message = "Comunicado submetido para aprovação." });
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        if (announcement.AuthorId != userId)
+        }
+        catch (UnauthorizedAccessException)
+        {
             return Forbid();
-
-        if (announcement.Status != AnnouncementStatus.Draft)
-            return BadRequest("Only draft announcements can be published");
-
-        announcement.Status = AnnouncementStatus.PendingApproval;
-        announcement.UpdatedAt = DateTime.UtcNow;
-
-        await NotifyAdminsPendingApprovalAsync(condominiumId, announcement);
-
-        return Ok(new { message = "Comunicado submetido para aprovação." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/approve
@@ -380,67 +222,24 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
         
-        if (user == null || user.Role != UserRole.Admin)
-            return Forbid();
-
-        var announcement = await _context.Announcements
-            .Include(a => a.Author)
-            .Include(a => a.Attachments)
-            .FirstOrDefaultAsync(a => a.Id == id && a.CondominiumId == condominiumId);
-
-        if (announcement == null) return NotFound();
-
-        if (announcement.Status != AnnouncementStatus.PendingApproval)
-            return BadRequest("Apenas comunicados pendentes podem ser aprovados/rejeitados.");
-
-        if (request.IsApproved)
+        try
         {
-            announcement.Status = AnnouncementStatus.Published;
-            announcement.ApprovedByUserId = userId;
-            announcement.ApprovedAt = DateTime.UtcNow;
-            announcement.PublishedAt = DateTime.UtcNow;
-
-            // Create notifications for all users in condominium
-            var condoUsers = await _context.Users
-                .Where(u => u.CondominiumId == condominiumId && u.Id != announcement.AuthorId && u.IsActive)
-                .ToListAsync();
-
-            var notifications = new List<Notification>();
-            foreach (var condoUser in condoUsers)
-            {
-                var openUrl = $"/announcements?open={announcement.Id}";
-
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid(),
-                    Title = "Novo Comunicado",
-                    Message = $"📢 {announcement.Title}\nVer: {openUrl}",
-                    Type = announcement.Category == AnnouncementCategory.Urgent ? NotificationType.Urgent : NotificationType.Info,
-                    TargetRole = condoUser.Role.ToString(),
-                    TargetUserId = condoUser.Id,
-                    CondominiumId = condominiumId,
-                    SentAt = DateTime.UtcNow,
-                    IsRead = false
-                };
-                _context.Notifications.Add(notification);
-                notifications.Add(notification);
-            }
-
-            await _context.SaveChangesAsync();
-            await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: false);
+            await _announcementService.ApproveAsync(condominiumId, id, userId, request.IsApproved, request.RejectionReason);
             return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
         }
-        else
+        catch (KeyNotFoundException)
         {
-            announcement.Status = AnnouncementStatus.Rejected;
-            announcement.RejectionReason = request.RejectionReason;
+            return NotFound();
         }
-
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = request.IsApproved ? "Comunicado publicado." : "Comunicado rejeitado." });
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/pin
@@ -449,20 +248,20 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
         
-        if (user == null || user.Role != UserRole.Admin)
-            return Forbid();
-
-        var announcement = await _context.Announcements.FindAsync(id);
-
-        if (announcement == null || announcement.CondominiumId != condominiumId)
+        try
+        {
+            var dto = await _announcementService.TogglePinAsync(condominiumId, id);
+            return Ok(new { isPinned = dto.IsPinned });
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        announcement.IsPinned = !announcement.IsPinned;
-        await _context.SaveChangesAsync();
-
-        return Ok(new { isPinned = announcement.IsPinned });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     // DELETE: api/condominiums/{condominiumId:guid}/announcements/{id}
@@ -471,34 +270,42 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        var announcement = await _context.Announcements.FindAsync(id);
-
-        if (announcement == null || announcement.CondominiumId != condominiumId)
-            return NotFound();
-
-        // Only author or admin can delete
-        if (announcement.AuthorId != userId && user?.Role != UserRole.Admin)
-            return Forbid();
-
-        // Delete attachments from filesystem
-        var attachments = await _context.AnnouncementAttachments
-            .Where(a => a.AnnouncementId == id)
-            .ToListAsync();
-
-        foreach (var attachment in attachments)
+        var user = await _userRepository.GetByIdAsync(userId);
+        var isAdmin = user?.Role == UserRole.Admin;
+        
+        try
         {
-            var filePath = Path.Combine(_env.ContentRootPath, attachment.FilePath);
-            if (System.IO.File.Exists(filePath))
+            // First get the announcement to delete its attachments
+            var announcement = await _announcementRepository.GetByIdWithIncludesAsync(id, nameof(Announcement.Attachments));
+            if (announcement == null || announcement.CondominiumId != condominiumId)
+                return NotFound();
+
+            // Only author or admin can delete
+            if (announcement.AuthorId != userId && !isAdmin)
+                return Forbid();
+
+            // Delete attachments from filesystem
+            var attachments = await _attachmentRepository.Query().Where(a => a.AnnouncementId == id).ToListAsync();
+            foreach (var attachment in attachments)
             {
-                System.IO.File.Delete(filePath);
+                var filePath = Path.Combine(_env.ContentRootPath, attachment.FilePath);
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
             }
+
+            await _announcementService.DeleteAsync(condominiumId, id, userId, isAdmin);
+            return NoContent();
         }
-
-        _context.Announcements.Remove(announcement);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/comments
@@ -507,58 +314,24 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null) return Unauthorized();
-
-        // Check if comments are allowed
-        var settings = await _context.CommunicationSettings.FirstOrDefaultAsync(s => s.CondominiumId == condominiumId);
-        if (settings?.AllowAnnouncementComments == false)
-            return BadRequest("Comments are disabled for this condominium");
-
-        var announcement = await _context.Announcements
-            .Include(a => a.Author)
-            .FirstOrDefaultAsync(a => a.Id == id);
-        if (announcement == null || announcement.CondominiumId != condominiumId)
-            return NotFound();
-
-        if (announcement.Status != AnnouncementStatus.Published)
-            return BadRequest("Cannot comment on unpublished announcements");
-
-        var comment = new AnnouncementComment
+        
+        try
         {
-            Id = Guid.NewGuid(),
-            AnnouncementId = id,
-            AuthorId = userId,
-            UnitId = user.UnitId,
-            Content = request.Content,
-            IsAnonymous = request.IsAnonymous,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.AnnouncementComments.Add(comment);
-        await _context.SaveChangesAsync();
-
-        // Notify announcement author
-        if (announcement.AuthorId != userId)
-        {
-            var notification = new Notification
-            {
-                Id = Guid.NewGuid(),
-                Title = "Novo Comentário",
-                Message = $"💬 Novo comentário no seu comunicado: {announcement.Title}",
-                Type = NotificationType.Info,
-                TargetRole = announcement.Author.Role.ToString(),
-                TargetUserId = announcement.AuthorId,
-                CondominiumId = condominiumId,
-                SentAt = DateTime.UtcNow,
-                IsRead = false
-            };
-            _context.Notifications.Add(notification);
-            await _context.SaveChangesAsync();
-            await _notificationDispatchService.DispatchAsync(new[] { notification }, sendExternalChannels: true);
+            var dto = await _announcementService.AddCommentAsync(condominiumId, id, userId, request);
+            return Ok(dto);
         }
-
-        return Ok(MapCommentToDto(comment, user));
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // DELETE: api/condominiums/{condominiumId:guid}/announcements/{announcementId}/comments/{commentId}
@@ -567,20 +340,22 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var user = await _context.Users.FindAsync(userId);
-        var comment = await _context.AnnouncementComments.FindAsync(commentId);
-
-        if (comment == null || comment.AnnouncementId != announcementId)
+        var user = await _userRepository.GetByIdAsync(userId);
+        var isAdmin = user?.Role == UserRole.Admin;
+        
+        try
+        {
+            await _announcementService.DeleteCommentAsync(condominiumId, commentId, userId, isAdmin);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        // Only author or admin can delete
-        if (comment.AuthorId != userId && user?.Role != UserRole.Admin)
+        }
+        catch (UnauthorizedAccessException)
+        {
             return Forbid();
-
-        _context.AnnouncementComments.Remove(comment);
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        }
     }
 
     // POST: api/condominiums/{condominiumId:guid}/announcements/{id}/attachments
@@ -591,11 +366,9 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var announcement = await _context.Announcements
-            .Include(a => a.Attachments)
-            .FirstOrDefaultAsync(a => a.Id == id && a.CondominiumId == condominiumId);
-
-        if (announcement == null) return NotFound();
+        
+        var announcement = await _announcementRepository.GetByIdWithIncludesAsync(id, nameof(Announcement.Attachments));
+        if (announcement == null || announcement.CondominiumId != condominiumId) return NotFound();
         if (announcement.AuthorId != userId) return Forbid();
         if (announcement.Status != AnnouncementStatus.Draft) 
             return BadRequest("Só é possível carregar anexos em comunicados em rascunho.");
@@ -651,8 +424,8 @@ public class AnnouncementsController : ControllerBase
             UploadedAt = DateTime.UtcNow
         };
 
-        _context.AnnouncementAttachments.Add(attachment);
-        await _context.SaveChangesAsync();
+        await _attachmentRepository.AddAsync(attachment);
+        await _attachmentRepository.SaveChangesAsync();
 
         return Ok(MapAttachmentToDto(attachment));
     }
@@ -663,11 +436,12 @@ public class AnnouncementsController : ControllerBase
     {
         if (!CanAccessCondominium(condominiumId)) return Forbid();
         var userId = GetUserId();
-        var announcement = await _context.Announcements.FindAsync(announcementId);
+        
+        var announcement = await _announcementRepository.GetByIdAsync(announcementId);
         if (announcement == null || announcement.CondominiumId != condominiumId) return NotFound();
         if (announcement.AuthorId != userId) return Forbid();
 
-        var attachment = await _context.AnnouncementAttachments.FindAsync(attachmentId);
+        var attachment = await _attachmentRepository.GetByIdAsync(attachmentId);
         if (attachment == null || attachment.AnnouncementId != announcementId) return NotFound();
 
         // Delete file
@@ -677,8 +451,8 @@ public class AnnouncementsController : ControllerBase
             System.IO.File.Delete(filePath);
         }
 
-        _context.AnnouncementAttachments.Remove(attachment);
-        await _context.SaveChangesAsync();
+        await _attachmentRepository.RemoveAsync(attachment);
+        await _attachmentRepository.SaveChangesAsync();
 
         return NoContent();
     }
@@ -690,10 +464,7 @@ public class AnnouncementsController : ControllerBase
     [HttpGet("{announcementId}/attachments/{attachmentId}/download")]
     public async Task<IActionResult> DownloadAttachment([FromRoute] Guid condominiumId, [FromRoute] Guid announcementId, [FromRoute] Guid attachmentId)
     {
-
-        var attachment = await _context.AnnouncementAttachments
-            .Include(a => a.Announcement)
-            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.AnnouncementId == announcementId);
+        var attachment = await _attachmentRepository.GetByIdWithIncludesAsync(attachmentId, nameof(AnnouncementAttachment.Announcement));
 
         if (attachment == null || attachment.Announcement.CondominiumId != condominiumId)
             return NotFound();
@@ -704,42 +475,6 @@ public class AnnouncementsController : ControllerBase
 
         var contentType = attachment.ContentType ?? "application/octet-stream";
         return PhysicalFile(filePath, contentType, attachment.FileName);
-    }
-
-    private async Task NotifyAdminsPendingApprovalAsync(Guid condominiumId, Announcement announcement)
-    {
-        // Notify all active admins in the same condominium that a new approval is pending.
-        var admins = await _context.Users
-            .Where(u => u.CondominiumId == condominiumId && u.Role == UserRole.Admin && u.IsActive)
-            .ToListAsync();
-
-        if (admins.Count == 0)
-        {
-            return;
-        }
-
-        var openUrl = $"/announcements?open={announcement.Id}";
-        var notifications = new List<Notification>(admins.Count);
-
-        foreach (var admin in admins)
-        {
-            notifications.Add(new Notification
-            {
-                Id = Guid.NewGuid(),
-                Title = "Comunicado pendente de aprovação",
-                Message = $"📝 {announcement.Title}\nVer: {openUrl}",
-                Type = NotificationType.Alert,
-                TargetRole = UserRole.Admin.ToString(),
-                TargetUserId = admin.Id,
-                CondominiumId = condominiumId,
-                SentAt = DateTime.UtcNow,
-                IsRead = false
-            });
-        }
-
-        _context.Notifications.AddRange(notifications);
-        await _context.SaveChangesAsync();
-        await _notificationDispatchService.DispatchAsync(notifications, sendExternalChannels: true);
     }
 
     // Helper methods

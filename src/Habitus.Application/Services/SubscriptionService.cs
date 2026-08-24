@@ -303,7 +303,7 @@ public class SubscriptionService
     public async Task<SubscriptionStatsDto> GetStatsAsync()
     {
         var subs = (await _subscriptionsRepo.FindAsync(s => s.Status == SubscriptionStatus.Active)).ToList();
-        var totalCondominiums = await _condominiumsRepo.CountAsync();
+        var totalCondominiums = await _condominiumsRepo.CountAsync(null, CancellationToken.None);
 
         var monthlyVolume = subs.Sum(s => s.BillingCycle switch
         {

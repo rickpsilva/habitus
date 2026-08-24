@@ -166,6 +166,26 @@
       "diagrams": []
     },
     {
+      "id": "REQ-ANN-002",
+      "file": "requirements/announcements/REQ-ANN-002.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-ANN-003",
+      "file": "requirements/announcements/REQ-ANN-003.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-ANN-004",
+      "file": "requirements/announcements/REQ-ANN-004.md",
+      "diagrams": []
+    },
+    {
+      "id": "REQ-ANN-005",
+      "file": "requirements/announcements/REQ-ANN-005.md",
+      "diagrams": []
+    },
+    {
       "id": "REQ-SUPP-001",
       "file": "requirements/suppliers/REQ-SUPP-001.md",
       "diagrams": []
