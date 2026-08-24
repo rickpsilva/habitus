@@ -199,8 +199,8 @@ public class MaintenanceServicePaginationTests
             Request(other, MaintenanceStatus.Completed),   // different condominium — excluded
         };
         _repositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>()))
-            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate) => rows.Count(predicate.Compile()));
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MaintenanceRequest, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<MaintenanceRequest, bool>> predicate, CancellationToken _) => rows.Count(predicate.Compile()));
 
         var counts = await _service.GetStatusCountsAsync(condo, "Admin", Guid.NewGuid(), null);
 
