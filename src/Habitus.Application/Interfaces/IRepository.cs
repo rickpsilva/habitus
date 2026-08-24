@@ -12,7 +12,7 @@ public interface IRepository<T> where T : class
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
     Task<T?> FirstOrDefaultNoTrackingAsync(Expression<Func<T, bool>> predicate);
     Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
-    Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
+    Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns per-key row counts computed by a single server-side SQL <c>GROUP BY</c>, so only
@@ -21,6 +21,22 @@ public interface IRepository<T> where T : class
     Task<Dictionary<Guid, int>> CountGroupedAsync(
         Expression<Func<T, Guid>> keySelector,
         Expression<Func<T, bool>>? predicate = null);
+
+    /// <summary>
+    /// Returns an IQueryable for building custom queries (read-only, no tracking).
+    /// </summary>
+    IQueryable<T> Query();
+
+    /// <summary>
+    /// Returns a list of entities matching the predicate.
+    /// </summary>
+    Task<List<T>> ToListAsync(Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the first entity matching the predicate.
+    /// </summary>
+    Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default);
+
     Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
     /// <summary>
@@ -53,8 +69,19 @@ public interface IRepository<T> where T : class
         Expression<Func<T, object>> orderBy,
         bool descending,
         params string[] includes);
+
+    /// <summary>
+    /// Returns a list of entities with includes, applying filtering and ordering at the database level.
+    /// </summary>
+    Task<List<T>> GetFilteredWithIncludesAsync(
+        Expression<Func<T, bool>> filter,
+        Expression<Func<T, object>> orderBy,
+        bool descending,
+        params string[] includes);
+
     Task AddAsync(T entity);
     void Update(T entity);
     void Remove(T entity);
-    Task<int> SaveChangesAsync();
+    Task RemoveAsync(T entity);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

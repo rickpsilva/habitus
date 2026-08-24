@@ -44,3 +44,8 @@ public class AnnouncementStatsDto
     public int MyDrafts { get; set; }
     public int Unread { get; set; }
 }
+
+public class AnnouncementSettingsDto
+{
+    public bool AllowAnnouncementComments { get; set; } = true;
+}

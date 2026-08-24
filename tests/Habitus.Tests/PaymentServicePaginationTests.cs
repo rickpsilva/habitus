@@ -195,8 +195,8 @@ public class PaymentServicePaginationTests
             Payment(otherCondo, resident, PaymentStatus.Approved),  // another condominium — excluded
         };
         _paymentRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Payment, bool>>>()))
-            .ReturnsAsync((Expression<Func<Payment, bool>> predicate) => rows.Count(predicate.Compile()));
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Payment, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Payment, bool>> predicate, CancellationToken _) => rows.Count(predicate.Compile()));
 
         var counts = await _service.GetResidentStatusCountsAsync(resident, condo);
 

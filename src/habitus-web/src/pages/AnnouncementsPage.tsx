@@ -119,7 +119,7 @@ export default function AnnouncementsPage() {
   const [editing, setEditing] = useState<AnnouncementDto | null>(null);
   const [selected, setSelected] = useState<AnnouncementDto | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'Published');
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || 'All');
   const [searchText, setSearchText] = useState(searchParams.get('q') || '');
   const [debouncedSearchText, setDebouncedSearchText] = useState(searchParams.get('q') || '');
@@ -334,7 +334,7 @@ export default function AnnouncementsPage() {
     if (debouncedSearchText.trim()) next.set('q', debouncedSearchText.trim());
     else next.delete('q');
 
-    if (statusFilter !== 'All') next.set('status', statusFilter);
+    if (statusFilter !== 'Published') next.set('status', statusFilter);
     else next.delete('status');
 
     if (categoryFilter !== 'All') next.set('category', categoryFilter);
@@ -612,7 +612,7 @@ export default function AnnouncementsPage() {
             <button
               onClick={() => {
                 setSearchText('');
-                setStatusFilter('All');
+                setStatusFilter('Published');
                 setCategoryFilter('All');
                 setCurrentPage(1);
               }}
@@ -740,12 +740,15 @@ export default function AnnouncementsPage() {
                 <input type="checkbox" checked={!!form.isAnonymous} onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })} />
                 {t('announcements.form.anonymous')}
               </label>
-              <input
-                type="datetime-local"
-                value={form.validUntil || ''}
-                onChange={(e) => setForm({ ...form, validUntil: e.target.value || undefined })}
-                className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
-              />
+              <div>
+                <label className="block text-xs text-ink-subtle mb-1">{t('announcements.form.validUntil')}</label>
+                <input
+                  type="datetime-local"
+                  value={form.validUntil || ''}
+                  onChange={(e) => setForm({ ...form, validUntil: e.target.value || undefined })}
+                  className="px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
+                />
+              </div>
             </div>
 
             <RichTextEditor value={form.content} onChange={(v) => setForm({ ...form, content: v })} placeholder={t('announcements.form.contentPlaceholder')} height="240px" />
@@ -867,54 +870,62 @@ export default function AnnouncementsPage() {
               </div>
             )}
 
-            {selected.status === 'Published' && (
+            {selected.status === 'Published' && allowComments && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-ink">{t('announcements.details.comments')}</h3>
 
-                {!allowComments ? (
-                  <div className="text-sm text-ink-subtle">{t('announcements.details.commentsDisabled')}</div>
-                ) : (
-                  <>
-                    <div className="space-y-2 max-h-64 overflow-y-auto border border-line rounded-lg p-3">
-                      {selected.comments.length === 0 ? (
-                        <p className="text-sm text-ink-subtle">{t('announcements.details.noComments')}</p>
-                      ) : (
-                        selected.comments
-                          .slice()
-                          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                          .map((c) => (
-                            <div key={c.id} className="border-b border-line pb-2 last:border-b-0">
-                              <p className="text-xs text-ink-subtle">{c.authorName} • {formatDateTime(c.createdAt)}</p>
-                              <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{c.content}</p>
-                            </div>
-                          ))
-                      )}
-                    </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-line rounded-lg p-3">
+                  {selected.comments.length === 0 ? (
+                    <p className="text-sm text-ink-subtle">{t('announcements.details.noComments')}</p>
+                  ) : (
+                    selected.comments
+                      .slice()
+                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                      .map((c) => (
+                        <div key={c.id} className="border-b border-line pb-2 last:border-b-0">
+                          <p className="text-xs text-ink-subtle">{c.authorName} • {formatDateTime(c.createdAt)}</p>
+                          <p className="text-sm text-ink mt-1 whitespace-pre-wrap">{c.content}</p>
+                        </div>
+                      ))
+                  )}
+                </div>
 
-                    <div className="space-y-2">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
-                        placeholder={t('announcements.details.replyPlaceholder')}
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm text-ink-muted inline-flex items-center gap-2">
-                          <input type="checkbox" checked={commentAnonymous} onChange={(e) => setCommentAnonymous(e.target.checked)} />
-                          {t('announcements.details.commentAnonymous')}
-                        </label>
-                        <Button
-                          onClick={addComment}
-                          loading={commenting}
-                          disabled={!comment.trim()}
-                        >
-                          {commenting ? t('announcements.details.sending') : t('announcements.details.comment')}
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-line bg-surface text-ink rounded-lg text-sm"
+                    placeholder={t('announcements.details.replyPlaceholder')}
+                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-ink-muted inline-flex items-center gap-2">
+                      <input type="checkbox" checked={commentAnonymous} onChange={(e) => setCommentAnonymous(e.target.checked)} />
+                      {t('announcements.details.commentAnonymous')}
+                    </label>
+                    <Button
+                      onClick={addComment}
+                      loading={commenting}
+                      disabled={!comment.trim()}
+                    >
+                      {commenting ? t('announcements.details.sending') : t('announcements.details.comment')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selected.status === 'Archived' && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">{t('announcements.details.comments')}</h3>
+                <div className="text-sm text-ink-subtle">{t('announcements.details.commentsArchived')}</div>
+              </div>
+            )}
+
+            {(selected.status === 'Published' && !allowComments) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">{t('announcements.details.comments')}</h3>
+                <div className="text-sm text-ink-subtle">{t('announcements.details.commentsDisabled')}</div>
               </div>
             )}
           </>
