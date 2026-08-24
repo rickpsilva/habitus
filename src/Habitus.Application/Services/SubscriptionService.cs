@@ -14,6 +14,7 @@ public class SubscriptionService
     [
         ("maintenance", "Manutenção"),
         ("announcements", "Comunicados"),
+        ("polls", "Votações"),
         ("documents", "Documentos"),
         ("reservations", "Reservas de Espaços"),
         ("financial", "Gestão Financeira"),

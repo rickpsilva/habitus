@@ -15,8 +15,9 @@ import {
   Trash2,
   Image as ImageIcon,
   FileText,
+  Vote,
 } from 'lucide-react';
-import { announcementsApi } from '../api/services';
+import { announcementsApi, pollsApi, subscriptionsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -24,6 +25,8 @@ import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
+import PollCard from '../components/PollCard';
+import CreatePollModal from '../components/CreatePollModal';
 import { PageHeader, Button, AsyncState, EmptyState, Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useTranslation } from '../i18n/I18nProvider';
@@ -42,7 +45,34 @@ import type {
   UpdateAnnouncementRequest,
   CreateAnnouncementCommentRequest,
   PaginatedResponse,
+  PollDto,
 } from '../types';
+
+const POLLS_PAGE_SIZE = 6;
+
+/**
+ * Maps poll action failures to user-facing text. Backend bodies may be plain
+ * strings (ArgumentException) or objects with a `message`; 403 and 409 get
+ * localized overrides because the raw messages are English-only.
+ */
+function getPollApiErrorMessage(
+  error: unknown,
+  fallback: string,
+  featureUnavailable: string,
+  alreadyVoted: string,
+): string {
+  const response = (error as { response?: { status?: number; data?: unknown } })?.response;
+  if (response?.status === 403) return featureUnavailable;
+  if (response?.status === 409) return alreadyVoted;
+
+  const data: unknown = response?.data;
+  if (typeof data === 'string' && data.trim()) return data;
+
+  const message = (data as { message?: unknown } | null)?.message;
+  if (typeof message === 'string' && message.trim()) return message;
+
+  return fallback;
+}
 
 function getCategoryLabels(t: TranslateFn): Record<string, string> {
   return {
@@ -100,7 +130,7 @@ function highlightText(text: string, query: string) {
 }
 
 export default function AnnouncementsPage() {
-  const { condominiumId, isAdmin } = useAuth();
+  const { condominiumId, isAdmin, isManager } = useAuth();
   const { error: toastError } = useToast();
   const { t, formatDate, formatDateTime } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -114,6 +144,18 @@ export default function AnnouncementsPage() {
   const [stats, setStats] = useState<AnnouncementStatsDto | null>(null);
   const [allowComments, setAllowComments] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Polls (feature "polls"). Managers bypass subscription gating, mirroring Layout.
+  const [pollsEnabled, setPollsEnabled] = useState(isManager);
+  const [polls, setPolls] = useState<PollDto[]>([]);
+  const [pollsLoading, setPollsLoading] = useState(isManager);
+  const [pollsError, setPollsError] = useState('');
+  const [pollsPage, setPollsPage] = useState(1);
+  const [pollsTotalItems, setPollsTotalItems] = useState(0);
+  const [pollsTotalPages, setPollsTotalPages] = useState(1);
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [closingPollId, setClosingPollId] = useState<string | null>(null);
+  const [closingPoll, setClosingPoll] = useState(false);
 
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState<AnnouncementDto | null>(null);
@@ -223,6 +265,100 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     loadData();
   }, [condominiumId, loadData]);
+
+  // Feature gate for polls: same subscription lookup Layout uses for nav items.
+  // Managers bypass it (state is already initialised from isManager); on lookup
+  // failure polls stay hidden instead of erroring.
+  useEffect(() => {
+    if (isManager) return;
+
+    let mounted = true;
+    subscriptionsApi.getMy()
+      .then((res) => {
+        if (!mounted) return;
+        setPollsEnabled(res.data.plan.features.some((f) => f.featureKey === 'polls' && f.isEnabled));
+      })
+      .catch(() => {
+        if (mounted) setPollsEnabled(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isManager, condominiumId]);
+
+  const loadPolls = useCallback(async () => {
+    if (!condominiumId || !pollsEnabled) {
+      setPolls([]);
+      setPollsTotalItems(0);
+      setPollsTotalPages(1);
+      setPollsLoading(false);
+      return;
+    }
+
+    setPollsLoading(true);
+    setPollsError('');
+    try {
+      const res = await pollsApi.getPaged(condominiumId, pollsPage, POLLS_PAGE_SIZE);
+      setPolls(res.data.items);
+      setPollsTotalItems(res.data.totalItems);
+      setPollsTotalPages(res.data.totalPages);
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 403) {
+        // Feature turned off for this plan mid-session: hide the section quietly.
+        setPollsEnabled(false);
+        return;
+      }
+      console.error('Erro ao carregar votações:', error);
+      setPollsError(t('poll.error.load'));
+    } finally {
+      setPollsLoading(false);
+    }
+  }, [condominiumId, pollsEnabled, pollsPage, t]);
+
+  useEffect(() => {
+    void loadPolls();
+  }, [loadPolls]);
+
+  const castVote = async (pollId: string, optionId: string) => {
+    if (!condominiumId) return;
+
+    try {
+      await pollsApi.castVote(condominiumId, pollId, { pollOptionId: optionId });
+      await loadPolls();
+    } catch (error) {
+      toastError(
+        getPollApiErrorMessage(
+          error,
+          t('poll.error.vote'),
+          t('poll.error.featureUnavailable'),
+          t('poll.error.alreadyVoted'),
+        ),
+      );
+    }
+  };
+
+  const confirmClosePoll = async () => {
+    if (!condominiumId || !closingPollId || closingPoll) return;
+
+    setClosingPoll(true);
+    try {
+      await pollsApi.close(condominiumId, closingPollId);
+      await loadPolls();
+    } catch (error) {
+      toastError(
+        getPollApiErrorMessage(
+          error,
+          t('poll.error.close'),
+          t('poll.error.featureUnavailable'),
+          t('poll.error.alreadyVoted'),
+        ),
+      );
+    } finally {
+      setClosingPoll(false);
+      setClosingPollId(null);
+    }
+  };
 
   useEffect(() => {
     if (!condominiumId) return;
@@ -568,6 +704,61 @@ export default function AnnouncementsPage() {
           <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> {t('announcements.stats.unread')}</div>
           <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> {t('announcements.stats.pending')}</div>
         </div>
+      )}
+
+      {pollsEnabled && (
+        <section aria-labelledby="polls-heading" className="space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 id="polls-heading" className="flex items-center gap-2 text-lg font-semibold text-ink">
+              <Vote className="w-5 h-5" aria-hidden="true" />
+              {t('poll.title')}
+            </h2>
+            {isAdmin && (
+              <Button icon={Plus} size="sm" onClick={() => setShowCreatePoll(true)}>
+                {t('poll.new')}
+              </Button>
+            )}
+          </div>
+
+          <AsyncState
+            loading={pollsLoading}
+            error={pollsError || null}
+            onRetry={loadPolls}
+            isEmpty={polls.length === 0}
+            skeleton="list"
+            skeletonRows={2}
+            empty={<EmptyState icon={Vote} title={t('poll.empty')} />}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-3">
+              {polls.map((poll) => (
+                <PollCard
+                  key={poll.id}
+                  poll={poll}
+                  onVote={castVote}
+                  onClose={setClosingPollId}
+                  canManage={isAdmin}
+                />
+              ))}
+            </div>
+            {pollsTotalItems > POLLS_PAGE_SIZE && (
+              <div className="mt-4">
+                <Pagination
+                  pagination={{
+                    items: [],
+                    page: pollsPage,
+                    pageSize: POLLS_PAGE_SIZE,
+                    totalItems: pollsTotalItems,
+                    totalPages: pollsTotalPages,
+                    hasPreviousPage: pollsPage > 1,
+                    hasNextPage: pollsPage < pollsTotalPages,
+                  }}
+                  currentPage={pollsPage}
+                  onPageChange={setPollsPage}
+                />
+              </div>
+            )}
+          </AsyncState>
+        </section>
       )}
 
       <div className="bg-surface border border-line rounded-xl p-4">
@@ -971,6 +1162,26 @@ export default function AnnouncementsPage() {
               </Button>
             </div>
       </ModalPopup>
+
+      <ConfirmModal
+        open={closingPollId !== null}
+        title={t('poll.close.title')}
+        message={t('poll.close.message')}
+        confirmLabel={t('poll.card.close')}
+        variant="warning"
+        onConfirm={() => void confirmClosePoll()}
+        onCancel={() => { if (!closingPoll) setClosingPollId(null); }}
+      />
+
+      {condominiumId && (
+        <CreatePollModal
+          open={showCreatePoll}
+          onClose={() => setShowCreatePoll(false)}
+          condominiumId={condominiumId}
+          announcements={announcements.filter((a) => a.status === 'Published')}
+          onCreated={() => void loadPolls()}
+        />
+      )}
     </div>
   );
 }

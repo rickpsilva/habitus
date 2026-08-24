@@ -1,0 +1,49 @@
+sequenceDiagram
+  actor A as Admin
+  actor R as Resident
+  participant W as Web portal
+  participant API as Habitus API (PollsController)
+  participant SVC as PollService
+  participant DB as PostgreSQL
+
+  Note over A,DB: REQ-POLL-001 — creation (Admin only)
+  A->>W: Fill poll form (announcement link, title, description, options, expiry)
+  W->>API: POST /api/condominiums/{condoId}/polls
+  API->>API: JWT + CondominiumId claim == {condoId} (403 otherwise)
+  API->>SVC: CreateAsync(condoId, userId, request)
+  SVC->>SVC: Validate: role Admin, announcement belongs to condo, description, ≥2 options, ExpiresAtUtc in future
+  SVC->>DB: INSERT Poll + PollOptions (one transaction)
+  DB-->>SVC: Poll saved
+  SVC-->>API: PollDto
+  API-->>W: 201 Created
+
+  Note over R,DB: REQ-POLL-002/004 — single vote with atomic double-vote prevention
+  R->>W: Open poll, choose option
+  W->>API: POST /api/condominiums/{condoId}/polls/{pollId}/votes {pollOptionId}
+  API->>API: CondominiumId claim check (cross-condo → 403/404)
+  API->>SVC: CastVoteAsync(condoId, pollId, userId, request)
+  SVC->>DB: Load poll WHERE CondominiumId = condoId
+  alt Poll expired or Closed
+    SVC-->>API: InvalidOperationException (read-only) — REQ-POLL-003
+    API-->>W: 400 poll_closed_or_expired
+  else Active and not voted
+    SVC->>DB: INSERT PollVote — unique index (PollId, VotedByUserId)
+    alt Unique violation (concurrent double vote)
+      DB-->>SVC: DbUpdateException
+      SVC-->>API: InvalidOperationException already_voted
+      API-->>W: 409 Conflict
+    else Vote accepted
+      DB-->>SVC: Vote saved
+      SVC->>DB: Aggregate per-option counts
+      SVC-->>API: PollDto with results + myVote
+      API-->>W: 200 OK
+    end
+  end
+
+  Note over R,DB: REQ-POLL-003 — results after voting and after expiry
+  R->>W: View poll
+  W->>API: GET /api/condominiums/{condoId}/polls/{pollId}
+  API->>SVC: GetByIdAsync(condoId, pollId, userId)
+  SVC->>DB: Poll + options + counts (+ user's vote if any)
+  SVC-->>API: PollDto (IsExpired derived from ExpiresAtUtc)
+  API-->>W: 200 OK (voting disabled when expired)

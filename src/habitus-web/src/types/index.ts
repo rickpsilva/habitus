@@ -1109,6 +1109,50 @@ export interface AnnouncementSettingsDto {
   allowAnnouncementComments: boolean;
 }
 
+// Polls
+export type PollStatus = 'Active' | 'Closed';
+
+export interface PollOptionDto {
+  id: string;
+  text: string;
+  displayOrder: number;
+  voteCount: number;
+  /** 0-100, rounded to one decimal by the backend. */
+  percentage: number;
+}
+
+export interface PollDto {
+  id: string;
+  title: string;
+  description: string;
+  announcementId?: string | null;
+  expiresAtUtc: string;
+  isExpired: boolean;
+  status: PollStatus;
+  createdAtUtc: string;
+  options: PollOptionDto[];
+  myVoteOptionId?: string | null;
+  totalVotes: number;
+}
+
+export interface CreatePollOptionRequest {
+  text: string;
+}
+
+export interface CreatePollRequest {
+  title: string;
+  description: string;
+  announcementId?: string | null;
+  expiresAtUtc: string;
+  options: CreatePollOptionRequest[];
+}
+
+export interface CastVoteRequest {
+  pollOptionId: string;
+}
+
+export type PollsPagedResponse = PaginatedResponse<PollDto>;
+
 // Subscription / Billing
 export interface PlanFeatureDto {
   featureKey: string;

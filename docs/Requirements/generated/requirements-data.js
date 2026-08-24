@@ -252,6 +252,56 @@ const REQUIREMENTS = [
     "diagram": ""
   },
   {
+    "id": "REQ-USERS-004",
+    "title": "Manager can impersonate Admin or Resident for support operations",
+    "type": "Functional",
+    "module": "Users",
+    "priority": "High",
+    "status": "Proposed",
+    "description": "A Manager user should be able to assume the position of an Admin or Resident user of a specific condominium and fraction (unit) to perform support operations on their behalf.",
+    "acceptanceCriteria": [
+      "1. **Initiate Impersonation**",
+      "- Given a Manager authenticated in the platform, when they call the impersonation endpoint with a valid target UserId (Admin or Resident) and optional UnitId, then the system returns an impersonation token/context.",
+      "- Given a Manager, when they attempt to impersonate a Manager, then the system rejects the request with 403.",
+      "- Given a Manager, when they attempt to impersonate a user in a condominium they don't manage, then the system rejects the request with 403.",
+      "2. **Operate Under Impersonation**",
+      "- Given an active impersonation session, when the Manager makes API calls, then the system evaluates permissions as the target role (Admin/Resident) in the target condominium/unit.",
+      "- Given an active impersonation session, when the Manager accesses resources, then the CondominiumAccessGuardMiddleware enforces the target user's condominium scope.",
+      "- Given an active impersonation session, the Manager's original identity is preserved in audit logs for all actions performed.",
+      "3. **End Impersonation**",
+      "- Given an active impersonation session, when the Manager calls the end-impersonation endpoint, then the session terminates and the Manager returns to their original Manager context.",
+      "- Given an expired impersonation session (time limit reached), when the Manager makes a request, then the system automatically ends impersonation and returns 401 requiring re-authentication as Manager.",
+      "4. **Audit & Security**",
+      "- Every impersonation start/end is logged with: Manager UserId, Target UserId, Target Role, CondominiumId, UnitId (if applicable), StartTime, EndTime, Duration, IP Address.",
+      "- Actions performed during impersonation include both the Manager's original UserId and the impersonated UserId in audit logs.",
+      "- Impersonation tokens are distinct from regular auth tokens and cannot be used outside the impersonation flow.",
+      "## Non-Functional Requirements",
+      "**Security**: Impersonation tokens must be short-lived (configurable, default 30 min) and rotated if session extends.",
+      "**Traceability**: All impersonation actions must be queryable for compliance/audit.",
+      "**Performance**: Impersonation context switch must add <50ms latency to request processing.",
+      "**Usability**: Frontend must clearly indicate when operating in impersonation mode (visual indicator, easy exit button).",
+      "## Out of Scope",
+      "Impersonation of external identity provider users (Google, Microsoft) — only local accounts supported initially.",
+      "Delegated impersonation (Manager A impersonating Manager B who is impersonating User C).",
+      "Persistent impersonation across browser sessions — session ends on browser close or explicit logout."
+    ],
+    "roles": [
+      "Manager"
+    ],
+    "relatedRequirements": [
+      "REQ-USERS-001",
+      "REQ-AUTH-001",
+      "REQ-SEC-001"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/sequences/manager-impersonation-flow.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
     "id": "REQ-SEC-003",
     "title": "Users can export their personal data in a portable, machine-readable format",
     "type": "Functional",
@@ -468,6 +518,42 @@ const REQUIREMENTS = [
     ],
     "designRefs": [],
     "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-SEC-008",
+    "title": "A Manager can author consent documents and publish new versions in the application",
+    "type": "Functional",
+    "module": "Security",
+    "priority": "High",
+    "status": "Draft",
+    "description": "A user with the `Manager` role can author and maintain the legal text of the consent documents (e.g. Terms of Use and Privacy / RGPD notice) from inside the application, without resorting to SQL or database migrations. The Manager can (a) list the current consent definitions and read their bodies, (b) correct the text of an existing definition **in place** as a draft correction that keeps the same `Version` and therefore does **not** force users to re-consent, and (c) publish a **new version** of a consent `Key`, which — per the existing consent semantics where the latest active version per key wins — transparently forces re-consent for all users. This requirement specifies the authoring capability, its authorization boundary, the versioning semantics, and the auditing needed for traceability. It does **not** define the legal text itself; the content is written by the Manager.",
+    "acceptanceCriteria": [
+      "Given a user with the `Manager` role, when they open the consent-authoring area, then all consent definitions and the full `Body`, `Title`, and `Url` of each are listed and readable.",
+      "Given a Manager editing an existing definition in place, when they save changes to `Title`, `Url`, or `Body`, then the definition's `Key` and `Version` are unchanged, the change is persisted, and no user is prompted to re-consent.",
+      "Given a Manager publishing a new version of a consent `Key`, when the new `Version` and `Body` are saved, then a new active definition becomes the latest for that `Key`, prior definitions and `UserConsent` history are left intact, and users who accepted only an earlier version are re-prompted through the mandatory-consent gate.",
+      "Given a non-`Manager` authenticated user (e.g. `Admin` or `Resident`), when they attempt to list, edit, or publish a consent definition, then the system responds with HTTP `403 Forbidden` and persists no change.",
+      "Given any successful authoring action, when it completes, then the acting Manager's identity and a timestamp are recorded so the change is auditable.",
+      "Given a published sequence of versions for a `Key`, when the consent history is inspected, then the required `{Key, Version}` and its `Body` at any past point in time can be determined, and no historical acceptance record was overwritten.",
+      "## Traceability Note",
+      "`implementationRefs` and `testRefs` are intentionally empty because this requirement is `Draft` and the authoring capability is not yet implemented. The capability will build on the existing consent foundation (`src/Habitus.Domain/Entities/ConsentDefinition.cs`, `src/Habitus.Domain/Entities/UserConsent.cs`, `src/Habitus.Application/Services/ConsentService.cs`, `src/Habitus.Application/Interfaces/IConsentService.cs`, `src/Habitus.Api/Middleware/RequireMandatoryConsentFilter.cs`), whose consumer-side semantics (latest active version per key wins) this requirement relies on. These references will be filled in when the Manager authoring endpoints, service methods, and tests are added."
+    ],
+    "roles": [
+      "Manager"
+    ],
+    "relatedRequirements": [
+      "REQ-SEC-005",
+      "REQ-SEC-006",
+      "REQ-AUTH-005",
+      "REQ-AUTH-006"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/sequences/consent-authoring-and-versioning.mmd",
+      "diagrams/sequences/cookie-and-rgpd-consent.mmd"
+    ],
     "implementationRefs": [],
     "testRefs": [],
     "diagram": ""
@@ -733,28 +819,164 @@ const REQUIREMENTS = [
   },
   {
     "id": "REQ-ANN-001",
-    "title": "Announcements support an approval workflow and condominium-scoped visibility",
+    "title": "Announcements support attachments, comments, and read tracking",
     "type": "Functional",
     "module": "Announcements",
     "priority": "Medium",
     "status": "Implemented",
-    "description": "Announcements (\"Comunicados\") let Admins and Residents publish condominium-scoped notices with a category, rich-text content, optional attachments, and comments. A resident-authored announcement follows an approval workflow (Draft, PendingApproval, Published, Rejected, Archived), read status is tracked per user, and the whole module is gated by the `announcements` subscription-plan feature.",
+    "description": "Announcements are created within a condominium and support attachments, comments, and per-user read status tracking.",
     "acceptanceCriteria": [
-      "Given an authorized user in a condominium, when an announcement is created, then it is persisted under that condominium with its category, content, and author.",
-      "Given a Resident who submits an announcement, when it awaits approval, then it stays in PendingApproval until an Admin approves or rejects it, and Admins are notified.",
-      "Given an Admin, when a pending announcement is approved, then it becomes Published and is visible to residents of the condominium; when it is rejected, then the rejection reason is preserved.",
-      "Given a published announcement, when a user opens it, then their read status is recorded for that announcement.",
-      "Given a user outside the condominium scope, when they request an announcement, then the system denies access or hides the record.",
-      "Given a condominium whose active plan does not include the `announcements` feature, when the module endpoints are called, then the system rejects the request."
+      "Given an authorized user, when an announcement is published, then it is stored for the condominium audience.",
+      "Given a user who reads an announcement, when the read status is saved, then the announcement is marked as read for that user.",
+      "Given comments or attachments, when they are added, then they remain associated with the same announcement and condominium."
     ],
     "roles": [
+      "Manager",
       "Admin",
       "Resident"
     ],
     "relatedRequirements": [
       "REQ-AUTH-001",
-      "REQ-CONDO-001",
-      "REQ-NOTIF-001"
+      "REQ-DOC-001"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-ANN-002",
+    "title": "Expiration date validation - must be current or future date",
+    "type": "Functional",
+    "module": "Announcements",
+    "priority": "High",
+    "status": "Planned",
+    "description": "The expiration date (ValidUntil) must not be a date/time in the past. Validation must occur server-side (mandatory) with a clear error message; client-side validation is nice-to-have.",
+    "acceptanceCriteria": [
+      "Given an authorized user creating or updating an announcement, when they provide a ValidUntil value that is before the current date/time, then the API returns HTTP 400 with error message \"A data de expiração não pode ser anterior à data atual\" (or equivalent translated message).",
+      "Given an authorized user, when they provide a ValidUntil value equal to or after the current date/time, then the request is accepted (subject to other validations).",
+      "Given an authorized user, when ValidUntil is null/omitted, then the request is accepted (expiration is optional).",
+      "Server-side validation is mandatory; client-side validation prevents unnecessary round-trips.",
+      "## Quality Criteria",
+      "Unit test for validator rejecting past dates.",
+      "Integration test for Create endpoint rejecting past ValidUntil.",
+      "Integration test for Update endpoint rejecting past ValidUntil.",
+      "Error message is clear and localized."
+    ],
+    "roles": [
+      "Admin",
+      "Manager",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-ANN-001",
+      "REQ-ANN-005"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-ANN-003",
+    "title": "Default status filter on announcements list is Published",
+    "type": "Functional",
+    "module": "Announcements",
+    "priority": "Medium",
+    "status": "Planned",
+    "description": "The announcements list page must default to filtering by \"Publicado\" (Published) status instead of \"Todos\" (All). Users can still select \"Todos\" or other statuses explicitly.",
+    "acceptanceCriteria": [
+      "Given a user navigating to the announcements page, when the page loads without a status query parameter, then the status filter dropdown shows \"Publicado\" as selected and only published announcements are displayed (respecting visibility rules).",
+      "Given a user explicitly selects \"Todos\" from the status filter dropdown, then all announcements visible to the user (per role-based visibility) are displayed.",
+      "Given a user selects another status (e.g., \"Rascunho\", \"Aguardando aprovação\", \"Rejeitado\", \"Arquivado\"), then the list filters accordingly.",
+      "The URL query parameter `status` reflects the selected filter (empty when \"Publicado\" is default, \"All\" when \"Todos\" is selected, or the status enum value).",
+      "## Quality Criteria",
+      "Default filter is \"Publicado\" on initial page load.",
+      "\"Todos\" option remains available and functional.",
+      "URL sync works correctly for all filter values.",
+      "No breaking change to existing direct links with explicit status parameters."
+    ],
+    "roles": [
+      "Admin",
+      "Manager",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-ANN-001",
+      "REQ-ANN-005"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-ANN-004",
+    "title": "Automatic background job archives expired announcements",
+    "type": "Functional",
+    "module": "Announcements",
+    "priority": "High",
+    "status": "Planned",
+    "description": "An automatic background job (mirroring the existing `InvoiceGenerationBackgroundService` pattern) periodically archives announcements whose `ValidUntil` date has passed.",
+    "acceptanceCriteria": [
+      "A new hosted service `AnnouncementExpiryBackgroundService` is registered in DI and runs on a configurable interval (default: daily at a sensible hour, e.g., 03:00 AM).",
+      "The job queries all announcements per condominium where `ValidUntil` is not null, `ValidUntil < DateTime.UtcNow`, and `Status == Published` (or `PendingApproval`? — only Published makes sense for expiry).",
+      "For each matching announcement, the job sets `Status = Archived` and `UpdatedAt = DateTime.UtcNow`.",
+      "The job is idempotent: running multiple times does not double-archive or cause errors.",
+      "The job respects multi-condominium scope: processes each condominium's announcements independently.",
+      "The job logs: number of announcements archived per condominium, any errors.",
+      "Configuration via `appsettings.json` section `Announcements:ExpiryJob` with properties `Enabled` (bool, default true), `RunTime` (time of day, default \"03:00\"), `IntervalHours` (default 24).",
+      "The job can be disabled via configuration for testing/maintenance.",
+      "## Quality Criteria",
+      "Unit test for the service's core logic (mock repository, verify status change).",
+      "Integration test verifying expired announcements become Archived after job runs.",
+      "Job follows the exact same pattern as `InvoiceGenerationBackgroundService` (BackgroundService, IServiceProvider scope, structured logging, cancellation token handling).",
+      "No performance regression: job uses efficient query (index on ValidUntil + Status + CondominiumId recommended)."
+    ],
+    "roles": [
+      "System"
+    ],
+    "relatedRequirements": [
+      "REQ-ANN-001",
+      "REQ-ANN-002",
+      "REQ-ANN-005"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-ANN-005",
+    "title": "Archived announcements reject new comments",
+    "type": "Functional",
+    "module": "Announcements",
+    "priority": "High",
+    "status": "Planned",
+    "description": "Archived announcements must not accept new comments. The API must reject comment creation on archived announcements, and the UI must hide/disable the comment input for archived announcements.",
+    "acceptanceCriteria": [
+      "Given an announcement with Status = Archived, when any user attempts to add a comment via POST /api/condominiums/{condominiumId}/announcements/{id}/comments, then the API returns HTTP 400 with error message \"Não é possível comentar em comunicados arquivados\" (or equivalent translated message).",
+      "Given an announcement with Status = Archived, when the announcement detail view is displayed, then the comment input area is hidden or disabled with a visual indication that commenting is not allowed for archived announcements.",
+      "Given an announcement with Status = Published (or other non-archived statuses where comments are allowed), when a user adds a comment, then the comment is accepted per existing rules.",
+      "The existing check for `announcement.Status != AnnouncementStatus.Published` in the comments endpoint is extended to also reject `AnnouncementStatus.Archived`.",
+      "## Quality Criteria",
+      "Integration test: POST comment on Archived announcement returns 400.",
+      "Integration test: POST comment on Published announcement still works.",
+      "UI test: comment form not rendered for Archived announcements.",
+      "No regression on existing comment functionality for non-archived announcements."
+    ],
+    "roles": [
+      "Admin",
+      "Manager",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-ANN-001",
+      "REQ-ANN-004"
     ],
     "designRefs": [],
     "diagramRefs": [],
@@ -947,6 +1169,348 @@ const REQUIREMENTS = [
     "relatedRequirements": [
       "REQ-I18N-001",
       "REQ-USERS-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-CONDO-002",
+    "title": "Admin configures expense categories in condominium settings",
+    "type": "Functional",
+    "module": "Condominium",
+    "priority": "High",
+    "status": "Draft",
+    "description": "An Admin of a condominium can create, update, deactivate, and list expense categories scoped to that condominium through the condominium settings page.",
+    "acceptanceCriteria": [
+      "Given an Admin of condominium A, when they create an expense category with a unique name within A, then the category is persisted and visible only inside condominium A.",
+      "Given an Admin, when they update the name or active state of an existing category, then the change is reflected for future financial and maintenance records.",
+      "Given an Admin, when they deactivate a category, then it no longer appears in new selection lists while historical records continue to reference it.",
+      "Given a non-Admin user or an Admin of condominium B, when they attempt to create, update, or delete categories in condominium A, then the system rejects the request with a 403 or 404 response.",
+      "Given a category already referenced by financial or maintenance records, when hard delete is attempted, then the system prevents data loss by allowing only deactivation (soft delete).",
+      "Given the condominium settings page, when an Admin navigates to the categories tab, then they see the list of categories for the active condominium and controls to add or edit them."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-CONDO-001",
+      "REQ-FIN-001",
+      "REQ-MAINT-001",
+      "REQ-CONDO-003",
+      "REQ-FIN-002",
+      "REQ-MAINT-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/expense-categories.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-CONDO-003",
+    "title": "Admin catalogs expense categories with hashtags",
+    "type": "Functional",
+    "module": "Condominium",
+    "priority": "Medium",
+    "status": "Draft",
+    "description": "Each condominium expense category can be associated with one or more hashtags so that Admins can quickly identify and group categories when creating expenses or completing maintenance work.",
+    "acceptanceCriteria": [
+      "Given an Admin creating or editing an expense category, when they provide hashtags, then the system stores them as normalized lowercase labels without spaces or special characters (e.g., `#manutencao`, `#condominio`).",
+      "Given an input containing duplicate hashtags, when the category is saved, then duplicates are removed automatically.",
+      "Given an input containing hashtags with invalid characters or excessive length, when the category is saved, then the system rejects the input with a clear validation message.",
+      "Given a category with hashtags, when the category is displayed in selection components, then the hashtags are shown alongside the category name.",
+      "Given a category rendered in the settings list, when hashtags exist, then they appear as distinct badges or labels."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-CONDO-002",
+      "REQ-FIN-002",
+      "REQ-MAINT-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/expense-categories.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-FIN-002",
+    "title": "Expense category field is autocomplete and shows associated hashtags",
+    "type": "Functional",
+    "module": "Financial",
+    "priority": "High",
+    "status": "Draft",
+    "description": "When an Admin creates or edits an expense financial record, the category field is an autocomplete populated with the active expense categories configured for the current condominium, and each option displays the category's associated hashtags.",
+    "acceptanceCriteria": [
+      "Given an Admin creating an expense in condominium A, when they focus the category field, then the autocomplete lists only active expense categories configured for condominium A.",
+      "Given the autocomplete dropdown, when categories have hashtags, then each option shows the category name followed by its hashtags.",
+      "Given a user typing in the category field, when the typed text matches a category name or any of its hashtags, then the list filters to show matching categories.",
+      "Given no category selected, when the user submits an expense record, then the system rejects the submission with a validation error indicating the category is required.",
+      "Given a category belonging to condominium B, when the user attempts to select it, then it is not available in the autocomplete and cannot be submitted.",
+      "Given an expense record saved with a category, when the record is later viewed or edited, then the selected category and its hashtags are displayed correctly."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-FIN-001",
+      "REQ-CONDO-002",
+      "REQ-CONDO-003"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/expense-categories.mmd",
+      "diagrams/sequences/financial-expense-category-selection.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-FIN-003",
+    "title": "Admin views an annual Revenue and Expenses report from the Financial page, with PDF export",
+    "type": "Functional",
+    "module": "Financial",
+    "priority": "High",
+    "status": "Implemented",
+    "description": "An Admin can open, from the Financial page, an annual Revenue + Expenses report for the currently selected fiscal year of their condominium. The report is displayed in a modal popup and can be exported to PDF.",
+    "acceptanceCriteria": [
+      "Given an Admin on the Financial page with a fiscal year selected, when they choose the \"Annual report\" option, then a modal popup opens showing the Revenue + Expenses report for that year and condominium.",
+      "Given the report modal, when it renders, then it shows total income, total expenses, and the resulting balance for the selected year, with a monthly breakdown (income, expenses, balance per month) and an expense breakdown by category.",
+      "Given the report modal, when the Admin clicks \"Export PDF\", then a PDF file containing the same report data (year, totals, breakdowns) is downloaded.",
+      "Given a year with no financial records, when the report is opened, then the modal shows zeroed totals and an explicit empty-state message instead of an error.",
+      "Given a non-Admin user (Manager or Resident), when they attempt to access the report data endpoint directly, then the request is rejected with 403.",
+      "Given an Admin of condominium A, when the report is generated, then only records belonging to condominium A are included; no cross-tenant data leaks into totals or breakdowns.",
+      "Given the PDF export, when the generated file is opened, then its content matches the data displayed in the modal for the same year."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-FIN-001",
+      "REQ-FIN-002",
+      "REQ-CONDO-002",
+      "REQ-CONDO-003"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/sequences/financial-annual-report.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-MAINT-002",
+    "title": "Maintenance completion requires an expense category selection",
+    "type": "Functional",
+    "module": "Maintenance",
+    "priority": "High",
+    "status": "Draft",
+    "description": "When an Admin transitions a maintenance request to the Completed status and indicates that the work generated an expense, the system requires selection of an expense category from the condominium's configured categories.",
+    "acceptanceCriteria": [
+      "Given an Admin marking a maintenance request as Completed with HasExpense set to true, when they do not select an expense category, then the status transition is rejected with a validation error.",
+      "Given an Admin completing a maintenance request, when they select an expense category and enter an expense amount, then both the category identifier and amount are persisted on the maintenance request.",
+      "Given the completion form, when the category selector is shown, then it lists only active categories for the current condominium and displays each category's hashtags.",
+      "Given a maintenance request completed with a category, when the system generates or updates the associated financial expense record, then the same expense category is used on the financial record.",
+      "Given a maintenance request completed without expense (HasExpense = false), when the Admin finalizes it, then no expense category is required and no financial record is created.",
+      "Given a non-Admin user, when they attempt to complete a maintenance request, then the request is rejected regardless of category selection."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-MAINT-001",
+      "REQ-CONDO-002",
+      "REQ-CONDO-003",
+      "REQ-FIN-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/expense-categories.mmd",
+      "diagrams/sequences/maintenance-expense-category-selection.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-POLL-001",
+    "title": "Administrator creates a poll with description, vote options, and mandatory expiration",
+    "type": "Functional",
+    "module": "Polls",
+    "priority": "High",
+    "status": "Draft",
+    "description": "A condominium administrator creates a poll vote linked to an announcement of the same condominium. A poll must have a description, at least two distinct vote options, and a mandatory expiration date/time. All residents of the condominium are invited to vote through the linked announcement.",
+    "acceptanceCriteria": [
+      "Given an authenticated Admin of a condominium, when they create a poll with a description, at least two distinct vote options, and a future expiration date/time, linked to an existing announcement of the same condominium, then the poll is created and associated with that announcement and condominium.",
+      "Given a poll creation request without an expiration date/time, when submitted, then the API rejects it with HTTP 400 and a clear error message.",
+      "Given a poll creation request with an expiration date/time in the past, when submitted, then the API rejects it with HTTP 400 (consistent with REQ-ANN-002 expiration semantics).",
+      "Given a poll creation request with fewer than two distinct vote options, when submitted, then the API rejects it with HTTP 400.",
+      "Given an authenticated user who is not an Admin of the target condominium, when attempting to create a poll, then the API refuses the operation and no poll is created.",
+      "Given an announcement that belongs to a different condominium, when an Admin tries to link a poll to it, then the operation is refused (multi-condominium isolation).",
+      "Given a successfully created poll, when residents of the condominium view the linked announcement, then the poll is offered to every resident of that condominium for voting.",
+      "## Quality Criteria",
+      "Unit tests cover description, option-count, and expiration validation.",
+      "Integration tests cover creation authorization and cross-condominium linkage refusal.",
+      "Error messages are clear and localized (pt-PT/en)."
+    ],
+    "roles": [
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-ANN-001",
+      "REQ-ANN-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/poll-vote-er.mmd",
+      "diagrams/sequences/poll-create-vote-flow.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-POLL-002",
+    "title": "Residents vote once on active polls of their condominium",
+    "type": "Functional",
+    "module": "Polls",
+    "priority": "High",
+    "status": "Draft",
+    "description": "Residents of a condominium can cast one vote on an active poll (published and not yet expired) of their own condominium. Each vote is recorded per user; only one vote per resident per poll is allowed.",
+    "acceptanceCriteria": [
+      "Given a published, non-expired poll in the resident's condominium, when the resident submits a vote selecting one of the poll options, then the vote is recorded with the resident identity, poll, selected option, and timestamp.",
+      "Given a resident who already voted in a poll, when they attempt to vote again in the same poll, then the API rejects the second vote (HTTP 409) and the original vote remains unchanged.",
+      "Given an expired or unpublished poll, when a resident attempts to vote, then the API rejects the vote.",
+      "Given a user with no residency in the poll's condominium, when they attempt to vote, then the API refuses and no vote is recorded (multi-condominium isolation).",
+      "Given a vote submission referencing a nonexistent option or an option of another poll, when submitted, then the API rejects it with HTTP 400.",
+      "## Quality Criteria",
+      "Tests cover one-vote-per-resident, including concurrent duplicate submissions producing exactly one stored vote.",
+      "Isolation tests prove cross-condominium vote attempts fail.",
+      "Vote records remain attributable per user (per-user vote rows persisted)."
+    ],
+    "roles": [
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-POLL-001",
+      "REQ-ANN-001",
+      "REQ-AUTH-001"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/sequences/poll-create-vote-flow.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-POLL-003",
+    "title": "Poll results show per-option counts and expired polls become read-only",
+    "type": "Functional",
+    "module": "Polls",
+    "priority": "Medium",
+    "status": "Draft",
+    "description": "Poll results are visible as aggregated counts per vote option after a resident has voted, and final results remain visible after the poll expires. Expired polls become read-only: no further votes or modifications are accepted.",
+    "acceptanceCriteria": [
+      "Given a resident who has voted in an active poll, when they view the poll, then they see the aggregated vote count per option.",
+      "Given a poll that has expired, when an authorized user of the condominium views it, then final per-option totals are shown and the poll accepts no new votes or edits (read-only).",
+      "Given results data for any poll, when returned to regular users, then it exposes aggregate counts per option only, never individual voter choices.",
+      "Given a poll in another condominium, when a user requests its results, then the API refuses or hides them (multi-condominium isolation).",
+      "## Quality Criteria",
+      "Reported per-option totals equal the sum of recorded votes (integrity check in tests).",
+      "Read-only enforcement is tested after expiration (vote/edit attempts rejected)."
+    ],
+    "roles": [
+      "Resident",
+      "Admin"
+    ],
+    "relatedRequirements": [
+      "REQ-POLL-001",
+      "REQ-POLL-002"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/poll-vote-er.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-POLL-004",
+    "title": "Server-side role enforcement, double-voting prevention, and vote auditability",
+    "type": "Non-Functional",
+    "module": "Polls",
+    "priority": "Medium",
+    "status": "Draft",
+    "description": "All poll operations must be enforced server-side: only condominium administrators create polls, only residents of the owning condominium vote, double-voting is impossible even under concurrent requests, and votes are auditable.",
+    "acceptanceCriteria": [
+      "Given any poll endpoint, when invoked, then role and condominium-membership checks happen server-side; client-side checks are convenience only and bypassing them has no effect.",
+      "Given concurrent duplicate vote submissions from the same resident for the same poll, when processed, then exactly one vote is stored (atomic uniqueness at the persistence layer).",
+      "Given a stored vote, when inspected for audit purposes, then it persists voter identity, poll identifier, option identifier, and timestamp, and these audit fields are immutable.",
+      "Given adversarial requests with forged identifiers or cross-condominium references, when sent to create/vote/results endpoints, then multi-condominium isolation still holds.",
+      "## Quality Criteria",
+      "Integration test issuing parallel duplicate votes yields a single record.",
+      "Authorization-matrix tests: Admin creates; Resident votes; other roles/outsiders refused.",
+      "Audit fields present and non-null on every persisted vote."
+    ],
+    "roles": [
+      "Admin",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-POLL-001",
+      "REQ-POLL-002",
+      "REQ-POLL-003"
+    ],
+    "designRefs": [],
+    "diagramRefs": [
+      "diagrams/data/poll-vote-er.mmd",
+      "diagrams/sequences/poll-create-vote-flow.mmd"
+    ],
+    "implementationRefs": [],
+    "testRefs": [],
+    "diagram": ""
+  },
+  {
+    "id": "REQ-POLL-005",
+    "title": "Poll voting is a subscription-plan feature managed per pack",
+    "type": "Functional",
+    "module": "Polls",
+    "priority": "High",
+    "status": "Draft",
+    "description": "Poll voting (\"Votações\") is a platform feature gated by its own feature key (`polls`) through the existing subscription/plan-feature system. Platform Managers can enable or disable the feature per subscription plan/pack (e.g., enabled in the Gold pack, disabled in the Free pack). Condominium access to poll endpoints follows the standard feature entitlement resolution (active condominium subscription → plan features → active Free plan).",
+    "acceptanceCriteria": [
+      "Given a condominium whose active subscription plan has the `polls` feature disabled, when any non-Manager user calls any `/polls` endpoint for that condominium, then the API responds with HTTP 403 and a message indicating the feature is not available for the current subscription.",
+      "Given a condominium whose active subscription plan has the `polls` feature enabled, when an authorized user calls a `/polls` endpoint for that condominium, then the request proceeds normally.",
+      "Given a platform Manager, when they edit a subscription plan's features, then `polls` appears in the manageable feature catalog and can be enabled or disabled independently of other features.",
+      "Given a new installation with seeded plans, when plans are inspected, then the `polls` feature is enabled for the Gold plan and disabled for the Free plan (Silver disabled by default).",
+      "Given a user with the Manager role, when calling `/polls` endpoints, then the feature gate does not block them (Managers manage subscriptions and are not subject to per-condominium gating).",
+      "The `polls` feature must not be part of the hardcoded free fallback set used when no plan features exist.",
+      "## Quality Criteria",
+      "Integration tests cover the feature-disabled 403 path and the feature-enabled success path.",
+      "Seed data changes are covered by an EF migration and verifiable after `database update`."
+    ],
+    "roles": [
+      "Manager",
+      "Admin",
+      "Resident"
+    ],
+    "relatedRequirements": [
+      "REQ-POLL-001",
+      "REQ-POLL-002"
     ],
     "designRefs": [],
     "diagramRefs": [],
