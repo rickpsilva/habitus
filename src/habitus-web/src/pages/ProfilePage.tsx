@@ -125,12 +125,13 @@ export default function ProfilePage() {
   });
 
   const loadUnitDocuments = useCallback(async () => {
-    if (!user || !user.condominiumId || !user.unitId) return;
+    const currentUserData = userData ?? user;
+    if (!currentUserData || !currentUserData.condominiumId || !currentUserData.unitId) return;
     try {
       // Fetch all documents for this unit with search (no pagination from API)
-      const response = await documentsApi.getPaged(user.condominiumId, 1, 9999, unitDocumentsDebouncedSearch, 'Unit');
+      const response = await documentsApi.getPaged(currentUserData.condominiumId, 1, 9999, unitDocumentsDebouncedSearch, 'Unit');
       // Filter documents by unitId
-      let unitDocs = response.data.items.filter(doc => doc.unitId === user.unitId);
+      let unitDocs = response.data.items.filter(doc => doc.unitId === currentUserData.unitId);
       
       // Calculate type counts from all unit documents
       const counts: Record<string, number> = { All: unitDocs.length };
@@ -166,7 +167,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error('Failed to load unit documents:', err);
     }
-  }, [user, unitDocumentsCurrentPage, unitDocumentsDebouncedSearch, unitDocumentsTypeFilter, t]);
+  }, [userData, unitDocumentsCurrentPage, unitDocumentsDebouncedSearch, unitDocumentsTypeFilter, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => setUnitDocumentsDebouncedSearch(unitDocumentsSearchQuery), 300);
@@ -391,9 +392,12 @@ export default function ProfilePage() {
   // the auth-context active context, which the backend re-scopes on fraction
   // switch. Re-fetch whenever that context changes so Quotas and fraction
   // details track the selected fraction instead of the persisted default.
+  // Use userData (fresh from database) instead of user (from JWT token) to avoid
+  // showing stale unit/quota info when an admin's UnitId is cleared in the DB
+  // but the token still has the old claim.
   useEffect(() => {
-    const condominiumId = user?.condominiumId;
-    const unitId = user?.unitId;
+    const condominiumId = userData?.condominiumId ?? user?.condominiumId;
+    const unitId = userData?.unitId ?? user?.unitId;
 
     if (!condominiumId) return;
 
@@ -410,7 +414,7 @@ export default function ProfilePage() {
       .catch((err) => {
         console.error('Failed to load unit:', err);
       });
-  }, [user?.condominiumId, user?.unitId]);
+  }, [userData?.condominiumId, userData?.unitId, user?.condominiumId, user?.unitId]);
 
   useEffect(() => {
     if (user) {
@@ -521,7 +525,9 @@ export default function ProfilePage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !user?.unitId || !user.condominiumId) return;
+    const currentUnitId = userData?.unitId ?? user?.unitId;
+    const currentCondominiumId = userData?.condominiumId ?? user?.condominiumId;
+    if (!uploadFile || !currentUnitId || !currentCondominiumId) return;
 
     setUploading(true);
     setError('');
@@ -533,9 +539,9 @@ export default function ProfilePage() {
       formData.append('type', uploadForm.type);
       formData.append('context', 'Unit');
       formData.append('description', uploadForm.description);
-      formData.append('unitId', user.unitId);
+      formData.append('unitId', currentUnitId);
 
-      await documentsApi.upload(user.condominiumId, formData);
+      await documentsApi.upload(currentCondominiumId, formData);
       setSuccess(t('profile.documents.uploadSuccess'));
       setTimeout(() => setSuccess(''), 3000);
       setShowUploadModal(false);
@@ -567,9 +573,11 @@ export default function ProfilePage() {
   };
 
   const confirmDeleteDoc = async () => {
-    if (!deleteDocId || !user?.unitId || !user.condominiumId) return;
+    const currentUnitId = userData?.unitId ?? user?.unitId;
+    const currentCondominiumId = userData?.condominiumId ?? user?.condominiumId;
+    if (!deleteDocId || !currentUnitId || !currentCondominiumId) return;
     try {
-      await documentsApi.delete(user.condominiumId, deleteDocId);
+      await documentsApi.delete(currentCondominiumId, deleteDocId);
       setSuccess(t('profile.documents.deleteSuccess'));
       setTimeout(() => setSuccess(''), 3000);
       // Force reload to update list
@@ -583,13 +591,14 @@ export default function ProfilePage() {
   };
 
   const handleDownload = async (id: string, fileName: string) => {
-    if (!user?.condominiumId) {
+    const currentCondominiumId = userData?.condominiumId ?? user?.condominiumId;
+    if (!currentCondominiumId) {
       setError(t('profile.documents.noCondominium'));
       return;
     }
 
     try {
-      await documentsApi.download(user.condominiumId, id, fileName);
+      await documentsApi.download(currentCondominiumId, id, fileName);
     } catch (err) {
       setError(t('profile.documents.downloadError'));
       console.error(err);
@@ -670,8 +679,8 @@ export default function ProfilePage() {
   }
 
   const activeCondoUnits =
-    memberships.find((c) => c.condominiumId === user?.condominiumId)?.units ?? [];
-  const activeUnitNumber = activeCondoUnits.find((u) => u.unitId === user?.unitId)?.unitNumber;
+    memberships.find((c) => c.condominiumId === (userData?.condominiumId ?? user?.condominiumId))?.units ?? [];
+  const activeUnitNumber = activeCondoUnits.find((u) => u.unitId === (userData?.unitId ?? user?.unitId))?.unitNumber;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -901,7 +910,7 @@ export default function ProfilePage() {
                   </div>
                   <ul className="ml-6 space-y-2">
                     {activeCondoUnits.map((u) => {
-                      const isActive = u.unitId === user?.unitId;
+                      const isActive = u.unitId === (userData?.unitId ?? user?.unitId);
                       return (
                         <li
                           key={u.unitId}
