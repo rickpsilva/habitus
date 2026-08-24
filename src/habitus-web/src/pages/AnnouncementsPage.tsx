@@ -48,7 +48,7 @@ import type {
   PollDto,
 } from '../types';
 
-const POLLS_PAGE_SIZE = 6;
+const POLLS_FETCH_SIZE = 100;
 
 /**
  * Maps poll action failures to user-facing text. Backend bodies may be plain
@@ -146,14 +146,12 @@ export default function AnnouncementsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Polls (feature "polls"). Managers bypass subscription gating, mirroring Layout.
+  // Polls are an add-on of a published announcement: they render inside its details
+  // modal, keyed by announcementId.
   const [pollsEnabled, setPollsEnabled] = useState(isManager);
   const [polls, setPolls] = useState<PollDto[]>([]);
   const [pollsLoading, setPollsLoading] = useState(isManager);
-  const [pollsError, setPollsError] = useState('');
-  const [pollsPage, setPollsPage] = useState(1);
-  const [pollsTotalItems, setPollsTotalItems] = useState(0);
-  const [pollsTotalPages, setPollsTotalPages] = useState(1);
-  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [createPollFor, setCreatePollFor] = useState<AnnouncementDto | null>(null);
   const [closingPollId, setClosingPollId] = useState<string | null>(null);
   const [closingPoll, setClosingPoll] = useState(false);
 
@@ -289,19 +287,15 @@ export default function AnnouncementsPage() {
   const loadPolls = useCallback(async () => {
     if (!condominiumId || !pollsEnabled) {
       setPolls([]);
-      setPollsTotalItems(0);
-      setPollsTotalPages(1);
       setPollsLoading(false);
       return;
     }
 
     setPollsLoading(true);
-    setPollsError('');
     try {
-      const res = await pollsApi.getPaged(condominiumId, pollsPage, POLLS_PAGE_SIZE);
+      // Single fetch: polls are matched to announcement details by id, not listed.
+      const res = await pollsApi.getPaged(condominiumId, 1, POLLS_FETCH_SIZE);
       setPolls(res.data.items);
-      setPollsTotalItems(res.data.totalItems);
-      setPollsTotalPages(res.data.totalPages);
     } catch (error) {
       const status = (error as { response?: { status?: number } })?.response?.status;
       if (status === 403) {
@@ -310,11 +304,11 @@ export default function AnnouncementsPage() {
         return;
       }
       console.error('Erro ao carregar votações:', error);
-      setPollsError(t('poll.error.load'));
+      toastError(t('poll.error.load'));
     } finally {
       setPollsLoading(false);
     }
-  }, [condominiumId, pollsEnabled, pollsPage, t]);
+  }, [condominiumId, pollsEnabled, t, toastError]);
 
   useEffect(() => {
     void loadPolls();
@@ -675,6 +669,15 @@ export default function AnnouncementsPage() {
 
   const pendingCount = stats?.pendingApproval ?? 0;
 
+  // Polls surface as an add-on of their linked announcement's details.
+  const pollsByAnnouncementId = useMemo(
+    () => new Map(polls.map((poll) => [poll.announcementId, poll])),
+    [polls],
+  );
+  const selectedPoll = selected && pollsEnabled
+    ? pollsByAnnouncementId.get(selected.id) ?? null
+    : null;
+
   return (
     <div className="space-y-5">
       <ConfirmModal
@@ -704,61 +707,6 @@ export default function AnnouncementsPage() {
           <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{stats.unread}</strong> {t('announcements.stats.unread')}</div>
           <div className="bg-surface border border-line rounded-xl p-3 text-sm"><strong>{pendingCount}</strong> {t('announcements.stats.pending')}</div>
         </div>
-      )}
-
-      {pollsEnabled && (
-        <section aria-labelledby="polls-heading" className="space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h2 id="polls-heading" className="flex items-center gap-2 text-lg font-semibold text-ink">
-              <Vote className="w-5 h-5" aria-hidden="true" />
-              {t('poll.title')}
-            </h2>
-            {isAdmin && (
-              <Button icon={Plus} size="sm" onClick={() => setShowCreatePoll(true)}>
-                {t('poll.new')}
-              </Button>
-            )}
-          </div>
-
-          <AsyncState
-            loading={pollsLoading}
-            error={pollsError || null}
-            onRetry={loadPolls}
-            isEmpty={polls.length === 0}
-            skeleton="list"
-            skeletonRows={2}
-            empty={<EmptyState icon={Vote} title={t('poll.empty')} />}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-3">
-              {polls.map((poll) => (
-                <PollCard
-                  key={poll.id}
-                  poll={poll}
-                  onVote={castVote}
-                  onClose={setClosingPollId}
-                  canManage={isAdmin}
-                />
-              ))}
-            </div>
-            {pollsTotalItems > POLLS_PAGE_SIZE && (
-              <div className="mt-4">
-                <Pagination
-                  pagination={{
-                    items: [],
-                    page: pollsPage,
-                    pageSize: POLLS_PAGE_SIZE,
-                    totalItems: pollsTotalItems,
-                    totalPages: pollsTotalPages,
-                    hasPreviousPage: pollsPage > 1,
-                    hasNextPage: pollsPage < pollsTotalPages,
-                  }}
-                  currentPage={pollsPage}
-                  onPageChange={setPollsPage}
-                />
-              </div>
-            )}
-          </AsyncState>
-        </section>
       )}
 
       <div className="bg-surface border border-line rounded-xl p-4">
@@ -1061,6 +1009,27 @@ export default function AnnouncementsPage() {
               </div>
             )}
 
+            {pollsEnabled && !pollsLoading && selected?.status === 'Published' && (selectedPoll || isAdmin) && (
+              <section className="space-y-3" aria-label={t('poll.title')}>
+                <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
+                  <Vote className="w-4 h-4" aria-hidden="true" />
+                  {t('poll.title')}
+                </h3>
+                {selectedPoll ? (
+                  <PollCard
+                    poll={selectedPoll}
+                    onVote={castVote}
+                    onClose={setClosingPollId}
+                    canManage={isAdmin}
+                  />
+                ) : (
+                  <Button icon={Plus} size="sm" onClick={() => setCreatePollFor(selected)}>
+                    {t('poll.create.ctaFromAnnouncement')}
+                  </Button>
+                )}
+              </section>
+            )}
+
             {selected.status === 'Published' && allowComments && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-ink">{t('announcements.details.comments')}</h3>
@@ -1175,10 +1144,11 @@ export default function AnnouncementsPage() {
 
       {condominiumId && (
         <CreatePollModal
-          open={showCreatePoll}
-          onClose={() => setShowCreatePoll(false)}
+          open={createPollFor !== null}
+          onClose={() => setCreatePollFor(null)}
           condominiumId={condominiumId}
           announcements={announcements.filter((a) => a.status === 'Published')}
+          lockedAnnouncement={createPollFor}
           onCreated={() => void loadPolls()}
         />
       )}

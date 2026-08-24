@@ -182,6 +182,8 @@ public class PollService : IPollService
             throw new ArgumentException("Title cannot exceed 200 characters");
         if (string.IsNullOrWhiteSpace(request.Description))
             throw new ArgumentException("Description is required");
+        if (request.AnnouncementId is null)
+            throw new ArgumentException("A poll must be linked to an announcement");
         if (request.ExpiresAtUtc <= DateTime.UtcNow)
             throw new ArgumentException("Expiration date must be in the future");
         if (request.Options == null || request.Options.Count < 2)

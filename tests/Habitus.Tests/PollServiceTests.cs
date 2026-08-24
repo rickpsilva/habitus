@@ -20,6 +20,7 @@ public class PollServiceTests
 
     private readonly Guid _condominiumId = Guid.NewGuid();
     private readonly Guid _adminId = Guid.NewGuid();
+    private readonly Guid _announcementId = Guid.NewGuid();
 
     public PollServiceTests()
     {
@@ -32,6 +33,10 @@ public class PollServiceTests
         _voteRepoMock.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _pollRepoMock.Setup(r => r.AddAsync(It.IsAny<Poll>())).Returns(Task.CompletedTask);
         _voteRepoMock.Setup(r => r.AddAsync(It.IsAny<PollVote>())).Returns(Task.CompletedTask);
+
+        // Default: the linked announcement exists and belongs to the same condominium.
+        _announcementRepoMock.Setup(r => r.GetByIdAsync(_announcementId))
+            .ReturnsAsync(new Announcement { Id = _announcementId, CondominiumId = _condominiumId });
 
         _service = new PollService(
             _pollRepoMock.Object,
@@ -102,10 +107,27 @@ public class PollServiceTests
     // ── CreateAsync ───────────────────────────────────────────────────────
 
     [Fact]
+    public async Task CreateAsync_WhenNoAnnouncementLinked_Throws()
+    {
+        // Arrange
+        SetupAdmin(_adminId);
+        var request = ValidRequest(announcementId: null);
+
+        // Act
+        var act = () => _service.CreateAsync(_condominiumId, _adminId, request);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*announcement*");
+        _pollRepoMock.Verify(r => r.AddAsync(It.IsAny<Poll>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenExpiresInPast_Throws()
     {
         // Arrange
-        var request = ValidRequest(expiresAtUtc: DateTime.UtcNow.AddDays(-1));
+        SetupAdmin(_adminId);
+        var request = ValidRequest(announcementId: _announcementId, expiresAtUtc: DateTime.UtcNow.AddDays(-1));
 
         // Act
         var act = () => _service.CreateAsync(_condominiumId, _adminId, request);
@@ -119,7 +141,8 @@ public class PollServiceTests
     public async Task CreateAsync_WithLessThanTwoDistinctOptions_Throws()
     {
         // Arrange
-        var request = ValidRequest();
+        SetupAdmin(_adminId);
+        var request = ValidRequest(announcementId: _announcementId);
         request.Options[1].Text = request.Options[0].Text; // duplicate text
 
         // Act
@@ -155,7 +178,7 @@ public class PollServiceTests
             .ReturnsAsync(new User { Id = _adminId, Role = UserRole.Resident });
 
         // Act
-        var act = () => _service.CreateAsync(_condominiumId, _adminId, ValidRequest());
+        var act = () => _service.CreateAsync(_condominiumId, _adminId, ValidRequest(announcementId: _announcementId));
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
@@ -167,7 +190,7 @@ public class PollServiceTests
     {
         // Arrange
         SetupAdmin(_adminId);
-        var request = ValidRequest();
+        var request = ValidRequest(announcementId: _announcementId);
 
         // Act
         var dto = await _service.CreateAsync(_condominiumId, _adminId, request);
@@ -176,6 +199,7 @@ public class PollServiceTests
         dto.Should().NotBeNull();
         dto.Status.Should().Be("Active");
         dto.IsExpired.Should().BeFalse();
+        dto.AnnouncementId.Should().Be(_announcementId);
         dto.Options.Should().HaveCount(2);
         dto.Options[0].Text.Should().Be("Sim");
         dto.Options[1].DisplayOrder.Should().Be(1);

@@ -17,6 +17,10 @@ public class CreatePollRequestValidator : AbstractValidator<CreatePollRequest>
             .NotEmpty()
             .WithMessage("A descrição é obrigatória.");
 
+        RuleFor(x => x.AnnouncementId)
+            .NotNull()
+            .WithMessage("A votação deve estar associada a um comunicado.");
+
         RuleFor(x => x.ExpiresAtUtc)
             .Must(BeFutureDate)
             .WithMessage("A data de expiração deve ser posterior à data atual.");

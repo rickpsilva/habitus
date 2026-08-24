@@ -15,8 +15,10 @@ interface CreatePollModalProps {
   open: boolean;
   onClose: () => void;
   condominiumId: string;
-  /** Announcements offered for optional linking (published ones read best). */
+  /** Announcements offered for linking (published ones read best). */
   announcements: AnnouncementDto[];
+  /** When set, the poll is created for this announcement and the selector is hidden. */
+  lockedAnnouncement?: AnnouncementDto | null;
   /** Invoked after a successful create so the parent can refresh its lists. */
   onCreated: () => void;
 }
@@ -30,7 +32,7 @@ interface PollFormState {
   options: string[];
 }
 
-type PollFormErrors = Partial<Record<'title' | 'expires' | 'options', string>>;
+type PollFormErrors = Partial<Record<'title' | 'expires' | 'announcement' | 'options', string>>;
 
 const EMPTY_FORM: PollFormState = {
   title: '',
@@ -59,12 +61,16 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-/** Client-side mirror of the backend creation rules (title, future expiry, ≥2 distinct options). */
-function validate(form: PollFormState, t: TranslateFn): PollFormErrors {
+/** Client-side mirror of the backend creation rules (title, linked announcement, future expiry, ≥2 distinct options). */
+function validate(form: PollFormState, announcementId: string, t: TranslateFn): PollFormErrors {
   const errors: PollFormErrors = {};
 
   if (!form.title.trim()) {
     errors.title = t('poll.create.error.titleRequired');
+  }
+
+  if (!announcementId) {
+    errors.announcement = t('poll.create.error.announcementRequired');
   }
 
   const expiresAt = new Date(form.expiresLocal);
@@ -84,7 +90,7 @@ function validate(form: PollFormState, t: TranslateFn): PollFormErrors {
   return errors;
 }
 
-export default function CreatePollModal({ open, onClose, condominiumId, announcements, onCreated }: CreatePollModalProps) {
+export default function CreatePollModal({ open, onClose, condominiumId, announcements, lockedAnnouncement = null, onCreated }: CreatePollModalProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<PollFormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<PollFormErrors>({});
@@ -119,7 +125,8 @@ export default function CreatePollModal({ open, onClose, condominiumId, announce
   };
 
   const submit = async () => {
-    const validationErrors = validate(form, t);
+    const announcementId = lockedAnnouncement?.id ?? form.announcementId;
+    const validationErrors = validate(form, announcementId, t);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {
       return;
@@ -131,7 +138,7 @@ export default function CreatePollModal({ open, onClose, condominiumId, announce
       const payload: CreatePollRequest = {
         title: form.title.trim(),
         description: form.description.trim(),
-        announcementId: form.announcementId || null,
+        announcementId: announcementId || null,
         // datetime-local is interpreted in the user's timezone; toISOString emits UTC.
         expiresAtUtc: new Date(form.expiresLocal).toISOString(),
         options: form.options
@@ -194,14 +201,19 @@ export default function CreatePollModal({ open, onClose, condominiumId, announce
           />
         </Field>
 
-        {announcements.length > 0 && (
-          <Field label={t('poll.create.field.linkAnnouncement')} htmlFor="poll-announcement">
+        {lockedAnnouncement ? (
+          <Field label={t('poll.create.field.linkAnnouncement')} htmlFor="poll-announcement-locked">
+            <Input id="poll-announcement-locked" value={lockedAnnouncement.title} readOnly disabled />
+          </Field>
+        ) : (
+          <Field label={t('poll.create.field.linkAnnouncement')} htmlFor="poll-announcement" required error={errors.announcement}>
             <Select
               id="poll-announcement"
               value={form.announcementId}
               onChange={(e) => updateField('announcementId', e.target.value)}
+              invalid={!!errors.announcement}
             >
-              <option value="">{t('poll.create.noLinkedAnnouncement')}</option>
+              <option value="">{t('poll.create.selectAnnouncement')}</option>
               {announcements.map((announcement) => (
                 <option key={announcement.id} value={announcement.id}>
                   {announcement.title.slice(0, 80)}
