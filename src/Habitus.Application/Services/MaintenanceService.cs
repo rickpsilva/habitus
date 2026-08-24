@@ -276,7 +276,7 @@ public class MaintenanceService
         // Handle expense information - always required when resolving
         if (IsCompletedStatus(entity.Status))
         {
-            if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
+            if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value < 0)
             {
                 throw new InvalidOperationException("O custo da manutenção é obrigatório quando o estado é alterado para Concluído.");
             }
@@ -312,9 +312,9 @@ public class MaintenanceService
             entity.ExpenseCategoryId = request.ExpenseCategoryId;
             if (request.HasExpense)
             {
-                if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value <= 0)
+                if (!request.ExpenseAmount.HasValue || request.ExpenseAmount.Value < 0)
                 {
-                    throw new InvalidOperationException("O valor da despesa é obrigatório e deve ser superior a 0.");
+                    throw new InvalidOperationException("O valor da despesa é obrigatório e não pode ser negativo.");
                 }
                 if (string.IsNullOrWhiteSpace(request.InvoiceDocumentId))
                 {

@@ -285,7 +285,7 @@ export default function MaintenancePage() {
     const nextStatus = normalizeMaintenanceStatus(statusForm.status);
 
     if (isCompletedStatus(nextStatus)) {
-      if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
+      if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) < 0) {
         warning(t('maintenance.error.expenseRequiredComplete'));
         return;
       }
@@ -296,7 +296,7 @@ export default function MaintenancePage() {
     }
 
     if (!isCompletedStatus(nextStatus) && statusForm.hasExpense) {
-      if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) <= 0) {
+      if (!statusForm.expenseAmount || parseFloat(statusForm.expenseAmount) < 0) {
         warning(t('maintenance.error.expenseRequired'));
         return;
       }
