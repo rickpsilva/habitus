@@ -10,6 +10,8 @@ interface PollCardProps {
   poll: PollDto;
   /** Casts a vote server-side; the parent refreshes polls afterwards. */
   onVote: (pollId: string, optionId: string) => Promise<void>;
+  /** Forces the read-only results view (e.g. announcement not published yet). */
+  votingDisabled?: boolean;
 }
 
 /** Voting stays open only while the poll is active, unclosed and untouched by this user. */
@@ -41,7 +43,7 @@ function formatRelativeClosing(isoDate: string, locale: string): string {
   return formatter.format(Math.round(diffSeconds / step.divisor), step.unit);
 }
 
-export default function PollCard({ poll, onVote }: PollCardProps) {
+export default function PollCard({ poll, onVote, votingDisabled = false }: PollCardProps) {
   const { t, language, formatDateTime } = useTranslation();
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +54,7 @@ export default function PollCard({ poll, onVote }: PollCardProps) {
   );
   const formatPercent = (value: number) => `${percentFormatter.format(value)}%`;
 
-  const votable = canReceiveVote(poll);
+  const votable = !votingDisabled && canReceiveVote(poll);
   const hasVoted = poll.myVoteOptionId != null;
   const sortedOptions = useMemo(
     () => [...poll.options].sort((a, b) => a.displayOrder - b.displayOrder),

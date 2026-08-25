@@ -1111,13 +1111,19 @@ export default function AnnouncementsPage() {
             )}
 
             {pollsEnabled && !pollsLoading && selectedPoll &&
-              (selected.status === 'Published' || selected.status === 'Archived') && (
+              (selected.status === 'Published' ||
+                selected.status === 'Archived' ||
+                selected.status === 'PendingApproval') && (
               <section className="space-y-3" aria-label={t('poll.title')}>
                 <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
                   <Vote className="w-4 h-4" aria-hidden="true" />
                   {t('poll.title')}
                 </h3>
-                <PollCard poll={selectedPoll} onVote={castVote} />
+                <PollCard
+                  poll={selectedPoll}
+                  onVote={castVote}
+                  votingDisabled={selected.status !== 'Published'}
+                />
               </section>
             )}
 
