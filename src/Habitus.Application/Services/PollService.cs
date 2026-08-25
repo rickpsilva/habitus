@@ -11,17 +11,20 @@ namespace Habitus.Application.Services;
 public class PollService : IPollService
 {
     private readonly IRepository<Poll> _pollRepository;
+    private readonly IRepository<PollOption> _optionRepository;
     private readonly IRepository<PollVote> _voteRepository;
     private readonly IRepository<Announcement> _announcementRepository;
     private readonly IRepository<User> _userRepository;
 
     public PollService(
         IRepository<Poll> pollRepository,
+        IRepository<PollOption> optionRepository,
         IRepository<PollVote> voteRepository,
         IRepository<Announcement> announcementRepository,
         IRepository<User> userRepository)
     {
         _pollRepository = pollRepository;
+        _optionRepository = optionRepository;
         _voteRepository = voteRepository;
         _announcementRepository = announcementRepository;
         _userRepository = userRepository;
@@ -29,16 +32,15 @@ public class PollService : IPollService
 
     public async Task<PollDto> CreateAsync(Guid condominiumId, Guid creatorId, CreatePollRequest request, CancellationToken ct = default)
     {
-        ValidateCreateRequest(request);
+        if (!request.AnnouncementId.HasValue)
+            throw new ArgumentException("A poll must be linked to an announcement");
 
-        await EnsureAdminAsync(creatorId);
+        await EnsureCanManagePollsAsync(condominiumId, request.AnnouncementId.Value, creatorId);
 
-        if (request.AnnouncementId.HasValue)
-        {
-            var announcement = await _announcementRepository.GetByIdAsync(request.AnnouncementId.Value);
-            if (announcement == null || announcement.CondominiumId != condominiumId)
-                throw new KeyNotFoundException("Announcement not found");
-        }
+        ValidateTitle(request.Title);
+        ValidateDescription(request.Description);
+        ValidateClosingDate(request.ClosesAtUtc);
+        ValidateOptions(request.Options);
 
         var poll = new Poll
         {
@@ -47,24 +49,62 @@ public class PollService : IPollService
             AnnouncementId = request.AnnouncementId,
             Title = request.Title.Trim(),
             Description = request.Description,
-            ExpiresAtUtc = request.ExpiresAtUtc,
+            ClosesAtUtc = request.ClosesAtUtc,
             Status = PollStatus.Active,
             CreatedByUserId = creatorId,
             CreatedAtUtc = DateTime.UtcNow,
-            Options = request.Options
-                .Select((option, index) => new PollOption
-                {
-                    Id = Guid.NewGuid(),
-                    Text = option.Text.Trim(),
-                    DisplayOrder = index
-                })
-                .ToList()
+            Options = CreateOptions(request.Options)
         };
 
         await _pollRepository.AddAsync(poll);
         await _pollRepository.SaveChangesAsync(ct);
 
         return MapToDto(poll, myVoteOptionId: null);
+    }
+
+    public async Task<PollDto> UpdateAsync(Guid condominiumId, Guid pollId, Guid userId, UpdatePollRequest request, CancellationToken ct = default)
+    {
+        var poll = await GetOwnedPollOrThrowAsync(condominiumId, pollId);
+        await EnsureCanManagePollsAsync(condominiumId, RequireAnnouncementId(poll), userId);
+
+        // Only provided fields are applied; provided fields must still be valid.
+        if (request.Title != null)
+            ValidateTitle(request.Title);
+        if (request.Description != null)
+            ValidateDescription(request.Description);
+        if (request.ClosesAtUtc.HasValue)
+            ValidateClosingDate(request.ClosesAtUtc.Value);
+        if (request.Options != null)
+            ValidateOptions(request.Options);
+
+        if (!string.IsNullOrWhiteSpace(request.Title))
+            poll.Title = request.Title.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Description))
+            poll.Description = request.Description;
+        if (request.ClosesAtUtc.HasValue)
+            poll.ClosesAtUtc = request.ClosesAtUtc.Value;
+
+        if (request.Options != null)
+        {
+            // Wholesale replacement: drop the existing options and insert the new set.
+            foreach (var existingOption in poll.Options.ToList())
+                _optionRepository.Remove(existingOption);
+            poll.Options = CreateOptions(request.Options, poll.Id);
+        }
+
+        _pollRepository.Update(poll);
+        await _pollRepository.SaveChangesAsync(ct);
+
+        return MapToDto(poll, GetMyVoteOptionId(poll, userId));
+    }
+
+    public async Task DeleteAsync(Guid condominiumId, Guid pollId, Guid userId, CancellationToken ct = default)
+    {
+        var poll = await GetOwnedPollOrThrowAsync(condominiumId, pollId);
+        await EnsureCanManagePollsAsync(condominiumId, RequireAnnouncementId(poll), userId);
+
+        _pollRepository.Remove(poll); // cascades to options and votes
+        await _pollRepository.SaveChangesAsync(ct);
     }
 
     public async Task<PaginatedResponse<PollDto>> GetPagedAsync(Guid condominiumId, Guid userId, int page, int pageSize, string? status, CancellationToken ct = default)
@@ -118,8 +158,15 @@ public class PollService : IPollService
         if (poll.Status != PollStatus.Active)
             throw new InvalidOperationException("This poll is closed");
 
-        if (poll.ExpiresAtUtc <= DateTime.UtcNow)
-            throw new InvalidOperationException("This poll has expired");
+        if (poll.ClosesAtUtc <= DateTime.UtcNow)
+            throw new InvalidOperationException("Voting for this poll is closed");
+
+        // Voting is only possible while the linked announcement remains published.
+        var announcement = poll.AnnouncementId.HasValue
+            ? await _announcementRepository.GetByIdAsync(poll.AnnouncementId.Value)
+            : null;
+        if (announcement?.Status != AnnouncementStatus.Published)
+            throw new InvalidOperationException("This poll is not open for voting");
 
         var option = poll.Options.FirstOrDefault(o => o.Id == request.PollOptionId);
         if (option == null)
@@ -153,43 +200,80 @@ public class PollService : IPollService
         return await GetByIdAsync(condominiumId, pollId, userId, ct);
     }
 
-    public async Task CloseAsync(Guid condominiumId, Guid pollId, Guid adminId, CancellationToken ct = default)
+    /// <summary>
+    /// Loads the linked announcement and enforces the poll-management rules shared by
+    /// create/update/delete: the announcement must exist in the condominium, must not be
+    /// published/archived, and the caller must be its author or a condominium administrator.
+    /// </summary>
+    private async Task EnsureCanManagePollsAsync(Guid condominiumId, Guid announcementId, Guid userId)
     {
-        var poll = await _pollRepository.GetByIdWithIncludesAsync(pollId, nameof(Poll.Options), "Options.Votes");
+        var announcement = await _announcementRepository.GetByIdAsync(announcementId);
+        if (announcement == null || announcement.CondominiumId != condominiumId)
+            throw new KeyNotFoundException("Announcement not found");
 
-        if (poll == null || poll.CondominiumId != condominiumId)
-            throw new KeyNotFoundException("Poll not found");
+        var isUnpublished = announcement.Status
+            is AnnouncementStatus.Draft
+            or AnnouncementStatus.PendingApproval
+            or AnnouncementStatus.Rejected;
+        if (!isUnpublished)
+            throw new InvalidOperationException("Polls can only be managed while the linked announcement is not published or archived");
 
-        await EnsureAdminAsync(adminId);
+        if (announcement.AuthorId == userId)
+            return;
 
-        poll.Status = PollStatus.Closed;
-        _pollRepository.Update(poll);
-        await _pollRepository.SaveChangesAsync(ct);
-    }
-
-    private async Task EnsureAdminAsync(Guid userId)
-    {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null || user.Role != UserRole.Admin)
-            throw new UnauthorizedAccessException("Only condominium administrators can perform this action");
+            throw new UnauthorizedAccessException("Only the announcement author or a condominium administrator can manage polls");
     }
 
-    private static void ValidateCreateRequest(CreatePollRequest request)
+    private async Task<Poll> GetOwnedPollOrThrowAsync(Guid condominiumId, Guid pollId)
     {
-        if (string.IsNullOrWhiteSpace(request.Title))
+        var poll = await _pollRepository.GetByIdWithIncludesAsync(pollId, nameof(Poll.Options));
+        if (poll == null || poll.CondominiumId != condominiumId)
+            throw new KeyNotFoundException("Poll not found");
+        return poll;
+    }
+
+    private static Guid RequireAnnouncementId(Poll poll) =>
+        poll.AnnouncementId ?? throw new KeyNotFoundException("Announcement not found");
+
+    private static List<PollOption> CreateOptions(List<CreatePollOptionRequest> options, Guid? pollId = null) =>
+        options
+            .Select((option, index) => new PollOption
+            {
+                Id = Guid.NewGuid(),
+                PollId = pollId ?? Guid.Empty,
+                Text = option.Text.Trim(),
+                DisplayOrder = index
+            })
+            .ToList();
+
+    private static void ValidateTitle(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title is required");
-        if (request.Title.Length > 200)
+        if (title.Length > 200)
             throw new ArgumentException("Title cannot exceed 200 characters");
-        if (string.IsNullOrWhiteSpace(request.Description))
+    }
+
+    private static void ValidateDescription(string description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description is required");
-        if (request.AnnouncementId is null)
-            throw new ArgumentException("A poll must be linked to an announcement");
-        if (request.ExpiresAtUtc <= DateTime.UtcNow)
-            throw new ArgumentException("Expiration date must be in the future");
-        if (request.Options == null || request.Options.Count < 2)
+    }
+
+    private static void ValidateClosingDate(DateTime closesAtUtc)
+    {
+        if (closesAtUtc <= DateTime.UtcNow)
+            throw new ArgumentException("Closing date must be in the future");
+    }
+
+    private static void ValidateOptions(List<CreatePollOptionRequest> options)
+    {
+        if (options == null || options.Count < 2)
             throw new ArgumentException("A poll must have at least two options");
-        if (request.Options.Any(o => string.IsNullOrWhiteSpace(o.Text))
-            || request.Options.Select(o => o.Text.Trim()).Distinct().Count() != request.Options.Count)
+        if (options.Any(o => string.IsNullOrWhiteSpace(o.Text))
+            || options.Select(o => o.Text.Trim()).Distinct().Count() != options.Count)
             throw new ArgumentException("Poll options must be non-empty and distinct");
     }
 
@@ -209,8 +293,8 @@ public class PollService : IPollService
             Title = poll.Title,
             Description = poll.Description,
             AnnouncementId = poll.AnnouncementId,
-            ExpiresAtUtc = poll.ExpiresAtUtc,
-            IsExpired = poll.ExpiresAtUtc <= DateTime.UtcNow,
+            ClosesAtUtc = poll.ClosesAtUtc,
+            IsClosed = poll.ClosesAtUtc <= DateTime.UtcNow,
             Status = poll.Status.ToString(),
             CreatedAtUtc = poll.CreatedAtUtc,
             MyVoteOptionId = myVoteOptionId,

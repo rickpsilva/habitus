@@ -18,7 +18,9 @@ public class Poll
 
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public DateTime ExpiresAtUtc { get; set; }
+
+    // Closing date: derived IsClosed when <= UtcNow (no more votes afterwards)
+    public DateTime ClosesAtUtc { get; set; }
     public PollStatus Status { get; set; } = PollStatus.Active;
 
     // Creator info

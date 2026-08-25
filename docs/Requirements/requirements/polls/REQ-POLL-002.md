@@ -22,15 +22,15 @@ testRefs:
 
 # REQ-POLL-002
 
-Residents of a condominium can cast one vote on an active poll (published and not yet expired) of their own condominium. Each vote is recorded per user; only one vote per resident per poll is allowed.
+Residents of a condominium can cast one vote on an active poll of their own condominium, but only while the linked announcement is Published and the poll's closing date has not passed. Each vote is recorded per user; only one vote per resident per poll is allowed.
 
 > Note: `implementationRefs` and `testRefs` were populated by the backend/frontend implementation and test & validation stages (2026-08-25). `designRefs` are covered by the diagrams listed in `catalog-manifest.json`.
 
 ## Acceptance Criteria
 
-- Given a published, non-expired poll in the resident's condominium, when the resident submits a vote selecting one of the poll options, then the vote is recorded with the resident identity, poll, selected option, and timestamp.
+- Given a published poll whose closing date has not passed in the resident's condominium, when the resident submits a vote selecting one of the poll options, then the vote is recorded with the resident identity, poll, selected option, and timestamp.
 - Given a resident who already voted in a poll, when they attempt to vote again in the same poll, then the API rejects the second vote (HTTP 409) and the original vote remains unchanged.
-- Given an expired or unpublished poll, when a resident attempts to vote, then the API rejects the vote.
+- Given a poll whose announcement is not Published, or whose closing date has passed, or that was manually closed, when a resident attempts to vote, then the API rejects the vote.
 - Given a user with no residency in the poll's condominium, when they attempt to vote, then the API refuses and no vote is recorded (multi-condominium isolation).
 - Given a vote submission referencing a nonexistent option or an option of another poll, when submitted, then the API rejects it with HTTP 400.
 

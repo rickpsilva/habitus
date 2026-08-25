@@ -49,6 +49,10 @@ public class PollsController : ControllerBase
         {
             return Forbid();
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
@@ -88,6 +92,62 @@ public class PollsController : ControllerBase
         }
     }
 
+    // PUT: api/condominiums/{condominiumId:guid}/polls/{id}
+    [HttpPut("{id}")]
+    public async Task<ActionResult<PollDto>> Update([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] UpdatePollRequest request)
+    {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+        var userId = GetUserId();
+
+        try
+        {
+            var dto = await _pollService.UpdateAsync(condominiumId, id, userId, request);
+            return Ok(dto);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    // DELETE: api/condominiums/{condominiumId:guid}/polls/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete([FromRoute] Guid condominiumId, [FromRoute] Guid id)
+    {
+        if (!CanAccessCondominium(condominiumId)) return Forbid();
+        var userId = GetUserId();
+
+        try
+        {
+            await _pollService.DeleteAsync(condominiumId, id, userId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
     // POST: api/condominiums/{condominiumId:guid}/polls/{id}/votes
     [HttpPost("{id}/votes")]
     public async Task<ActionResult<PollDto>> CastVote([FromRoute] Guid condominiumId, [FromRoute] Guid id, [FromBody] CastVoteRequest request)
@@ -118,31 +178,10 @@ public class PollsController : ControllerBase
         }
     }
 
-    // DELETE: api/condominiums/{condominiumId:guid}/polls/{id}
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Close([FromRoute] Guid condominiumId, [FromRoute] Guid id)
-    {
-        if (!CanAccessCondominium(condominiumId)) return Forbid();
-        var userId = GetUserId();
-
-        try
-        {
-            await _pollService.CloseAsync(condominiumId, id, userId);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    // Duplicate votes and voting on closed/expired polls are conflicting client states.
+    // Conflicting client states map to 409: duplicate votes, voting on a closed poll,
+    // or mutating a poll whose linked announcement is published/archived.
     private static bool IsConflict(string message) =>
         message.Contains("already voted", StringComparison.OrdinalIgnoreCase)
         || message.Contains("closed", StringComparison.OrdinalIgnoreCase)
-        || message.Contains("expired", StringComparison.OrdinalIgnoreCase);
+        || message.Contains("not open for voting", StringComparison.OrdinalIgnoreCase);
 }

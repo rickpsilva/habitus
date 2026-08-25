@@ -87,6 +87,7 @@ import type {
   PollsPagedResponse,
   PollStatus,
   CreatePollRequest,
+  UpdatePollRequest,
   CastVoteRequest,
   SubscriptionPlanDto,
   FeatureCatalogItemDto,
@@ -650,10 +651,13 @@ export const pollsApi = {
     api.get<PollDto>(`/condominiums/${condominiumId}/polls/${id}`),
   create: (condominiumId: string, data: CreatePollRequest) =>
     api.post<PollDto>(`/condominiums/${condominiumId}/polls`, data),
+  // Only allowed while the linked announcement is still unpublished.
+  update: (condominiumId: string, id: string, data: UpdatePollRequest) =>
+    api.put<PollDto>(`/condominiums/${condominiumId}/polls/${id}`, data),
+  remove: (condominiumId: string, id: string) =>
+    api.delete(`/condominiums/${condominiumId}/polls/${id}`),
   castVote: (condominiumId: string, id: string, data: CastVoteRequest) =>
     api.post<PollDto>(`/condominiums/${condominiumId}/polls/${id}/votes`, data),
-  close: (condominiumId: string, id: string) =>
-    api.delete(`/condominiums/${condominiumId}/polls/${id}`),
 };
 
 export const subscriptionsApi = {

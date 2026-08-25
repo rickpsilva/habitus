@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Clock, Lock, Vote, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Lock, Vote } from 'lucide-react';
 import Button from './ui/Button';
 import Badge, { type BadgeVariant } from './ui/Badge';
 import { useTranslation } from '../i18n/I18nProvider';
@@ -10,26 +10,22 @@ interface PollCardProps {
   poll: PollDto;
   /** Casts a vote server-side; the parent refreshes polls afterwards. */
   onVote: (pollId: string, optionId: string) => Promise<void>;
-  /** Soft-closes the poll (admin only). */
-  onClose?: (pollId: string) => void;
-  canManage: boolean;
 }
 
-/** Voting stays open only while the poll is active, unexpired and untouched by this user. */
+/** Voting stays open only while the poll is active, unclosed and untouched by this user. */
 function canReceiveVote(poll: PollDto): boolean {
-  return poll.status === 'Active' && !poll.isExpired && poll.myVoteOptionId == null;
+  return poll.status === 'Active' && !poll.isClosed && poll.myVoteOptionId == null;
 }
 
-function statusVariant(status: PollStatus, isExpired: boolean): BadgeVariant {
-  if (status === 'Closed') return 'neutral';
-  return isExpired ? 'warning' : 'success';
+function statusVariant(status: PollStatus): BadgeVariant {
+  return status === 'Closed' ? 'neutral' : 'success';
 }
 
 /**
- * Humanized distance to/from the expiry ("in 3 days", "há 2 horas") using
+ * Humanized distance to/from the closing time ("in 3 days", "há 2 horas") using
  * Intl.RelativeTimeFormat so wording follows the active UI language.
  */
-function formatRelativeExpiry(isoDate: string, locale: string): string {
+function formatRelativeClosing(isoDate: string, locale: string): string {
   const diffSeconds = Math.round((new Date(isoDate).getTime() - Date.now()) / 1000);
   const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 
@@ -45,7 +41,7 @@ function formatRelativeExpiry(isoDate: string, locale: string): string {
   return formatter.format(Math.round(diffSeconds / step.divisor), step.unit);
 }
 
-export default function PollCard({ poll, onVote, onClose, canManage }: PollCardProps) {
+export default function PollCard({ poll, onVote }: PollCardProps) {
   const { t, language, formatDateTime } = useTranslation();
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -63,17 +59,16 @@ export default function PollCard({ poll, onVote, onClose, canManage }: PollCardP
     [poll.options],
   );
 
-  const statusLabel =
-    poll.status === 'Closed'
-      ? t('poll.card.status.closed')
-      : poll.isExpired
-        ? t('poll.card.status.expired')
-        : t('poll.card.status.active');
+  const closed = poll.isClosed || poll.status === 'Closed';
 
-  const expiryText = poll.isExpired || poll.status === 'Closed'
-    ? t('poll.card.endedAt', { datetime: formatDateTime(poll.expiresAtUtc) })
+  const statusLabel = closed
+    ? t('poll.card.status.closed')
+    : t('poll.card.status.active');
+
+  const closingText = closed
+    ? t('poll.card.endedAt', { datetime: formatDateTime(poll.closesAtUtc) })
     : t('poll.card.endsRelative', {
-        relative: formatRelativeExpiry(poll.expiresAtUtc, LOCALE_BY_LANGUAGE[language]),
+        relative: formatRelativeClosing(poll.closesAtUtc, LOCALE_BY_LANGUAGE[language]),
       });
 
   const submitVote = async (event: React.FormEvent) => {
@@ -98,23 +93,11 @@ export default function PollCard({ poll, onVote, onClose, canManage }: PollCardP
           )}
           <p className="text-xs text-ink-subtle mt-1.5 flex items-center gap-1">
             <Clock className="w-3 h-3 shrink-0" aria-hidden="true" />
-            {expiryText}
+            {closingText}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge variant={statusVariant(poll.status, poll.isExpired)}>{statusLabel}</Badge>
-          {votable && canManage && onClose && (
-            <button
-              type="button"
-              onClick={() => onClose(poll.id)}
-              disabled={submitting}
-              className="p-2 rounded hover:bg-red-50 text-red-600 disabled:opacity-50"
-              title={t('poll.card.close')}
-              aria-label={`${t('poll.card.close')}: ${poll.title}`}
-            >
-              <XCircle className="w-4 h-4" aria-hidden="true" />
-            </button>
-          )}
+          <Badge variant={statusVariant(poll.status)}>{statusLabel}</Badge>
         </div>
       </header>
 

@@ -5,8 +5,16 @@ public class CreatePollRequest
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public Guid? AnnouncementId { get; set; }
-    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime ClosesAtUtc { get; set; }
     public List<CreatePollOptionRequest> Options { get; set; } = new();
+}
+
+public class UpdatePollRequest
+{
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public DateTime? ClosesAtUtc { get; set; }
+    public List<CreatePollOptionRequest>? Options { get; set; }
 }
 
 public class CreatePollOptionRequest

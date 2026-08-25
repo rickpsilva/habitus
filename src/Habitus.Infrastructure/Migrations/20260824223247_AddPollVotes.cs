@@ -22,7 +22,7 @@ namespace Habitus.Infrastructure.Migrations
                     AnnouncementId = table.Column<Guid>(type: "uuid", nullable: true),
                     Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
-                    ExpiresAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    ClosesAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     CreatedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
@@ -124,9 +124,9 @@ namespace Habitus.Infrastructure.Migrations
                 column: "AnnouncementId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Polls_CondominiumId_Status_ExpiresAtUtc",
+                name: "IX_Polls_CondominiumId_Status_ClosesAtUtc",
                 table: "Polls",
-                columns: new[] { "CondominiumId", "Status", "ExpiresAtUtc" });
+                columns: new[] { "CondominiumId", "Status", "ClosesAtUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Polls_CreatedByUserId",

@@ -1683,7 +1683,7 @@ namespace Habitus.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("ExpiresAtUtc")
+                    b.Property<DateTime>("ClosesAtUtc")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("Status")
@@ -1700,7 +1700,7 @@ namespace Habitus.Infrastructure.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.HasIndex("CondominiumId", "Status", "ExpiresAtUtc");
+                    b.HasIndex("CondominiumId", "Status", "ClosesAtUtc");
 
                     b.ToTable("Polls");
                 });

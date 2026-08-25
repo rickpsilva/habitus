@@ -6,8 +6,8 @@ public class PollDto
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public Guid? AnnouncementId { get; set; }
-    public DateTime ExpiresAtUtc { get; set; }
-    public bool IsExpired { get; set; }
+    public DateTime ClosesAtUtc { get; set; }
+    public bool IsClosed { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
 

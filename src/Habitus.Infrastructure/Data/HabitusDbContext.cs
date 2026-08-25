@@ -498,7 +498,7 @@ public class HabitusDbContext : DbContext
                 .HasForeignKey(p => p.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(p => new { p.CondominiumId, p.Status, p.ExpiresAtUtc });
+            entity.HasIndex(p => new { p.CondominiumId, p.Status, p.ClosesAtUtc });
             entity.HasIndex(p => p.AnnouncementId);
         });
 

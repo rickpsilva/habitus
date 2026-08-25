@@ -12,6 +12,7 @@ namespace Habitus.Tests;
 public class PollServiceTests
 {
     private readonly Mock<IRepository<Poll>> _pollRepoMock;
+    private readonly Mock<IRepository<PollOption>> _optionRepoMock;
     private readonly Mock<IRepository<PollVote>> _voteRepoMock;
     private readonly Mock<IRepository<Announcement>> _announcementRepoMock;
     private readonly Mock<IRepository<User>> _userRepoMock;
@@ -20,11 +21,13 @@ public class PollServiceTests
 
     private readonly Guid _condominiumId = Guid.NewGuid();
     private readonly Guid _adminId = Guid.NewGuid();
+    private readonly Guid _residentId = Guid.NewGuid();
     private readonly Guid _announcementId = Guid.NewGuid();
 
     public PollServiceTests()
     {
         _pollRepoMock = new Mock<IRepository<Poll>>();
+        _optionRepoMock = new Mock<IRepository<PollOption>>();
         _voteRepoMock = new Mock<IRepository<PollVote>>();
         _announcementRepoMock = new Mock<IRepository<Announcement>>();
         _userRepoMock = new Mock<IRepository<User>>();
@@ -34,23 +37,24 @@ public class PollServiceTests
         _pollRepoMock.Setup(r => r.AddAsync(It.IsAny<Poll>())).Returns(Task.CompletedTask);
         _voteRepoMock.Setup(r => r.AddAsync(It.IsAny<PollVote>())).Returns(Task.CompletedTask);
 
-        // Default: the linked announcement exists and belongs to the same condominium.
-        _announcementRepoMock.Setup(r => r.GetByIdAsync(_announcementId))
-            .ReturnsAsync(new Announcement { Id = _announcementId, CondominiumId = _condominiumId });
+        // Default: the linked announcement exists, belongs to the same condominium,
+        // is still unpublished and was authored by the default creator (admin).
+        SetupAnnouncement(AnnouncementStatus.Draft);
 
         _service = new PollService(
             _pollRepoMock.Object,
+            _optionRepoMock.Object,
             _voteRepoMock.Object,
             _announcementRepoMock.Object,
             _userRepoMock.Object);
     }
 
-    private static CreatePollRequest ValidRequest(Guid? announcementId = null, DateTime? expiresAtUtc = null) => new()
+    private static CreatePollRequest ValidRequest(Guid? announcementId = null, DateTime? closesAtUtc = null) => new()
     {
         Title = "Novo ginásio",
         Description = "Concorda com a criação do ginásio?",
         AnnouncementId = announcementId,
-        ExpiresAtUtc = expiresAtUtc ?? DateTime.UtcNow.AddDays(7),
+        ClosesAtUtc = closesAtUtc ?? DateTime.UtcNow.AddDays(7),
         Options =
         [
             new CreatePollOptionRequest { Text = "Sim" },
@@ -58,9 +62,19 @@ public class PollServiceTests
         ]
     };
 
-    private void SetupAdmin(Guid userId) =>
+    private void SetupAnnouncement(AnnouncementStatus status, Guid? authorId = null) =>
+        _announcementRepoMock.Setup(r => r.GetByIdAsync(_announcementId))
+            .ReturnsAsync(new Announcement
+            {
+                Id = _announcementId,
+                CondominiumId = _condominiumId,
+                AuthorId = authorId ?? _adminId,
+                Status = status
+            });
+
+    private void SetupUser(Guid userId, UserRole role) =>
         _userRepoMock.Setup(r => r.GetByIdAsync(userId))
-            .ReturnsAsync(new User { Id = userId, Role = UserRole.Admin, CondominiumId = _condominiumId });
+            .ReturnsAsync(new User { Id = userId, Role = role, CondominiumId = _condominiumId });
 
     private void SetupPollFetch(Poll poll)
     {
@@ -71,9 +85,10 @@ public class PollServiceTests
     private static Poll BuildPoll(
         Guid? condominiumId = null,
         PollStatus status = PollStatus.Active,
-        DateTime? expiresAtUtc = null,
+        DateTime? closesAtUtc = null,
         int optionCount = 2,
-        List<PollVote>? votes = null)
+        List<PollVote>? votes = null,
+        Guid? announcementId = null)
     {
         var condoId = condominiumId ?? Guid.NewGuid();
         var pollId = Guid.NewGuid();
@@ -81,9 +96,10 @@ public class PollServiceTests
         {
             Id = pollId,
             CondominiumId = condoId,
+            AnnouncementId = announcementId,
             Title = "Novo ginásio",
             Description = "Concorda?",
-            ExpiresAtUtc = expiresAtUtc ?? DateTime.UtcNow.AddDays(7),
+            ClosesAtUtc = closesAtUtc ?? DateTime.UtcNow.AddDays(7),
             Status = status,
             CreatedByUserId = Guid.NewGuid(),
             CreatedAtUtc = DateTime.UtcNow
@@ -110,7 +126,6 @@ public class PollServiceTests
     public async Task CreateAsync_WhenNoAnnouncementLinked_Throws()
     {
         // Arrange
-        SetupAdmin(_adminId);
         var request = ValidRequest(announcementId: null);
 
         // Act
@@ -123,11 +138,10 @@ public class PollServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenExpiresInPast_Throws()
+    public async Task CreateAsync_WhenClosesInPast_Throws()
     {
         // Arrange
-        SetupAdmin(_adminId);
-        var request = ValidRequest(announcementId: _announcementId, expiresAtUtc: DateTime.UtcNow.AddDays(-1));
+        var request = ValidRequest(announcementId: _announcementId, closesAtUtc: DateTime.UtcNow.AddDays(-1));
 
         // Act
         var act = () => _service.CreateAsync(_condominiumId, _adminId, request);
@@ -141,7 +155,6 @@ public class PollServiceTests
     public async Task CreateAsync_WithLessThanTwoDistinctOptions_Throws()
     {
         // Arrange
-        SetupAdmin(_adminId);
         var request = ValidRequest(announcementId: _announcementId);
         request.Options[1].Text = request.Options[0].Text; // duplicate text
 
@@ -156,7 +169,6 @@ public class PollServiceTests
     public async Task CreateAsync_WhenAnnouncementFromOtherCondo_Throws()
     {
         // Arrange
-        SetupAdmin(_adminId);
         var announcementId = Guid.NewGuid();
         var request = ValidRequest(announcementId: announcementId);
         _announcementRepoMock.Setup(r => r.GetByIdAsync(announcementId))
@@ -171,14 +183,28 @@ public class PollServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenNotAdmin_ThrowsUnauthorized()
+    public async Task CreateAsync_WhenPublishedAnnouncement_ThrowsConflict()
     {
         // Arrange
-        _userRepoMock.Setup(r => r.GetByIdAsync(_adminId))
-            .ReturnsAsync(new User { Id = _adminId, Role = UserRole.Resident });
+        SetupAnnouncement(AnnouncementStatus.Published);
 
         // Act
         var act = () => _service.CreateAsync(_condominiumId, _adminId, ValidRequest(announcementId: _announcementId));
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*published or archived*");
+        _pollRepoMock.Verify(r => r.AddAsync(It.IsAny<Poll>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenNotAuthorOrAdmin_ThrowsUnauthorized()
+    {
+        // Arrange
+        SetupUser(_residentId, UserRole.Resident); // announcement authored by admin by default
+
+        // Act
+        var act = () => _service.CreateAsync(_condominiumId, _residentId, ValidRequest(announcementId: _announcementId));
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
@@ -186,10 +212,25 @@ public class PollServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_WhenResidentAuthor_CreatesPoll()
+    {
+        // Arrange
+        SetupAnnouncement(AnnouncementStatus.Draft, authorId: _residentId);
+
+        // Act
+        var dto = await _service.CreateAsync(_condominiumId, _residentId, ValidRequest(announcementId: _announcementId));
+
+        // Assert
+        dto.Should().NotBeNull();
+        dto.Status.Should().Be("Active");
+        dto.AnnouncementId.Should().Be(_announcementId);
+        _pollRepoMock.Verify(r => r.AddAsync(It.IsAny<Poll>()), Times.Once);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenValid_CreatesPollWithOptions()
     {
         // Arrange
-        SetupAdmin(_adminId);
         var request = ValidRequest(announcementId: _announcementId);
 
         // Act
@@ -198,7 +239,7 @@ public class PollServiceTests
         // Assert
         dto.Should().NotBeNull();
         dto.Status.Should().Be("Active");
-        dto.IsExpired.Should().BeFalse();
+        dto.IsClosed.Should().BeFalse();
         dto.AnnouncementId.Should().Be(_announcementId);
         dto.Options.Should().HaveCount(2);
         dto.Options[0].Text.Should().Be("Sim");
@@ -212,7 +253,7 @@ public class PollServiceTests
     public async Task CreateAsync_WhenTitleExceeds200Chars_Throws()
     {
         // Arrange
-        var request = ValidRequest();
+        var request = ValidRequest(announcementId: _announcementId);
         request.Title = new string('x', 201);
 
         // Act
@@ -229,8 +270,9 @@ public class PollServiceTests
     public async Task CastVoteAsync_WhenFirstVote_RecordsVote()
     {
         // Arrange
-        var poll = BuildPoll(condominiumId: _condominiumId);
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
         SetupPollFetch(poll);
+        SetupAnnouncement(AnnouncementStatus.Published);
         _voteRepoMock.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<PollVote, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((PollVote?)null);
 
@@ -252,8 +294,9 @@ public class PollServiceTests
         var poll = BuildPoll(condominiumId: _condominiumId, votes:
         [
             new PollVote { Id = Guid.NewGuid(), PollId = Guid.NewGuid(), PollOptionId = optionId, VotedByUserId = voterId }
-        ]);
+        ], announcementId: _announcementId);
         SetupPollFetch(poll);
+        SetupAnnouncement(AnnouncementStatus.Published);
         _voteRepoMock.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<PollVote, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PollVote { Id = Guid.NewGuid(), PollId = poll.Id, PollOptionId = optionId, VotedByUserId = voterId });
 
@@ -267,10 +310,10 @@ public class PollServiceTests
     }
 
     [Fact]
-    public async Task CastVoteAsync_WhenPollExpired_Throws()
+    public async Task CastVoteAsync_WhenClosed_Throws()
     {
-        // Arrange
-        var poll = BuildPoll(condominiumId: _condominiumId, expiresAtUtc: DateTime.UtcNow.AddMinutes(-5));
+        // Arrange — closing date already passed
+        var poll = BuildPoll(condominiumId: _condominiumId, closesAtUtc: DateTime.UtcNow.AddMinutes(-5));
         SetupPollFetch(poll);
 
         // Act
@@ -278,7 +321,24 @@ public class PollServiceTests
             new CastVoteRequest { PollOptionId = poll.Options.First().Id });
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*expired*");
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*closed*");
+        _voteRepoMock.Verify(r => r.AddAsync(It.IsAny<PollVote>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CastVoteAsync_WhenAnnouncementNotPublished_Throws()
+    {
+        // Arrange
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
+        SetupPollFetch(poll);
+        SetupAnnouncement(AnnouncementStatus.Draft);
+
+        // Act
+        var act = () => _service.CastVoteAsync(_condominiumId, poll.Id, Guid.NewGuid(),
+            new CastVoteRequest { PollOptionId = poll.Options.First().Id });
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*not open for voting*");
         _voteRepoMock.Verify(r => r.AddAsync(It.IsAny<PollVote>()), Times.Never);
     }
 
@@ -286,8 +346,9 @@ public class PollServiceTests
     public async Task CastVoteAsync_WhenOptionNotInPoll_Throws()
     {
         // Arrange
-        var poll = BuildPoll(condominiumId: _condominiumId);
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
         SetupPollFetch(poll);
+        SetupAnnouncement(AnnouncementStatus.Published);
 
         // Act
         var act = () => _service.CastVoteAsync(_condominiumId, poll.Id, Guid.NewGuid(),
@@ -331,42 +392,101 @@ public class PollServiceTests
         await act.Should().ThrowAsync<KeyNotFoundException>();
     }
 
-    // ── CloseAsync ────────────────────────────────────────────────────────
+    // ── UpdateAsync ───────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CloseAsync_WhenNotAdmin_ThrowsUnauthorized()
+    public async Task UpdateAsync_WhenUnpublished_AppliesChanges()
     {
         // Arrange
-        var userId = Guid.NewGuid();
-        var poll = BuildPoll(condominiumId: _condominiumId);
-        _pollRepoMock.Setup(r => r.GetByIdWithIncludesAsync(poll.Id, nameof(Poll.Options), "Options.Votes"))
-            .ReturnsAsync(poll);
-        _userRepoMock.Setup(r => r.GetByIdAsync(userId))
-            .ReturnsAsync(new User { Id = userId, Role = UserRole.Resident });
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
+        SetupPollFetch(poll);
+        var request = new UpdatePollRequest
+        {
+            Description = "Nova descrição",
+            ClosesAtUtc = DateTime.UtcNow.AddDays(10),
+            Options = [new CreatePollOptionRequest { Text = "Sim" }, new CreatePollOptionRequest { Text = "Talvez" }]
+        };
 
         // Act
-        var act = () => _service.CloseAsync(_condominiumId, poll.Id, userId);
+        var dto = await _service.UpdateAsync(_condominiumId, poll.Id, _adminId, request);
 
-        // Assert
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
-        poll.Status.Should().Be(PollStatus.Active);
+        // Assert — title not provided, so it must remain untouched
+        poll.Title.Should().Be("Novo ginásio");
+        poll.Description.Should().Be("Nova descrição");
+        poll.Options.Select(o => o.Text).Should().BeEquivalentTo("Sim", "Talvez");
+        dto.IsClosed.Should().BeFalse();
+        _optionRepoMock.Verify(r => r.Remove(It.IsAny<PollOption>()), Times.Exactly(2));
+        _pollRepoMock.Verify(r => r.Update(poll), Times.Once);
+        _pollRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task CloseAsync_WhenValidAdmin_ClosesPoll()
+    public async Task UpdateAsync_WhenPublishedAnnouncement_ThrowsConflict()
     {
         // Arrange
-        var poll = BuildPoll(condominiumId: _condominiumId);
+        SetupAnnouncement(AnnouncementStatus.Published);
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
         SetupPollFetch(poll);
-        SetupAdmin(_adminId);
 
         // Act
-        await _service.CloseAsync(_condominiumId, poll.Id, _adminId);
+        var act = () => _service.UpdateAsync(_condominiumId, poll.Id, _adminId,
+            new UpdatePollRequest { Title = "Novo título" });
 
         // Assert
-        poll.Status.Should().Be(PollStatus.Closed);
-        _pollRepoMock.Verify(r => r.Update(poll), Times.Once);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*published or archived*");
+        _pollRepoMock.Verify(r => r.Update(It.IsAny<Poll>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenNotAuthorOrAdmin_ThrowsUnauthorized()
+    {
+        // Arrange
+        SetupAnnouncement(AnnouncementStatus.Draft, authorId: Guid.NewGuid()); // authored by someone else
+        SetupUser(_residentId, UserRole.Resident);
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
+        SetupPollFetch(poll);
+
+        // Act
+        var act = () => _service.UpdateAsync(_condominiumId, poll.Id, _residentId,
+            new UpdatePollRequest { Title = "Novo título" });
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _pollRepoMock.Verify(r => r.Update(It.IsAny<Poll>()), Times.Never);
+    }
+
+    // ── DeleteAsync ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteAsync_WhenUnpublished_RemovesPoll()
+    {
+        // Arrange
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
+        SetupPollFetch(poll);
+
+        // Act
+        await _service.DeleteAsync(_condominiumId, poll.Id, _adminId);
+
+        // Assert
+        _pollRepoMock.Verify(r => r.Remove(poll), Times.Once);
         _pollRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenNotAuthorOrAdmin_ThrowsUnauthorized()
+    {
+        // Arrange
+        SetupAnnouncement(AnnouncementStatus.Draft, authorId: Guid.NewGuid());
+        SetupUser(_residentId, UserRole.Resident);
+        var poll = BuildPoll(condominiumId: _condominiumId, announcementId: _announcementId);
+        SetupPollFetch(poll);
+
+        // Act
+        var act = () => _service.DeleteAsync(_condominiumId, poll.Id, _residentId);
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        _pollRepoMock.Verify(r => r.Remove(It.IsAny<Poll>()), Times.Never);
     }
 
     // ── GetPagedAsync ─────────────────────────────────────────────────────

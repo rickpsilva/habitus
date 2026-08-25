@@ -1125,9 +1125,10 @@ export interface PollDto {
   id: string;
   title: string;
   description: string;
-  announcementId?: string | null;
-  expiresAtUtc: string;
-  isExpired: boolean;
+  /** Polls are an add-on of an announcement; always linked. */
+  announcementId: string;
+  closesAtUtc: string;
+  isClosed: boolean;
   status: PollStatus;
   createdAtUtc: string;
   options: PollOptionDto[];
@@ -1142,9 +1143,17 @@ export interface CreatePollOptionRequest {
 export interface CreatePollRequest {
   title: string;
   description: string;
-  announcementId?: string | null;
-  expiresAtUtc: string;
+  announcementId: string;
+  closesAtUtc: string;
   options: CreatePollOptionRequest[];
+}
+
+/** All fields optional; `options` replaces the full list when provided. */
+export interface UpdatePollRequest {
+  title?: string;
+  description?: string;
+  closesAtUtc?: string;
+  options?: CreatePollOptionRequest[];
 }
 
 export interface CastVoteRequest {

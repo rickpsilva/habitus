@@ -1,42 +1,47 @@
 ---
 id: REQ-POLL-001
-title: Administrator creates a poll with description, vote options, and mandatory expiration
+title: Admins and Residents create polls as announcement add-ons with a closing date
 type: Functional
 module: Polls
 priority: High
 status: Draft
 roles:
   - Admin
+  - Resident
 relatedRequirements:
   - REQ-ANN-001
   - REQ-ANN-002
-designRefs: []
+designRefs:
+  - docs/Requirements/diagrams/data/poll-vote-er.mmd
 implementationRefs:
   - src/Habitus.Api/Controllers/PollsController.cs
   - src/Habitus.Application/Services/PollService.cs
+  - src/habitus-web/src/components/AnnouncementPollAddon.tsx
 testRefs:
   - tests/Habitus.Tests/PollServiceTests.cs
 ---
 
 # REQ-POLL-001
 
-A condominium administrator creates a poll vote linked to an announcement of the same condominium. A poll must have a description, at least two distinct vote options, and a mandatory expiration date/time. All residents of the condominium are invited to vote through the linked announcement.
+Poll votes are add-ons of announcements. Both Admins and Residents can attach a poll to an announcement they are authoring or editing, exactly like creating an announcement itself. While the announcement is not yet published (Draft, PendingApproval, Rejected), the poll add-on can be added, edited, or removed. A poll must have a description, at least two distinct vote options, and a mandatory closing date/time in the future; after the closing date no user can vote anymore.
 
-> Note: `implementationRefs` and `testRefs` were populated by the backend/frontend implementation and test & validation stages (2026-08-25). `designRefs` are covered by the diagrams listed in `catalog-manifest.json`.
+> Note: `implementationRefs` and `testRefs` were populated by the backend/frontend implementation and test & validation stages. `designRefs` are covered by the diagrams listed in `catalog-manifest.json`.
 
 ## Acceptance Criteria
 
-- Given an authenticated Admin of a condominium, when they create a poll with a description, at least two distinct vote options, and a future expiration date/time, linked to an existing announcement of the same condominium, then the poll is created and associated with that announcement and condominium.
-- Given a poll creation request without an expiration date/time, when submitted, then the API rejects it with HTTP 400 and a clear error message.
-- Given a poll creation request without an announcement link, when submitted, then the API rejects it with HTTP 400 — every poll must be anchored to an announcement so residents find it where they read communications.
-- Given a poll creation request with an expiration date/time in the past, when submitted, then the API rejects it with HTTP 400 (consistent with REQ-ANN-002 expiration semantics).
-- Given a poll creation request with fewer than two distinct vote options, when submitted, then the API rejects it with HTTP 400.
-- Given an authenticated user who is not an Admin of the target condominium, when attempting to create a poll, then the API refuses the operation and no poll is created.
-- Given an announcement that belongs to a different condominium, when an Admin tries to link a poll to it, then the operation is refused (multi-condominium isolation).
-- Given a successfully created poll, when residents of the condominium view the linked announcement, then the poll is offered to every resident of that condominium for voting.
+- Given an authenticated Admin or Resident authoring a new announcement, when they enable the "poll" add-on with a description, at least two distinct vote options, and a future closing date/time, then the poll is created linked to that announcement and condominium.
+- Given an announcement still unpublished (Draft, PendingApproval, or Rejected), when its author or a condominium Admin edits or removes its poll add-on, then the change is applied.
+- Given an announcement already Published or Archived, when anyone attempts to create, edit, or remove its poll add-on, then the API refuses the operation.
+- Given a poll creation/update without a closing date or with a past closing date, when submitted, then the API rejects it with HTTP 400.
+- Given a poll creation/update with fewer than two distinct vote options, when submitted, then the API rejects it with HTTP 400.
+- Given a poll request with no linked announcement, when submitted, then the API rejects it with HTTP 400 — every poll is anchored to an announcement.
+- Given a user who is neither the announcement author nor a condominium Admin, when attempting to manage that announcement's poll add-on, then the operation is refused.
+- Given an announcement that belongs to a different condominium, when linking a poll to it, then the operation is refused (multi-condominium isolation).
+- After the closing date has passed, no user can cast further votes on the poll.
 
 ## Quality Criteria
 
-- Unit tests cover description, announcement-link, option-count, and expiration validation.
-- Integration tests cover creation authorization and cross-condominium linkage refusal.
+- Unit tests cover description, announcement-link, option-count, and closing-date validation, plus the publication-state CRUD lock.
+- Integration tests cover creation authorization (Admin and Resident authors) and cross-condominium linkage refusal.
 - Error messages are clear and localized (pt-PT/en).
+

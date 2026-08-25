@@ -21,9 +21,9 @@ public class CreatePollRequestValidator : AbstractValidator<CreatePollRequest>
             .NotNull()
             .WithMessage("A votação deve estar associada a um comunicado.");
 
-        RuleFor(x => x.ExpiresAtUtc)
+        RuleFor(x => x.ClosesAtUtc)
             .Must(BeFutureDate)
-            .WithMessage("A data de expiração deve ser posterior à data atual.");
+            .WithMessage("A data de fecho deve ser posterior à data atual.");
 
         RuleFor(x => x.Options)
             .NotNull()
@@ -35,6 +35,48 @@ public class CreatePollRequestValidator : AbstractValidator<CreatePollRequest>
     }
 
     private static bool BeFutureDate(DateTime date) => date > DateTime.UtcNow;
+
+    private static bool HaveAtLeastTwoOptions(List<CreatePollOptionRequest>? options) =>
+        options != null && options.Count >= 2;
+
+    private static bool HaveDistinctNonEmptyTexts(List<CreatePollOptionRequest>? options)
+    {
+        if (options == null) return true;
+        return options.All(o => !string.IsNullOrWhiteSpace(o.Text))
+            && options.Select(o => o.Text.Trim()).Distinct().Count() == options.Count;
+    }
+}
+
+public class UpdatePollRequestValidator : AbstractValidator<UpdatePollRequest>
+{
+    public UpdatePollRequestValidator()
+    {
+        RuleFor(x => x.Title!)
+            .NotEmpty()
+            .WithMessage("O título é obrigatório.")
+            .MaximumLength(200)
+            .WithMessage("O título não pode exceder 200 caracteres.")
+            .When(x => x.Title != null);
+
+        RuleFor(x => x.Description!)
+            .NotEmpty()
+            .WithMessage("A descrição é obrigatória.")
+            .When(x => x.Description != null);
+
+        RuleFor(x => x.ClosesAtUtc)
+            .Must(BeFutureDate)
+            .WithMessage("A data de fecho deve ser posterior à data atual.")
+            .When(x => x.ClosesAtUtc.HasValue);
+
+        RuleFor(x => x.Options!)
+            .Must(HaveAtLeastTwoOptions)
+            .WithMessage("A votação deve ter pelo menos duas opções.")
+            .Must(HaveDistinctNonEmptyTexts)
+            .WithMessage("As opções devem ter texto não vazio e ser distintas.")
+            .When(x => x.Options != null);
+    }
+
+    private static bool BeFutureDate(DateTime? date) => date.HasValue && date.Value > DateTime.UtcNow;
 
     private static bool HaveAtLeastTwoOptions(List<CreatePollOptionRequest>? options) =>
         options != null && options.Count >= 2;
