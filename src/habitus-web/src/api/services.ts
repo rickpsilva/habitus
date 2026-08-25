@@ -83,6 +83,12 @@ import type {
   CreateAnnouncementCommentRequest,
   AnnouncementStatsDto,
   AnnouncementSettingsDto,
+  PollDto,
+  PollsPagedResponse,
+  PollStatus,
+  CreatePollRequest,
+  UpdatePollRequest,
+  CastVoteRequest,
   SubscriptionPlanDto,
   FeatureCatalogItemDto,
   CondominiumSubscriptionDto,
@@ -631,6 +637,27 @@ export const announcementsApi = {
     }),
   deleteAttachment: (condominiumId: string, announcementId: string, attachmentId: string) =>
     api.delete(`/condominiums/${condominiumId}/announcements/${announcementId}/attachments/${attachmentId}`),
+};
+
+// Polls (REQ-POLLS). The whole controller is gated by the "polls" subscription
+// feature server-side; a condominium without it receives HTTP 403.
+export const pollsApi = {
+  getPaged: (condominiumId: string, page: number = 1, pageSize: number = 10, status?: PollStatus) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (status) params.set('status', status);
+    return api.get<PollsPagedResponse>(`/condominiums/${condominiumId}/polls/paged?${params.toString()}`);
+  },
+  getById: (condominiumId: string, id: string) =>
+    api.get<PollDto>(`/condominiums/${condominiumId}/polls/${id}`),
+  create: (condominiumId: string, data: CreatePollRequest) =>
+    api.post<PollDto>(`/condominiums/${condominiumId}/polls`, data),
+  // Only allowed while the linked announcement is still unpublished.
+  update: (condominiumId: string, id: string, data: UpdatePollRequest) =>
+    api.put<PollDto>(`/condominiums/${condominiumId}/polls/${id}`, data),
+  remove: (condominiumId: string, id: string) =>
+    api.delete(`/condominiums/${condominiumId}/polls/${id}`),
+  castVote: (condominiumId: string, id: string, data: CastVoteRequest) =>
+    api.post<PollDto>(`/condominiums/${condominiumId}/polls/${id}/votes`, data),
 };
 
 export const subscriptionsApi = {

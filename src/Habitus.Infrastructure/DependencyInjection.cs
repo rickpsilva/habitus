@@ -100,6 +100,7 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<AnnouncementService>();
         services.AddScoped<IAnnouncementService>(sp => sp.GetRequiredService<AnnouncementService>());
+        services.AddScoped<IPollService, PollService>();
         services.AddScoped<MaintenanceService>();
         services.AddScoped<ReservationService>();
         services.AddScoped<FinancialService>();

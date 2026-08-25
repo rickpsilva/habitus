@@ -1,0 +1,45 @@
+erDiagram
+  CONDOMINIUM ||--o{ ANNOUNCEMENT : "publishes"
+  CONDOMINIUM ||--o{ POLL : "scopes"
+  ANNOUNCEMENT |o--o| POLL : "may carry"
+  USER ||--o{ POLL : "creates"
+  POLL ||--|{ POLL_OPTION : "offers"
+  POLL ||--o{ POLL_VOTE : "receives"
+  USER ||--o{ POLL_VOTE : "casts"
+  POLL_OPTION ||--o{ POLL_VOTE : "selected by"
+
+  ANNOUNCEMENT {
+    guid Id
+    guid CondominiumId
+    guid AuthorId
+    string Title
+    AnnouncementStatus Status
+    datetime ValidUntil "nullable expiry precedent"
+  }
+
+  POLL {
+    guid Id
+    guid CondominiumId "tenant isolation scope"
+    guid AnnouncementId "nullable; SetNull on announcement delete"
+    string Title
+    string Description "required"
+    datetime ExpiresAtUtc "mandatory future date"
+    PollStatus Status "Active or Closed (admin cancel)"
+    guid CreatedByUserId "audit field"
+    datetime CreatedAtUtc "audit field"
+  }
+
+  POLL_OPTION {
+    guid Id
+    guid PollId
+    string Text "required, unique per poll"
+    int DisplayOrder "stable rendering order"
+  }
+
+  POLL_VOTE {
+    guid Id
+    guid PollId
+    guid PollOptionId
+    guid VotedByUserId
+    datetime VotedAtUtc "audit field"
+  }

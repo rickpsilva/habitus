@@ -167,4 +167,16 @@ public class LocalizationSettingsTests
         // "maintenance" is in the hardcoded free fallback set.
         (await _service.IsFeatureEnabledForCondominiumAsync(condoId, "maintenance")).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task IsFeatureEnabled_PollsNotInHardcodedFreeFallback()
+    {
+        var condoId = Guid.NewGuid();
+        SetupActiveSubscription();
+        SetupFreePlan();
+
+        // REQ-POLL-005: polls are plan-gated (enabled only on Gold) and must
+        // not be implicitly enabled by the hardcoded free fallback set.
+        (await _service.IsFeatureEnabledForCondominiumAsync(condoId, "polls")).Should().BeFalse();
+    }
 }

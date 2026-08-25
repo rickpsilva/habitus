@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Megaphone,
@@ -15,8 +15,9 @@ import {
   Trash2,
   Image as ImageIcon,
   FileText,
+  Vote,
 } from 'lucide-react';
-import { announcementsApi } from '../api/services';
+import { announcementsApi, pollsApi, subscriptionsApi } from '../api/services';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -24,6 +25,12 @@ import ModalPopup from '../components/ModalPopup';
 import RichTextEditor from '../components/RichTextEditor';
 import RichTextDisplay from '../components/RichTextDisplay';
 import Pagination from '../components/Pagination';
+import PollCard from '../components/PollCard';
+import AnnouncementPollAddon from '../components/AnnouncementPollAddon';
+import type {
+  AnnouncementPollAddonHandle,
+} from '../components/AnnouncementPollAddon';
+import { buildPollFormState, type PollAddonSnapshot } from '../utils/pollAddonForm';
 import { PageHeader, Button, AsyncState, EmptyState, Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useTranslation } from '../i18n/I18nProvider';
@@ -42,7 +49,86 @@ import type {
   UpdateAnnouncementRequest,
   CreateAnnouncementCommentRequest,
   PaginatedResponse,
+  PollDto,
+  CreatePollRequest,
+  UpdatePollRequest,
 } from '../types';
+
+const POLLS_FETCH_SIZE = 100;
+
+/**
+ * Maps poll action failures to user-facing text. Backend bodies may be plain
+ * strings (ArgumentException) or objects with a `message`; 403 and 409 get
+ * localized overrides because the raw messages are English-only.
+ */
+function getPollApiErrorMessage(
+  error: unknown,
+  fallback: string,
+  featureUnavailable: string,
+  alreadyVoted: string,
+): string {
+  const response = (error as { response?: { status?: number; data?: unknown } })?.response;
+  if (response?.status === 403) return featureUnavailable;
+  if (response?.status === 409) return alreadyVoted;
+
+  const data: unknown = response?.data;
+  if (typeof data === 'string' && data.trim()) return data;
+
+  const message = (data as { message?: unknown } | null)?.message;
+  if (typeof message === 'string' && message.trim()) return message;
+
+  return fallback;
+}
+
+type PollSaveErrorKey = 'poll.addon.createFailed' | 'poll.addon.updateFailed' | 'poll.addon.deleteFailed';
+
+/** Options trimmed and emptied ones dropped, ready for the API payload. */
+function toOptionPayloads(snapshot: PollAddonSnapshot): { text: string }[] {
+  return snapshot.options
+    .map((text) => ({ text: text.trim() }))
+    .filter((option) => option.text.length > 0);
+}
+
+function buildPollCreatePayload(
+  announcementId: string,
+  title: string,
+  snapshot: PollAddonSnapshot,
+): CreatePollRequest {
+  return {
+    title,
+    description: snapshot.description.trim(),
+    announcementId,
+    // datetime-local is interpreted in the user's timezone; toISOString emits UTC.
+    closesAtUtc: new Date(snapshot.closesLocal).toISOString(),
+    options: toOptionPayloads(snapshot),
+  };
+}
+
+function buildPollUpdatePayload(snapshot: PollAddonSnapshot): UpdatePollRequest {
+  return {
+    description: snapshot.description.trim(),
+    closesAtUtc: new Date(snapshot.closesLocal).toISOString(),
+    options: toOptionPayloads(snapshot),
+  };
+}
+
+/** True when the editor fields differ from the poll prefilled into them. */
+function isPollAddonDirty(snapshot: PollAddonSnapshot, existing: PollDto): boolean {
+  const prefill = buildPollFormState(existing);
+  const joinedOptions = (options: string[]) => options.map((option) => option.trim()).join('\n');
+
+  return (
+    snapshot.description.trim() !== prefill.description.trim() ||
+    snapshot.closesLocal !== prefill.closesLocal ||
+    joinedOptions(snapshot.options) !== joinedOptions(prefill.options)
+  );
+}
+
+/** Localized failure message for the poll save attempted alongside the announcement save. */
+function getPollSaveErrorKey(hasExistingPoll: boolean, keepPoll: boolean): PollSaveErrorKey {
+  if (hasExistingPoll && !keepPoll) return 'poll.addon.deleteFailed';
+  return hasExistingPoll ? 'poll.addon.updateFailed' : 'poll.addon.createFailed';
+}
 
 function getCategoryLabels(t: TranslateFn): Record<string, string> {
   return {
@@ -100,7 +186,7 @@ function highlightText(text: string, query: string) {
 }
 
 export default function AnnouncementsPage() {
-  const { condominiumId, isAdmin } = useAuth();
+  const { condominiumId, isAdmin, isManager } = useAuth();
   const { error: toastError } = useToast();
   const { t, formatDate, formatDateTime } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -114,6 +200,18 @@ export default function AnnouncementsPage() {
   const [stats, setStats] = useState<AnnouncementStatsDto | null>(null);
   const [allowComments, setAllowComments] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Polls (feature "polls"). Managers bypass subscription gating, mirroring Layout.
+  // Polls are an add-on of a published announcement: they render inside its details
+  // modal, keyed by announcementId.
+  const [pollsEnabled, setPollsEnabled] = useState(isManager);
+  const [polls, setPolls] = useState<PollDto[]>([]);
+  const [pollsLoading, setPollsLoading] = useState(isManager);
+  // Poll add-on of the announcement being edited: prefill source and toggle state.
+  const [editingPoll, setEditingPoll] = useState<PollDto | null>(null);
+  const [addonEnabled, setAddonEnabled] = useState(false);
+  const [removingPollConfirmOpen, setRemovingPollConfirmOpen] = useState(false);
+  const pollAddonRef = useRef<AnnouncementPollAddonHandle | null>(null);
 
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState<AnnouncementDto | null>(null);
@@ -223,6 +321,102 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     loadData();
   }, [condominiumId, loadData]);
+
+  // Feature gate for polls: same subscription lookup Layout uses for nav items.
+  // Managers bypass it (state is already initialised from isManager); on lookup
+  // failure polls stay hidden instead of erroring.
+  useEffect(() => {
+    if (isManager) return;
+
+    let mounted = true;
+    subscriptionsApi.getMy()
+      .then((res) => {
+        if (!mounted) return;
+        setPollsEnabled(res.data.plan.features.some((f) => f.featureKey === 'polls' && f.isEnabled));
+      })
+      .catch(() => {
+        if (mounted) setPollsEnabled(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isManager, condominiumId]);
+
+  const loadPolls = useCallback(async () => {
+    if (!condominiumId || !pollsEnabled) {
+      setPolls([]);
+      setPollsLoading(false);
+      return;
+    }
+
+    setPollsLoading(true);
+    try {
+      // Single fetch: polls are matched to announcement details by id, not listed.
+      const res = await pollsApi.getPaged(condominiumId, 1, POLLS_FETCH_SIZE);
+      setPolls(res.data.items);
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 403) {
+        // Feature turned off for this plan mid-session: hide the section quietly.
+        setPollsEnabled(false);
+        return;
+      }
+      console.error('Erro ao carregar votações:', error);
+      toastError(t('poll.error.load'));
+    } finally {
+      setPollsLoading(false);
+    }
+  }, [condominiumId, pollsEnabled, t, toastError]);
+
+  useEffect(() => {
+    void loadPolls();
+  }, [loadPolls]);
+
+  const castVote = async (pollId: string, optionId: string) => {
+    if (!condominiumId) return;
+
+    try {
+      await pollsApi.castVote(condominiumId, pollId, { pollOptionId: optionId });
+      await loadPolls();
+    } catch (error) {
+      toastError(
+        getPollApiErrorMessage(
+          error,
+          t('poll.error.vote'),
+          t('poll.error.featureUnavailable'),
+          t('poll.error.alreadyVoted'),
+        ),
+      );
+    }
+  };
+
+  /**
+   * Creates/updates/deletes the announcement's poll add-on after the announcement
+   * itself was saved. A failure surfaces a toast but never rolls back the announcement.
+   */
+  const applyEditorPollChanges = async (announcementId: string, title: string, snapshot: PollAddonSnapshot) => {
+    if (!condominiumId) return;
+
+    const existing = editingPoll;
+    if (!snapshot.enabled && !existing) return;
+
+    try {
+      if (existing && !snapshot.enabled) {
+        await pollsApi.remove(condominiumId, existing.id);
+      } else if (!snapshot.enabled) {
+        return;
+      } else if (existing) {
+        if (!isPollAddonDirty(snapshot, existing)) return;
+        await pollsApi.update(condominiumId, existing.id, buildPollUpdatePayload(snapshot));
+      } else {
+        await pollsApi.create(condominiumId, buildPollCreatePayload(announcementId, title, snapshot));
+      }
+      await loadPolls();
+    } catch (error) {
+      console.error('Erro ao guardar a votação:', error);
+      toastError(t(getPollSaveErrorKey(existing !== null, snapshot.enabled)));
+    }
+  };
 
   useEffect(() => {
     if (!condominiumId) return;
@@ -354,6 +548,9 @@ export default function AnnouncementsPage() {
       validUntil: undefined,
       publishImmediately: false,
     });
+    setEditingPoll(null);
+    setAddonEnabled(false);
+    setRemovingPollConfirmOpen(false);
     setEditing(null);
     setFiles([]);
   };
@@ -370,11 +567,21 @@ export default function AnnouncementsPage() {
       content: a.content,
       category: a.category,
       isAnonymous: a.isAnonymous,
-      validUntil: a.validUntil ? a.validUntil.slice(0, 16) : undefined,
       publishImmediately: false,
     });
+    setEditingPoll(polls.find((poll) => poll.announcementId === a.id) ?? null);
+    setAddonEnabled(polls.some((poll) => poll.announcementId === a.id));
     setFiles([]);
     setShowEditor(true);
+  };
+
+  /** Unchecking/removing an existing poll asks for confirmation before it takes effect. */
+  const handleAddonEnabledChange = (next: boolean) => {
+    if (!next && editing && editingPoll) {
+      setRemovingPollConfirmOpen(true);
+      return;
+    }
+    setAddonEnabled(next);
   };
 
   const submitForm = async (publishImmediately: boolean) => {
@@ -385,6 +592,10 @@ export default function AnnouncementsPage() {
       toastError(t('announcements.error.fileExceedsLimit', { name: oversizedFile.name, limit: formatUploadSizeLabel(maxUploadSizeBytes) }));
       return;
     }
+
+    const pollAddon = pollAddonRef.current;
+    if (pollAddon && !pollAddon.validate()) return;
+    const pollSnapshot = pollAddon?.getSnapshot() ?? null;
 
     setSubmitting(true);
     try {
@@ -411,6 +622,11 @@ export default function AnnouncementsPage() {
           }
         }
 
+        if (pollSnapshot) {
+          // Poll sync runs before a possible publish: it is only allowed while unpublished.
+          await applyEditorPollChanges(editing.id, form.title, pollSnapshot);
+        }
+
         if (publishImmediately) {
           await announcementsApi.publish(condominiumId, editing.id);
         }
@@ -420,6 +636,10 @@ export default function AnnouncementsPage() {
           publishImmediately,
         };
         const created = await announcementsApi.create(condominiumId, payload);
+
+        if (pollSnapshot?.enabled) {
+          await applyEditorPollChanges(created.data.id, created.data.title, pollSnapshot);
+        }
 
         if (files.length > 0) {
           setUploadingFiles(true);
@@ -538,6 +758,15 @@ export default function AnnouncementsPage() {
   };
 
   const pendingCount = stats?.pendingApproval ?? 0;
+
+  // Polls surface as an add-on of their linked announcement's details.
+  const pollsByAnnouncementId = useMemo(
+    () => new Map(polls.map((poll) => [poll.announcementId, poll])),
+    [polls],
+  );
+  const selectedPoll = selected && pollsEnabled
+    ? pollsByAnnouncementId.get(selected.id) ?? null
+    : null;
 
   return (
     <div className="space-y-5">
@@ -784,6 +1013,17 @@ export default function AnnouncementsPage() {
               )}
             </div>
 
+            {pollsEnabled && (
+              <AnnouncementPollAddon
+                key={editing?.id ?? 'new'}
+                ref={pollAddonRef}
+                mode={editing ? 'edit' : 'create'}
+                enabled={addonEnabled}
+                onEnabledChange={handleAddonEnabledChange}
+                existingPoll={editingPoll}
+              />
+            )}
+
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="secondary" onClick={() => { setShowEditor(false); resetForm(); }}>{t('common.cancel')}</Button>
               <Button
@@ -868,6 +1108,23 @@ export default function AnnouncementsPage() {
                   })}
                 </div>
               </div>
+            )}
+
+            {pollsEnabled && !pollsLoading && selectedPoll &&
+              (selected.status === 'Published' ||
+                selected.status === 'Archived' ||
+                selected.status === 'PendingApproval') && (
+              <section className="space-y-3" aria-label={t('poll.title')}>
+                <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
+                  <Vote className="w-4 h-4" aria-hidden="true" />
+                  {t('poll.title')}
+                </h3>
+                <PollCard
+                  poll={selectedPoll}
+                  onVote={castVote}
+                  votingDisabled={selected.status !== 'Published'}
+                />
+              </section>
             )}
 
             {selected.status === 'Published' && allowComments && (
@@ -971,6 +1228,19 @@ export default function AnnouncementsPage() {
               </Button>
             </div>
       </ModalPopup>
+
+      <ConfirmModal
+        open={removingPollConfirmOpen}
+        title={t('poll.addon.removeTitle')}
+        message={t('poll.addon.removeMessage')}
+        confirmLabel={t('poll.addon.remove')}
+        variant="danger"
+        onConfirm={() => {
+          setAddonEnabled(false);
+          setRemovingPollConfirmOpen(false);
+        }}
+        onCancel={() => setRemovingPollConfirmOpen(false)}
+      />
     </div>
   );
 }

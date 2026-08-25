@@ -256,6 +256,41 @@
         "diagrams/data/expense-categories.mmd",
         "diagrams/sequences/maintenance-expense-category-selection.mmd"
       ]
+    },
+    {
+      "id": "REQ-POLL-001",
+      "file": "requirements/polls/REQ-POLL-001.md",
+      "diagrams": [
+        "diagrams/data/poll-vote-er.mmd",
+        "diagrams/sequences/poll-create-vote-flow.mmd"
+      ]
+    },
+    {
+      "id": "REQ-POLL-002",
+      "file": "requirements/polls/REQ-POLL-002.md",
+      "diagrams": [
+        "diagrams/sequences/poll-create-vote-flow.mmd"
+      ]
+    },
+    {
+      "id": "REQ-POLL-003",
+      "file": "requirements/polls/REQ-POLL-003.md",
+      "diagrams": [
+        "diagrams/data/poll-vote-er.mmd"
+      ]
+    },
+    {
+      "id": "REQ-POLL-004",
+      "file": "requirements/polls/REQ-POLL-004.md",
+      "diagrams": [
+        "diagrams/data/poll-vote-er.mmd",
+        "diagrams/sequences/poll-create-vote-flow.mmd"
+      ]
+    },
+    {
+      "id": "REQ-POLL-005",
+      "file": "requirements/polls/REQ-POLL-005.md",
+      "diagrams": []
     }
   ]
 }

@@ -44,6 +44,9 @@ public class HabitusDbContext : DbContext
     public DbSet<LocalizationSettings> LocalizationSettings => Set<LocalizationSettings>();
     public DbSet<QuotaPlan> QuotaPlans => Set<QuotaPlan>();    public DbSet<QuotaCalculation> QuotaCalculations => Set<QuotaCalculation>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<Poll> Polls => Set<Poll>();
+    public DbSet<PollOption> PollOptions => Set<PollOption>();
+    public DbSet<PollVote> PollVotes => Set<PollVote>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
     public DbSet<CondominiumSubscription> CondominiumSubscriptions => Set<CondominiumSubscription>();
@@ -472,6 +475,74 @@ public class HabitusDbContext : DbContext
             entity.HasIndex(a => new { a.CondominiumId, a.Status, a.IsPinned, a.PublishedAt });
         });
 
+        // Configure Poll relationships and indexes for the vote feature
+        modelBuilder.Entity<Poll>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Title).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.Description).IsRequired();
+
+            entity.HasOne(p => p.Condominium)
+                .WithMany()
+                .HasForeignKey(p => p.CondominiumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.Announcement)
+                .WithMany()
+                .HasForeignKey(p => p.AnnouncementId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Matches Announcement → Author convention (required FK, cascade)
+            entity.HasOne(p => p.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(p => p.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(p => new { p.CondominiumId, p.Status, p.ClosesAtUtc });
+            entity.HasIndex(p => p.AnnouncementId);
+        });
+
+        modelBuilder.Entity<PollOption>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.Property(o => o.Text).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(o => o.Poll)
+                .WithMany(p => p.Options)
+                .HasForeignKey(o => o.PollId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(o => new { o.PollId, o.DisplayOrder });
+        });
+
+        modelBuilder.Entity<PollVote>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+
+            // One vote per user per poll
+            entity.HasIndex(v => new { v.PollId, v.VotedByUserId })
+                .IsUnique()
+                .HasDatabaseName("IX_PollVotes_PollId_VotedByUserId");
+
+            entity.HasOne(v => v.Poll)
+                .WithMany(p => p.Votes)
+                .HasForeignKey(v => v.PollId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(v => v.PollOption)
+                .WithMany(o => o.Votes)
+                .HasForeignKey(v => v.PollOptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Matches other user FKs (required, cascade by convention)
+            entity.HasOne(v => v.VotedByUser)
+                .WithMany()
+                .HasForeignKey(v => v.VotedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(v => new { v.PollId, v.PollOptionId });
+        });
+
         // Configure Notification relationships
         modelBuilder.Entity<Notification>(entity =>
         {
@@ -633,6 +704,7 @@ public class HabitusDbContext : DbContext
                 new PlanFeature { Id = new Guid("f1000001-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
                 new PlanFeature { Id = new Guid("f1000002-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
                 new PlanFeature { Id = new Guid("f1000003-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "documents",              FeatureLabel = "Documentos (até 10)",       IsEnabled = true },
+                new PlanFeature { Id = new Guid("f1000004-0000-0000-0000-000000000000"), PlanId = freePlanId,   FeatureKey = "polls",                  FeatureLabel = "Votações",                  IsEnabled = false },
                 // Silver
                 new PlanFeature { Id = new Guid("f2000001-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
                 new PlanFeature { Id = new Guid("f2000002-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
@@ -641,6 +713,7 @@ public class HabitusDbContext : DbContext
                 new PlanFeature { Id = new Guid("f2000005-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "financial",              FeatureLabel = "Gestão Financeira",         IsEnabled = true },
                 new PlanFeature { Id = new Guid("f2000006-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "assemblies",             FeatureLabel = "Assembleias",               IsEnabled = true },
                 new PlanFeature { Id = new Guid("f2000007-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "email_notifications",    FeatureLabel = "Notificações por Email",    IsEnabled = true },
+                new PlanFeature { Id = new Guid("f2000008-0000-0000-0000-000000000000"), PlanId = silverPlanId, FeatureKey = "polls",                  FeatureLabel = "Votações",                  IsEnabled = false },
                 // Gold
                 new PlanFeature { Id = new Guid("f3000001-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "maintenance",            FeatureLabel = "Manutenção",                IsEnabled = true },
                 new PlanFeature { Id = new Guid("f3000002-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "announcements",          FeatureLabel = "Comunicados",               IsEnabled = true },
@@ -651,7 +724,8 @@ public class HabitusDbContext : DbContext
                 new PlanFeature { Id = new Guid("f3000007-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "email_notifications",    FeatureLabel = "Notificações por Email",    IsEnabled = true },
                 new PlanFeature { Id = new Guid("f3000008-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "analytics",              FeatureLabel = "Analytics Avançado",        IsEnabled = true },
                 new PlanFeature { Id = new Guid("f3000009-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "whatsapp_notifications", FeatureLabel = "Notificações WhatsApp",     IsEnabled = true },
-                new PlanFeature { Id = new Guid("f3000010-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "api_access",             FeatureLabel = "Acesso à API REST",         IsEnabled = true }
+                new PlanFeature { Id = new Guid("f3000010-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "api_access",             FeatureLabel = "Acesso à API REST",         IsEnabled = true },
+                new PlanFeature { Id = new Guid("f3000011-0000-0000-0000-000000000000"), PlanId = goldPlanId,   FeatureKey = "polls",                  FeatureLabel = "Votações",                  IsEnabled = true }
             );
         });
 
