@@ -7,13 +7,19 @@ import { useTranslation } from '../i18n/I18nProvider';
 import { Button } from './ui';
 import ConfirmModal from './ConfirmModal';
 
+function isImpersonationExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  const expiresAtMs = parseInt(expiresAt, 10) * 1000;
+  return !Number.isNaN(expiresAtMs) && expiresAtMs <= Date.now();
+}
+
 export function ImpersonationBanner() {
   const { impersonation, endImpersonation } = useAuth();
   const { error: toastError } = useToast();
   const { t } = useTranslation();
   const [showConfirm, setShowConfirm] = useState(false);
 
-  if (!impersonation.isImpersonating) {
+  if (!impersonation.isImpersonating || isImpersonationExpired(impersonation.expiresAt)) {
     return null;
   }
 

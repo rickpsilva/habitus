@@ -5,7 +5,7 @@ import type { TranslationKey } from './pt';
 // time so a missing key breaks the build rather than rendering blank.
 export const en: Record<TranslationKey, string> = {
   // Shared / common
-  'common.appName': 'Habitus',
+  'common.appName': 'HabitusCond',
   'common.appTagline': 'Condominium Management',
   'common.fraction': 'Unit {number}',
   'common.viewAll': 'View all',
@@ -315,10 +315,10 @@ export const en: Record<TranslationKey, string> = {
 
   // Consent (consent-required page + profile privacy tab)
   'consent.requiredTitle': 'Consent required',
-  'consent.requiredSubtitle': 'To continue using Habitus, you must accept the mandatory consents listed below.',
-  'consent.descTerms': 'By accepting, you agree to the Habitus platform usage rules and the rights and duties associated with your account.',
+  'consent.requiredSubtitle': 'To continue using HabitusCond, you must accept the mandatory consents listed below.',
+  'consent.descTerms': 'By accepting, you agree to the HabitusCond platform usage rules and the rights and duties associated with your account.',
   'consent.descPrivacy': 'By accepting, you authorize the processing of your personal data in accordance with the Privacy Policy and GDPR.',
-  'consent.descDefault': 'By accepting, you agree to the indicated terms in order to continue using Habitus.',
+  'consent.descDefault': 'By accepting, you agree to the indicated terms in order to continue using HabitusCond.',
   'consent.viewDocument': 'View document',
   'consent.readDetails': 'Read details',
   'consent.detailsTitle': 'Consent details',
@@ -1014,7 +1014,7 @@ export const en: Record<TranslationKey, string> = {
   'condoSettings.billing.checkoutName': 'Platform Checkout',
   'condoSettings.billing.checkoutDesc': 'Used for online payment of subscription invoices',
   'condoSettings.billing.globalConfigTitle': 'Global configuration',
-  'condoSettings.billing.globalConfigDesc': 'These credentials belong to the Habitus platform, not to the individual settings of each condominium.',
+  'condoSettings.billing.globalConfigDesc': 'These credentials belong to the HabitusCond platform, not to the individual settings of each condominium.',
   'condoSettings.billing.secretConfiguredPlaceholder': 'Already configured. Fill in to replace.',
   'condoSettings.billing.webhookConfiguredPlaceholder': 'Already configured. Fill in to replace.',
   'condoSettings.billing.configuredF': 'Configured',

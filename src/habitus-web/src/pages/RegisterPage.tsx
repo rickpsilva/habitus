@@ -127,7 +127,7 @@ export default function RegisterPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-lg mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-ink">Habitus</h1>
+          <h1 className="text-3xl font-bold text-ink">{t('common.appName')}</h1>
           <p className="text-ink-subtle mt-1">{t('common.appTagline')}</p>
         </div>
 

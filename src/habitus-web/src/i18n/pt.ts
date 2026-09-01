@@ -4,7 +4,7 @@
 // wording of each externalized screen.
 export const pt = {
   // Shared / common
-  'common.appName': 'Habitus',
+  'common.appName': 'HabitusCond',
   'common.appTagline': 'Gestão de Condomínio',
   'common.fraction': 'Fração {number}',
   'common.viewAll': 'Ver todos',
@@ -314,10 +314,10 @@ export const pt = {
 
   // Consent (consent-required page + profile privacy tab)
   'consent.requiredTitle': 'Consentimento necessário',
-  'consent.requiredSubtitle': 'Para continuar a utilizar o Habitus, é necessário aceitar os consentimentos obrigatórios indicados abaixo.',
-  'consent.descTerms': 'Ao aceitar, concorda com as regras de utilização da plataforma Habitus e com os direitos e deveres associados à sua conta.',
+  'consent.requiredSubtitle': 'Para continuar a utilizar o HabitusCond, é necessário aceitar os consentimentos obrigatórios indicados abaixo.',
+  'consent.descTerms': 'Ao aceitar, concorda com as regras de utilização da plataforma HabitusCond e com os direitos e deveres associados à sua conta.',
   'consent.descPrivacy': 'Ao aceitar, autoriza o tratamento dos seus dados pessoais de acordo com a Política de Privacidade e o RGPD.',
-  'consent.descDefault': 'Ao aceitar, concorda com os termos indicados para poder continuar a utilizar o Habitus.',
+  'consent.descDefault': 'Ao aceitar, concorda com os termos indicados para poder continuar a utilizar o HabitusCond.',
   'consent.viewDocument': 'Consultar documento',
   'consent.readDetails': 'Ler detalhes',
   'consent.detailsTitle': 'Detalhes do consentimento',
@@ -1013,7 +1013,7 @@ export const pt = {
   'condoSettings.billing.checkoutName': 'Checkout da Plataforma',
   'condoSettings.billing.checkoutDesc': 'Usado no pagamento online das faturas de subscrição',
   'condoSettings.billing.globalConfigTitle': 'Configuração global',
-  'condoSettings.billing.globalConfigDesc': 'Estas credenciais pertencem à plataforma Habitus e não às definições individuais de cada condomínio.',
+  'condoSettings.billing.globalConfigDesc': 'Estas credenciais pertencem à plataforma HabitusCond e não às definições individuais de cada condomínio.',
   'condoSettings.billing.secretConfiguredPlaceholder': 'Já configurada. Preencha para substituir.',
   'condoSettings.billing.webhookConfiguredPlaceholder': 'Já configurado. Preencha para substituir.',
   'condoSettings.billing.configuredF': 'Configurada',

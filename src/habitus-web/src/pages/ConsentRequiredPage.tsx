@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ExternalLink, BookOpen } from 'lucide-react';
 import { meApi } from '../api/services';
 import { AsyncState, Button } from '../components/ui';
+import RichTextDisplay from '../components/RichTextDisplay';
 import ModalPopup from '../components/ModalPopup';
 import { useTranslation } from '../i18n/I18nProvider';
 import type { TranslationKey } from '../i18n/types';
@@ -189,9 +190,7 @@ export default function ConsentRequiredPage() {
         title={detailConsent ? titleFor(detailConsent) : t('consent.detailsTitle')}
         maxWidthClass="max-w-2xl"
       >
-        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-muted">
-          {detailConsent?.body}
-        </div>
+        <RichTextDisplay content={detailConsent?.body ?? ''} />
       </ModalPopup>
     </div>
   );
