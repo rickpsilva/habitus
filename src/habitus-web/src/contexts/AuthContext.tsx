@@ -73,6 +73,28 @@ function getInitialImpersonationState(): ImpersonationState {
   };
 }
 
+function isImpersonationExpired(state: ImpersonationState): boolean {
+  if (!state.isImpersonating || !state.expiresAt) return true;
+  const expiresAtMs = parseInt(state.expiresAt, 10) * 1000;
+  return Number.isNaN(expiresAtMs) || expiresAtMs <= Date.now();
+}
+
+function loadPersistedImpersonationState(): ImpersonationState {
+  const stored = localStorage.getItem('impersonation');
+  if (!stored) return getInitialImpersonationState();
+  try {
+    const parsed = JSON.parse(stored) as ImpersonationState;
+    if (isImpersonationExpired(parsed)) {
+      localStorage.removeItem('impersonation');
+      return getInitialImpersonationState();
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem('impersonation');
+    return getInitialImpersonationState();
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthResponse | null>(() => {
     const stored = localStorage.getItem('user');
@@ -83,20 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Corrupted persisted session: treat as logged-out and clear bad keys.
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      localStorage.removeItem('impersonation');
       return null;
     }
   });
 
-  const [impersonation, setImpersonation] = useState<ImpersonationState>(() => {
-    const stored = localStorage.getItem('impersonation');
-    if (!stored) return getInitialImpersonationState();
-    try {
-      return JSON.parse(stored) as ImpersonationState;
-    } catch {
-      localStorage.removeItem('impersonation');
-      return getInitialImpersonationState();
-    }
-  });
+  const [impersonation, setImpersonation] = useState<ImpersonationState>(loadPersistedImpersonationState);
 
   // Sync impersonation state to localStorage
   useEffect(() => {
@@ -110,7 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (userData: AuthResponse) => {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData));
+    // A fresh login replaces any previous session, including stale impersonation
+    // state that may still be lingering in localStorage from a closed browser.
+    localStorage.removeItem('impersonation');
     setUser(userData);
+    setImpersonation(getInitialImpersonationState());
   };
 
   const logout = () => {

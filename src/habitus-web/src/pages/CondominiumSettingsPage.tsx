@@ -452,7 +452,7 @@ function PlatformBillingContent() {
                 type="text"
                 value={form.merchantDisplayName || ''}
                 onChange={(e) => setForm({ ...form, merchantDisplayName: e.target.value })}
-                placeholder="Habitus Billing"
+                placeholder="HabitusCond Billing"
                 className="w-full px-3 py-2 border border-line rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>

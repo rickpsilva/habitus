@@ -363,7 +363,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-600 shrink-0">
               <Building2 className="w-5 h-5 text-white" />
             </div>
-            <span className={`text-lg font-bold text-ink ${collapsed ? 'lg:hidden' : ''}`}>Habitus</span>
+            <span className={`text-lg font-bold text-ink ${collapsed ? 'lg:hidden' : ''}`}>{t('common.appName')}</span>
             <button
               className="ml-auto hidden lg:flex text-ink-subtle hover:text-ink-muted"
               onClick={toggleCollapsed}
@@ -525,7 +525,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-2 mx-auto">
             <Building2 className="w-5 h-5 text-indigo-600" />
-            <span className="font-bold text-ink">Habitus</span>
+            <span className="font-bold text-ink">{t('common.appName')}</span>
           </div>
           <button
             onClick={() => setPaletteOpen(true)}

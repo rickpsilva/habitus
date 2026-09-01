@@ -12,6 +12,7 @@ import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { PageHeader, Spinner, Button, Card, Skeleton, Badge, AsyncState, FilterBar, FilterChip } from '../components/ui';
+import RichTextDisplay from '../components/RichTextDisplay';
 import { getIsDarkMode, onThemeChanged, toggleTheme } from '../utils/theme';
 import { getCookieConsent, setCookieConsent } from '../utils/cookieConsent';
 import type { CookieConsent } from '../utils/cookieConsent';
@@ -289,7 +290,7 @@ export default function ProfilePage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `habitus-export-${stamp}.json`;
+      anchor.download = `habituscond-export-${stamp}.json`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -1846,9 +1847,7 @@ export default function ProfilePage() {
         }
         maxWidthClass="max-w-2xl"
       >
-        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-muted">
-          {detailConsent?.body}
-        </div>
+        <RichTextDisplay content={detailConsent?.body ?? ''} />
       </ModalPopup>
     </div>
   );
