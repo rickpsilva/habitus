@@ -727,8 +727,8 @@ export default function MaintenancePage() {
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle">€</span>
                             <input
                               type="number"
-                              step="0.01"
-                              min="0.01"
+                              step="0.0"
+                              min="0.0"
                               value={statusForm.expenseAmount}
                               onChange={(e) => setStatusForm({ ...statusForm, expenseAmount: e.target.value })}
                               required
